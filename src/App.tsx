@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { StudentDashboard } from './pages/StudentDashboard';
+import { Home } from './pages/Home';
 
 export function App() {
   return (
@@ -13,7 +14,7 @@ export function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/" element={<div className="min-h-screen bg-slate-950 p-8 text-white">CUT / CRAFT</div>} />
+          <Route path="/" element={<Home />} />
           
           {/* Protected Student Routes */}
           <Route 
@@ -26,7 +27,7 @@ export function App() {
           />
           
           {/* Fallback */}
-          <Route path="*" element={<div className="p-8 text-white">404 Not Found</div>} />
+          <Route path="*" element={<div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] p-8 text-center"><div><p className="text-sm font-black uppercase tracking-[0.16em] text-orange-500">404</p><h1 className="mt-3 text-4xl font-black text-slate-950">That frame is missing.</h1><a href="/" className="mt-6 inline-block text-sm font-bold text-orange-600">Back to home</a></div></div>} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

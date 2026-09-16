@@ -1,0 +1,27 @@
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { ArrowUpRight, LoaderCircle } from 'lucide-react';
+
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'dark';
+
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: ReactNode;
+  variant?: ButtonVariant;
+  href?: string;
+  loading?: boolean;
+  withArrow?: boolean;
+}
+
+const variants: Record<ButtonVariant, string> = {
+  primary: 'bg-orange-500 text-white shadow-lg shadow-orange-500/20 hover:bg-orange-600',
+  secondary: 'border border-slate-200 bg-white text-slate-900 hover:border-orange-300 hover:text-orange-600',
+  ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+  dark: 'bg-slate-950 text-white shadow-lg shadow-slate-950/15 hover:bg-slate-800',
+};
+
+export function Button({ children, variant = 'primary', href, loading = false, withArrow = false, className = '', disabled, ...props }: ButtonProps) {
+  const content = <>{loading ? <LoaderCircle className="animate-spin" size={17} /> : children}{withArrow && !loading && <ArrowUpRight size={17} />}</>;
+  const classes = `inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`;
+
+  if (href) return <a className={classes} href={href}>{content}</a>;
+  return <button className={classes} disabled={disabled || loading} {...props}>{content}</button>;
+}

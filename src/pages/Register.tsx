@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { Button } from '../components/ui/Button';
+import { FormField } from '../components/ui/FormField';
 
 export const Register: React.FC = () => {
   const [fullName, setFullName] = useState('');
@@ -36,64 +38,6 @@ export const Register: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4 text-white">
-      <div className="w-full max-w-md rounded-2xl bg-gray-900 p-8 border border-gray-800 shadow-xl">
-        <h2 className="text-2xl font-bold mb-6 text-center">Join Video Editing Cohort</h2>
-        {error && <div className="mb-4 rounded bg-red-500/10 p-3 text-sm text-red-400 border border-red-500/20">{error}</div>}
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Full Name</label>
-            <input
-              type="text"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">I want to join as</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as 'student' | 'mentor')}
-              className="w-full rounded-lg bg-gray-800 border border-gray-700 px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
-            >
-              <option value="student">Student</option>
-              <option value="mentor">Mentor</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 py-2.5 font-semibold text-white hover:bg-indigo-500 transition disabled:opacity-50"
-          >
-            {loading ? 'Creating account...' : 'Sign Up'}
-          </button>
-        </form>
-        <p className="mt-4 text-center text-sm text-gray-400">
-          Already have an account? <Link to="/login" className="text-indigo-400 hover:underline">Log in</Link>
-        </p>
-      </div>
-    </div>
+    <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] px-5 py-12"><div className="w-full max-w-md"><Link to="/" className="mx-auto mb-8 block w-fit text-sm font-black tracking-tight text-slate-950">CUT / CRAFT</Link><div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-900/5 sm:p-9"><p className="eyebrow">Join the next cohort</p><h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950">Make room for better work.</h1><p className="mt-2 text-sm leading-6 text-slate-500">Create your account and start your 30-day sprint.</p>{error && <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}<form onSubmit={handleRegister} className="mt-7 space-y-5"><FormField id="full-name" label="Full name" type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Alex Editor" /><FormField id="register-email" label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" /><FormField id="register-password" label="Password" type="password" minLength={6} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" /><label className="block text-left"><span className="mb-2 block text-sm font-bold text-slate-700">I&apos;m joining as</span><select value={role} onChange={(e) => setRole(e.target.value as 'student' | 'mentor')} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"><option value="student">Student</option><option value="mentor">Mentor</option></select></label><Button type="submit" className="w-full" loading={loading}>{loading ? 'Creating account' : 'Create my account'}</Button></form><p className="mt-6 text-center text-sm text-slate-500">Already inside? <Link to="/login" className="font-bold text-orange-600 hover:text-orange-700">Log in</Link></p></div></div></div>
   );
 };

@@ -1,0 +1,10 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Menu, Sparkles, X } from 'lucide-react';
+import { Button } from './ui/Button';
+
+export function SiteHeader() {
+  const [open, setOpen] = useState(false);
+  const links = [{ label: 'Roadmap', href: '#roadmap' }, { label: 'How it works', href: '#how-it-works' }, { label: 'Pricing', href: '#pricing' }, { label: 'FAQ', href: '#faq' }];
+  return <header className="absolute inset-x-0 top-0 z-30"><div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8"><Link to="/" className="flex items-center gap-3 text-slate-950"><span className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white"><Sparkles size={18} /></span><span className="text-sm font-black tracking-tight">CUT / CRAFT</span></Link><nav className="hidden items-center gap-8 lg:flex">{links.map((link) => <a key={link.href} className="text-sm font-semibold text-slate-500 transition hover:text-slate-950" href={link.href}>{link.label}</a>)}</nav><div className="hidden items-center gap-3 lg:flex"><Link to="/login" className="px-3 py-2 text-sm font-bold text-slate-600 hover:text-slate-950">Log in</Link><Button href="/register" withArrow>Join the cohort</Button></div><button onClick={() => setOpen(!open)} className="rounded-lg p-2 text-slate-700 lg:hidden" aria-label="Toggle navigation">{open ? <X /> : <Menu />}</button></div>{open && <div className="mx-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl lg:hidden"><nav className="grid gap-1">{links.map((link) => <a key={link.href} onClick={() => setOpen(false)} className="rounded-lg px-3 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50" href={link.href}>{link.label}</a>)}<Link className="rounded-lg px-3 py-3 text-sm font-bold text-slate-600" to="/login">Log in</Link><Button href="/register" withArrow>Join the cohort</Button></nav></div>}</header>;
+}
