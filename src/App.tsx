@@ -5,6 +5,7 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { Home } from './pages/Home';
+import { AdminCourses } from './pages/AdminCourses';
 
 export function App() {
   return (
@@ -24,6 +25,14 @@ export function App() {
                 <StudentDashboard />
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="/admin/courses"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminCourses />
+              </ProtectedRoute>
+            }
           />
           
           {/* Fallback */}
