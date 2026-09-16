@@ -21,7 +21,7 @@ export async function getStudentCourseData(userId: string): Promise<StudentCours
   if (!enrollment) return { cohort: null, modules: [], progress: [] };
 
   const [{ data: cohort, error: cohortError }, { data: modules, error: modulesError }, { data: progress, error: progressError }] = await Promise.all([
-    supabase.from('cohorts').select('id, name, description').eq('id', enrollment.cohort_id).maybeSingle(),
+    supabase.from('cohorts').select('id, title, description').eq('id', enrollment.cohort_id).maybeSingle(),
     supabase.from('modules').select(courseSelect).eq('cohort_id', enrollment.cohort_id).order('position', { ascending: true }),
     supabase.from('lesson_progress').select('lesson_id, completed').eq('user_id', userId),
   ]);
@@ -30,7 +30,7 @@ export async function getStudentCourseData(userId: string): Promise<StudentCours
   if (progressError) throw progressError;
 
   return {
-    cohort: cohort as Cohort | null,
+    cohort: cohort ? { id: cohort.id, name: cohort.title, description: cohort.description } : null,
     modules: ((modules ?? []) as Module[]).map((module) => ({ ...module, lessons: [...(module.lessons ?? [])].sort((a, b) => a.position - b.position) })),
     progress: (progress ?? []) as LessonProgress[],
   };
@@ -42,21 +42,21 @@ export async function markLessonComplete(userId: string, lessonId: string, compl
 }
 
 export async function listCohorts(): Promise<Cohort[]> {
-  const { data, error } = await supabase.from('cohorts').select('id, name, description').order('name');
+  const { data, error } = await supabase.from('cohorts').select('id, title, description').order('title');
   if (error) throw error;
-  return (data ?? []) as Cohort[];
+  return (data ?? []).map((cohort) => ({ id: cohort.id, name: cohort.title, description: cohort.description }));
 }
 
 export async function createCohort(input: CohortInput): Promise<Cohort> {
-  const { data, error } = await supabase.from('cohorts').insert(input).select('id, name, description').single();
+  const { data, error } = await supabase.from('cohorts').insert({ title: input.name, description: input.description }).select('id, title, description').single();
   if (error) throw error;
-  return data as Cohort;
+  return { id: data.id, name: data.title, description: data.description };
 }
 
 export async function updateCohort(id: string, input: CohortInput): Promise<Cohort> {
-  const { data, error } = await supabase.from('cohorts').update(input).eq('id', id).select('id, name, description').single();
+  const { data, error } = await supabase.from('cohorts').update({ title: input.name, description: input.description }).eq('id', id).select('id, title, description').single();
   if (error) throw error;
-  return data as Cohort;
+  return { id: data.id, name: data.title, description: data.description };
 }
 
 export async function deleteCohort(id: string) {
