@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 export interface Cohort { id: string; name: string; description: string | null; }
 export interface Lesson { id: string; module_id: string; title: string; description: string | null; video_url: string | null; duration_minutes: number | null; position: number; }
 export interface Module { id: string; cohort_id: string; title: string; description: string | null; position: number; lessons: Lesson[]; }
-export interface Enrollment { user_id: string; cohort_id: string; status: 'active' | 'completed' | 'cancelled'; created_at?: string; }
+export interface Enrollment { user_id: string; cohort_id: string; status: 'active' | 'completed' | 'dropped'; created_at?: string; }
 export interface LessonResource { id: string; lesson_id: string; name: string; url: string; }
 export interface LessonProgress { lesson_id: string; completed: boolean; completed_at?: string | null; }
 export interface StudentCourseData { cohort: Cohort | null; modules: Module[]; progress: LessonProgress[]; }
