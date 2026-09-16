@@ -8,7 +8,8 @@ export interface LessonResource { id: string; lesson_id: string; name: string; u
 export interface LessonProgress { lesson_id: string; completed: boolean; completed_at?: string | null; }
 export interface StudentCourseData { cohort: Cohort | null; modules: Module[]; progress: LessonProgress[]; }
 export interface Assignment { id: string; lesson_id: string; title: string; instructions: string | null; deadline: string | null; }
-export interface Submission { id: string; assignment_id: string; student_id: string; file_url: string; status: 'pending' | 'approved' | 'needs_revision'; feedback: string | null; created_at?: string; }
+export type SubmissionStatus = 'pending' | 'reviewed' | 'resubmit';
+export interface Submission { id: string; assignment_id: string; student_id: string; file_url: string; status: SubmissionStatus; feedback: string | null; created_at?: string; }
 
 export type CohortInput = Pick<Cohort, 'name' | 'description'>;
 export type ModuleInput = Pick<Module, 'cohort_id' | 'title' | 'description' | 'position'>;
@@ -110,6 +111,25 @@ export async function createLesson(input: LessonInput): Promise<Lesson> {
   return data as Lesson;
 }
 
+export type AssignmentInput = Pick<Assignment, 'lesson_id' | 'title' | 'instructions' | 'deadline'>;
+
+export async function createAssignment(input: AssignmentInput): Promise<Assignment> {
+  const { data, error } = await supabase.from('assignments').insert(input).select('id, lesson_id, title, instructions, deadline').single();
+  if (error) throw error;
+  return data as Assignment;
+}
+
+export async function updateAssignment(id: string, input: Omit<AssignmentInput, 'lesson_id'>): Promise<Assignment> {
+  const { data, error } = await supabase.from('assignments').update(input).eq('id', id).select('id, lesson_id, title, instructions, deadline').single();
+  if (error) throw error;
+  return data as Assignment;
+}
+
+export async function deleteAssignment(id: string) {
+  const { error } = await supabase.from('assignments').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function updateLesson(id: string, input: Omit<LessonInput, 'module_id'>): Promise<Lesson> {
   const { data, error } = await supabase.from('lessons').update(input).eq('id', id).select('id, module_id, title, description, video_url, duration_minutes, position').single();
   if (error) throw error;
@@ -163,13 +183,22 @@ export async function submitAssignment(userId: string, assignmentId: string, vid
   return { ...(data as Omit<Submission, 'feedback'>), feedback: null };
 }
 
+export async function uploadSubmissionFile(userId: string, file: File): Promise<string> {
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const path = `${userId}/${crypto.randomUUID()}-${safeName}`;
+  const { error: uploadError } = await supabase.storage.from('submissions').upload(path, file, { upsert: false, contentType: file.type || undefined });
+  if (uploadError) throw uploadError;
+  const { data } = supabase.storage.from('submissions').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 export async function listPendingSubmissions(): Promise<Submission[]> {
   const { data, error } = await supabase.from('submissions').select('id, assignment_id, student_id, file_url, status, created_at').eq('status', 'pending').order('created_at');
   if (error) throw error;
   return addFeedback((data ?? []) as Omit<Submission, 'feedback'>[]);
 }
 
-export async function reviewSubmission(id: string, mentorId: string, status: Extract<Submission['status'], 'approved' | 'needs_revision'>, feedback: string): Promise<Submission> {
+export async function reviewSubmission(id: string, mentorId: string, status: Extract<Submission['status'], 'reviewed' | 'resubmit'>, feedback: string): Promise<Submission> {
   const { data, error } = await supabase.from('submissions').update({ status }).eq('id', id).select('id, assignment_id, student_id, file_url, status, created_at').single();
   if (error) throw error;
   if (feedback.trim()) {
@@ -191,4 +220,23 @@ export async function listLessonResources(lessonId: string): Promise<LessonResou
   const { data, error } = await supabase.from('lesson_resources').select('id, lesson_id, name, url').eq('lesson_id', lessonId).order('name');
   if (error) return [];
   return (data ?? []) as LessonResource[];
+}
+
+export type LessonResourceInput = Pick<LessonResource, 'lesson_id' | 'name' | 'url'>;
+
+export async function createLessonResource(input: LessonResourceInput): Promise<LessonResource> {
+  const { data, error } = await supabase.from('lesson_resources').insert(input).select('id, lesson_id, name, url').single();
+  if (error) throw error;
+  return data as LessonResource;
+}
+
+export async function updateLessonResource(id: string, input: Omit<LessonResourceInput, 'lesson_id'>): Promise<LessonResource> {
+  const { data, error } = await supabase.from('lesson_resources').update(input).eq('id', id).select('id, lesson_id, name, url').single();
+  if (error) throw error;
+  return data as LessonResource;
+}
+
+export async function deleteLessonResource(id: string) {
+  const { error } = await supabase.from('lesson_resources').delete().eq('id', id);
+  if (error) throw error;
 }
