@@ -1,0 +1,20 @@
+import { useEffect, useState } from 'react';
+import { Check, ExternalLink, LoaderCircle, MessageSquare, RotateCcw } from 'lucide-react';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { listPendingSubmissions, reviewSubmission, type Submission } from '../lib/courseService';
+
+export function ReviewSubmissions() {
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [feedback, setFeedback] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    listPendingSubmissions().then((nextSubmissions) => active && setSubmissions(nextSubmissions)).catch((reason: unknown) => active && setError(reason instanceof Error ? reason.message : 'Unable to load submissions.')).finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, []);
+  const review = async (submission: Submission, status: 'approved' | 'needs_revision') => { setSavingId(submission.id); setError(null); try { await reviewSubmission(submission.id, status, feedback[submission.id] ?? ''); setSubmissions((current) => current.filter((item) => item.id !== submission.id)); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to review submission.'); } finally { setSavingId(null); } };
+  return <div className="min-h-screen bg-[#f6f7f9] text-slate-900"><header className="border-b border-slate-200 bg-white"><div className="mx-auto max-w-5xl px-5 py-6 lg:px-8"><p className="text-xs font-black uppercase tracking-[0.16em] text-orange-500">Review room</p><h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Student submissions</h1><p className="mt-2 text-sm text-slate-500">Approve strong work or give a clear next step for the resubmission.</p></div></header><main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">{error && <p className="mb-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}{loading ? <LoaderCircle className="animate-spin text-orange-500" size={20} /> : submissions.length ? <div className="space-y-4">{submissions.map((submission) => <Card key={submission.id} className="p-6"><div className="flex flex-col justify-between gap-5 md:flex-row"><div><p className="text-xs font-black uppercase tracking-wider text-orange-500">Pending review</p><h2 className="mt-2 text-xl font-black text-slate-950">Assignment submission</h2><p className="mt-2 text-sm text-slate-500">Student ID: {submission.user_id}</p><a href={submission.video_url} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-orange-600 hover:text-orange-700">Open edited video <ExternalLink size={15} /></a></div><div className="flex size-12 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><MessageSquare size={21} /></div></div><label className="mt-6 block text-sm font-bold text-slate-700">Feedback<textarea value={feedback[submission.id] ?? ''} onChange={(event) => setFeedback((current) => ({ ...current, [submission.id]: event.target.value }))} rows={3} placeholder="Tell the student what works and what to improve..." className="mt-2 w-full resize-none rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-orange-400" /></label><div className="mt-5 flex flex-wrap justify-end gap-3"><Button variant="secondary" onClick={() => void review(submission, 'needs_revision')} loading={savingId === submission.id}><RotateCcw size={15} /> Request revision</Button><Button onClick={() => void review(submission, 'approved')} loading={savingId === submission.id}><Check size={15} /> Approve submission</Button></div></Card>)}</div> : <Card className="p-12 text-center"><Check className="mx-auto text-emerald-500" size={32} /><h2 className="mt-4 text-xl font-black text-slate-950">Review queue is clear.</h2><p className="mt-2 text-sm text-slate-500">New student submissions will appear here.</p></Card>}</main></div>;
+}

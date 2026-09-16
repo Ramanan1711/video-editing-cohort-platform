@@ -7,6 +7,8 @@ export interface Enrollment { id: string; user_id: string; cohort_id: string; st
 export interface LessonResource { id: string; lesson_id: string; name: string; url: string; }
 export interface LessonProgress { lesson_id: string; completed: boolean; completed_at?: string | null; }
 export interface StudentCourseData { cohort: Cohort | null; modules: Module[]; progress: LessonProgress[]; }
+export interface Assignment { id: string; cohort_id: string; module_id: string | null; title: string; description: string | null; points: number; due_date: string | null; }
+export interface Submission { id: string; assignment_id: string; user_id: string; video_url: string; status: 'pending' | 'approved' | 'needs_revision'; feedback: string | null; created_at?: string; }
 
 export type CohortInput = Pick<Cohort, 'name' | 'description'>;
 export type ModuleInput = Pick<Module, 'cohort_id' | 'title' | 'description' | 'position'>;
@@ -45,6 +47,19 @@ export async function listCohorts(): Promise<Cohort[]> {
   const { data, error } = await supabase.from('cohorts').select('id, title, description').order('title');
   if (error) throw error;
   return (data ?? []).map((cohort) => ({ id: cohort.id, name: cohort.title, description: cohort.description }));
+}
+
+export async function listAvailableCohorts(userId: string): Promise<Cohort[]> {
+  const { data: enrollments, error: enrollmentError } = await supabase.from('enrollments').select('cohort_id').eq('user_id', userId);
+  if (enrollmentError) throw enrollmentError;
+  const enrolledIds = (enrollments ?? []).map((enrollment) => enrollment.cohort_id);
+  const { data, error } = await supabase.from('cohorts').select('id, title, description').order('title');
+  if (error) throw error;
+  return (data ?? []).filter((cohort) => !enrolledIds.includes(cohort.id)).map((cohort) => ({ id: cohort.id, name: cohort.title, description: cohort.description }));
+}
+
+export async function enrollInCohort(userId: string, cohortId: string): Promise<Enrollment> {
+  return saveEnrollment({ user_id: userId, cohort_id: cohortId, status: 'active' });
 }
 
 export async function createCohort(input: CohortInput): Promise<Cohort> {
@@ -124,6 +139,36 @@ export async function saveEnrollment(input: EnrollmentInput, id?: string): Promi
 export async function deleteEnrollment(id: string) {
   const { error } = await supabase.from('enrollments').delete().eq('id', id);
   if (error) throw error;
+}
+
+export async function listAssignments(cohortId: string): Promise<Assignment[]> {
+  const { data, error } = await supabase.from('assignments').select('id, cohort_id, module_id, title, description, points, due_date').eq('cohort_id', cohortId).order('due_date');
+  if (error) throw error;
+  return (data ?? []) as Assignment[];
+}
+
+export async function listMySubmissions(userId: string): Promise<Submission[]> {
+  const { data, error } = await supabase.from('submissions').select('id, assignment_id, user_id, video_url, status, feedback, created_at').eq('user_id', userId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Submission[];
+}
+
+export async function submitAssignment(userId: string, assignmentId: string, videoUrl: string): Promise<Submission> {
+  const { data, error } = await supabase.from('submissions').insert({ user_id: userId, assignment_id: assignmentId, video_url: videoUrl, status: 'pending' }).select('id, assignment_id, user_id, video_url, status, feedback, created_at').single();
+  if (error) throw error;
+  return data as Submission;
+}
+
+export async function listPendingSubmissions(): Promise<Submission[]> {
+  const { data, error } = await supabase.from('submissions').select('id, assignment_id, user_id, video_url, status, feedback, created_at').eq('status', 'pending').order('created_at');
+  if (error) throw error;
+  return (data ?? []) as Submission[];
+}
+
+export async function reviewSubmission(id: string, status: Extract<Submission['status'], 'approved' | 'needs_revision'>, feedback: string): Promise<Submission> {
+  const { data, error } = await supabase.from('submissions').update({ status, feedback }).eq('id', id).select('id, assignment_id, user_id, video_url, status, feedback, created_at').single();
+  if (error) throw error;
+  return data as Submission;
 }
 
 export async function listLessonResources(lessonId: string): Promise<LessonResource[]> {

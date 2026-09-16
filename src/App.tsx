@@ -6,6 +6,7 @@ import { Register } from './pages/Register';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { Home } from './pages/Home';
 import { AdminCourses } from './pages/AdminCourses';
+import { ReviewSubmissions } from './pages/ReviewSubmissions';
 
 export function App() {
   return (
@@ -31,6 +32,14 @@ export function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminCourses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/review/submissions"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'mentor']}>
+                <ReviewSubmissions />
               </ProtectedRoute>
             }
           />
