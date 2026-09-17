@@ -8,6 +8,7 @@ import { Home } from './pages/Home';
 import { AdminCourses } from './pages/AdminCourses';
 import { ReviewSubmissions } from './pages/ReviewSubmissions';
 import { AdminOperations } from './pages/AdminOperations';
+import { Unauthorized } from './pages/Unauthorized';
 import { WorkspaceShell } from './components/WorkspaceShell';
 
 export function App() {
@@ -18,6 +19,7 @@ export function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/" element={<Home />} />
           
           {/* Protected Student Routes */}
