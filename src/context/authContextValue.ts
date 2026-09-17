@@ -13,7 +13,6 @@ export interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  refreshProfile: () => Promise<Profile | null>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -21,5 +20,4 @@ export const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   signOut: async () => {},
-  refreshProfile: async () => null,
 });

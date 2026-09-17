@@ -19,16 +19,7 @@ export type EnrollmentInput = Pick<Enrollment, 'user_id' | 'cohort_id' | 'status
 const courseSelect = 'id, cohort_id, title, description, position, lessons(id, module_id, title, description, video_url, duration_minutes, position)';
 
 export async function getStudentCourseData(userId: string): Promise<StudentCourseData> {
-  // Select active enrollment, ordering by newest created to handle multiple historical enrollments
-  const { data: enrollment, error: enrollmentError } = await supabase
-    .from('enrollments')
-    .select('cohort_id, status, created_at')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
+  const { data: enrollment, error: enrollmentError } = await supabase.from('enrollments').select('cohort_id').eq('user_id', userId).limit(1).maybeSingle();
   if (enrollmentError) throw enrollmentError;
   if (!enrollment) return { cohort: null, modules: [], progress: [] };
 
@@ -49,9 +40,7 @@ export async function getStudentCourseData(userId: string): Promise<StudentCours
 }
 
 export async function markLessonComplete(userId: string, lessonId: string, completed: boolean) {
-  const { error } = await supabase
-    .from('lesson_progress')
-    .upsert({ user_id: userId, lesson_id: lessonId, completed, completed_at: completed ? new Date().toISOString() : null }, { onConflict: 'user_id,lesson_id' });
+  const { error } = await supabase.from('lesson_progress').upsert({ user_id: userId, lesson_id: lessonId, completed }, { onConflict: 'user_id,lesson_id' });
   if (error) throw error;
 }
 
@@ -62,11 +51,7 @@ export async function listCohorts(): Promise<Cohort[]> {
 }
 
 export async function listAvailableCohorts(userId: string): Promise<Cohort[]> {
-  const { data: enrollments, error: enrollmentError } = await supabase
-    .from('enrollments')
-    .select('cohort_id, status')
-    .eq('user_id', userId)
-    .eq('status', 'active');
+  const { data: enrollments, error: enrollmentError } = await supabase.from('enrollments').select('cohort_id').eq('user_id', userId);
   if (enrollmentError) throw enrollmentError;
   const enrolledIds = (enrollments ?? []).map((enrollment) => enrollment.cohort_id);
   const { data, error } = await supabase.from('cohorts').select('id, title, description').order('title');
@@ -165,9 +150,7 @@ export async function listEnrollments(cohortId?: string): Promise<Enrollment[]> 
 }
 
 export async function saveEnrollment(input: EnrollmentInput, id?: string): Promise<Enrollment> {
-  const query = id
-    ? supabase.from('enrollments').update({ status: input.status }).eq('user_id', input.user_id).eq('cohort_id', input.cohort_id)
-    : supabase.from('enrollments').upsert(input, { onConflict: 'user_id,cohort_id' });
+  const query = id ? supabase.from('enrollments').update({ status: input.status }).eq('user_id', input.user_id).eq('cohort_id', input.cohort_id) : supabase.from('enrollments').upsert(input, { onConflict: 'user_id,cohort_id' });
   const { data, error } = await query.select('user_id, cohort_id, status, created_at').single();
   if (error) throw error;
   return data as Enrollment;
@@ -187,177 +170,55 @@ export async function listAssignments(_cohortId: string): Promise<Assignment[]> 
   return (data ?? []) as Assignment[];
 }
 
-// Storage path extraction for private bucket objects
-export function extractStoragePath(fileUrlOrPath: string): string | null {
-  if (!fileUrlOrPath) return null;
-  if (fileUrlOrPath.includes('/storage/v1/object/public/submissions/')) {
-    return decodeURIComponent(fileUrlOrPath.split('/storage/v1/object/public/submissions/')[1]);
-  }
-  if (fileUrlOrPath.includes('/storage/v1/object/sign/submissions/')) {
-    return decodeURIComponent(fileUrlOrPath.split('/storage/v1/object/sign/submissions/')[1].split('?')[0]);
-  }
-  if (fileUrlOrPath.includes('/submissions/')) {
-    return decodeURIComponent(fileUrlOrPath.split('/submissions/')[1].split('?')[0]);
-  }
-  if (!fileUrlOrPath.startsWith('http://') && !fileUrlOrPath.startsWith('https://')) {
-    return fileUrlOrPath;
-  }
-  return null;
-}
-
-// Generates time-limited signed URL for private submission files (default 1 hour)
-export async function getSubmissionSignedUrl(fileUrlOrPath: string): Promise<string> {
-  const path = extractStoragePath(fileUrlOrPath);
-  if (!path) return fileUrlOrPath; // External link or fallback
-  try {
-    const { data, error } = await supabase.storage.from('submissions').createSignedUrl(path, 3600);
-    if (error || !data?.signedUrl) {
-      console.warn('Could not generate signed URL for path:', path, error);
-      return fileUrlOrPath;
-    }
-    return data.signedUrl;
-  } catch (err) {
-    console.warn('Failed to get signed URL:', err);
-    return fileUrlOrPath;
-  }
-}
-
-async function resolveSubmissionUrls(submissions: Omit<Submission, 'feedback'>[]): Promise<Omit<Submission, 'feedback'>[]> {
-  return Promise.all(
-    submissions.map(async (sub) => {
-      const signedUrl = await getSubmissionSignedUrl(sub.file_url);
-      return { ...sub, file_url: signedUrl };
-    })
-  );
-}
-
 export async function listMySubmissions(userId: string): Promise<Submission[]> {
-  const { data, error } = await supabase
-    .from('submissions')
-    .select('id, assignment_id, student_id, file_url, status, created_at')
-    .eq('student_id', userId)
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('submissions').select('id, assignment_id, student_id, file_url, status, created_at').eq('student_id', userId).order('created_at', { ascending: false });
   if (error) throw error;
-  const submissions = await resolveSubmissionUrls((data ?? []) as Omit<Submission, 'feedback'>[]);
+  const submissions = (data ?? []) as Omit<Submission, 'feedback'>[];
   return addFeedback(submissions);
 }
 
 export async function submitAssignment(userId: string, assignmentId: string, videoUrl: string): Promise<Submission> {
-  // Prevent duplicate pending submissions for the same assignment
-  const { data: existingPending, error: checkError } = await supabase
-    .from('submissions')
-    .select('id')
-    .eq('student_id', userId)
-    .eq('assignment_id', assignmentId)
-    .eq('status', 'pending')
-    .maybeSingle();
-
-  if (checkError) throw checkError;
-  if (existingPending) {
-    throw new Error('You already have a pending submission for this assignment. Please wait for mentor review.');
-  }
-
-  const { data, error } = await supabase
-    .from('submissions')
-    .insert({ student_id: userId, assignment_id: assignmentId, file_url: videoUrl, status: 'pending' })
-    .select('id, assignment_id, student_id, file_url, status, created_at')
-    .single();
-
-  if (error) {
-    if (error.code === '23505') {
-      throw new Error('You already have a pending submission for this assignment. Please wait for mentor review.');
-    }
-    throw error;
-  }
+  const { data, error } = await supabase.from('submissions').insert({ student_id: userId, assignment_id: assignmentId, file_url: videoUrl, status: 'pending' }).select('id, assignment_id, student_id, file_url, status, created_at').single();
+  if (error) throw error;
   return { ...(data as Omit<Submission, 'feedback'>), feedback: null };
 }
 
-// Uploads file to private submissions bucket and returns relative storage path
 export async function uploadSubmissionFile(userId: string, file: File): Promise<string> {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
   const path = `${userId}/${crypto.randomUUID()}-${safeName}`;
-  const { error: uploadError } = await supabase.storage
-    .from('submissions')
-    .upload(path, file, { upsert: false, contentType: file.type || undefined });
+  const { error: uploadError } = await supabase.storage.from('submissions').upload(path, file, { upsert: false, contentType: file.type || undefined });
   if (uploadError) throw uploadError;
-  return path;
+  const { data } = supabase.storage.from('submissions').getPublicUrl(path);
+  return data.publicUrl;
 }
 
 export async function uploadCourseAsset(file: File): Promise<string> {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
   const path = `lessons/${crypto.randomUUID()}-${safeName}`;
-  const { error } = await supabase.storage
-    .from('course-assets')
-    .upload(path, file, { upsert: false, contentType: file.type || undefined });
+  const { error } = await supabase.storage.from('course-assets').upload(path, file, { upsert: false, contentType: file.type || undefined });
   if (error) throw error;
   return supabase.storage.from('course-assets').getPublicUrl(path).data.publicUrl;
 }
 
 export async function listPendingSubmissions(): Promise<Submission[]> {
-  const { data, error } = await supabase
-    .from('submissions')
-    .select('id, assignment_id, student_id, file_url, status, created_at')
-    .eq('status', 'pending')
-    .order('created_at');
+  const { data, error } = await supabase.from('submissions').select('id, assignment_id, student_id, file_url, status, created_at').eq('status', 'pending').order('created_at');
   if (error) throw error;
-  const submissions = await resolveSubmissionUrls((data ?? []) as Omit<Submission, 'feedback'>[]);
-  return addFeedback(submissions);
+  return addFeedback((data ?? []) as Omit<Submission, 'feedback'>[]);
 }
 
-// Atomic review update and feedback insertion
-export async function reviewSubmission(
-  id: string,
-  mentorId: string,
-  status: Extract<Submission['status'], 'reviewed' | 'resubmit'>,
-  feedback: string
-): Promise<Submission> {
-  const trimmedFeedback = feedback.trim();
-
-  // 1. Attempt atomic stored procedure execution
-  try {
-    const { data: rpcData, error: rpcError } = await supabase.rpc('review_submission_atomic', {
-      p_submission_id: id,
-      p_mentor_id: mentorId,
-      p_status: status,
-      p_feedback: trimmedFeedback || null,
-    });
-
-    if (!rpcError && rpcData) {
-      const parsed = typeof rpcData === 'string' ? JSON.parse(rpcData) : rpcData;
-      return parsed as Submission;
-    }
-    if (rpcError) {
-      console.warn('review_submission_atomic RPC error, falling back to sequential transaction:', rpcError.message);
-    }
-  } catch (err) {
-    console.warn('review_submission_atomic invocation exception, using fallback:', err);
-  }
-
-  // 2. Fallback sequential execution if RPC is not deployed yet
-  const { data, error } = await supabase
-    .from('submissions')
-    .update({ status })
-    .eq('id', id)
-    .select('id, assignment_id, student_id, file_url, status, created_at')
-    .single();
+export async function reviewSubmission(id: string, mentorId: string, status: Extract<Submission['status'], 'reviewed' | 'resubmit'>, feedback: string): Promise<Submission> {
+  const { data, error } = await supabase.from('submissions').update({ status }).eq('id', id).select('id, assignment_id, student_id, file_url, status, created_at').single();
   if (error) throw error;
-
-  if (trimmedFeedback) {
-    const { error: feedbackError } = await supabase
-      .from('feedback')
-      .insert({ submission_id: id, mentor_id: mentorId, comments: trimmedFeedback });
+  if (feedback.trim()) {
+    const { error: feedbackError } = await supabase.from('feedback').insert({ submission_id: id, mentor_id: mentorId, comments: feedback.trim() });
     if (feedbackError) throw feedbackError;
   }
-  return { ...(data as Omit<Submission, 'feedback'>), feedback: trimmedFeedback || null };
+  return { ...(data as Omit<Submission, 'feedback'>), feedback: feedback || null };
 }
 
 async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise<Submission[]> {
   if (!submissions.length) return [];
-  const { data } = await supabase
-    .from('feedback')
-    .select('submission_id, comments, created_at')
-    .in('submission_id', submissions.map((submission) => submission.id))
-    .order('created_at', { ascending: false });
+  const { data } = await supabase.from('feedback').select('submission_id, comments, created_at').in('submission_id', submissions.map((submission) => submission.id)).order('created_at', { ascending: false });
   const feedbackBySubmission = new Map<string, string>();
   for (const item of data ?? []) if (!feedbackBySubmission.has(item.submission_id)) feedbackBySubmission.set(item.submission_id, item.comments);
   return submissions.map((submission) => ({ ...submission, feedback: feedbackBySubmission.get(submission.id) ?? null }));
