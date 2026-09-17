@@ -24,6 +24,17 @@ export async function listUsers(): Promise<UserProfile[]> {
   return (data ?? []) as UserProfile[];
 }
 
+export async function updateUserRole(userId: string, role: 'student' | 'mentor' | 'admin'): Promise<UserProfile> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ role, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+    .select('id, full_name, email, role')
+    .single();
+  if (error) throw error;
+  return data as UserProfile;
+}
+
 export async function listAnnouncements(): Promise<AdminAnnouncement[]> {
   const { data, error } = await supabase.from('announcements').select('id, title, body, published, created_at').order('created_at', { ascending: false });
   if (error) throw error;
