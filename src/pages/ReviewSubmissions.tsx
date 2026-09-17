@@ -39,7 +39,7 @@ export function ReviewSubmissions() {
     setSavingId(submission.id);
     setError(null);
     try {
-      await reviewSubmission(submission.id, user.id, status, feedback[submission.id] ?? '');
+      await reviewSubmission(submission.id, status, feedback[submission.id] ?? '');
       setSubmissions((current) => current.filter((item) => item.id !== submission.id));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to review submission.');
