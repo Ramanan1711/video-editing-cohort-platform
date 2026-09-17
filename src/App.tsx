@@ -8,6 +8,7 @@ import { Home } from './pages/Home';
 import { AdminCourses } from './pages/AdminCourses';
 import { ReviewSubmissions } from './pages/ReviewSubmissions';
 import { AdminOperations } from './pages/AdminOperations';
+import { WorkspaceShell } from './components/WorkspaceShell';
 
 export function App() {
   return (
@@ -32,7 +33,7 @@ export function App() {
             path="/admin/courses"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
-                <AdminCourses />
+                <WorkspaceShell><AdminCourses /></WorkspaceShell>
               </ProtectedRoute>
             }
           />
@@ -40,7 +41,7 @@ export function App() {
             path="/review/submissions"
             element={
               <ProtectedRoute allowedRoles={['admin', 'mentor']}>
-                <ReviewSubmissions />
+                <WorkspaceShell><ReviewSubmissions /></WorkspaceShell>
               </ProtectedRoute>
             }
           />
@@ -48,7 +49,7 @@ export function App() {
             path="/admin"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
-                <AdminOperations />
+                <WorkspaceShell><AdminOperations /></WorkspaceShell>
               </ProtectedRoute>
             }
           />
