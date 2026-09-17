@@ -1,8 +1,34 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Check, ChevronDown, Clock3, LogOut, Menu, Play, Search, Sparkles, X } from 'lucide-react';
+import {
+  BookOpen,
+  Check,
+  ChevronDown,
+  Clock3,
+  ExternalLink,
+  FileArchive,
+  FileText,
+  Image as ImageIcon,
+  Lock,
+  LogOut,
+  Menu,
+  Play,
+  Search,
+  Sparkles,
+  Video,
+  X,
+} from 'lucide-react';
 import { useAuth } from '../context/useAuth';
-import { getStudentCourseData, listLessonResources, markLessonComplete, type Lesson, type LessonResource, type Module, type StudentCourseData } from '../lib/courseService';
+import {
+  formatFileSize,
+  getStudentCourseData,
+  listLessonResources,
+  markLessonComplete,
+  type Lesson,
+  type LessonResource,
+  type Module,
+  type StudentCourseData,
+} from '../lib/courseService';
 import { AssignmentPanel, EnrollmentPanel, MilestonePanel } from '../components/StudentFlowPanels';
 
 const emptyCourse: StudentCourseData = { cohort: null, modules: [], progress: [] };
@@ -54,12 +80,215 @@ export function StudentDashboard() {
 }
 
 function ModuleNav({ module, completedIds, selectedLessonId, onSelect }: { module: Module; completedIds: Set<string>; selectedLessonId: string | null; onSelect: (lesson: Lesson) => void }) { return <div className="mb-5"><div className="mb-2 flex items-center justify-between px-2 text-[11px] font-black uppercase tracking-wider text-slate-400"><span>{module.title}</span><ChevronDown size={14} /></div><div className="space-y-1">{module.lessons.map((lesson) => <button key={lesson.id} onClick={() => onSelect(lesson)} className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition ${lesson.id === selectedLessonId ? 'bg-orange-50 text-orange-700' : 'text-slate-600 hover:bg-slate-50'}`}><span className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${completedIds.has(lesson.id) ? 'border-emerald-500 bg-emerald-500 text-white' : lesson.id === selectedLessonId ? 'border-orange-300' : 'border-slate-200'}`}>{completedIds.has(lesson.id) && <Check size={12} />}</span><span className="text-sm font-semibold leading-5">{lesson.title}</span></button>)}</div></div>; }
-function LessonPlayer({ lesson, completed, onToggleComplete }: { lesson: Lesson; completed: boolean; onToggleComplete: () => void }) {
+function LessonPlayer({
+  lesson,
+  completed,
+  onToggleComplete,
+}: {
+  lesson: Lesson;
+  completed: boolean;
+  onToggleComplete: () => void;
+}) {
   const [activeTab, setActiveTab] = useState<'overview' | 'resources' | 'qa'>('overview');
   const [resources, setResources] = useState<LessonResource[]>([]);
-  const tabs = [{ id: 'overview' as const, label: 'Overview' }, { id: 'resources' as const, label: 'Resources' }, { id: 'qa' as const, label: 'Lesson Q&A' }];
-  useEffect(() => { void listLessonResources(lesson.id).then(setResources); }, [lesson.id]);
-  return <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)]"><div className="relative flex aspect-video items-center justify-center overflow-hidden bg-slate-950">{lesson.video_url ? <video className="absolute inset-0 size-full object-cover" controls src={lesson.video_url} /> : <><div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_35%,rgba(249,115,22,0.28),transparent_32%),linear-gradient(135deg,#111827,#020617)]" /><div className="relative flex size-16 items-center justify-center rounded-full bg-white text-slate-950 shadow-2xl"><Play size={25} fill="currentColor" className="ml-1" /></div></>}<span className="absolute bottom-4 left-5 rounded-md bg-black/40 px-2 py-1 text-xs font-bold text-white backdrop-blur">Lesson {lesson.position}</span></div><div className="p-6 sm:p-8"><div className="flex flex-col justify-between gap-4 sm:flex-row"><div><p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-orange-500">Now learning</p><h2 className="text-2xl font-black tracking-tight text-slate-950">{lesson.title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{lesson.description ?? 'A focused lesson to help you sharpen your editing instincts and make stronger creative decisions.'}</p></div><button onClick={onToggleComplete} className={`h-fit shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold transition ${completed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-950 text-white hover:bg-orange-600'}`}>{completed ? <span className="flex items-center gap-2"><Check size={16} /> Completed</span> : 'Mark complete'}</button></div><div className="mt-8 flex gap-6 border-b border-slate-100 text-sm font-bold">{tabs.map((tab) => <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`${activeTab === tab.id ? 'border-b-2 border-orange-500 text-orange-600' : 'text-slate-400'} pb-3`}>{tab.label}</button>)}</div><div className="min-h-20 pt-5 text-sm leading-7 text-slate-600">{activeTab === 'overview' && <p>Watch the lesson, take a few notes, and apply the idea in your next edit. Your progress is saved to your student profile when you mark the lesson complete.</p>}{activeTab === 'resources' && (resources.length ? <div className="space-y-2">{resources.map((resource) => <a key={resource.id} href={resource.url} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 font-semibold text-slate-700 hover:border-orange-300 hover:text-orange-600"><span>{resource.name}</span><span aria-hidden="true">↗</span></a>)}</div> : <p className="text-slate-400">No downloadable resources have been added to this lesson yet.</p>)}{activeTab === 'qa' && <p className="text-slate-400">Be the first to ask a question about this lesson.</p>}</div></div></article>;
+  const tabs = [
+    { id: 'overview' as const, label: 'Overview' },
+    { id: 'resources' as const, label: `Resources (${resources.length})` },
+    { id: 'qa' as const, label: 'Lesson Q&A' },
+  ];
+
+  useEffect(() => {
+    void listLessonResources(lesson.id).then(setResources);
+  }, [lesson.id]);
+
+  return (
+    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+      {/* Video Player */}
+      <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-slate-950">
+        {lesson.video_url ? (
+          <video className="absolute inset-0 size-full object-cover" controls src={lesson.video_url} />
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_35%,rgba(249,115,22,0.28),transparent_32%),linear-gradient(135deg,#111827,#020617)]" />
+            <div className="relative flex size-16 items-center justify-center rounded-full bg-white text-slate-950 shadow-2xl">
+              <Play size={25} fill="currentColor" className="ml-1" />
+            </div>
+          </>
+        )}
+        <span className="absolute bottom-4 left-5 rounded-md bg-black/40 px-2 py-1 text-xs font-bold text-white backdrop-blur">
+          Lesson {lesson.position}
+        </span>
+      </div>
+
+      {/* Lesson Details */}
+      <div className="p-6 sm:p-8">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-orange-500">Now learning</p>
+            <h2 className="text-2xl font-black tracking-tight text-slate-950">{lesson.title}</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              {lesson.description ?? 'A focused lesson to help you sharpen your editing instincts and make stronger creative decisions.'}
+            </p>
+          </div>
+          <button
+            onClick={onToggleComplete}
+            className={`h-fit shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+              completed
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-slate-950 text-white hover:bg-orange-600'
+            }`}
+          >
+            {completed ? (
+              <span className="flex items-center gap-2">
+                <Check size={16} /> Completed
+              </span>
+            ) : (
+              'Mark complete'
+            )}
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="mt-8 flex gap-6 border-b border-slate-100 text-sm font-bold">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`${activeTab === tab.id ? 'border-b-2 border-orange-500 text-orange-600' : 'text-slate-400'} pb-3`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="min-h-20 pt-5 text-sm leading-7 text-slate-600">
+          {activeTab === 'overview' && (
+            <p>
+              Watch the lesson, take a few notes, and apply the idea in your next edit. Your progress is saved to your
+              student profile when you mark the lesson complete. Completing lessons also unlocks restricted project files and downloads!
+            </p>
+          )}
+
+          {activeTab === 'resources' && (
+            <div>
+              {resources.length ? (
+                <div className="space-y-3">
+                  {resources.map((resource) => {
+                    const isLocked = resource.visibility === 'after_completion' && !completed;
+
+                    if (isLocked) {
+                      return (
+                        <div
+                          key={resource.id}
+                          className="flex flex-col justify-between gap-3 rounded-xl border border-amber-200/80 bg-amber-50/50 p-4 transition sm:flex-row sm:items-center"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                              <Lock size={16} />
+                            </div>
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <strong className="text-sm font-bold text-slate-900">{resource.name}</strong>
+                                <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                                  Locked Resource
+                                </span>
+                                {resource.file_size && (
+                                  <span className="text-[10px] text-slate-400">
+                                    ({formatFileSize(resource.file_size)})
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 text-xs text-amber-700">
+                                Complete this lesson to unlock this download (e.g. project files, source media, or solution timeline).
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={onToggleComplete}
+                            className="shrink-0 rounded-lg border border-amber-300 bg-white px-3.5 py-1.5 text-xs font-bold text-amber-800 shadow-sm transition hover:bg-amber-100"
+                          >
+                            Mark lesson complete to unlock
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={resource.id}
+                        className="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-300 sm:flex-row sm:items-center"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            {getStudentResourceIcon(resource.resource_type)}
+                          </div>
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <strong className="text-sm font-bold text-slate-900">{resource.name}</strong>
+                              {resource.visibility === 'after_completion' && (
+                                <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                                  ✓ Unlocked
+                                </span>
+                              )}
+                              {resource.visibility === 'public' && (
+                                <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                                  Public Preview
+                                </span>
+                              )}
+                              {resource.file_size && (
+                                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                                  {formatFileSize(resource.file_size)}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-0.5 text-xs capitalize text-slate-400">
+                              {resource.resource_type ? resource.resource_type.replace('_', ' ') : 'Downloadable asset'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <a
+                          href={resource.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-orange-600"
+                        >
+                          <span>Download / Open</span>
+                          <ExternalLink size={13} />
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-slate-400">No downloadable resources have been added to this lesson yet.</p>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'qa' && <p className="text-slate-400">Be the first to ask a question about this lesson.</p>}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function getStudentResourceIcon(type?: string) {
+  switch (type) {
+    case 'video':
+      return <Video size={16} className="text-emerald-500" />;
+    case 'pdf':
+      return <FileText size={16} className="text-red-500" />;
+    case 'document':
+      return <FileText size={16} className="text-blue-500" />;
+    case 'image':
+      return <ImageIcon size={16} className="text-purple-500" />;
+    case 'project_file':
+      return <FileArchive size={16} className="text-orange-500" />;
+    default:
+      return <FileText size={16} className="text-slate-500" />;
+  }
 }
 function StatCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) { return <div className="rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-4 flex size-9 items-center justify-center rounded-lg bg-orange-50 text-orange-600">{icon}</div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-xl font-black text-slate-950">{value}</p></div>; }
 function EmptyState({ label, large = false }: { label: string; large?: boolean }) { return <div className={`rounded-2xl border border-dashed border-slate-300 bg-white text-center ${large ? 'px-6 py-24' : 'px-4 py-8'}`}><BookOpen className="mx-auto mb-3 text-slate-300" size={large ? 30 : 22} /><p className="mx-auto max-w-xs text-sm text-slate-500">{label}</p></div>; }

@@ -2,10 +2,12 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { ArrowUpRight, LoaderCircle } from 'lucide-react';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'dark';
+type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   variant?: ButtonVariant;
+  size?: ButtonSize;
   href?: string;
   loading?: boolean;
   withArrow?: boolean;
@@ -18,9 +20,15 @@ const variants: Record<ButtonVariant, string> = {
   dark: 'bg-slate-950 text-white shadow-lg shadow-slate-950/15 hover:bg-slate-800',
 };
 
-export function Button({ children, variant = 'primary', href, loading = false, withArrow = false, className = '', disabled, ...props }: ButtonProps) {
-  const content = <>{loading ? <LoaderCircle className="animate-spin" size={17} /> : children}{withArrow && !loading && <ArrowUpRight size={17} />}</>;
-  const classes = `inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`;
+const sizes: Record<ButtonSize, string> = {
+  sm: 'px-3 py-1.5 text-xs',
+  md: 'px-5 py-3 text-sm',
+  lg: 'px-6 py-3.5 text-base',
+};
+
+export function Button({ children, variant = 'primary', size = 'md', href, loading = false, withArrow = false, className = '', disabled, ...props }: ButtonProps) {
+  const content = <>{loading ? <LoaderCircle className="animate-spin" size={size === 'sm' ? 14 : 17} /> : children}{withArrow && !loading && <ArrowUpRight size={size === 'sm' ? 14 : 17} />}</>;
+  const classes = `inline-flex items-center justify-center gap-2 rounded-xl font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`;
 
   if (href) return <a className={classes} href={href}>{content}</a>;
   return <button className={classes} disabled={disabled || loading} {...props}>{content}</button>;
