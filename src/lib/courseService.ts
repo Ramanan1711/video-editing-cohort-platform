@@ -593,24 +593,18 @@ export async function listPendingSubmissions(): Promise<Submission[]> {
 
 export async function reviewSubmission(
   id: string,
-  mentorId: string,
   status: Extract<Submission['status'], 'reviewed' | 'resubmit'>,
   feedback: string
-): Promise<Submission> {
-  const { data, error } = await supabase
-    .from('submissions')
-    .update({ status })
-    .eq('id', id)
-    .select('id, assignment_id, student_id, file_url, status, created_at')
-    .single();
-  if (error) throw error;
-  if (feedback.trim()) {
-    const { error: feedbackError } = await supabase
-      .from('feedback')
-      .insert({ submission_id: id, mentor_id: mentorId, comments: feedback.trim() });
-    if (feedbackError) throw feedbackError;
+): Promise<void> {
+  const { error } = await supabase.rpc('review_submission', {
+    p_submission_id: id,
+    p_status: status,
+    p_comments: feedback.trim(),
+  });
+
+  if (error) {
+    throw error;
   }
-  return { ...(data as Omit<Submission, 'feedback'>), feedback: feedback || null };
 }
 
 async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise<Submission[]> {
