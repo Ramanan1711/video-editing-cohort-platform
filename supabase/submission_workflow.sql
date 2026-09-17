@@ -4,6 +4,23 @@ insert into storage.buckets (id, name, public)
 values ('submissions', 'submissions', true)
 on conflict (id) do update set public = true;
 
+insert into storage.buckets (id, name, public)
+values ('course-assets', 'course-assets', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Admins can upload course assets" on storage.objects;
+create policy "Admins can upload course assets"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'course-assets'
+  and exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+);
+
+drop policy if exists "Authenticated users can read course assets" on storage.objects;
+create policy "Authenticated users can read course assets"
+on storage.objects for select to authenticated
+using (bucket_id = 'course-assets');
+
 create policy "Students can upload their submissions"
 on storage.objects for insert
 to authenticated

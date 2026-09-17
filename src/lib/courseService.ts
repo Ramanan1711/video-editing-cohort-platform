@@ -192,6 +192,14 @@ export async function uploadSubmissionFile(userId: string, file: File): Promise<
   return data.publicUrl;
 }
 
+export async function uploadCourseAsset(file: File): Promise<string> {
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const path = `lessons/${crypto.randomUUID()}-${safeName}`;
+  const { error } = await supabase.storage.from('course-assets').upload(path, file, { upsert: false, contentType: file.type || undefined });
+  if (error) throw error;
+  return supabase.storage.from('course-assets').getPublicUrl(path).data.publicUrl;
+}
+
 export async function listPendingSubmissions(): Promise<Submission[]> {
   const { data, error } = await supabase.from('submissions').select('id, assignment_id, student_id, file_url, status, created_at').eq('status', 'pending').order('created_at');
   if (error) throw error;

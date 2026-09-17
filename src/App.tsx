@@ -7,6 +7,7 @@ import { StudentDashboard } from './pages/StudentDashboard';
 import { Home } from './pages/Home';
 import { AdminCourses } from './pages/AdminCourses';
 import { ReviewSubmissions } from './pages/ReviewSubmissions';
+import { AdminOperations } from './pages/AdminOperations';
 
 export function App() {
   return (
@@ -40,6 +41,14 @@ export function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'mentor']}>
                 <ReviewSubmissions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminOperations />
               </ProtectedRoute>
             }
           />
