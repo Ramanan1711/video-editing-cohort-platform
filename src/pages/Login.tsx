@@ -74,15 +74,28 @@ export const Login: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
             />
-            <FormField
-              id="password"
-              label="Password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Your password"
-            />
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-sm font-bold text-slate-700" htmlFor="password">
+                  Password
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-bold text-orange-600 hover:text-orange-700"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Your password"
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+              />
+            </div>
             <Button type="submit" className="w-full" loading={loading}>
               {loading ? 'Logging in...' : 'Log in'}
             </Button>
