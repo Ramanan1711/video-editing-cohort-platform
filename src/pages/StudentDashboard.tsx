@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  AlertCircle,
   Award,
   BookOpen,
   Calendar,
@@ -19,11 +20,14 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  MessagesSquare,
   Play,
   Radio,
+  RefreshCw,
   Search,
   Sparkles,
   Video,
+  WifiOff,
   X,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
@@ -38,6 +42,7 @@ import {
   listStudentLiveSessions,
   markLessonComplete,
   parseVideoUrl,
+  updateLessonWatchProgress,
   type Lesson,
   type LessonResource,
   type StudentAnnouncement,
@@ -53,6 +58,9 @@ import {
 } from '../components/StudentFlowPanels';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { CertificateModal } from '../components/CertificateModal';
+import { StudentCalendar } from '../components/StudentCalendar';
+import { CommunityBoard } from '../components/CommunityBoard';
+import { Button } from '../components/ui/Button';
 
 const emptyCourse: StudentCourseData = { cohort: null, modules: [], progress: [], enrolledCohorts: [] };
 
@@ -64,7 +72,9 @@ export function StudentDashboard() {
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
   const [liveSessions, setLiveSessions] = useState<StudentLiveSession[]>([]);
   const [announcements, setAnnouncements] = useState<StudentAnnouncement[]>([]);
-  const [activeTab, setActiveTab] = useState<'curriculum' | 'assignments' | 'sessions' | 'announcements'>('curriculum');
+  const [activeTab, setActiveTab] = useState<
+    'curriculum' | 'assignments' | 'calendar' | 'community' | 'sessions' | 'announcements'
+  >('curriculum');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -74,6 +84,22 @@ export function StudentDashboard() {
   const [collapsedModuleIds, setCollapsedModuleIds] = useState<Set<string>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
   const [nowTimestamp] = useState(() => Date.now());
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Fetch course, submissions, live sessions, announcements
   useEffect(() => {
@@ -177,6 +203,27 @@ export function StudentDashboard() {
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'Unable to update lesson progress.');
     }
+  };
+
+  const handleWatchProgress = (lessonId: string, watchPct: number, autoCompleted: boolean) => {
+    setCourse((current) => {
+      const existing = current.progress.find((p) => p.lesson_id === lessonId);
+      const isAlreadyCompleted = existing?.completed || false;
+      const completed = isAlreadyCompleted || autoCompleted;
+
+      return {
+        ...current,
+        progress: [
+          ...current.progress.filter((p) => p.lesson_id !== lessonId),
+          {
+            lesson_id: lessonId,
+            completed,
+            completed_at: completed ? (existing?.completed_at || new Date().toISOString()) : undefined,
+            watch_percentage: Math.max(existing?.watch_percentage ?? 0, watchPct),
+          },
+        ],
+      };
+    });
   };
 
   // Prev / Next Lesson Navigation
@@ -300,6 +347,16 @@ export function StudentDashboard() {
           </div>
         </div>
       </header>
+
+      {/* Offline Warning Banner */}
+      {!isOnline && (
+        <div className="sticky top-[73px] z-30 flex items-center justify-center gap-2 border-b border-amber-300 bg-amber-400 px-4 py-2 text-center text-xs font-bold text-amber-950 shadow-sm">
+          <WifiOff size={15} />
+          <span>
+            You are currently offline. Lessons and downloaded media remain accessible; submissions and watch milestones will sync when reconnected.
+          </span>
+        </div>
+      )}
 
       <div className="mx-auto flex max-w-[1440px]">
         {/* Left Sidebar: Collapsible Curriculum Navigation */}
@@ -446,15 +503,30 @@ export function StudentDashboard() {
                               </span>
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs leading-snug truncate">{lesson.title}</p>
-                                {lesson.duration_minutes && (
-                                  <p
-                                    className={`text-[10px] mt-0.5 ${
-                                      isSelected ? 'text-white/80' : 'text-slate-400'
-                                    }`}
-                                  >
-                                    {lesson.duration_minutes} mins
-                                  </p>
-                                )}
+                                {(() => {
+                                  const lProgress = course.progress.find((p) => p.lesson_id === lesson.id);
+                                  const wPct = lProgress?.watch_percentage ?? 0;
+                                  return (
+                                    <p
+                                      className={`text-[10px] mt-0.5 flex items-center gap-1.5 ${
+                                        isSelected ? 'text-white/80' : 'text-slate-400'
+                                      }`}
+                                    >
+                                      {lesson.duration_minutes && <span>{lesson.duration_minutes} mins</span>}
+                                      {!isDone && wPct > 0 && (
+                                        <span
+                                          className={
+                                            isSelected
+                                              ? 'text-white font-medium'
+                                              : 'text-orange-600 font-semibold'
+                                          }
+                                        >
+                                          • {wPct}% watched
+                                        </span>
+                                      )}
+                                    </p>
+                                  );
+                                })()}
                               </div>
                             </button>
                           );
@@ -520,13 +592,29 @@ export function StudentDashboard() {
               </div>
             </div>
 
-            {/* Error Banner */}
+            {/* Error Banner with Retry */}
             {error && (
-              <div className="mb-6 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                <span>{error}</span>
-                <button onClick={() => setError(null)} aria-label="Dismiss error">
-                  <X size={16} />
-                </button>
+              <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                <div className="flex items-center gap-2.5">
+                  <AlertCircle size={18} className="shrink-0 text-red-600" />
+                  <span>{error}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setError(null);
+                      setRefreshKey((k) => k + 1);
+                    }}
+                    className="border-red-200 bg-white text-red-800 hover:bg-red-100 text-xs py-1"
+                  >
+                    <RefreshCw size={12} className="mr-1" /> Retry Connection
+                  </Button>
+                  <button onClick={() => setError(null)} aria-label="Dismiss error" className="text-red-400 hover:text-red-700">
+                    <X size={16} />
+                  </button>
+                </div>
               </div>
             )}
 
@@ -543,10 +631,10 @@ export function StudentDashboard() {
             ) : (
               <>
                 {/* Workspace Navigation Tabs */}
-                <div className="mb-6 flex overflow-x-auto border-b border-slate-200 text-sm font-bold gap-6">
+                <div className="mb-6 flex overflow-x-auto border-b border-slate-200 text-sm font-bold gap-4 sm:gap-6">
                   <button
                     onClick={() => setActiveTab('curriculum')}
-                    className={`pb-3 border-b-2 flex items-center gap-2 transition ${
+                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
                       activeTab === 'curriculum'
                         ? 'border-orange-500 text-orange-600'
                         : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -558,7 +646,7 @@ export function StudentDashboard() {
 
                   <button
                     onClick={() => setActiveTab('assignments')}
-                    className={`pb-3 border-b-2 flex items-center gap-2 transition ${
+                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
                       activeTab === 'assignments'
                         ? 'border-orange-500 text-orange-600'
                         : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -569,8 +657,32 @@ export function StudentDashboard() {
                   </button>
 
                   <button
+                    onClick={() => setActiveTab('calendar')}
+                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
+                      activeTab === 'calendar'
+                        ? 'border-orange-500 text-orange-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Calendar size={16} />
+                    <span>Schedule &amp; Deadlines</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('community')}
+                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
+                      activeTab === 'community'
+                        ? 'border-orange-500 text-orange-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <MessagesSquare size={16} />
+                    <span>Community Board</span>
+                  </button>
+
+                  <button
                     onClick={() => setActiveTab('sessions')}
-                    className={`pb-3 border-b-2 flex items-center gap-2 transition ${
+                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
                       activeTab === 'sessions'
                         ? 'border-orange-500 text-orange-600'
                         : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -582,7 +694,7 @@ export function StudentDashboard() {
 
                   <button
                     onClick={() => setActiveTab('announcements')}
-                    className={`pb-3 border-b-2 flex items-center gap-2 transition ${
+                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
                       activeTab === 'announcements'
                         ? 'border-orange-500 text-orange-600'
                         : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -601,12 +713,19 @@ export function StudentDashboard() {
                     ) : selectedLesson ? (
                       <div>
                         <LessonPlayer
+                          key={selectedLesson.id}
                           lesson={selectedLesson}
                           completed={completedIds.has(selectedLesson.id)}
                           onToggleComplete={toggleComplete}
                           prevLesson={prevLesson}
                           nextLesson={nextLesson}
                           onSelectLesson={selectLesson}
+                          userId={user?.id}
+                          cohortId={course.cohort?.id}
+                          initialWatchPercentage={
+                            course.progress.find((p) => p.lesson_id === selectedLesson.id)?.watch_percentage ?? 0
+                          }
+                          onWatchProgressUpdate={handleWatchProgress}
                         />
                       </div>
                     ) : (
@@ -648,7 +767,24 @@ export function StudentDashboard() {
                   </div>
                 )}
 
-                {/* TAB 3: Live Sessions Calendar */}
+                {/* TAB: Schedule & Deadlines Calendar */}
+                {activeTab === 'calendar' && user && (
+                  <div>
+                    <StudentCalendar userId={user.id} cohortId={course.cohort?.id} />
+                  </div>
+                )}
+
+                {/* TAB: Cohort Community Board */}
+                {activeTab === 'community' && user && (
+                  <div>
+                    <CommunityBoard
+                      userId={user.id}
+                      cohortId={course.cohort?.id}
+                    />
+                  </div>
+                )}
+
+                {/* TAB: Live Sessions */}
                 {activeTab === 'sessions' && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between mb-4">
@@ -818,6 +954,19 @@ export function StudentDashboard() {
 }
 
 // Enhanced Video Player & Resource Manager
+interface LessonPlayerProps {
+  lesson: Lesson;
+  completed: boolean;
+  onToggleComplete: () => void;
+  prevLesson: Lesson | null;
+  nextLesson: Lesson | null;
+  onSelectLesson: (lesson: Lesson) => void;
+  userId?: string;
+  cohortId?: string | null;
+  initialWatchPercentage?: number;
+  onWatchProgressUpdate?: (lessonId: string, watchPercentage: number, autoCompleted: boolean) => void;
+}
+
 function LessonPlayer({
   lesson,
   completed,
@@ -825,18 +974,17 @@ function LessonPlayer({
   prevLesson,
   nextLesson,
   onSelectLesson,
-}: {
-  lesson: Lesson;
-  completed: boolean;
-  onToggleComplete: () => void;
-  prevLesson: Lesson | null;
-  nextLesson: Lesson | null;
-  onSelectLesson: (lesson: Lesson) => void;
-}) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'resources' | 'notes'>('overview');
+  userId,
+  cohortId,
+  initialWatchPercentage = 0,
+  onWatchProgressUpdate,
+}: LessonPlayerProps) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'resources' | 'notes' | 'discussion'>('overview');
   const [resources, setResources] = useState<LessonResource[]>([]);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [watchPercentage, setWatchPercentage] = useState<number>(initialWatchPercentage);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const lastSyncTimeRef = useRef<number>(0);
 
   const videoMeta = parseVideoUrl(lesson.video_url);
 
@@ -844,6 +992,7 @@ function LessonPlayer({
     { id: 'overview' as const, label: 'Overview' },
     { id: 'resources' as const, label: `Downloads & Resources (${resources.length})` },
     { id: 'notes' as const, label: 'Timeline Notes' },
+    { id: 'discussion' as const, label: 'Lesson Q&A & Discussion' },
   ];
 
   useEffect(() => {
@@ -854,6 +1003,40 @@ function LessonPlayer({
     setPlaybackSpeed(speed);
     if (videoRef.current) {
       videoRef.current.playbackRate = speed;
+    }
+  };
+
+  const syncWatchProgress = (pct: number, currentTime: number) => {
+    if (!userId) return;
+    const isAutoCompleted = pct >= 80;
+    void updateLessonWatchProgress(userId, lesson.id, pct, currentTime);
+    if (onWatchProgressUpdate) {
+      onWatchProgressUpdate(lesson.id, pct, isAutoCompleted);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (!videoRef.current) return;
+    const cur = videoRef.current.currentTime;
+    const dur = videoRef.current.duration;
+    if (!dur || isNaN(dur)) return;
+
+    const pct = Math.min(100, Math.round((cur / dur) * 100));
+    if (pct > watchPercentage) {
+      setWatchPercentage(pct);
+    }
+
+    const now = Date.now();
+    if (now - lastSyncTimeRef.current > 5000 || (pct >= 80 && watchPercentage < 80)) {
+      lastSyncTimeRef.current = now;
+      syncWatchProgress(Math.max(watchPercentage, pct), cur);
+    }
+  };
+
+  const handleEnded = () => {
+    setWatchPercentage(100);
+    if (videoRef.current) {
+      syncWatchProgress(100, videoRef.current.duration || 0);
     }
   };
 
@@ -876,6 +1059,8 @@ function LessonPlayer({
             className="absolute inset-0 size-full object-contain bg-black"
             controls
             src={videoMeta.directUrl!}
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={handleEnded}
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-orange-950/40 p-6 text-center">
@@ -905,30 +1090,59 @@ function LessonPlayer({
         )}
       </div>
 
-      {/* Video Controls Toolbar (for direct video player) */}
-      {videoMeta.type === 'video' && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-2.5 text-xs">
-          <div className="flex items-center gap-1.5 font-bold text-slate-600">
-            <Gauge size={14} className="text-orange-500" />
-            <span>Playback Speed:</span>
-          </div>
-          <div className="flex items-center gap-1">
-            {[0.75, 1, 1.25, 1.5, 2].map((speed) => (
-              <button
-                key={speed}
-                onClick={() => handleSpeedChange(speed)}
-                className={`rounded-md px-2.5 py-1 font-bold transition ${
-                  playbackSpeed === speed
-                    ? 'bg-orange-500 text-white shadow-2xs'
-                    : 'bg-white text-slate-600 hover:bg-slate-200'
+      {/* Video Watch Progress & Controls Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-2.5 text-xs">
+        <div className="flex items-center gap-3">
+          <span className="font-bold text-slate-700 flex items-center gap-1.5">
+            <Clock3 size={13} className="text-orange-500" />
+            Watch Progress:
+          </span>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-28 sm:w-44 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  watchPercentage >= 80 || completed ? 'bg-emerald-500' : 'bg-orange-500'
                 }`}
-              >
-                {speed}x
-              </button>
-            ))}
+                style={{ width: `${Math.max(watchPercentage, completed ? 100 : 0)}%` }}
+              />
+            </div>
+            <span className="font-mono font-bold text-slate-700">
+              {Math.max(watchPercentage, completed ? 100 : 0)}%
+            </span>
           </div>
+          <span className="text-[11px] text-slate-500 hidden sm:inline">
+            {watchPercentage >= 80 || completed ? (
+              <span className="font-bold text-emerald-600">✓ Completed (≥80% watched)</span>
+            ) : (
+              <span>(80% required to verify)</span>
+            )}
+          </span>
         </div>
-      )}
+
+        {videoMeta.type === 'video' && (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 font-bold text-slate-600">
+              <Gauge size={13} className="text-orange-500" />
+              <span>Speed:</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {[0.75, 1, 1.25, 1.5, 2].map((speed) => (
+                <button
+                  key={speed}
+                  onClick={() => handleSpeedChange(speed)}
+                  className={`rounded-md px-2 py-0.5 font-bold transition text-[11px] ${
+                    playbackSpeed === speed
+                      ? 'bg-orange-500 text-white shadow-2xs'
+                      : 'bg-white text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {speed}x
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Lesson Details & Prev/Next Controls */}
       <div className="p-6 sm:p-8">
@@ -1128,6 +1342,17 @@ function LessonPlayer({
                 <strong className="block font-bold text-slate-800 mb-1">Editor Pro-Tip:</strong>
                 Always cut on subject action or kinetic eye-movement to disguise hard transitions and maintain viewer focus.
               </div>
+            </div>
+          )}
+
+          {activeTab === 'discussion' && (
+            <div className="pt-2">
+              <CommunityBoard
+                userId={userId || ''}
+                cohortId={cohortId}
+                lessonId={lesson.id}
+                isInlineLesson
+              />
             </div>
           )}
         </div>

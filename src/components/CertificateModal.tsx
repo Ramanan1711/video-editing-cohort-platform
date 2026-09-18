@@ -1,7 +1,20 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Award, Download, Printer, ShieldCheck, X } from 'lucide-react';
+import {
+  Award,
+  Download,
+  LoaderCircle,
+  Printer,
+  ShieldCheck,
+  ShieldAlert,
+  CheckCircle2,
+  XCircle,
+  BookOpen,
+  FileCheck2,
+  X,
+} from 'lucide-react';
 import { Button } from './ui/Button';
+import { verifyCertificateEligibility, type CertificateEligibilityResult } from '../lib/courseService';
 
 interface CertificateModalProps {
   isOpen: boolean;
@@ -22,7 +35,40 @@ export function CertificateModal({
   studentId,
   completedDate,
 }: CertificateModalProps) {
-  const dateStr = completedDate
+  const [eligibility, setEligibility] = useState<CertificateEligibilityResult | null>(null);
+  const [verifying, setVerifying] = useState(true);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    verifyCertificateEligibility(studentId, cohortId)
+      .then((res) => {
+        if (active) {
+          setEligibility(res);
+          setVerifying(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setEligibility({
+            eligible: false,
+            reason: err instanceof Error ? err.message : 'Verification failed.',
+          });
+          setVerifying(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [isOpen, studentId, cohortId]);
+
+  const dateStr = eligibility?.issued_at
+    ? new Date(eligibility.issued_at).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : completedDate
     ? new Date(completedDate).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
@@ -34,22 +80,123 @@ export function CertificateModal({
         day: 'numeric',
       });
 
-  const credentialId = `CC-${cohortId.replace(/-/g, '').slice(0, 6).toUpperCase()}-${studentId
-    .replace(/-/g, '')
-    .slice(0, 6)
-    .toUpperCase()}`;
+  const credentialId =
+    eligibility?.certificate_number ||
+    `CC-${cohortId.replace(/-/g, '').slice(0, 6).toUpperCase()}-${studentId
+      .replace(/-/g, '')
+      .slice(0, 6)
+      .toUpperCase()}`;
 
-  // Add certificate print class to body when modal is open
+  // Add certificate print class to body when modal is open and eligible
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && eligibility?.eligible && !verifying) {
       document.body.classList.add('certificate-modal-open');
       return () => {
         document.body.classList.remove('certificate-modal-open');
       };
     }
-  }, [isOpen]);
+  }, [isOpen, eligibility?.eligible, verifying]);
 
   if (!isOpen) return null;
+
+  if (verifying) {
+    return createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 text-center text-white shadow-2xl">
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-400">
+            <LoaderCircle size={28} className="animate-spin" />
+          </div>
+          <h3 className="text-lg font-bold">Verifying Academic Eligibility</h3>
+          <p className="mt-2 text-sm text-slate-400">
+            Checking curriculum lesson completion and mentor-approved submissions for this cohort...
+          </p>
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  if (eligibility && !eligibility.eligible) {
+    return createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in">
+        <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-6 text-white shadow-2xl">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 rounded-xl p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400">
+              <ShieldAlert size={24} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold">Certificate Requirements Incomplete</h3>
+              <p className="text-xs text-slate-400">CUT / CRAFT Academy Credential Verification</p>
+            </div>
+          </div>
+
+          <p className="mt-4 text-sm text-slate-300">
+            {eligibility.reason ||
+              'To receive your official accredited certificate, you must complete all lessons and have every assignment approved by a mentor.'}
+          </p>
+
+          <div className="mt-5 space-y-3 rounded-xl border border-white/10 bg-slate-950/50 p-4">
+            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Requirements Checklist
+            </div>
+
+            {/* Lessons Requirement */}
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2.5">
+                <BookOpen size={16} className="text-slate-400" />
+                <span>Course Lessons</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-medium text-slate-300">
+                  {eligibility.completed_lessons ?? 0} / {eligibility.total_lessons ?? 0}
+                </span>
+                {(eligibility.completed_lessons ?? 0) >= (eligibility.total_lessons ?? 1) &&
+                (eligibility.total_lessons ?? 0) > 0 ? (
+                  <CheckCircle2 size={16} className="text-emerald-400" />
+                ) : (
+                  <XCircle size={16} className="text-rose-400" />
+                )}
+              </div>
+            </div>
+
+            {/* Assignments Requirement */}
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2.5">
+                <FileCheck2 size={16} className="text-slate-400" />
+                <span>Approved Assignments</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-medium text-slate-300">
+                  {eligibility.approved_assignments ?? 0} / {eligibility.total_assignments ?? 0}
+                </span>
+                {(eligibility.approved_assignments ?? 0) >= (eligibility.total_assignments ?? 1) &&
+                (eligibility.total_assignments ?? 0) > 0 ? (
+                  <CheckCircle2 size={16} className="text-emerald-400" />
+                ) : (
+                  <XCircle size={16} className="text-rose-400" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end gap-3">
+            <Button variant="primary" onClick={onClose} className="w-full sm:w-auto">
+              Return to Curriculum
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  }
 
   const handlePrint = () => {
     window.print();

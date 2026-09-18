@@ -56,6 +56,8 @@ export interface LessonProgress {
   lesson_id: string;
   completed: boolean;
   completed_at?: string | null;
+  watch_percentage?: number;
+  last_position_seconds?: number;
 }
 
 export interface StudentCourseData {
@@ -74,13 +76,35 @@ export interface Assignment {
   created_at?: string;
 }
 
-export type SubmissionStatus = 'pending' | 'reviewed' | 'resubmit';
+export type SubmissionStatus = 'draft' | 'pending' | 'reviewed' | 'resubmit';
+
+export interface FeedbackReply {
+  id: string;
+  feedback_id: string;
+  author_id: string;
+  message: string;
+  created_at: string;
+  author_name?: string;
+  author_role?: string;
+}
 
 export interface FeedbackItem {
   id: string;
   submission_id: string;
   mentor_id: string;
   comments: string;
+  created_at: string;
+  mentor_name?: string;
+  replies?: FeedbackReply[];
+}
+
+export interface SubmissionVersion {
+  id: string;
+  submission_id: string;
+  version_number: number;
+  file_url: string;
+  status: string;
+  notes?: string | null;
   created_at: string;
 }
 
@@ -92,8 +116,34 @@ export interface Submission {
   status: SubmissionStatus;
   feedback: string | null;
   feedback_history?: FeedbackItem[];
+  is_late?: boolean;
+  version_number?: number;
+  versions?: SubmissionVersion[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface CertificateEligibilityResult {
+  eligible: boolean;
+  already_issued?: boolean;
+  certificate_number?: string;
+  issued_at?: string;
+  reason?: string;
+  completed_lessons?: number;
+  total_lessons?: number;
+  approved_assignments?: number;
+  total_assignments?: number;
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string | null;
+  type: 'assignment' | 'live_session' | 'reminder';
+  date: string;
+  status?: string;
+  actionUrl?: string;
+  isCompleted?: boolean;
 }
 
 export interface MentorSubmission extends Submission {
@@ -304,6 +354,38 @@ export async function markLessonComplete(userId: string, lessonId: string, compl
     { onConflict: 'user_id,lesson_id' }
   );
   if (error) throw error;
+}
+
+export async function updateLessonWatchProgress(
+  userId: string,
+  lessonId: string,
+  watchPercentage: number,
+  positionSeconds: number = 0
+): Promise<void> {
+  const isAutoCompleted = watchPercentage >= 80;
+  try {
+    const payload: Record<string, unknown> = {
+      user_id: userId,
+      lesson_id: lessonId,
+      watch_percentage: Math.min(100, Math.round(watchPercentage)),
+      last_position_seconds: Math.round(positionSeconds),
+      completed_at: new Date().toISOString(),
+    };
+    if (isAutoCompleted) {
+      payload.completed = true;
+    }
+    const { error } = await supabase
+      .from('lesson_progress')
+      .upsert(payload, { onConflict: 'user_id,lesson_id' });
+
+    if (error && error.message.includes('watch_percentage')) {
+      if (isAutoCompleted) {
+        await markLessonComplete(userId, lessonId, true);
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to update watch progress:', err);
+  }
 }
 
 export async function listCohorts(): Promise<Cohort[]> {
@@ -852,11 +934,21 @@ export async function uploadSubmissionFile(userId: string, file: File): Promise<
 
 // Student Submissions & Resubmissions
 export async function listMySubmissions(userId: string): Promise<Submission[]> {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('submissions')
-    .select('id, assignment_id, student_id, file_url, status, created_at')
+    .select('id, assignment_id, student_id, file_url, status, created_at, is_late, version_number')
     .eq('student_id', userId)
     .order('created_at', { ascending: false });
+
+  if (error && (error.message.includes('is_late') || error.message.includes('version_number'))) {
+    const fallback = await supabase
+      .from('submissions')
+      .select('id, assignment_id, student_id, file_url, status, created_at')
+      .eq('student_id', userId)
+      .order('created_at', { ascending: false });
+    data = fallback.data as unknown as typeof data;
+    error = fallback.error;
+  }
   if (error) throw error;
   const submissions = (data ?? []) as Omit<Submission, 'feedback'>[];
   return addFeedback(submissions);
@@ -866,13 +958,33 @@ export async function submitOrReplaceAssignment(
   userId: string,
   assignmentId: string,
   fileUrl: string,
-  existingSubmissionId?: string
+  existingSubmissionId?: string,
+  isDraft: boolean = false,
+  notes?: string
 ): Promise<Submission> {
+  // Check if submission is late based on assignment deadline
+  let isLate = false;
+  try {
+    const { data: assign } = await supabase
+      .from('assignments')
+      .select('deadline')
+      .eq('id', assignmentId)
+      .maybeSingle();
+
+    if (assign?.deadline) {
+      isLate = new Date().getTime() > new Date(assign.deadline).getTime();
+    }
+  } catch {
+    isLate = false;
+  }
+
   let targetId = existingSubmissionId;
+  let previousRecord: { id: string; file_url: string; status: string; version_number?: number } | null = null;
+
   if (!targetId) {
     const { data: existing } = await supabase
       .from('submissions')
-      .select('id')
+      .select('id, file_url, status, version_number')
       .eq('student_id', userId)
       .eq('assignment_id', assignmentId)
       .order('created_at', { ascending: false })
@@ -880,44 +992,88 @@ export async function submitOrReplaceAssignment(
       .maybeSingle();
     if (existing?.id) {
       targetId = existing.id;
+      previousRecord = existing;
     }
+  } else {
+    const { data: existing } = await supabase
+      .from('submissions')
+      .select('id, file_url, status, version_number')
+      .eq('id', targetId)
+      .maybeSingle();
+    previousRecord = existing;
   }
 
-  if (targetId) {
-    // Resubmission replacement: update file_url and reset status to 'pending'
+  const newStatus: SubmissionStatus = isDraft ? 'draft' : 'pending';
+  const newVersionNumber = (previousRecord?.version_number || 1) + (previousRecord ? 1 : 0);
+
+  if (targetId && previousRecord) {
+    // Save previous version to submission_versions
+    try {
+      await supabase.from('submission_versions').insert({
+        submission_id: targetId,
+        version_number: previousRecord.version_number || 1,
+        file_url: previousRecord.file_url,
+        status: previousRecord.status,
+        notes: notes || null,
+      });
+    } catch (verErr) {
+      console.warn('submission_versions table unavailable:', verErr);
+    }
+
     const updatePayload: Record<string, unknown> = {
       file_url: fileUrl,
-      status: 'pending',
+      status: newStatus,
+      is_late: isLate,
+      version_number: newVersionNumber,
     };
     let { data, error } = await supabase
       .from('submissions')
       .update({ ...updatePayload, updated_at: new Date().toISOString() })
       .eq('id', targetId)
-      .select('id, assignment_id, student_id, file_url, status, created_at')
+      .select('id, assignment_id, student_id, file_url, status, created_at, is_late, version_number')
       .single();
 
-    if (error && error.message.includes('updated_at')) {
+    if (error && (error.message.includes('updated_at') || error.message.includes('is_late') || error.message.includes('version_number'))) {
       const retry = await supabase
         .from('submissions')
-        .update(updatePayload)
+        .update({ file_url: fileUrl, status: newStatus })
         .eq('id', targetId)
         .select('id, assignment_id, student_id, file_url, status, created_at')
         .single();
-      data = retry.data;
+      data = retry.data as unknown as typeof data;
       error = retry.error;
     }
     if (error) throw error;
-    return { ...(data as Omit<Submission, 'feedback'>), feedback: null };
+    return { ...(data as Omit<Submission, 'feedback'>), feedback: null, is_late: isLate, version_number: newVersionNumber };
   }
 
   // Initial submission
-  const { data, error } = await supabase
+  const insertPayload: Record<string, unknown> = {
+    student_id: userId,
+    assignment_id: assignmentId,
+    file_url: fileUrl,
+    status: newStatus,
+    is_late: isLate,
+    version_number: 1,
+  };
+
+  let { data, error } = await supabase
     .from('submissions')
-    .insert({ student_id: userId, assignment_id: assignmentId, file_url: fileUrl, status: 'pending' })
-    .select('id, assignment_id, student_id, file_url, status, created_at')
+    .insert(insertPayload)
+    .select('id, assignment_id, student_id, file_url, status, created_at, is_late, version_number')
     .single();
+
+  if (error && (error.message.includes('is_late') || error.message.includes('version_number'))) {
+    const retry = await supabase
+      .from('submissions')
+      .insert({ student_id: userId, assignment_id: assignmentId, file_url: fileUrl, status: newStatus })
+      .select('id, assignment_id, student_id, file_url, status, created_at')
+      .single();
+    data = retry.data as unknown as typeof data;
+    error = retry.error;
+  }
   if (error) throw error;
-  return { ...(data as Omit<Submission, 'feedback'>), feedback: null };
+  return { ...(data as Omit<Submission, 'feedback'>), feedback: null, is_late: isLate, version_number: 1 };
 }
 
 export async function submitAssignment(userId: string, assignmentId: string, videoUrl: string): Promise<Submission> {
@@ -1104,12 +1260,55 @@ async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise
   const feedbackBySubmission = new Map<string, string>();
   const historyBySubmission = new Map<string, FeedbackItem[]>();
 
+  const mentorIds = Array.from(new Set((data ?? []).map((f) => f.mentor_id)));
+  const { data: mentorProfiles } = mentorIds.length
+    ? await supabase.from('profiles').select('id, full_name').in('id', mentorIds)
+    : { data: [] };
+  const mentorMap = new Map((mentorProfiles ?? []).map((p) => [p.id, p.full_name]));
+
+  // Fetch feedback replies if table exists
+  const feedbackIds = (data ?? []).map((f) => f.id);
+  const repliesByFeedback = new Map<string, FeedbackReply[]>();
+
+  if (feedbackIds.length > 0) {
+    try {
+      const { data: replies } = await supabase
+        .from('feedback_replies')
+        .select('id, feedback_id, author_id, message, created_at')
+        .in('feedback_id', feedbackIds)
+        .order('created_at', { ascending: true });
+
+      const replyAuthorIds = Array.from(new Set((replies ?? []).map((r) => r.author_id)));
+      const { data: replyProfiles } = replyAuthorIds.length
+        ? await supabase.from('profiles').select('id, full_name, role').in('id', replyAuthorIds)
+        : { data: [] };
+      const replyProfileMap = new Map((replyProfiles ?? []).map((p) => [p.id, p]));
+
+      for (const r of replies ?? []) {
+        const list = repliesByFeedback.get(r.feedback_id) || [];
+        const author = replyProfileMap.get(r.author_id);
+        list.push({
+          ...r,
+          author_name: author?.full_name || 'Member',
+          author_role: author?.role || 'student',
+        });
+        repliesByFeedback.set(r.feedback_id, list);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   for (const item of data ?? []) {
     if (!feedbackBySubmission.has(item.submission_id)) {
       feedbackBySubmission.set(item.submission_id, item.comments);
     }
     const current = historyBySubmission.get(item.submission_id) || [];
-    current.push(item as FeedbackItem);
+    current.push({
+      ...(item as FeedbackItem),
+      mentor_name: mentorMap.get(item.mentor_id) || 'Mentor',
+      replies: repliesByFeedback.get(item.id) || [],
+    });
     historyBySubmission.set(item.submission_id, current);
   }
 
@@ -1276,4 +1475,222 @@ export function parseVideoUrl(url: string | null): {
     embedUrl: null,
     directUrl: trimmed,
   };
+}
+
+// ==============================================================================
+// Submission Versions & History
+// ==============================================================================
+export async function listSubmissionVersions(submissionId: string): Promise<SubmissionVersion[]> {
+  try {
+    const { data, error } = await supabase
+      .from('submission_versions')
+      .select('id, submission_id, version_number, file_url, status, notes, created_at')
+      .eq('submission_id', submissionId)
+      .order('version_number', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as SubmissionVersion[];
+  } catch (err) {
+    console.warn('submission_versions table unavailable:', err);
+    return [];
+  }
+}
+
+// ==============================================================================
+// Feedback Replies (Student-Mentor Loop)
+// ==============================================================================
+export async function addFeedbackReply(
+  feedbackId: string,
+  authorId: string,
+  message: string
+): Promise<FeedbackReply> {
+  const { data, error } = await supabase
+    .from('feedback_replies')
+    .insert({
+      feedback_id: feedbackId,
+      author_id: authorId,
+      message: message.trim(),
+    })
+    .select('id, feedback_id, author_id, message, created_at')
+    .single();
+
+  if (error) throw error;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, role')
+    .eq('id', authorId)
+    .maybeSingle();
+
+  return {
+    ...(data as FeedbackReply),
+    author_name: profile?.full_name || 'You',
+    author_role: profile?.role || 'student',
+  };
+}
+
+export async function listFeedbackReplies(feedbackId: string): Promise<FeedbackReply[]> {
+  try {
+    const { data, error } = await supabase
+      .from('feedback_replies')
+      .select('id, feedback_id, author_id, message, created_at')
+      .eq('feedback_id', feedbackId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    if (!data || data.length === 0) return [];
+
+    const authorIds = Array.from(new Set(data.map((r) => r.author_id)));
+    const { data: profiles } = authorIds.length
+      ? await supabase.from('profiles').select('id, full_name, role').in('id', authorIds)
+      : { data: [] };
+
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+    return data.map((r) => {
+      const profile = profileMap.get(r.author_id);
+      return {
+        ...r,
+        author_name: profile?.full_name || 'User',
+        author_role: profile?.role || 'student',
+      };
+    });
+  } catch (err) {
+    console.warn('feedback_replies table unavailable:', err);
+    return [];
+  }
+}
+
+// ==============================================================================
+// Authoritative Certificate Verification
+// ==============================================================================
+export async function verifyCertificateEligibility(
+  studentId: string,
+  cohortId: string
+): Promise<CertificateEligibilityResult> {
+  try {
+    const { data, error } = await supabase.rpc('verify_and_issue_certificate', {
+      p_student_id: studentId,
+      p_cohort_id: cohortId,
+    });
+
+    if (!error && data) {
+      return data as CertificateEligibilityResult;
+    }
+  } catch (err) {
+    console.warn('RPC verify_and_issue_certificate unavailable, running client fallback:', err);
+  }
+
+  // Client-side fallback check
+  try {
+    const [modulesRes, progressRes, assignRes, subsRes] = await Promise.all([
+      supabase.from('modules').select('id, lessons(id)').eq('cohort_id', cohortId),
+      supabase.from('lesson_progress').select('lesson_id, completed').eq('user_id', studentId).eq('completed', true),
+      supabase.from('assignments').select('id').eq('cohort_id', cohortId),
+      supabase.from('submissions').select('assignment_id, status').eq('student_id', studentId).eq('status', 'reviewed'),
+    ]);
+
+    const allLessonIds = (modulesRes.data ?? []).flatMap((m) => ((m.lessons as Array<{ id: string }>) ?? []).map((l) => l.id));
+    const completedLessonIds = new Set((progressRes.data ?? []).map((p) => p.lesson_id));
+    const completedLessons = allLessonIds.filter((id) => completedLessonIds.has(id)).length;
+
+    const totalAssigns = (assignRes.data ?? []).length;
+    const approvedAssignIds = new Set((subsRes.data ?? []).map((s) => s.assignment_id));
+    const approvedAssigns = (assignRes.data ?? []).filter((a) => approvedAssignIds.has(a.id)).length;
+
+    const isLessonsComplete = allLessonIds.length === 0 || completedLessons >= allLessonIds.length;
+    const isAssignsComplete = totalAssigns === 0 || approvedAssigns >= totalAssigns;
+
+    if (isLessonsComplete && isAssignsComplete) {
+      const fallbackCertNumber = `CC-${cohortId.replace(/-/g, '').slice(0, 6).toUpperCase()}-${studentId.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+      return {
+        eligible: true,
+        already_issued: true,
+        certificate_number: fallbackCertNumber,
+        issued_at: new Date().toISOString(),
+        completed_lessons: completedLessons,
+        total_lessons: allLessonIds.length,
+        approved_assignments: approvedAssigns,
+        total_assignments: totalAssigns,
+      };
+    } else {
+      return {
+        eligible: false,
+        reason: !isLessonsComplete
+          ? `${allLessonIds.length - completedLessons} required lesson(s) not completed yet.`
+          : `${totalAssigns - approvedAssigns} assignment(s) not reviewed or approved yet.`,
+        completed_lessons: completedLessons,
+        total_lessons: allLessonIds.length,
+        approved_assignments: approvedAssigns,
+        total_assignments: totalAssigns,
+      };
+    }
+  } catch (fallbackErr) {
+    return {
+      eligible: false,
+      reason: fallbackErr instanceof Error ? fallbackErr.message : 'Failed to verify certificate eligibility.',
+    };
+  }
+}
+
+// ==============================================================================
+// Student Consolidated Calendar
+// ==============================================================================
+export async function listStudentCalendarEvents(
+  studentId: string,
+  cohortId?: string
+): Promise<CalendarEvent[]> {
+  const events: CalendarEvent[] = [];
+
+  try {
+    const [assignments, liveSessions, submissions] = await Promise.all([
+      cohortId ? listAssignments(cohortId) : Promise.resolve([]),
+      listStudentLiveSessions(),
+      listMySubmissions(studentId),
+    ]);
+
+    const submissionMap = new Map(submissions.map((s) => [s.assignment_id, s]));
+
+    for (const a of assignments) {
+      if (a.deadline) {
+        const sub = submissionMap.get(a.id);
+        events.push({
+          id: `assignment-${a.id}`,
+          title: `Assignment: ${a.title}`,
+          description: a.instructions,
+          type: 'assignment',
+          date: a.deadline,
+          status: sub?.status || 'unsubmitted',
+          isCompleted: sub?.status === 'reviewed',
+        });
+      }
+    }
+
+    for (const s of liveSessions) {
+      events.push({
+        id: `session-${s.id}`,
+        title: s.title,
+        description: s.description,
+        type: 'live_session',
+        date: s.starts_at,
+        actionUrl: s.meeting_url,
+      });
+    }
+
+    // Load personal reminders from localStorage
+    try {
+      const stored = localStorage.getItem(`student_reminders_${studentId}`);
+      if (stored) {
+        const reminders = JSON.parse(stored) as CalendarEvent[];
+        events.push(...reminders);
+      }
+    } catch {
+      // ignore
+    }
+
+    // Sort chronologically
+    return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  } catch (err) {
+    console.warn('Failed to load calendar events:', err);
+    return [];
+  }
 }

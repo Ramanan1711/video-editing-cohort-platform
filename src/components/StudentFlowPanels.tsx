@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
+  AlertTriangle,
   Award,
   Calendar,
   Check,
+  CheckSquare,
   Clock,
   ExternalLink,
+  FileText,
+  History,
   Layers,
   LoaderCircle,
   MessageSquare,
@@ -17,16 +21,19 @@ import {
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import {
+  addFeedbackReply,
   enrollInCohort,
   formatFileSize,
   listAllStudentCohorts,
   listAssignments,
   listAvailableCohorts,
   listMySubmissions,
+  listSubmissionVersions,
   submitOrReplaceAssignment,
   type Assignment,
   type Cohort,
   type Submission,
+  type SubmissionVersion,
   uploadSubmissionFile,
 } from '../lib/courseService';
 
@@ -287,6 +294,19 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Version History Modal State
+  const [viewingVersionSubmission, setViewingVersionSubmission] = useState<Submission | null>(null);
+  const [submissionVersions, setSubmissionVersions] = useState<SubmissionVersion[]>([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+
+  // Revision Checklist State for Resubmission
+  const [checklist, setChecklist] = useState<Record<string, boolean>>({
+    pacing: false,
+    audio: false,
+    color: false,
+    critique: false,
+  });
+
   const load = async () => {
     try {
       const [nextAssignments, nextSubmissions] = await Promise.all([
@@ -317,12 +337,20 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
     };
   }, [cohortId, userId]);
 
-  const submit = async (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent, isDraft = false) => {
     event.preventDefault();
     if (!activeAssignment || !file) return;
 
     if (file.size > 500 * 1024 * 1024) {
       setError('Files must be smaller than 500 MB.');
+      return;
+    }
+
+    // Supported format check
+    const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+    const ALLOWED = ['.mp4', '.mov', '.webm', '.prproj', '.drp', '.fcpxml', '.aep', '.zip', '.rar', '.7z', '.pdf', '.doc', '.docx'];
+    if (!ALLOWED.includes(ext)) {
+      setError(`File extension ${ext} is not supported. Please upload a video (.mp4, .mov), project file (.prproj, .drp, .aep), ZIP archive, or PDF.`);
       return;
     }
 
@@ -334,17 +362,25 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
       const submittedUrl = await uploadSubmissionFile(userId, file);
       const existingSubmission = submissions.find((item) => item.assignment_id === activeAssignment.id);
 
-      // Resubmission replacement behavior: Replaces file_url, resets status to 'pending'
-      await submitOrReplaceAssignment(userId, activeAssignment.id, submittedUrl, existingSubmission?.id);
+      await submitOrReplaceAssignment(
+        userId,
+        activeAssignment.id,
+        submittedUrl,
+        existingSubmission?.id,
+        isDraft
+      );
 
       setSuccess(
-        isResubmitting
+        isDraft
+          ? 'Submission draft saved successfully!'
+          : isResubmitting
           ? 'Revised submission uploaded successfully! Awaiting mentor review.'
-          : 'Assignment submitted successfully!'
+          : 'Assignment submitted successfully for mentor review!'
       );
       setActiveAssignment(null);
       setFile(null);
       setIsResubmitting(false);
+      setChecklist({ pacing: false, audio: false, color: false, critique: false });
       await load();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to submit assignment.');
@@ -358,6 +394,25 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
     setIsResubmitting(isResubmit);
     setFile(null);
     setError(null);
+    setChecklist({ pacing: false, audio: false, color: false, critique: false });
+  };
+
+  const handleOpenVersions = async (submission: Submission) => {
+    setViewingVersionSubmission(submission);
+    setLoadingVersions(true);
+    try {
+      const versions = await listSubmissionVersions(submission.id);
+      setSubmissionVersions(versions);
+    } catch (err) {
+      console.warn('Failed to load versions:', err);
+    } finally {
+      setLoadingVersions(false);
+    }
+  };
+
+  const handleSendFeedbackReply = async (feedbackId: string, message: string) => {
+    await addFeedbackReply(feedbackId, userId, message);
+    await load();
   };
 
   return (
@@ -401,6 +456,8 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
               submission={submissions.find((item) => item.assignment_id === assignment.id)}
               onSubmit={() => openSubmitModal(assignment, false)}
               onResubmit={() => openSubmitModal(assignment, true)}
+              onOpenVersions={handleOpenVersions}
+              onSendReply={handleSendFeedbackReply}
             />
           ))}
         </div>
@@ -411,11 +468,11 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
       {/* Submission / Resubmission Modal */}
       {activeAssignment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-5 backdrop-blur-sm">
-          <form onSubmit={submit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <form onSubmit={(e) => void submit(e, false)} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-left">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-orange-500">
-                  {isResubmitting ? 'Replace / Resubmit Assignment' : 'Submit Assignment'}
+                  {isResubmitting ? 'Resubmit Assignment Revision' : 'Submit Assignment'}
                 </p>
                 <h3 className="mt-1 text-xl font-black text-slate-950">{activeAssignment.title}</h3>
               </div>
@@ -444,20 +501,70 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
               </div>
             )}
 
+            {/* Interactive Revision Checklist for Resubmission */}
+            {isResubmitting && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-900">
+                  <CheckSquare size={14} className="text-amber-600" /> Revision Self-Checklist
+                </span>
+                <p className="mt-1 text-xs text-amber-700">
+                  Verify these core polish items before submitting your revision to mentor:
+                </p>
+                <div className="mt-2.5 space-y-2 text-xs text-slate-800">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checklist.critique}
+                      onChange={(e) => setChecklist({ ...checklist, critique: e.target.checked })}
+                      className="rounded text-orange-600 focus:ring-orange-500"
+                    />
+                    <span>Applied all mentor critique &amp; timeline adjustments</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checklist.pacing}
+                      onChange={(e) => setChecklist({ ...checklist, pacing: e.target.checked })}
+                      className="rounded text-orange-600 focus:ring-orange-500"
+                    />
+                    <span>Pacing &amp; cutting continuity reviewed on playback</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checklist.audio}
+                      onChange={(e) => setChecklist({ ...checklist, audio: e.target.checked })}
+                      className="rounded text-orange-600 focus:ring-orange-500"
+                    />
+                    <span>Dialogue levels balanced and background music ducked</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checklist.color}
+                      onChange={(e) => setChecklist({ ...checklist, color: e.target.checked })}
+                      className="rounded text-orange-600 focus:ring-orange-500"
+                    />
+                    <span>Color grade and skin tones checked across cut points</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
             {/* File Upload Form */}
             <label className="mt-5 block text-left">
               <span className="mb-1.5 block text-sm font-bold text-slate-700">
-                Upload your video, project file, document, or PDF
+                Upload your video, project file, or export <span className="text-red-500">*</span>
               </span>
               <input
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 type="file"
-                accept="video/*,image/*,application/pdf,.doc,.docx,.txt,.rtf,.zip,.rar,.7z,.prproj,.drp,.fcpxml,.aep,.psd"
+                accept="video/mp4,video/quicktime,video/webm,.prproj,.drp,.fcpxml,.aep,.zip,.rar,.7z,.pdf"
                 required
                 className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-normal outline-none focus:border-orange-400"
               />
               <span className="mt-1.5 block text-[11px] text-slate-400">
-                Supports video edits (.mp4, .mov), project files (.prproj, .drp, .fcpxml, .aep), ZIPs, and PDFs (Max 500 MB).
+                Accepted formats: .mp4, .mov, .webm, Premiere (.prproj), DaVinci (.drp), FCP (.fcpxml), After Effects (.aep), ZIP, PDF (Max 500 MB).
               </span>
             </label>
 
@@ -467,15 +574,118 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
               </div>
             )}
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+            <div className="mt-6 flex flex-wrap justify-between gap-3 border-t border-slate-100 pt-4">
               <Button type="button" variant="secondary" onClick={() => setActiveAssignment(null)} disabled={saving}>
                 Cancel
               </Button>
-              <Button type="submit" loading={saving}>
-                {saving ? 'Uploading & Submitting...' : isResubmitting ? 'Resubmit & Replace' : 'Upload & Submit'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={(e) => void submit(e, true)}
+                  disabled={saving || !file}
+                >
+                  Save as Draft
+                </Button>
+                <Button type="submit" loading={saving}>
+                  {saving ? 'Uploading...' : isResubmitting ? 'Submit Revision' : 'Submit for Review'}
+                </Button>
+              </div>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Submission Version History Modal */}
+      {viewingVersionSubmission && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-left">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <History size={18} className="text-orange-500" />
+                <h3 className="text-base font-black text-slate-950">Submission Version History</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingVersionSubmission(null)}
+                className="rounded-lg p-1 text-slate-400 hover:text-slate-800"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3 max-h-80 overflow-y-auto">
+              {/* Current Active Version */}
+              <div className="rounded-xl border border-orange-300 bg-orange-50/30 p-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="rounded bg-orange-500 px-2 py-0.5 text-[10px] font-black uppercase text-white">
+                    Version {viewingVersionSubmission.version_number || 1} (Active)
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-semibold">
+                    {viewingVersionSubmission.created_at
+                      ? new Date(viewingVersionSubmission.created_at).toLocaleDateString([], {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Latest'}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-700 capitalize">Status: {viewingVersionSubmission.status}</span>
+                  <a
+                    href={viewingVersionSubmission.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-orange-600 underline"
+                  >
+                    View File <ExternalLink size={11} />
+                  </a>
+                </div>
+              </div>
+
+              {/* Archived Historical Versions */}
+              {loadingVersions ? (
+                <div className="py-4 text-center text-xs text-slate-400">Loading prior revisions...</div>
+              ) : submissionVersions.length ? (
+                submissionVersions.map((ver) => (
+                  <div key={ver.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-slate-700">Version {ver.version_number} (Archived)</span>
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(ver.created_at).toLocaleDateString([], {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between">
+                      <span className="text-slate-500 capitalize">Prior status: {ver.status}</span>
+                      <a
+                        href={ver.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 font-semibold text-slate-700 underline hover:text-orange-600"
+                      >
+                        Archived File <ExternalLink size={11} />
+                      </a>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="py-2 text-center text-xs text-slate-400">No previous versions archived yet.</p>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
+              <Button variant="secondary" size="sm" onClick={() => setViewingVersionSubmission(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </section>
@@ -487,36 +697,70 @@ function AssignmentCard({
   submission,
   onSubmit,
   onResubmit,
+  onOpenVersions,
+  onSendReply,
 }: {
   assignment: Assignment;
   submission?: Submission;
   onSubmit: () => void;
   onResubmit: () => void;
+  onOpenVersions?: (submission: Submission) => void;
+  onSendReply?: (feedbackId: string, message: string) => Promise<void>;
 }) {
   const status = submission?.status;
   const deadlineStatus = getDeadlineStatus(assignment.deadline);
+  const [replyOpen, setReplyOpen] = useState<Record<string, boolean>>({});
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [replySending, setReplySending] = useState<string | null>(null);
+
+  const handleReplySubmit = async (feedbackId: string) => {
+    const text = (replyDrafts[feedbackId] || '').trim();
+    if (!text || !onSendReply) return;
+    setReplySending(feedbackId);
+    try {
+      await onSendReply(feedbackId, text);
+      setReplyDrafts((prev) => ({ ...prev, [feedbackId]: '' }));
+      setReplyOpen((prev) => ({ ...prev, [feedbackId]: false }));
+    } catch (err) {
+      console.warn('Failed to send reply:', err);
+    } finally {
+      setReplySending(null);
+    }
+  };
 
   return (
-    <Card className="flex flex-col justify-between p-5 transition hover:border-slate-300">
+    <Card className="flex flex-col justify-between p-5 transition hover:border-slate-300 text-left">
       <div>
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-wider text-orange-500">Assignment</p>
             <h3 className="mt-1 text-base font-black text-slate-950">{assignment.title}</h3>
           </div>
-          {status === 'reviewed' ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
-              <Check size={13} /> Reviewed &amp; Passed
-            </span>
-          ) : status === 'resubmit' ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
-              <RotateCcw size={13} /> Revision Needed
-            </span>
-          ) : status === 'pending' ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">
-              <Clock size={13} /> Under Review
-            </span>
-          ) : null}
+          <div className="flex flex-col items-end gap-1">
+            {status === 'reviewed' ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                <Check size={13} /> Reviewed &amp; Passed
+              </span>
+            ) : status === 'resubmit' ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+                <RotateCcw size={13} /> Revision Needed
+              </span>
+            ) : status === 'pending' ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">
+                <Clock size={13} /> Under Review
+              </span>
+            ) : status === 'draft' ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
+                <FileText size={13} /> Draft Saved
+              </span>
+            ) : null}
+
+            {submission?.is_late && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                <AlertTriangle size={11} /> Late Submission
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Deadline Indicator */}
@@ -546,9 +790,11 @@ function AssignmentCard({
           <div
             className={`mt-4 rounded-xl p-3.5 text-xs ${
               status === 'resubmit'
-                ? 'border border-amber-200 bg-amber-50 text-amber-900'
+                ? 'border border-amber-200 bg-amber-50/80 text-amber-900'
                 : status === 'reviewed'
-                ? 'border border-emerald-200 bg-emerald-50 text-emerald-900'
+                ? 'border border-emerald-200 bg-emerald-50/80 text-emerald-900'
+                : status === 'draft'
+                ? 'border border-slate-200 bg-slate-100/80 text-slate-700'
                 : 'border border-slate-200 bg-slate-50 text-slate-700'
             }`}
           >
@@ -558,6 +804,8 @@ function AssignmentCard({
                   ? 'Mentor Revision Requested'
                   : status === 'reviewed'
                   ? 'Reviewed & Approved'
+                  : status === 'draft'
+                  ? 'Draft in Progress'
                   : 'Submission Under Mentor Review'}
               </span>
               <a
@@ -570,7 +818,18 @@ function AssignmentCard({
               </a>
             </div>
 
-            {/* Mentor Feedback History Thread */}
+            {/* Version History Button */}
+            {onOpenVersions && (
+              <button
+                type="button"
+                onClick={() => onOpenVersions(submission)}
+                className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:underline"
+              >
+                <History size={12} /> Submission Version History (v{submission.version_number || 1})
+              </button>
+            )}
+
+            {/* Mentor Feedback History Thread with Replies */}
             {submission.feedback_history && submission.feedback_history.length > 0 ? (
               <div className="mt-3 space-y-2 border-t border-slate-200/60 pt-2.5">
                 <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -578,12 +837,68 @@ function AssignmentCard({
                   <span>Mentor Feedback History ({submission.feedback_history.length})</span>
                 </div>
                 {submission.feedback_history.map((item, idx) => (
-                  <div key={item.id || idx} className="rounded-lg bg-white/80 p-2.5 shadow-2xs">
+                  <div key={item.id || idx} className="rounded-lg bg-white/90 p-3 shadow-2xs border border-slate-100">
                     <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                      <span className="font-bold text-slate-700">Critique #{idx + 1}</span>
+                      <span className="font-bold text-slate-800">
+                        {item.mentor_name ? `Critique by ${item.mentor_name}` : `Critique #${idx + 1}`}
+                      </span>
                       <span>{new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <p className="text-xs text-slate-800 leading-relaxed whitespace-pre-wrap">{item.comments}</p>
+
+                    {/* Feedback Replies */}
+                    {(item.replies || []).length > 0 && (
+                      <div className="mt-2.5 space-y-1.5 border-t border-slate-100 pt-2">
+                        {item.replies!.map((reply) => (
+                          <div key={reply.id} className="rounded-md bg-slate-50 p-2 text-[11px]">
+                            <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
+                              <span className="font-bold text-slate-700">{reply.author_name}</span>
+                              <span>{new Date(reply.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <p className="text-slate-700">{reply.message}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Reply to critique toggle */}
+                    {onSendReply && (
+                      <div className="mt-2">
+                        {replyOpen[item.id] ? (
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <input
+                              type="text"
+                              placeholder="Reply to mentor feedback..."
+                              value={replyDrafts[item.id] || ''}
+                              onChange={(e) =>
+                                setReplyDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))
+                              }
+                              className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs outline-none focus:border-orange-400"
+                            />
+                            <Button
+                              size="sm"
+                              disabled={!replyDrafts[item.id]?.trim() || replySending === item.id}
+                              onClick={() => void handleReplySubmit(item.id)}
+                            >
+                              <Send size={11} />
+                            </Button>
+                            <button
+                              onClick={() => setReplyOpen((prev) => ({ ...prev, [item.id]: false }))}
+                              className="p-1 text-slate-400 hover:text-slate-600"
+                            >
+                              <X size={13} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setReplyOpen((prev) => ({ ...prev, [item.id]: true }))}
+                            className="text-[10px] font-bold text-orange-600 hover:underline"
+                          >
+                            + Reply to critique
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -605,6 +920,10 @@ function AssignmentCard({
         ) : status === 'pending' ? (
           <Button variant="secondary" size="sm" className="w-full" onClick={onResubmit}>
             <Upload size={14} /> Replace Submission File
+          </Button>
+        ) : status === 'draft' ? (
+          <Button variant="primary" size="sm" className="w-full" onClick={onResubmit}>
+            <Upload size={14} /> Finalize &amp; Submit Draft
           </Button>
         ) : status === 'reviewed' ? (
           <div className="text-center text-xs font-semibold text-emerald-600">
