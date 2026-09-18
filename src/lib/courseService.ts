@@ -4,6 +4,11 @@ export interface Cohort {
   id: string;
   name: string;
   description: string | null;
+  status?: 'draft' | 'published' | 'archived';
+  capacity?: number;
+  visibility?: 'public' | 'private' | 'unlisted';
+  enrollment_start?: string | null;
+  enrollment_end?: string | null;
 }
 
 export interface Lesson {
@@ -14,6 +19,7 @@ export interface Lesson {
   video_url: string | null;
   duration_minutes: number | null;
   position: number;
+  status?: 'draft' | 'published' | 'archived';
 }
 
 export interface Module {
@@ -28,7 +34,7 @@ export interface Module {
 export interface Enrollment {
   user_id: string;
   cohort_id: string;
-  status: 'active' | 'completed' | 'dropped';
+  status: 'active' | 'completed' | 'dropped' | 'waitlisted';
   created_at?: string;
 }
 
@@ -123,9 +129,11 @@ export interface StudentLiveSession {
   meeting_url: string;
 }
 
-export type CohortInput = Pick<Cohort, 'name' | 'description'>;
+export type CohortInput = Pick<Cohort, 'name' | 'description'> &
+  Partial<Pick<Cohort, 'status' | 'capacity' | 'visibility' | 'enrollment_start' | 'enrollment_end'>>;
 export type ModuleInput = Pick<Module, 'cohort_id' | 'title' | 'description' | 'position'>;
-export type LessonInput = Pick<Lesson, 'module_id' | 'title' | 'description' | 'video_url' | 'duration_minutes' | 'position'>;
+export type LessonInput = Pick<Lesson, 'module_id' | 'title' | 'description' | 'video_url' | 'duration_minutes' | 'position'> &
+  Partial<Pick<Lesson, 'status'>>;
 export type EnrollmentInput = Pick<Enrollment, 'user_id' | 'cohort_id' | 'status'>;
 export type AssignmentInput = Pick<Assignment, 'lesson_id' | 'title' | 'instructions' | 'deadline'>;
 export interface LessonResourceInput {
@@ -137,7 +145,9 @@ export interface LessonResourceInput {
   file_size?: number | null;
 }
 
-const courseSelect = 'id, cohort_id, title, description, position, lessons(id, module_id, title, description, video_url, duration_minutes, position)';
+const courseSelectWithStatus = 'id, cohort_id, title, description, position, lessons(id, module_id, title, description, video_url, duration_minutes, position, status)';
+const courseSelectLegacy = 'id, cohort_id, title, description, position, lessons(id, module_id, title, description, video_url, duration_minutes, position)';
+const courseSelect = courseSelectWithStatus;
 
 export function inferMimeType(fileName: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase();
@@ -223,12 +233,20 @@ export async function getStudentCourseData(userId: string, cohortId?: string): P
     return { cohort: null, modules: [], progress: [], enrolledCohorts };
   }
 
-  const [{ data: modules, error: modulesError }, { data: progress, error: progressError }] = await Promise.all([
+  const [{ data: rawModules, error: modulesError }, { data: progress, error: progressError }] = await Promise.all([
     supabase.from('modules').select(courseSelect).eq('cohort_id', targetCohort.id).order('position', { ascending: true }),
     supabase.from('lesson_progress').select('lesson_id, completed, completed_at').eq('user_id', userId),
   ]);
 
-  if (modulesError) throw modulesError;
+  let modules: Module[] | null = (rawModules ?? []) as Module[];
+  if (modulesError) {
+    const fallbackRes = await supabase.from('modules').select(courseSelectLegacy).eq('cohort_id', targetCohort.id).order('position', { ascending: true });
+    if (fallbackRes.error) throw modulesError;
+    modules = ((fallbackRes.data ?? []) as unknown as Module[]).map((m) => ({
+      ...m,
+      lessons: (m.lessons || []).map((l) => ({ ...l, status: l.status ?? 'published' })),
+    }));
+  }
   if (progressError) throw progressError;
 
   return {
@@ -289,18 +307,47 @@ export async function markLessonComplete(userId: string, lessonId: string, compl
 }
 
 export async function listCohorts(): Promise<Cohort[]> {
-  const { data, error } = await supabase.from('cohorts').select('id, title, description').order('title');
-  if (error) throw error;
-  return (data ?? []).map((cohort) => ({ id: cohort.id, name: cohort.title, description: cohort.description }));
+  const { data, error } = await supabase
+    .from('cohorts')
+    .select('id, title, description, status, capacity, visibility, enrollment_start, enrollment_end')
+    .order('title');
+
+  if (error) {
+    const { data: fallback, error: fallbackError } = await supabase
+      .from('cohorts')
+      .select('id, title, description')
+      .order('title');
+    if (fallbackError) throw fallbackError;
+    return (fallback ?? []).map((c) => ({
+      id: c.id,
+      name: c.title,
+      description: c.description,
+      status: 'published',
+      capacity: 30,
+      visibility: 'public',
+      enrollment_start: null,
+      enrollment_end: null,
+    }));
+  }
+
+  return (data ?? []).map((cohort) => ({
+    id: cohort.id,
+    name: cohort.title,
+    description: cohort.description,
+    status: cohort.status ?? 'published',
+    capacity: cohort.capacity ?? 30,
+    visibility: cohort.visibility ?? 'public',
+    enrollment_start: cohort.enrollment_start ?? null,
+    enrollment_end: cohort.enrollment_end ?? null,
+  }));
 }
 
 export async function listAvailableCohorts(userId: string): Promise<Cohort[]> {
   const { data: enrollments, error: enrollmentError } = await supabase.from('enrollments').select('cohort_id').eq('user_id', userId);
   if (enrollmentError) throw enrollmentError;
   const enrolledIds = (enrollments ?? []).map((enrollment) => enrollment.cohort_id);
-  const { data, error } = await supabase.from('cohorts').select('id, title, description').order('title');
-  if (error) throw error;
-  return (data ?? []).filter((cohort) => !enrolledIds.includes(cohort.id)).map((cohort) => ({ id: cohort.id, name: cohort.title, description: cohort.description }));
+  const cohorts = await listCohorts();
+  return cohorts.filter((cohort) => !enrolledIds.includes(cohort.id) && cohort.status !== 'archived');
 }
 
 export async function enrollInCohort(userId: string, cohortId: string): Promise<Enrollment> {
@@ -308,15 +355,59 @@ export async function enrollInCohort(userId: string, cohortId: string): Promise<
 }
 
 export async function createCohort(input: CohortInput): Promise<Cohort> {
-  const { data, error } = await supabase.from('cohorts').insert({ title: input.name, description: input.description }).select('id, title, description').single();
-  if (error) throw error;
-  return { id: data.id, name: data.title, description: data.description };
+  const payload: Record<string, unknown> = {
+    title: input.name,
+    description: input.description,
+  };
+  if (input.status !== undefined) payload.status = input.status;
+  if (input.capacity !== undefined) payload.capacity = input.capacity;
+  if (input.visibility !== undefined) payload.visibility = input.visibility;
+  if (input.enrollment_start !== undefined) payload.enrollment_start = input.enrollment_start;
+  if (input.enrollment_end !== undefined) payload.enrollment_end = input.enrollment_end;
+
+  let res = await supabase.from('cohorts').insert(payload).select('id, title, description, status, capacity, visibility, enrollment_start, enrollment_end').single();
+  if (res.error) {
+    res = await supabase.from('cohorts').insert({ title: input.name, description: input.description }).select('id, title, description').single();
+  }
+  if (res.error) throw res.error;
+  return {
+    id: res.data.id,
+    name: res.data.title,
+    description: res.data.description,
+    status: res.data.status ?? 'published',
+    capacity: res.data.capacity ?? 30,
+    visibility: res.data.visibility ?? 'public',
+    enrollment_start: res.data.enrollment_start ?? null,
+    enrollment_end: res.data.enrollment_end ?? null,
+  };
 }
 
 export async function updateCohort(id: string, input: CohortInput): Promise<Cohort> {
-  const { data, error } = await supabase.from('cohorts').update({ title: input.name, description: input.description }).eq('id', id).select('id, title, description').single();
-  if (error) throw error;
-  return { id: data.id, name: data.title, description: data.description };
+  const payload: Record<string, unknown> = {
+    title: input.name,
+    description: input.description,
+  };
+  if (input.status !== undefined) payload.status = input.status;
+  if (input.capacity !== undefined) payload.capacity = input.capacity;
+  if (input.visibility !== undefined) payload.visibility = input.visibility;
+  if (input.enrollment_start !== undefined) payload.enrollment_start = input.enrollment_start;
+  if (input.enrollment_end !== undefined) payload.enrollment_end = input.enrollment_end;
+
+  let res = await supabase.from('cohorts').update(payload).eq('id', id).select('id, title, description, status, capacity, visibility, enrollment_start, enrollment_end').single();
+  if (res.error) {
+    res = await supabase.from('cohorts').update({ title: input.name, description: input.description }).eq('id', id).select('id, title, description').single();
+  }
+  if (res.error) throw res.error;
+  return {
+    id: res.data.id,
+    name: res.data.title,
+    description: res.data.description,
+    status: res.data.status ?? 'published',
+    capacity: res.data.capacity ?? 30,
+    visibility: res.data.visibility ?? 'public',
+    enrollment_start: res.data.enrollment_start ?? null,
+    enrollment_end: res.data.enrollment_end ?? null,
+  };
 }
 
 export async function deleteCohort(id: string) {
@@ -328,10 +419,19 @@ export async function listModules(cohortId?: string): Promise<Module[]> {
   let query = supabase.from('modules').select(courseSelect).order('position');
   if (cohortId) query = query.eq('cohort_id', cohortId);
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) {
+    let fallbackQuery = supabase.from('modules').select(courseSelectLegacy).order('position');
+    if (cohortId) fallbackQuery = fallbackQuery.eq('cohort_id', cohortId);
+    const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+    if (fallbackError) throw fallbackError;
+    return ((fallbackData ?? []) as Module[]).map((module) => ({
+      ...module,
+      lessons: [...(module.lessons ?? [])].map((l) => ({ ...l, status: l.status ?? 'published' })).sort((a, b) => a.position - b.position),
+    }));
+  }
   return ((data ?? []) as Module[]).map((module) => ({
     ...module,
-    lessons: [...(module.lessons ?? [])].sort((a, b) => a.position - b.position),
+    lessons: [...(module.lessons ?? [])].map((l) => ({ ...l, status: l.status ?? 'published' })).sort((a, b) => a.position - b.position),
   }));
 }
 
@@ -353,20 +453,159 @@ export async function deleteModule(id: string) {
 }
 
 export async function createLesson(input: LessonInput): Promise<Lesson> {
-  const { data, error } = await supabase.from('lessons').insert(input).select('id, module_id, title, description, video_url, duration_minutes, position').single();
-  if (error) throw error;
-  return data as Lesson;
+  let res = await supabase.from('lessons').insert(input).select('id, module_id, title, description, video_url, duration_minutes, position, status').single();
+  if (res.error) {
+    const legacyInput = { ...input };
+    delete legacyInput.status;
+    res = await supabase.from('lessons').insert(legacyInput).select('id, module_id, title, description, video_url, duration_minutes, position').single();
+  }
+  if (res.error) throw res.error;
+  return { ...(res.data as Lesson), status: res.data.status ?? 'published' };
 }
 
 export async function updateLesson(id: string, input: Omit<LessonInput, 'module_id'>): Promise<Lesson> {
-  const { data, error } = await supabase.from('lessons').update(input).eq('id', id).select('id, module_id, title, description, video_url, duration_minutes, position').single();
-  if (error) throw error;
-  return data as Lesson;
+  let res = await supabase.from('lessons').update(input).eq('id', id).select('id, module_id, title, description, video_url, duration_minutes, position, status').single();
+  if (res.error) {
+    const legacyInput = { ...input };
+    delete legacyInput.status;
+    res = await supabase.from('lessons').update(legacyInput).eq('id', id).select('id, module_id, title, description, video_url, duration_minutes, position').single();
+  }
+  if (res.error) throw res.error;
+  return { ...(res.data as Lesson), status: res.data.status ?? 'published' };
 }
 
 export async function deleteLesson(id: string) {
   const { error } = await supabase.from('lessons').delete().eq('id', id);
   if (error) throw error;
+}
+
+export async function reorderModule(moduleId: string, newPosition: number): Promise<void> {
+  const { error } = await supabase.from('modules').update({ position: newPosition }).eq('id', moduleId);
+  if (error) throw error;
+}
+
+export async function reorderLesson(lessonId: string, newPosition: number): Promise<void> {
+  const { error } = await supabase.from('lessons').update({ position: newPosition }).eq('id', lessonId);
+  if (error) throw error;
+}
+
+export async function updateLessonStatus(
+  lessonId: string,
+  status: 'draft' | 'published' | 'archived'
+): Promise<void> {
+  const { error } = await supabase.from('lessons').update({ status }).eq('id', lessonId);
+  if (error) throw error;
+}
+
+export async function bulkUpdateLessonStatus(
+  lessonIds: string[],
+  status: 'draft' | 'published' | 'archived'
+): Promise<void> {
+  if (!lessonIds.length) return;
+  const { error } = await supabase.from('lessons').update({ status }).in('id', lessonIds);
+  if (error) throw error;
+}
+
+export async function duplicateLesson(lessonId: string): Promise<Lesson> {
+  const { data: original, error } = await supabase
+    .from('lessons')
+    .select('module_id, title, description, video_url, duration_minutes, position, status')
+    .eq('id', lessonId)
+    .single();
+  if (error) throw error;
+
+  const { data: newLesson, error: createError } = await supabase
+    .from('lessons')
+    .insert({
+      module_id: original.module_id,
+      title: `${original.title} (Copy)`,
+      description: original.description,
+      video_url: original.video_url,
+      duration_minutes: original.duration_minutes,
+      position: (original.position || 0) + 1,
+      status: 'draft',
+    })
+    .select('id, module_id, title, description, video_url, duration_minutes, position, status')
+    .single();
+  if (createError) throw createError;
+
+  // Duplicate resources
+  const { data: resources } = await supabase
+    .from('lesson_resources')
+    .select('name, url, visibility, resource_type, file_size')
+    .eq('lesson_id', lessonId);
+
+  if (resources && resources.length > 0) {
+    await supabase.from('lesson_resources').insert(
+      resources.map((r) => ({ ...r, lesson_id: newLesson.id }))
+    );
+  }
+
+  // Duplicate assignment
+  const { data: assignment } = await supabase
+    .from('assignments')
+    .select('title, instructions, deadline')
+    .eq('lesson_id', lessonId)
+    .maybeSingle();
+
+  if (assignment) {
+    await supabase.from('assignments').insert({
+      lesson_id: newLesson.id,
+      title: `${assignment.title} (Copy)`,
+      instructions: assignment.instructions,
+      deadline: assignment.deadline,
+    });
+  }
+
+  return newLesson as Lesson;
+}
+
+export async function duplicateModule(moduleId: string): Promise<Module> {
+  const { data: original, error } = await supabase
+    .from('modules')
+    .select('cohort_id, title, description, position')
+    .eq('id', moduleId)
+    .single();
+  if (error) throw error;
+
+  const { data: newModule, error: createError } = await supabase
+    .from('modules')
+    .insert({
+      cohort_id: original.cohort_id,
+      title: `${original.title} (Copy)`,
+      description: original.description,
+      position: (original.position || 0) + 1,
+    })
+    .select('id, cohort_id, title, description, position')
+    .single();
+  if (createError) throw createError;
+
+  // Clone lessons inside module
+  const { data: lessons } = await supabase
+    .from('lessons')
+    .select('id, title, description, video_url, duration_minutes, position, status')
+    .eq('module_id', moduleId);
+
+  const clonedLessons: Lesson[] = [];
+  for (const l of lessons ?? []) {
+    const { data: newLesson } = await supabase
+      .from('lessons')
+      .insert({
+        module_id: newModule.id,
+        title: l.title,
+        description: l.description,
+        video_url: l.video_url,
+        duration_minutes: l.duration_minutes,
+        position: l.position,
+        status: 'draft',
+      })
+      .select('id, module_id, title, description, video_url, duration_minutes, position, status')
+      .single();
+
+    if (newLesson) clonedLessons.push(newLesson as Lesson);
+  }
+
+  return { ...(newModule as Module), lessons: clonedLessons };
 }
 
 export async function listEnrollments(cohortId?: string): Promise<Enrollment[]> {

@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  Activity,
+  AlertTriangle,
   Award,
   BookOpen,
   Calendar,
   CalendarDays,
   Check,
+  CheckCircle2,
+  Clock,
+  Download,
   Edit2,
   ExternalLink,
+  Flame,
+  History,
   Layers,
   Megaphone,
   Radio,
@@ -17,7 +24,10 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  TrendingUp,
+  UploadCloud,
   UserCheck,
+  UserCog,
   UserMinus,
   UserPlus,
   Users,
@@ -29,19 +39,24 @@ import { Card } from '../components/ui/Card';
 import { useAuth } from '../context/useAuth';
 import { assignMentorToCohort } from '../lib/mentorService';
 import {
+  bulkEnrollStudents,
   createAnnouncement,
   createLiveSession,
   deleteAnnouncement,
   deleteCommunityPost,
   deleteLiveSession,
   enrollUserInCohort,
+  exportEnrollmentsCSV,
+  getAdminExecutiveMetrics,
   getAdminStats,
   listAnnouncements,
+  listAuditLogs,
   listCohortEnrollments,
   listCommunityPostsWithAuthors,
   listLiveSessions,
   listUsers,
   removeEnrollment,
+  updateAdminSubRole,
   updateAnnouncement,
   updateEnrollmentStatus,
   updateLiveSession,
@@ -50,7 +65,10 @@ import {
   type AdminAnnouncement,
   type AdminCommunityPost,
   type AdminEnrollment,
+  type AdminExecutiveMetrics,
   type AdminStats,
+  type AdminSubRole,
+  type AuditLog,
   type LiveSession,
   type UserProfile,
 } from '../lib/adminService';
@@ -70,18 +88,20 @@ const emptyStats: AdminStats = {
   sessions: 0,
 };
 
-type AdminTab = 'overview' | 'users' | 'enrollments' | 'announcements' | 'sessions' | 'community';
+type AdminTab = 'overview' | 'users' | 'enrollments' | 'announcements' | 'sessions' | 'community' | 'audit';
 
 export function AdminOperations() {
   const { user, profile } = useAuth();
   const [tab, setTab] = useState<AdminTab>('overview');
   const [stats, setStats] = useState<AdminStats>(emptyStats);
+  const [execMetrics, setExecMetrics] = useState<AdminExecutiveMetrics | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [enrollments, setEnrollments] = useState<AdminEnrollment[]>([]);
   const [announcements, setAnnouncements] = useState<AdminAnnouncement[]>([]);
   const [sessions, setSessions] = useState<LiveSession[]>([]);
   const [posts, setPosts] = useState<AdminCommunityPost[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +119,28 @@ export function AdminOperations() {
   const [enrollStudentId, setEnrollStudentId] = useState('');
   const [enrollTargetCohortId, setEnrollTargetCohortId] = useState('');
   const [enrollingUser, setEnrollingUser] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
+
+  // Bulk Enrollment state
+  const [showBulkEnrollModal, setShowBulkEnrollModal] = useState(false);
+  const [bulkCohortId, setBulkCohortId] = useState('');
+  const [bulkCsvText, setBulkCsvText] = useState('');
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null);
+
+  // Student Removal Impact Warning state
+  const [removalWarningUser, setRemovalWarningUser] = useState<{
+    userId: string;
+    cohortId: string;
+    studentName: string;
+    cohortName: string;
+  } | null>(null);
+  const [removingEnrollment, setRemovingEnrollment] = useState(false);
+
+  // Audit Logs state
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditActionFilter, setAuditActionFilter] = useState('all');
+  const [selectedAuditMeta, setSelectedAuditMeta] = useState<AuditLog | null>(null);
 
   // Mentor Assignment state
   const [showAssignMentorModal, setShowAssignMentorModal] = useState(false);
@@ -129,6 +171,8 @@ export function AdminOperations() {
       listAnnouncements(),
       listLiveSessions(),
       listCommunityPostsWithAuthors(),
+      getAdminExecutiveMetrics(),
+      listAuditLogs({ limit: 100 }),
     ])
       .then(([
         nextStats,
@@ -138,6 +182,8 @@ export function AdminOperations() {
         nextAnnouncements,
         nextSessions,
         nextPosts,
+        nextMetrics,
+        nextLogs,
       ]) => {
         if (!active) return;
         setStats(nextStats);
@@ -147,6 +193,8 @@ export function AdminOperations() {
         setAnnouncements(nextAnnouncements);
         setSessions(nextSessions);
         setPosts(nextPosts);
+        setExecMetrics(nextMetrics);
+        setAuditLogs(nextLogs);
       })
       .catch((reason: unknown) => {
         if (active) setError(reason instanceof Error ? reason.message : 'Unable to load administrative operations data.');
@@ -169,12 +217,30 @@ export function AdminOperations() {
     setUpdatingUserId(targetUser.id);
     setError(null);
     try {
-      const updated = await updateUserRole(targetUser.id, newRole);
+      const updated = await updateUserRole(targetUser.id, newRole, user?.id);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       setSuccess(`Role for ${targetUser.full_name || targetUser.email} updated to ${newRole}.`);
       void getAdminStats().then(setStats);
+      void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update user role.');
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
+  const handleAdminSubRoleChange = async (targetUser: UserProfile, newAdminRole: AdminSubRole) => {
+    setUpdatingUserId(targetUser.id);
+    setError(null);
+    try {
+      await updateAdminSubRole(targetUser.id, newAdminRole, user?.id);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, admin_role: newAdminRole } : u))
+      );
+      setSuccess(`Sub-role for ${targetUser.full_name || targetUser.email} set to ${newAdminRole.replace('_', ' ')}.`);
+      void listAuditLogs({ limit: 100 }).then(setAuditLogs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update administrative sub-role.');
     } finally {
       setUpdatingUserId(null);
     }
@@ -188,9 +254,10 @@ export function AdminOperations() {
     setUpdatingUserId(targetUser.id);
     setError(null);
     try {
-      const updated = await updateUserStatus(targetUser.id, newStatus);
+      const updated = await updateUserStatus(targetUser.id, newStatus, user?.id);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       setSuccess(`Account status for ${targetUser.full_name || targetUser.email} set to ${newStatus}.`);
+      void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update user status.');
     } finally {
@@ -205,7 +272,7 @@ export function AdminOperations() {
     setEnrollingUser(true);
     setError(null);
     try {
-      await enrollUserInCohort(enrollStudentId, enrollTargetCohortId);
+      await enrollUserInCohort(enrollStudentId, enrollTargetCohortId, 'active', user?.id);
       setSuccess('Student successfully enrolled into cohort.');
       setShowEnrollModal(false);
       setEnrollStudentId('');
@@ -213,6 +280,8 @@ export function AdminOperations() {
       const updatedEnrollments = await listCohortEnrollments();
       setEnrollments(updatedEnrollments);
       void getAdminStats().then(setStats);
+      void getAdminExecutiveMetrics().then(setExecMetrics);
+      void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to enroll student.');
     } finally {
@@ -223,30 +292,108 @@ export function AdminOperations() {
   const handleUpdateEnrollmentStatus = async (
     userId: string,
     cohortId: string,
-    status: 'active' | 'completed' | 'dropped'
+    status: 'active' | 'completed' | 'dropped' | 'waitlisted'
   ) => {
     try {
-      await updateEnrollmentStatus(userId, cohortId, status);
+      await updateEnrollmentStatus(userId, cohortId, status, user?.id);
       setEnrollments((prev) =>
         prev.map((item) =>
           item.user_id === userId && item.cohort_id === cohortId ? { ...item, status } : item
         )
       );
       setSuccess('Enrollment status updated.');
+      void getAdminExecutiveMetrics().then(setExecMetrics);
+      void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update enrollment status.');
     }
   };
 
-  const handleRemoveEnrollment = async (userId: string, cohortId: string, studentName: string) => {
-    if (!window.confirm(`Remove ${studentName} from this cohort?`)) return;
+  const handleConfirmRemoval = async () => {
+    if (!removalWarningUser) return;
+    setRemovingEnrollment(true);
+    setError(null);
     try {
-      await removeEnrollment(userId, cohortId);
-      setEnrollments((prev) => prev.filter((item) => !(item.user_id === userId && item.cohort_id === cohortId)));
-      setSuccess(`Removed ${studentName} from cohort.`);
+      await removeEnrollment(removalWarningUser.userId, removalWarningUser.cohortId, user?.id);
+      setEnrollments((prev) =>
+        prev.filter(
+          (item) =>
+            !(item.user_id === removalWarningUser.userId && item.cohort_id === removalWarningUser.cohortId)
+        )
+      );
+      setSuccess(`Removed ${removalWarningUser.studentName} from cohort.`);
+      setRemovalWarningUser(null);
       void getAdminStats().then(setStats);
+      void getAdminExecutiveMetrics().then(setExecMetrics);
+      void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to remove enrollment.');
+      setError(err instanceof Error ? err.message : 'Unable to remove student from cohort.');
+    } finally {
+      setRemovingEnrollment(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    setExportingCsv(true);
+    setError(null);
+    try {
+      const csv = await exportEnrollmentsCSV(selectedCohortId === 'all' ? undefined : selectedCohortId);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `cohort-enrollments-${selectedCohortId}-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setSuccess('Enrollment CSV exported successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export CSV.');
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
+  const handleBulkEnroll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkCohortId || !bulkCsvText.trim()) return;
+    setBulkProcessing(true);
+    setError(null);
+    setBulkResult(null);
+    try {
+      const lines = bulkCsvText
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+      const studentsToEnroll: Array<{ email: string; name?: string }> = [];
+
+      for (const line of lines) {
+        const [rawEmail, rawName] = line.split(',').map((part) => part.trim());
+        if (rawEmail && rawEmail.includes('@')) {
+          studentsToEnroll.push({
+            email: rawEmail,
+            name: rawName || undefined,
+          });
+        }
+      }
+
+      if (!studentsToEnroll.length) {
+        throw new Error('No valid email addresses found in the provided CSV text.');
+      }
+
+      const res = await bulkEnrollStudents(bulkCohortId, studentsToEnroll, user?.id);
+      setBulkResult(res);
+      setSuccess(`Bulk enrollment processed: ${res.added} enrolled, ${res.skipped} skipped.`);
+      const updatedEnrollments = await listCohortEnrollments();
+      setEnrollments(updatedEnrollments);
+      void getAdminStats().then(setStats);
+      void getAdminExecutiveMetrics().then(setExecMetrics);
+      void listAuditLogs({ limit: 100 }).then(setAuditLogs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to process bulk enrollment.');
+    } finally {
+      setBulkProcessing(false);
     }
   };
 
@@ -374,6 +521,23 @@ export function AdminOperations() {
     return enrollments.filter((e) => e.cohort_id === selectedCohortId);
   }, [enrollments, selectedCohortId]);
 
+  // Filtered Audit Logs
+  const filteredAuditLogs = useMemo(() => {
+    return auditLogs.filter((log) => {
+      const q = auditSearch.toLowerCase();
+      const matchesSearch =
+        q === '' ||
+        log.action.toLowerCase().includes(q) ||
+        log.entity_type.toLowerCase().includes(q) ||
+        (log.entity_id && log.entity_id.toLowerCase().includes(q)) ||
+        (log.actor?.full_name && log.actor.full_name.toLowerCase().includes(q)) ||
+        (log.actor?.email && log.actor.email.toLowerCase().includes(q));
+
+      const matchesAction = auditActionFilter === 'all' || log.action.includes(auditActionFilter);
+      return matchesSearch && matchesAction;
+    });
+  }, [auditLogs, auditSearch, auditActionFilter]);
+
   const tabs: { id: AdminTab; label: string; count?: number }[] = [
     { id: 'overview', label: 'Summary Dashboard' },
     { id: 'users', label: 'User Roles & Status', count: users.length },
@@ -381,6 +545,7 @@ export function AdminOperations() {
     { id: 'announcements', label: 'Announcements', count: announcements.length },
     { id: 'sessions', label: 'Live Sessions', count: sessions.length },
     { id: 'community', label: 'Community Moderation', count: posts.length },
+    { id: 'audit', label: 'Audit Logs', count: auditLogs.length },
   ];
 
   if (profile?.role !== 'admin') {
@@ -521,6 +686,272 @@ export function AdminOperations() {
                 sub={`${stats.announcements} broadcasts published`}
               />
             </div>
+
+            {/* Actionable Executive Intelligence */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                    <Activity size={16} className="text-orange-500" /> Executive Analytics &amp; Academy Health
+                  </h2>
+                  <p className="text-xs text-slate-500">Real-time conversion, completion velocity, and operational bottlenecks.</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Card className="p-4 border-slate-200">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                    <span>Enrollment Conversion</span>
+                    <TrendingUp size={15} className="text-emerald-500" />
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-slate-950">
+                      {execMetrics ? `${execMetrics.enrollmentConversionRate}%` : '—'}
+                    </span>
+                    <span className="text-[11px] text-slate-400">of registered</span>
+                  </div>
+                  <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                      style={{ width: `${Math.min(100, execMetrics?.enrollmentConversionRate ?? 0)}%` }}
+                    />
+                  </div>
+                </Card>
+
+                <Card className="p-4 border-slate-200">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                    <span>Course Completion</span>
+                    <CheckCircle2 size={15} className="text-blue-500" />
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-slate-950">
+                      {execMetrics ? `${execMetrics.courseCompletionRate}%` : '—'}
+                    </span>
+                    <span className="text-[11px] text-slate-400">graduation rate</span>
+                  </div>
+                  <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                      style={{ width: `${Math.min(100, execMetrics?.courseCompletionRate ?? 0)}%` }}
+                    />
+                  </div>
+                </Card>
+
+                <Card className="p-4 border-slate-200">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                    <span>Avg Review Turnaround</span>
+                    <Clock size={15} className="text-purple-500" />
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-slate-950">
+                      {execMetrics?.avgMentorReviewHours != null ? `${execMetrics.avgMentorReviewHours}h` : '—'}
+                    </span>
+                    <span className="text-[11px] text-slate-400">submission to review</span>
+                  </div>
+                  <p className="mt-2 text-[10px] text-slate-500">
+                    {execMetrics?.avgMentorReviewHours && execMetrics.avgMentorReviewHours < 24
+                      ? '⚡ Rapid mentor turnaround'
+                      : 'Target SLA: under 24 hours'}
+                  </p>
+                </Card>
+
+                <Card className="p-4 border-slate-200">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                    <span>Dropout Risk Flags</span>
+                    <AlertTriangle size={15} className={(execMetrics?.dropoutRiskCount ?? 0) > 0 ? 'text-amber-500' : 'text-slate-400'} />
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className={`text-2xl font-black ${(execMetrics?.dropoutRiskCount ?? 0) > 0 ? 'text-amber-600' : 'text-slate-950'}`}>
+                      {execMetrics ? execMetrics.dropoutRiskCount : '0'}
+                    </span>
+                    <span className="text-[11px] text-slate-400">students flagged</span>
+                  </div>
+                  <p className="mt-2 text-[10px] text-slate-500">
+                    {(execMetrics?.dropoutRiskCount ?? 0) > 0
+                      ? 'Stalled > 7 days or ≥ 2 revisions'
+                      : '✓ All learners pacing on schedule'}
+                  </p>
+                </Card>
+              </div>
+            </div>
+
+            {/* Review Aging & Active User Velocity Row */}
+            <div className="grid gap-4 lg:grid-cols-2">
+              {/* Review Aging Distribution */}
+              <Card className="p-5 border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
+                      <Clock size={15} className="text-orange-500" /> Pending Review Aging
+                    </h3>
+                    <p className="text-xs text-slate-500">Turnaround queue age for submitted student cuts.</p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
+                    {stats.pendingSubmissions} total queue
+                  </span>
+                </div>
+
+                <div className="mt-5 grid grid-cols-4 gap-2">
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 text-center">
+                    <span className="block text-[10px] font-bold uppercase text-emerald-800">&lt; 12h</span>
+                    <strong className="mt-1 block text-lg font-black text-emerald-700">
+                      {execMetrics?.reviewAging.lessThan12h ?? 0}
+                    </strong>
+                    <span className="text-[10px] text-emerald-600 font-semibold">Fresh</span>
+                  </div>
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3 text-center">
+                    <span className="block text-[10px] font-bold uppercase text-blue-800">12 - 24h</span>
+                    <strong className="mt-1 block text-lg font-black text-blue-700">
+                      {execMetrics?.reviewAging.between12and24h ?? 0}
+                    </strong>
+                    <span className="text-[10px] text-blue-600 font-semibold">Normal</span>
+                  </div>
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 text-center">
+                    <span className="block text-[10px] font-bold uppercase text-amber-800">24 - 48h</span>
+                    <strong className="mt-1 block text-lg font-black text-amber-700">
+                      {execMetrics?.reviewAging.between24and48h ?? 0}
+                    </strong>
+                    <span className="text-[10px] text-amber-600 font-semibold">Warning</span>
+                  </div>
+                  <div className="rounded-xl border border-red-100 bg-red-50/50 p-3 text-center">
+                    <span className="block text-[10px] font-bold uppercase text-red-800">&gt; 48h</span>
+                    <strong className="mt-1 block text-lg font-black text-red-700">
+                      {execMetrics?.reviewAging.over48h ?? 0}
+                    </strong>
+                    <span className="text-[10px] text-red-600 font-semibold">Overdue</span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Active Users Velocity */}
+              <Card className="p-5 border-slate-200">
+                <div>
+                  <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
+                    <Flame size={15} className="text-orange-500" /> Platform User Activity
+                  </h3>
+                  <p className="text-xs text-slate-500">Learners and mentors actively logging in or submitting.</p>
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-center">
+                    <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">7 Days</span>
+                    <strong className="mt-1 block text-xl font-black text-slate-950">
+                      {execMetrics?.activeUsers7d ?? 0}
+                    </strong>
+                    <span className="text-[10px] text-emerald-600 font-semibold">Active members</span>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-center">
+                    <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">30 Days</span>
+                    <strong className="mt-1 block text-xl font-black text-slate-950">
+                      {execMetrics?.activeUsers30d ?? 0}
+                    </strong>
+                    <span className="text-[10px] text-blue-600 font-semibold">Monthly active</span>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-center">
+                    <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">90 Days</span>
+                    <strong className="mt-1 block text-xl font-black text-slate-950">
+                      {execMetrics?.activeUsers90d ?? 0}
+                    </strong>
+                    <span className="text-[10px] text-slate-500 font-semibold">Quarterly active</span>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Cohort Comparison Matrix */}
+            <Card className="p-5 border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
+                    <Layers size={15} className="text-orange-500" /> Cohort Performance Comparison Matrix
+                  </h3>
+                  <p className="text-xs text-slate-500">Benchmarking capacity, fill rate, completion, and submission velocity.</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setTab('enrollments')}
+                  className="text-xs font-bold"
+                >
+                  Manage Rosters →
+                </Button>
+              </div>
+
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="py-2.5 px-3">Cohort</th>
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3">Enrollment / Capacity</th>
+                      <th className="py-2.5 px-3">Fill Rate</th>
+                      <th className="py-2.5 px-3">Completion</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {execMetrics?.cohortComparisons?.length ? (
+                      execMetrics.cohortComparisons.map((c) => (
+                        <tr key={c.id} className="hover:bg-slate-50/60 transition">
+                          <td className="py-3 px-3">
+                            <strong className="text-slate-950 font-bold block">{c.name}</strong>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span
+                              className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                                c.status === 'published'
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : c.status === 'draft'
+                                  ? 'bg-amber-50 text-amber-700'
+                                  : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              {c.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-slate-700">
+                            {c.enrolledCount} / {c.capacity} students
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    c.fillPct >= 90 ? 'bg-orange-500' : 'bg-emerald-500'
+                                  }`}
+                                  style={{ width: `${Math.min(100, c.fillPct)}%` }}
+                                />
+                              </div>
+                              <span className="text-[11px] font-bold text-slate-600">{c.fillPct}%</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="font-bold text-slate-900">{c.completionPct}%</span>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <button
+                              onClick={() => {
+                                setSelectedCohortId(c.id);
+                                setTab('enrollments');
+                              }}
+                              className="text-[11px] font-bold text-orange-600 hover:underline"
+                            >
+                              View Roster →
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-slate-400">
+                          No cohorts recorded yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
 
             {/* Quick Actions Panel */}
             <Card className="p-6">
@@ -721,9 +1152,27 @@ export function AdminOperations() {
                         )}
 
                         {item.role === 'admin' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400">
-                            <ShieldCheck size={14} className="text-emerald-500" /> System Admin
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700">
+                              <ShieldCheck size={14} className="text-emerald-500" /> Admin
+                            </span>
+                            <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1">
+                              <UserCog size={13} className="text-slate-400" />
+                              <select
+                                value={item.admin_role || 'super_admin'}
+                                disabled={isSelf || isUpdating}
+                                onChange={(e) =>
+                                  void handleAdminSubRoleChange(item, e.target.value as AdminSubRole)
+                                }
+                                className="bg-transparent text-[11px] font-bold text-slate-700 outline-none cursor-pointer"
+                              >
+                                <option value="super_admin">Super Admin</option>
+                                <option value="content_admin">Content Admin</option>
+                                <option value="operations_admin">Operations Admin</option>
+                                <option value="moderator">Moderator</option>
+                              </select>
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -763,6 +1212,30 @@ export function AdminOperations() {
                     ))}
                   </select>
                 </div>
+
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={exportingCsv}
+                  onClick={() => void handleExportCSV()}
+                  className="text-xs font-bold"
+                >
+                  <Download size={14} /> Export CSV
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setBulkCohortId(selectedCohortId !== 'all' ? selectedCohortId : (cohorts[0]?.id || ''));
+                    setShowBulkEnrollModal(true);
+                    setBulkResult(null);
+                    setBulkCsvText('');
+                  }}
+                  className="text-xs font-bold"
+                >
+                  <UploadCloud size={14} /> Bulk CSV Import
+                </Button>
 
                 <Button
                   size="sm"
@@ -811,7 +1284,7 @@ export function AdminOperations() {
                           void handleUpdateEnrollmentStatus(
                             item.user_id,
                             item.cohort_id,
-                            e.target.value as 'active' | 'completed' | 'dropped'
+                            e.target.value as 'active' | 'completed' | 'dropped' | 'waitlisted'
                           )
                         }
                         className={`rounded-lg border px-2.5 py-1 text-xs font-bold outline-none ${
@@ -819,16 +1292,26 @@ export function AdminOperations() {
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                             : item.status === 'completed'
                             ? 'border-purple-200 bg-purple-50 text-purple-800'
+                            : item.status === 'waitlisted'
+                            ? 'border-amber-200 bg-amber-50 text-amber-800'
                             : 'border-slate-200 bg-slate-100 text-slate-600'
                         }`}
                       >
                         <option value="active">Active</option>
                         <option value="completed">Completed</option>
                         <option value="dropped">Dropped</option>
+                        <option value="waitlisted">Waitlisted</option>
                       </select>
 
                       <button
-                        onClick={() => void handleRemoveEnrollment(item.user_id, item.cohort_id, item.student_name)}
+                        onClick={() =>
+                          setRemovalWarningUser({
+                            userId: item.user_id,
+                            cohortId: item.cohort_id,
+                            studentName: item.student_name,
+                            cohortName: item.cohort_name,
+                          })
+                        }
                         className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
                         title="Remove from cohort"
                       >
@@ -971,6 +1454,146 @@ export function AdminOperations() {
                     </Button>
                   </div>
                 </form>
+              </div>
+            )}
+
+            {/* Bulk CSV Enrollment Modal */}
+            {showBulkEnrollModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
+                <form
+                  onSubmit={handleBulkEnroll}
+                  className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+                >
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <UploadCloud className="text-orange-500" size={18} />
+                      <h3 className="text-base font-black text-slate-950">Bulk CSV Student Enrollment</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkEnrollModal(false)}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Target Cohort
+                      <select
+                        value={bulkCohortId}
+                        onChange={(e) => setBulkCohortId(e.target.value)}
+                        required
+                        className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-700 outline-none focus:border-orange-400"
+                      >
+                        <option value="">Choose target cohort...</option>
+                        {cohorts.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="block text-xs font-bold text-slate-700">
+                      Paste CSV Data (email, full_name)
+                      <p className="mt-0.5 text-[11px] font-normal text-slate-500">
+                        Format: One entry per line. Example: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">alex@example.com, Alex Turner</code>
+                      </p>
+                      <textarea
+                        rows={6}
+                        required
+                        value={bulkCsvText}
+                        onChange={(e) => setBulkCsvText(e.target.value)}
+                        placeholder={`jane@example.com, Jane Doe\njohn@example.com, John Smith\nsam@example.com`}
+                        className="mt-1.5 block w-full resize-none font-mono text-xs rounded-xl border border-slate-200 p-2.5 outline-none focus:border-orange-400"
+                      />
+                    </label>
+
+                    {bulkResult && (
+                      <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs">
+                        <p className="font-bold text-emerald-800">
+                          ✓ Bulk Enrollment Completed: {bulkResult.added} enrolled, {bulkResult.skipped} already enrolled/skipped.
+                        </p>
+                        {bulkResult.errors.length > 0 && (
+                          <ul className="mt-1.5 list-disc pl-4 text-[11px] text-red-600">
+                            {bulkResult.errors.map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      type="button"
+                      onClick={() => setShowBulkEnrollModal(false)}
+                    >
+                      Close
+                    </Button>
+                    <Button variant="primary" size="sm" type="submit" loading={bulkProcessing}>
+                      <UploadCloud size={14} /> Process Enrollments
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Student Removal Impact Warning Modal */}
+            {removalWarningUser && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
+                <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-red-100 text-red-600 shrink-0">
+                      <AlertTriangle size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-950">Confirm Student Removal</h3>
+                      <p className="text-xs text-slate-500">Irreversible roster membership modification</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-3 text-xs text-slate-600 leading-relaxed">
+                    <p>
+                      Are you sure you want to remove <strong className="text-slate-950 font-bold">{removalWarningUser.studentName}</strong> from <strong className="text-slate-950 font-bold">{removalWarningUser.cohortName}</strong>?
+                    </p>
+                    <div className="rounded-xl border border-red-100 bg-red-50/60 p-3.5 text-[11px] text-red-800 space-y-1.5">
+                      <strong className="block font-bold">Removal Impact Notice:</strong>
+                      <ul className="list-disc pl-4 space-y-1">
+                        <li>Immediately revokes student access to cohort lessons, assets, and assignment briefs.</li>
+                        <li>Prevents student from submitting new cuts or requesting revision reviews.</li>
+                        <li>Hides cohort announcements and discussion posts.</li>
+                        <li>Historical submission scores and mentor reviews are permanently retained for institutional auditing.</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      type="button"
+                      disabled={removingEnrollment}
+                      onClick={() => setRemovalWarningUser(null)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      loading={removingEnrollment}
+                      onClick={() => void handleConfirmRemoval()}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Trash2 size={14} /> Remove from Cohort
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </Card>
@@ -1302,6 +1925,155 @@ export function AdminOperations() {
             </div>
           </Card>
         )}
+
+        {/* TAB 7: AUDIT LOGS & GOVERNANCE STREAM */}
+        {tab === 'audit' && (
+          <Card className="p-6">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div>
+                <div className="flex items-center gap-2">
+                  <History className="text-orange-500" size={18} />
+                  <h2 className="text-lg font-black text-slate-950">Audit Logs &amp; Governance</h2>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  Immutable event log of administrative mutations, security modifications, enrollments, and content transitions.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs shadow-2xs">
+                  <Search size={14} className="text-slate-400" />
+                  <input
+                    value={auditSearch}
+                    onChange={(e) => setAuditSearch(e.target.value)}
+                    placeholder="Search action, actor, entity..."
+                    className="w-40 sm:w-56 bg-transparent outline-none text-xs"
+                  />
+                </div>
+
+                <select
+                  value={auditActionFilter}
+                  onChange={(e) => setAuditActionFilter(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 outline-none"
+                >
+                  <option value="all">All Actions ({auditLogs.length})</option>
+                  <option value="role">Role Changes</option>
+                  <option value="status">Status &amp; Suspensions</option>
+                  <option value="enrollment">Enrollments</option>
+                  <option value="cohort">Cohort Settings</option>
+                  <option value="announcement">Announcements</option>
+                  <option value="session">Live Sessions</option>
+                  <option value="post">Moderation</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="py-2.5 px-3">Timestamp</th>
+                    <th className="py-2.5 px-3">Actor</th>
+                    <th className="py-2.5 px-3">Action</th>
+                    <th className="py-2.5 px-3">Target Entity</th>
+                    <th className="py-2.5 px-3">Metadata Preview</th>
+                    <th className="py-2.5 px-3 text-right">Inspection</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {filteredAuditLogs.length ? (
+                    filteredAuditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50/60 transition">
+                        <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
+                          {new Date(log.created_at).toLocaleString([], {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                          })}
+                        </td>
+                        <td className="py-3 px-3 text-slate-900 font-bold whitespace-nowrap">
+                          {log.actor?.full_name || log.actor?.email || (log.actor_id ? log.actor_id.slice(0, 8) : 'System')}
+                        </td>
+                        <td className="py-3 px-3">
+                          <AuditActionBadge action={log.action} />
+                        </td>
+                        <td className="py-3 px-3 font-mono text-[11px] text-slate-600">
+                          {log.entity_type} {log.entity_id ? `(${log.entity_id.slice(0, 8)}...)` : ''}
+                        </td>
+                        <td className="py-3 px-3 max-w-xs truncate text-slate-500 font-mono text-[11px]">
+                          {JSON.stringify(log.metadata)}
+                        </td>
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => setSelectedAuditMeta(log)}
+                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-orange-600"
+                          >
+                            View JSON
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
+                        No audit log events match this filter.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+
+        {/* JSON Metadata Inspector Modal */}
+        {selectedAuditMeta && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
+            <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-base font-black text-slate-950">Audit Event Metadata</h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    {selectedAuditMeta.action} · {new Date(selectedAuditMeta.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedAuditMeta(null)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="mt-4 max-h-96 overflow-y-auto rounded-xl bg-slate-950 p-4 text-xs font-mono text-emerald-400">
+                <pre className="whitespace-pre-wrap leading-relaxed">
+                  {JSON.stringify(
+                    {
+                      id: selectedAuditMeta.id,
+                      action: selectedAuditMeta.action,
+                      actor: selectedAuditMeta.actor,
+                      actor_id: selectedAuditMeta.actor_id,
+                      entity_type: selectedAuditMeta.entity_type,
+                      entity_id: selectedAuditMeta.entity_id,
+                      metadata: selectedAuditMeta.metadata,
+                      created_at: selectedAuditMeta.created_at,
+                    },
+                    null,
+                    2
+                  )}
+                </pre>
+              </div>
+
+              <div className="mt-5 flex justify-end">
+                <Button variant="secondary" size="sm" onClick={() => setSelectedAuditMeta(null)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         </>
         )}
       </main>
@@ -1349,5 +2121,41 @@ function StatCard({
       <p className="mt-1 text-2xl font-black text-slate-950">{value}</p>
       <p className="mt-1 text-[11px] text-slate-500">{sub}</p>
     </Card>
+  );
+}
+
+function AuditActionBadge({ action }: { action: string }) {
+  if (action.includes('role')) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+        <UserCheck size={11} /> {action}
+      </span>
+    );
+  }
+  if (action.includes('status') || action.includes('suspend')) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+        <UserX size={11} /> {action}
+      </span>
+    );
+  }
+  if (action.includes('enrollment')) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+        <Layers size={11} /> {action}
+      </span>
+    );
+  }
+  if (action.includes('delete') || action.includes('remove')) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
+        <Trash2 size={11} /> {action}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+      <History size={11} /> {action}
+    </span>
   );
 }

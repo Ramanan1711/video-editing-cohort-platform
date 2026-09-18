@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
   BookOpen,
   Calendar,
   Check,
   ChevronDown,
   Clock,
+  Copy,
   ExternalLink,
   Eye,
   FileArchive,
@@ -16,17 +20,17 @@ import {
   Play,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   Upload,
   Video,
   X,
-  AlertCircle,
-  Sparkles,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../context/useAuth';
 import {
+  bulkUpdateLessonStatus,
   createAssignment,
   createCohort,
   createLesson,
@@ -38,11 +42,15 @@ import {
   deleteLessonResource,
   deleteModule,
   detectResourceType,
+  duplicateLesson,
+  duplicateModule,
   formatFileSize,
   listAllAssignments,
   listAllLessonResources,
   listCohorts,
   listModules,
+  reorderLesson,
+  reorderModule,
   type Assignment,
   type Cohort,
   type Lesson,
@@ -54,6 +62,7 @@ import {
   updateCohort,
   updateLesson,
   updateLessonResource,
+  updateLessonStatus,
   updateModule,
   uploadCourseAsset,
 } from '../lib/courseService';
@@ -65,6 +74,11 @@ interface CohortEditorState {
   id?: string;
   name: string;
   description: string;
+  status: 'draft' | 'published' | 'archived';
+  capacity: string;
+  visibility: 'public' | 'private' | 'unlisted';
+  enrollmentStart: string;
+  enrollmentEnd: string;
 }
 
 interface ModuleEditorState {
@@ -85,6 +99,7 @@ interface LessonEditorState {
   videoUrl: string;
   durationMinutes: string;
   position: number;
+  status: 'draft' | 'published' | 'archived';
 }
 
 interface AssignmentEditorState {
@@ -234,12 +249,22 @@ export function AdminCourses() {
         id: cohort.id,
         name: cohort.name,
         description: cohort.description ?? '',
+        status: cohort.status ?? 'published',
+        capacity: cohort.capacity != null ? String(cohort.capacity) : '30',
+        visibility: cohort.visibility ?? 'public',
+        enrollmentStart: cohort.enrollment_start ? cohort.enrollment_start.slice(0, 16) : '',
+        enrollmentEnd: cohort.enrollment_end ? cohort.enrollment_end.slice(0, 16) : '',
       });
     } else {
       setEditor({
         type: 'cohort',
         name: '',
         description: '',
+        status: 'published',
+        capacity: '30',
+        visibility: 'public',
+        enrollmentStart: '',
+        enrollmentEnd: '',
       });
     }
   };
@@ -279,6 +304,7 @@ export function AdminCourses() {
         videoUrl: lesson.video_url ?? '',
         durationMinutes: lesson.duration_minutes ? String(lesson.duration_minutes) : '',
         position: lesson.position,
+        status: lesson.status ?? 'published',
       });
     } else {
       const currentModule = modules.find((m) => m.id === moduleId);
@@ -291,6 +317,7 @@ export function AdminCourses() {
         videoUrl: '',
         durationMinutes: '10',
         position: nextPos,
+        status: 'published',
       });
     }
   };
@@ -367,17 +394,20 @@ export function AdminCourses() {
     try {
       if (editor.type === 'cohort') {
         if (!editor.name.trim()) throw new Error('Cohort name is required.');
+        const cohortPayload = {
+          name: editor.name.trim(),
+          description: editor.description.trim() || null,
+          status: editor.status,
+          capacity: Number(editor.capacity) || 30,
+          visibility: editor.visibility,
+          enrollment_start: editor.enrollmentStart ? new Date(editor.enrollmentStart).toISOString() : null,
+          enrollment_end: editor.enrollmentEnd ? new Date(editor.enrollmentEnd).toISOString() : null,
+        };
         if (editor.id) {
-          await updateCohort(editor.id, {
-            name: editor.name.trim(),
-            description: editor.description.trim() || null,
-          });
+          await updateCohort(editor.id, cohortPayload);
           setSuccess('Cohort updated successfully.');
         } else {
-          const created = await createCohort({
-            name: editor.name.trim(),
-            description: editor.description.trim() || null,
-          });
+          const created = await createCohort(cohortPayload);
           setExpandedCohortId(created.id);
           setSuccess('Cohort created successfully.');
         }
@@ -415,6 +445,7 @@ export function AdminCourses() {
           video_url: finalVideoUrl,
           duration_minutes: editor.durationMinutes ? Number(editor.durationMinutes) : null,
           position: Number(editor.position) || 1,
+          status: editor.status,
         };
 
         if (editor.id) {
@@ -518,6 +549,93 @@ export function AdminCourses() {
       await loadData();
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : `Unable to delete this ${type}.`);
+    }
+  };
+
+  // Reorder Handlers
+  const handleReorderModule = async (cohortId: string, currentMod: Module, direction: 'up' | 'down') => {
+    const cohortModules = modules
+      .filter((m) => m.cohort_id === cohortId)
+      .sort((a, b) => a.position - b.position);
+    const index = cohortModules.findIndex((m) => m.id === currentMod.id);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= cohortModules.length) return;
+
+    const otherMod = cohortModules[targetIndex];
+    try {
+      await Promise.all([
+        reorderModule(currentMod.id, otherMod.position),
+        reorderModule(otherMod.id, currentMod.position),
+      ]);
+      setSuccess(`Moved module "${currentMod.title}" ${direction}.`);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reorder module.');
+    }
+  };
+
+  const handleReorderLesson = async (currentModule: Module, currentLesson: Lesson, direction: 'up' | 'down') => {
+    const sortedLessons = [...currentModule.lessons].sort((a, b) => a.position - b.position);
+    const index = sortedLessons.findIndex((l) => l.id === currentLesson.id);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sortedLessons.length) return;
+
+    const otherLesson = sortedLessons[targetIndex];
+    try {
+      await Promise.all([
+        reorderLesson(currentLesson.id, otherLesson.position),
+        reorderLesson(otherLesson.id, currentLesson.position),
+      ]);
+      setSuccess(`Moved lesson "${currentLesson.title}" ${direction}.`);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reorder lesson.');
+    }
+  };
+
+  // Duplication Handlers
+  const handleDuplicateLesson = async (lessonId: string, title: string) => {
+    try {
+      await duplicateLesson(lessonId);
+      setSuccess(`Duplicated "${title}". Created copy in draft status.`);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to duplicate lesson.');
+    }
+  };
+
+  const handleDuplicateModule = async (moduleId: string, title: string) => {
+    try {
+      await duplicateModule(moduleId);
+      setSuccess(`Duplicated module "${title}" and all its lessons.`);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to duplicate module.');
+    }
+  };
+
+  // Status Handlers
+  const handleUpdateLessonStatus = async (lessonId: string, newStatus: 'draft' | 'published' | 'archived') => {
+    try {
+      await updateLessonStatus(lessonId, newStatus);
+      setSuccess(`Lesson status updated to ${newStatus}.`);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update lesson status.');
+    }
+  };
+
+  const handleBulkModulePublish = async (mod: Module, newStatus: 'published' | 'draft') => {
+    const ids = mod.lessons.map((l) => l.id);
+    if (!ids.length) return;
+    try {
+      await bulkUpdateLessonStatus(ids, newStatus);
+      setSuccess(`All lessons in "${mod.title}" marked as ${newStatus}.`);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to bulk update lesson statuses.');
     }
   };
 
@@ -636,11 +754,27 @@ export function AdminCourses() {
                         size={20}
                       />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h2 className="truncate text-lg font-black text-slate-950">{cohort.name}</h2>
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                              cohort.status === 'published'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : cohort.status === 'draft'
+                                ? 'bg-amber-50 text-amber-700'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {cohort.status === 'published' ? '● Published' : cohort.status === 'draft' ? '○ Draft' : 'Archived'}
+                          </span>
                           <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
                             {cohortModules.length} {cohortModules.length === 1 ? 'module' : 'modules'}
                           </span>
+                          {cohort.capacity && (
+                            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                              Cap: {cohort.capacity} seats
+                            </span>
+                          )}
                         </div>
                         <p className="mt-0.5 truncate text-xs text-slate-500">
                           {cohort.description || 'No description set'}
@@ -676,7 +810,7 @@ export function AdminCourses() {
                     <div className="bg-slate-50/70 p-5 lg:p-6">
                       {cohortModules.length ? (
                         <div className="space-y-5">
-                          {cohortModules.map((module) => {
+                          {cohortModules.map((module, moduleIndex) => {
                             const sortedLessons = [...module.lessons].sort((a, b) => a.position - b.position);
 
                             return (
@@ -700,12 +834,60 @@ export function AdminCourses() {
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-1.5 self-end sm:self-center">
+                                  <div className="flex items-center gap-1.5 self-end sm:self-center flex-wrap">
+                                    {/* Reorder Module Up / Down */}
+                                    <div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5">
+                                      <button
+                                        disabled={moduleIndex === 0}
+                                        onClick={() => void handleReorderModule(cohort.id, module, 'up')}
+                                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-25"
+                                        title="Move module up"
+                                      >
+                                        <ArrowUp size={13} />
+                                      </button>
+                                      <button
+                                        disabled={moduleIndex === cohortModules.length - 1}
+                                        onClick={() => void handleReorderModule(cohort.id, module, 'down')}
+                                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-25"
+                                        title="Move module down"
+                                      >
+                                        <ArrowDown size={13} />
+                                      </button>
+                                    </div>
+
+                                    {/* Duplicate Module */}
+                                    <button
+                                      onClick={() => void handleDuplicateModule(module.id, module.title)}
+                                      className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                                      title="Duplicate module and all lessons"
+                                    >
+                                      <Copy size={13} />
+                                    </button>
+
+                                    {/* Bulk Publish / Draft */}
+                                    <div className="hidden sm:flex items-center rounded-lg border border-slate-200 bg-white text-[10px] font-bold overflow-hidden">
+                                      <button
+                                        onClick={() => void handleBulkModulePublish(module, 'published')}
+                                        className="px-2 py-1 text-emerald-700 hover:bg-emerald-50"
+                                        title="Publish all lessons in module"
+                                      >
+                                        Publish All
+                                      </button>
+                                      <span className="text-slate-200">|</span>
+                                      <button
+                                        onClick={() => void handleBulkModulePublish(module, 'draft')}
+                                        className="px-2 py-1 text-slate-500 hover:bg-slate-100"
+                                        title="Draft all lessons in module"
+                                      >
+                                        Draft All
+                                      </button>
+                                    </div>
+
                                     <Button
                                       variant="secondary"
                                       size="sm"
                                       onClick={() => openLessonEditor(module.id)}
-                                      className="h-8 text-xs font-bold"
+                                      className="h-8 text-xs font-bold ml-1"
                                     >
                                       <Plus size={14} /> Add Lesson
                                     </Button>
@@ -731,7 +913,7 @@ export function AdminCourses() {
                                 {/* Lessons in Module */}
                                 <div className="divide-y divide-slate-100">
                                   {sortedLessons.length ? (
-                                    sortedLessons.map((lesson) => {
+                                    sortedLessons.map((lesson, lessonIndex) => {
                                       const lessonAssignments = assignmentsByLesson.get(lesson.id) || [];
                                       const lessonResources = resourcesByLesson.get(lesson.id) || [];
                                       const isLessonExpanded = expandedLessonId === lesson.id;
@@ -749,6 +931,29 @@ export function AdminCourses() {
                                                   <strong className="truncate text-sm font-bold text-slate-900">
                                                     {lesson.title}
                                                   </strong>
+
+                                                  {/* Publishing Status Dropdown */}
+                                                  <select
+                                                    value={lesson.status ?? 'published'}
+                                                    onChange={(e) =>
+                                                      void handleUpdateLessonStatus(
+                                                        lesson.id,
+                                                        e.target.value as 'draft' | 'published' | 'archived'
+                                                      )
+                                                    }
+                                                    className={`rounded px-1.5 py-0.5 text-[10px] font-bold border outline-none cursor-pointer ${
+                                                      lesson.status === 'draft'
+                                                        ? 'border-amber-200 bg-amber-50 text-amber-800'
+                                                        : lesson.status === 'archived'
+                                                        ? 'border-slate-200 bg-slate-100 text-slate-600'
+                                                        : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                                    }`}
+                                                  >
+                                                    <option value="draft">Draft</option>
+                                                    <option value="published">Published</option>
+                                                    <option value="archived">Archived</option>
+                                                  </select>
+
                                                   {lesson.video_url ? (
                                                     <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
                                                       <Video size={12} /> Video Attached
@@ -772,7 +977,36 @@ export function AdminCourses() {
                                               </div>
                                             </div>
 
-                                            <div className="flex items-center gap-2 self-end sm:self-center">
+                                            <div className="flex items-center gap-2 self-end sm:self-center flex-wrap">
+                                              {/* Move Lesson Up / Down */}
+                                              <div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5">
+                                                <button
+                                                  disabled={lessonIndex === 0}
+                                                  onClick={() => void handleReorderLesson(module, lesson, 'up')}
+                                                  className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-25"
+                                                  title="Move lesson up"
+                                                >
+                                                  <ArrowUp size={12} />
+                                                </button>
+                                                <button
+                                                  disabled={lessonIndex === sortedLessons.length - 1}
+                                                  onClick={() => void handleReorderLesson(module, lesson, 'down')}
+                                                  className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-25"
+                                                  title="Move lesson down"
+                                                >
+                                                  <ArrowDown size={12} />
+                                                </button>
+                                              </div>
+
+                                              {/* Duplicate Lesson */}
+                                              <button
+                                                onClick={() => void handleDuplicateLesson(lesson.id, lesson.title)}
+                                                className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+                                                title="Duplicate Lesson"
+                                              >
+                                                <Copy size={13} />
+                                              </button>
+
                                               {/* Toggle Sub-items */}
                                               <button
                                                 onClick={() =>
@@ -1085,6 +1319,71 @@ export function AdminCourses() {
                     placeholder="Overview of the learning objectives, deliverables, and expectations..."
                     rows={3}
                   />
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <label className="block text-left">
+                      <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                        Publish Status
+                      </span>
+                      <select
+                        value={editor.status}
+                        onChange={(e) =>
+                          setEditor({
+                            ...editor,
+                            status: e.target.value as 'draft' | 'published' | 'archived',
+                          })
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      >
+                        <option value="published">Published</option>
+                        <option value="draft">Draft</option>
+                        <option value="archived">Archived</option>
+                      </select>
+                    </label>
+
+                    <label className="block text-left">
+                      <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                        Visibility
+                      </span>
+                      <select
+                        value={editor.visibility}
+                        onChange={(e) =>
+                          setEditor({
+                            ...editor,
+                            visibility: e.target.value as 'public' | 'private' | 'unlisted',
+                          })
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      >
+                        <option value="public">Public</option>
+                        <option value="private">Private</option>
+                        <option value="unlisted">Unlisted</option>
+                      </select>
+                    </label>
+
+                    <FormField
+                      label="Capacity"
+                      type="number"
+                      min="1"
+                      value={editor.capacity}
+                      onChange={(val) => setEditor({ ...editor, capacity: val })}
+                      placeholder="30"
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      label="Enrollment Start"
+                      type="datetime-local"
+                      value={editor.enrollmentStart}
+                      onChange={(val) => setEditor({ ...editor, enrollmentStart: val })}
+                    />
+                    <FormField
+                      label="Enrollment End"
+                      type="datetime-local"
+                      value={editor.enrollmentEnd}
+                      onChange={(val) => setEditor({ ...editor, enrollmentEnd: val })}
+                    />
+                  </div>
                 </>
               )}
 
@@ -1119,13 +1418,36 @@ export function AdminCourses() {
               {/* LESSON FIELDS */}
               {editor.type === 'lesson' && (
                 <>
-                  <FormField
-                    label="Lesson Title"
-                    value={editor.title}
-                    onChange={(val) => setEditor({ ...editor, title: val })}
-                    placeholder="e.g., Cutting on Action and Invisible Continuity"
-                    required
-                  />
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="sm:col-span-2">
+                      <FormField
+                        label="Lesson Title"
+                        value={editor.title}
+                        onChange={(val) => setEditor({ ...editor, title: val })}
+                        placeholder="e.g., Cutting on Action and Invisible Continuity"
+                        required
+                      />
+                    </div>
+                    <label className="block text-left">
+                      <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                        Status
+                      </span>
+                      <select
+                        value={editor.status}
+                        onChange={(e) =>
+                          setEditor({
+                            ...editor,
+                            status: e.target.value as 'draft' | 'published' | 'archived',
+                          })
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      >
+                        <option value="published">Published</option>
+                        <option value="draft">Draft</option>
+                        <option value="archived">Archived</option>
+                      </select>
+                    </label>
+                  </div>
                   <TextareaField
                     label="Lesson Description"
                     value={editor.description}
