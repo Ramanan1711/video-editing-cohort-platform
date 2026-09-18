@@ -9,6 +9,8 @@ import { StudentDashboard } from './pages/StudentDashboard';
 import { Home } from './pages/Home';
 import { AdminCourses } from './pages/AdminCourses';
 import { ReviewSubmissions } from './pages/ReviewSubmissions';
+import { MentorDashboard } from './pages/MentorDashboard';
+import { MentorStudents } from './pages/MentorStudents';
 import { AdminOperations } from './pages/AdminOperations';
 import { WorkspaceShell } from './components/WorkspaceShell';
 import { Unauthorized } from './pages/Unauthorized';
@@ -40,6 +42,22 @@ export function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <WorkspaceShell><AdminCourses /></WorkspaceShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mentor"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'mentor']}>
+                <WorkspaceShell><MentorDashboard /></WorkspaceShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mentor/students"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'mentor']}>
+                <WorkspaceShell><MentorStudents /></WorkspaceShell>
               </ProtectedRoute>
             }
           />

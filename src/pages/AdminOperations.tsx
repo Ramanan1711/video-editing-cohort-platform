@@ -15,6 +15,7 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Trash2,
   UserCheck,
   UserMinus,
@@ -26,6 +27,7 @@ import {
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../context/useAuth';
+import { assignMentorToCohort } from '../lib/mentorService';
 import {
   createAnnouncement,
   createLiveSession,
@@ -97,6 +99,12 @@ export function AdminOperations() {
   const [enrollStudentId, setEnrollStudentId] = useState('');
   const [enrollTargetCohortId, setEnrollTargetCohortId] = useState('');
   const [enrollingUser, setEnrollingUser] = useState(false);
+
+  // Mentor Assignment state
+  const [showAssignMentorModal, setShowAssignMentorModal] = useState(false);
+  const [assignMentorId, setAssignMentorId] = useState('');
+  const [assignCohortId, setAssignCohortId] = useState('');
+  const [assigningMentor, setAssigningMentor] = useState(false);
 
   // Announcement state
   const [announcementInput, setAnnouncementInput] = useState({ title: '', body: '' });
@@ -239,6 +247,23 @@ export function AdminOperations() {
       void getAdminStats().then(setStats);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to remove enrollment.');
+    }
+  };
+
+  const handleAssignMentor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignMentorId || !assignCohortId) return;
+    try {
+      setAssigningMentor(true);
+      await assignMentorToCohort(assignMentorId, assignCohortId);
+      setSuccess('Mentor successfully assigned to cohort.');
+      setShowAssignMentorModal(false);
+      setAssignMentorId('');
+      setAssignCohortId('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to assign mentor to cohort.');
+    } finally {
+      setAssigningMentor(false);
     }
   };
 
@@ -741,6 +766,15 @@ export function AdminOperations() {
 
                 <Button
                   size="sm"
+                  variant="secondary"
+                  onClick={() => setShowAssignMentorModal(true)}
+                  className="text-xs font-bold"
+                >
+                  <Sparkles size={14} /> Assign Mentor
+                </Button>
+
+                <Button
+                  size="sm"
                   variant="primary"
                   onClick={() => setShowEnrollModal(true)}
                   className="text-xs font-bold"
@@ -861,6 +895,79 @@ export function AdminOperations() {
                     </Button>
                     <Button variant="primary" size="sm" type="submit" loading={enrollingUser}>
                       Enroll Student
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Mentor Cohort Assignment Modal */}
+            {showAssignMentorModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
+                <form
+                  onSubmit={handleAssignMentor}
+                  className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+                >
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="text-base font-black text-slate-950">Assign Mentor to Cohort</h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowAssignMentorModal(false)}
+                      className="text-slate-400 hover:text-slate-700"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Select Mentor
+                      <select
+                        value={assignMentorId}
+                        onChange={(e) => setAssignMentorId(e.target.value)}
+                        required
+                        className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs outline-none focus:border-orange-400"
+                      >
+                        <option value="">Choose a designated mentor...</option>
+                        {users
+                          .filter((u) => u.role === 'mentor' || u.role === 'admin')
+                          .map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.full_name || 'Unnamed'} ({u.email}) — [{u.role.toUpperCase()}]
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+
+                    <label className="block text-xs font-bold text-slate-700">
+                      Target Cohort
+                      <select
+                        value={assignCohortId}
+                        onChange={(e) => setAssignCohortId(e.target.value)}
+                        required
+                        className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs outline-none focus:border-orange-400"
+                      >
+                        <option value="">Choose cohort...</option>
+                        {cohorts.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      type="button"
+                      onClick={() => setShowAssignMentorModal(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button variant="primary" size="sm" type="submit" loading={assigningMentor}>
+                      <Sparkles size={14} /> Assign Mentor
                     </Button>
                   </div>
                 </form>

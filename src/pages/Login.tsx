@@ -41,7 +41,7 @@ export const Login: React.FC = () => {
         if (userRole === 'admin') {
           navigate('/admin');
         } else if (userRole === 'mentor') {
-          navigate('/review/submissions');
+          navigate('/mentor');
         } else {
           navigate('/student/dashboard');
         }
