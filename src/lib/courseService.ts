@@ -90,6 +90,15 @@ export interface Submission {
   updated_at?: string;
 }
 
+export interface MentorSubmission extends Submission {
+  student_name?: string;
+  student_email?: string;
+  assignment_title?: string;
+  assignment_instructions?: string | null;
+  assignment_deadline?: string | null;
+  cohort_name?: string;
+}
+
 export interface StudentNotification {
   id: string;
   user_id: string;
@@ -684,6 +693,139 @@ export async function listPendingSubmissions(): Promise<Submission[]> {
     .order('created_at', { ascending: true });
   if (error) throw error;
   return addFeedback((data ?? []) as Omit<Submission, 'feedback'>[]);
+}
+
+export async function listMentorSubmissions(
+  statusFilter: 'pending' | 'reviewed' | 'resubmit' | 'all' = 'all',
+  cohortId?: string
+): Promise<MentorSubmission[]> {
+  let query = supabase
+    .from('submissions')
+    .select('id, assignment_id, student_id, file_url, status, created_at, updated_at')
+    .order('created_at', { ascending: false });
+
+  if (statusFilter !== 'all') {
+    query = query.eq('status', statusFilter);
+  }
+
+  const { data: rawSubmissions, error } = await query;
+  if (error) throw error;
+  if (!rawSubmissions || rawSubmissions.length === 0) return [];
+
+  const studentIds = Array.from(new Set(rawSubmissions.map((s) => s.student_id)));
+  const assignmentIds = Array.from(new Set(rawSubmissions.map((s) => s.assignment_id)));
+  const submissionIds = rawSubmissions.map((s) => s.id);
+
+  const [
+    { data: profiles },
+    { data: assignments },
+    { data: feedbackRows },
+  ] = await Promise.all([
+    supabase.from('profiles').select('id, full_name, email').in('id', studentIds),
+    supabase.from('assignments').select('id, title, instructions, deadline, lesson_id').in('id', assignmentIds),
+    supabase.from('feedback').select('id, submission_id, mentor_id, comments, created_at').in('submission_id', submissionIds).order('created_at', { ascending: false }),
+  ]);
+
+  const profileMap = new Map<string, { full_name: string; email: string }>();
+  for (const p of profiles ?? []) {
+    profileMap.set(p.id, { full_name: p.full_name, email: p.email });
+  }
+
+  const assignmentMap = new Map<string, { title: string; instructions: string | null; deadline: string | null; lesson_id: string }>();
+  for (const a of assignments ?? []) {
+    assignmentMap.set(a.id, { title: a.title, instructions: a.instructions, deadline: a.deadline, lesson_id: a.lesson_id });
+  }
+
+  // Resolve cohort names via lesson_id -> module_id -> cohort_id
+  const lessonIds = Array.from(new Set((assignments ?? []).map((a) => a.lesson_id).filter(Boolean)));
+  const cohortNameByAssignment = new Map<string, string>();
+  const cohortIdByAssignment = new Map<string, string>();
+
+  if (lessonIds.length > 0) {
+    const { data: lessons } = await supabase
+      .from('lessons')
+      .select('id, module_id')
+      .in('id', lessonIds);
+
+    const moduleIds = Array.from(new Set((lessons ?? []).map((l) => l.module_id).filter(Boolean)));
+    if (moduleIds.length > 0) {
+      const { data: modules } = await supabase
+        .from('modules')
+        .select('id, cohort_id')
+        .in('id', moduleIds);
+
+      const cohortIds = Array.from(new Set((modules ?? []).map((m) => m.cohort_id).filter(Boolean)));
+      if (cohortIds.length > 0) {
+        const { data: cohorts } = await supabase
+          .from('cohorts')
+          .select('id, title')
+          .in('id', cohortIds);
+
+        const cohortMap = new Map<string, string>();
+        for (const c of cohorts ?? []) {
+          cohortMap.set(c.id, c.title);
+        }
+
+        const moduleToCohort = new Map<string, { id: string; name: string }>();
+        for (const m of modules ?? []) {
+          moduleToCohort.set(m.id, { id: m.cohort_id, name: cohortMap.get(m.cohort_id) || 'General Cohort' });
+        }
+
+        const lessonToCohort = new Map<string, { id: string; name: string }>();
+        for (const l of lessons ?? []) {
+          const cInfo = moduleToCohort.get(l.module_id);
+          if (cInfo) lessonToCohort.set(l.id, cInfo);
+        }
+
+        for (const a of assignments ?? []) {
+          const cInfo = lessonToCohort.get(a.lesson_id);
+          if (cInfo) {
+            cohortNameByAssignment.set(a.id, cInfo.name);
+            cohortIdByAssignment.set(a.id, cInfo.id);
+          }
+        }
+      }
+    }
+  }
+
+  // Group feedback history
+  const feedbackBySubmission = new Map<string, string>();
+  const historyBySubmission = new Map<string, FeedbackItem[]>();
+
+  for (const item of feedbackRows ?? []) {
+    if (!feedbackBySubmission.has(item.submission_id)) {
+      feedbackBySubmission.set(item.submission_id, item.comments);
+    }
+    const list = historyBySubmission.get(item.submission_id) || [];
+    list.push(item as FeedbackItem);
+    historyBySubmission.set(item.submission_id, list);
+  }
+
+  const results: MentorSubmission[] = [];
+
+  for (const s of rawSubmissions) {
+    const aCohortId = cohortIdByAssignment.get(s.assignment_id);
+    if (cohortId && aCohortId && aCohortId !== cohortId) {
+      continue;
+    }
+
+    const student = profileMap.get(s.student_id);
+    const assignment = assignmentMap.get(s.assignment_id);
+
+    results.push({
+      ...s,
+      student_name: student?.full_name || 'Student',
+      student_email: student?.email || '',
+      assignment_title: assignment?.title || 'Assignment Challenge',
+      assignment_instructions: assignment?.instructions || null,
+      assignment_deadline: assignment?.deadline || null,
+      cohort_name: cohortNameByAssignment.get(s.assignment_id) || 'Main Cohort',
+      feedback: feedbackBySubmission.get(s.id) ?? null,
+      feedback_history: historyBySubmission.get(s.id) ?? [],
+    });
+  }
+
+  return results;
 }
 
 export async function reviewSubmission(
