@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
+  Award,
   Calendar,
   Check,
   Clock,
   ExternalLink,
+  Layers,
   LoaderCircle,
+  MessageSquare,
   RotateCcw,
   Send,
   Sparkles,
@@ -16,6 +19,7 @@ import { Card } from './ui/Card';
 import {
   enrollInCohort,
   formatFileSize,
+  listAllStudentCohorts,
   listAssignments,
   listAvailableCohorts,
   listMySubmissions,
@@ -96,6 +100,179 @@ export function EnrollmentPanel({ userId, onEnrolled }: { userId: string; onEnro
         <p className="mt-7 text-sm text-slate-400">There are no open cohorts right now. Check back soon.</p>
       )}
     </Card>
+  );
+}
+
+export function CohortDiscoveryModal({
+  userId,
+  isOpen,
+  onClose,
+  currentCohortId,
+  onSelectCohort,
+}: {
+  userId: string;
+  isOpen: boolean;
+  onClose: () => void;
+  currentCohortId?: string | null;
+  onSelectCohort: (cohortId: string) => void;
+}) {
+  const [cohorts, setCohorts] = useState<(Cohort & { isEnrolled: boolean })[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [enrollingId, setEnrollingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    listAllStudentCohorts(userId)
+      .then((data) => {
+        if (active) {
+          setCohorts(data);
+          setError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) setError(err instanceof Error ? err.message : 'Unable to load cohorts.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isOpen, userId]);
+
+  if (!isOpen) return null;
+
+  const handleEnrollAndSwitch = async (cohortId: string) => {
+    try {
+      setEnrollingId(cohortId);
+      await enrollInCohort(userId, cohortId);
+      onSelectCohort(cohortId);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to enroll in cohort.');
+    } finally {
+      setEnrollingId(null);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex size-7 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                <Layers size={16} />
+              </span>
+              <h3 className="text-xl font-black text-slate-950">Cohort Discovery &amp; Switcher</h3>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Browse available editing cohorts or seamlessly switch between your active enrollments.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-4 max-h-96 space-y-3 overflow-y-auto pr-1">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <LoaderCircle size={24} className="animate-spin text-orange-500" />
+            </div>
+          ) : cohorts.length === 0 ? (
+            <div className="py-10 text-center text-sm text-slate-400">
+              No active cohorts available right now.
+            </div>
+          ) : (
+            cohorts.map((cohort) => {
+              const isCurrent = cohort.id === currentCohortId;
+              const isEnrolled = cohort.isEnrolled;
+
+              return (
+                <div
+                  key={cohort.id}
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border p-4 transition ${
+                    isCurrent
+                      ? 'border-orange-400 bg-orange-50/50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm text-slate-950">{cohort.name}</h4>
+                      {isCurrent && (
+                        <span className="rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700">
+                          Active View
+                        </span>
+                      )}
+                      {!isCurrent && isEnrolled && (
+                        <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                          Enrolled
+                        </span>
+                      )}
+                      {!isEnrolled && (
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                          Open to Join
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                      {cohort.description || 'Intensive video editing coursework and portfolio mentorship.'}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0">
+                    {isCurrent ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600">
+                        <Check size={15} /> Currently viewing
+                      </span>
+                    ) : isEnrolled ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          onSelectCohort(cohort.id);
+                          onClose();
+                        }}
+                      >
+                        Switch Cohort
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        loading={enrollingId === cohort.id}
+                        onClick={() => void handleEnrollAndSwitch(cohort.id)}
+                      >
+                        Enroll &amp; Switch
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
+          <Button variant="secondary" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -329,7 +506,7 @@ function AssignmentCard({
           </div>
           {status === 'reviewed' ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
-              <Check size={13} /> Reviewed
+              <Check size={13} /> Reviewed &amp; Passed
             </span>
           ) : status === 'resubmit' ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
@@ -380,8 +557,8 @@ function AssignmentCard({
                 {status === 'resubmit'
                   ? 'Mentor Revision Requested'
                   : status === 'reviewed'
-                  ? 'Reviewed & Passed'
-                  : 'Submission Received'}
+                  ? 'Reviewed & Approved'
+                  : 'Submission Under Mentor Review'}
               </span>
               <a
                 href={submission.file_url}
@@ -393,11 +570,28 @@ function AssignmentCard({
               </a>
             </div>
 
-            {submission.feedback && (
-              <p className="mt-2 text-xs leading-relaxed">
+            {/* Mentor Feedback History Thread */}
+            {submission.feedback_history && submission.feedback_history.length > 0 ? (
+              <div className="mt-3 space-y-2 border-t border-slate-200/60 pt-2.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <MessageSquare size={12} />
+                  <span>Mentor Feedback History ({submission.feedback_history.length})</span>
+                </div>
+                {submission.feedback_history.map((item, idx) => (
+                  <div key={item.id || idx} className="rounded-lg bg-white/80 p-2.5 shadow-2xs">
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+                      <span className="font-bold text-slate-700">Critique #{idx + 1}</span>
+                      <span>{new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <p className="text-xs text-slate-800 leading-relaxed whitespace-pre-wrap">{item.comments}</p>
+                  </div>
+                ))}
+              </div>
+            ) : submission.feedback ? (
+              <div className="mt-2.5 border-t border-slate-200/60 pt-2 text-xs leading-relaxed">
                 <strong>Mentor Notes:</strong> {submission.feedback}
-              </p>
-            )}
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -430,12 +624,14 @@ export function MilestonePanel({
   progressPercent,
   completedCount,
   totalLessons,
+  onViewCertificate,
 }: {
   progressPercent: number;
   completedCount: number;
   totalLessons: number;
+  onViewCertificate?: () => void;
 }) {
-  const complete = progressPercent === 100;
+  const complete = progressPercent === 100 && totalLessons > 0;
   return (
     <Card className="mt-8 overflow-hidden border-orange-200 bg-orange-50 p-6">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
@@ -448,16 +644,22 @@ export function MilestonePanel({
           </h2>
           <p className="mt-2 text-sm text-slate-600">
             {complete
-              ? 'Your certificate and portfolio review are ready for the next step.'
+              ? 'Your verified certificate and portfolio review are ready to download.'
               : `${completedCount} of ${totalLessons} lessons complete. Keep the streak alive.`}
           </p>
         </div>
         {complete ? (
-          <div className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-emerald-600 shadow-sm">
-            <Check size={17} /> Certificate unlocked
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onViewCertificate}
+              className="flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:bg-orange-600"
+            >
+              <Award size={18} className="text-orange-400" />
+              <span>View Official Certificate</span>
+            </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-orange-600">
+          <div className="flex items-center gap-2 text-orange-600 font-bold text-sm">
             <Sparkles size={20} /> Keep going
           </div>
         )}

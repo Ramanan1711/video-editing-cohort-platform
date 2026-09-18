@@ -56,6 +56,7 @@ export interface StudentCourseData {
   cohort: Cohort | null;
   modules: Module[];
   progress: LessonProgress[];
+  enrolledCohorts: Cohort[];
 }
 
 export interface Assignment {
@@ -69,6 +70,14 @@ export interface Assignment {
 
 export type SubmissionStatus = 'pending' | 'reviewed' | 'resubmit';
 
+export interface FeedbackItem {
+  id: string;
+  submission_id: string;
+  mentor_id: string;
+  comments: string;
+  created_at: string;
+}
+
 export interface Submission {
   id: string;
   assignment_id: string;
@@ -76,8 +85,33 @@ export interface Submission {
   file_url: string;
   status: SubmissionStatus;
   feedback: string | null;
+  feedback_history?: FeedbackItem[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface StudentNotification {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface StudentAnnouncement {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+}
+
+export interface StudentLiveSession {
+  id: string;
+  title: string;
+  description: string | null;
+  starts_at: string;
+  meeting_url: string;
 }
 
 export type CohortInput = Pick<Cohort, 'name' | 'description'>;
@@ -145,40 +179,101 @@ export function formatFileSize(bytes?: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export async function getStudentCourseData(userId: string): Promise<StudentCourseData> {
-  const { data: enrollment, error: enrollmentError } = await supabase
+export async function getStudentCourseData(userId: string, cohortId?: string): Promise<StudentCourseData> {
+  const { data: enrollments, error: enrollmentError } = await supabase
     .from('enrollments')
-    .select('cohort_id')
+    .select('cohort_id, status, created_at')
     .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: false });
 
   if (enrollmentError) throw enrollmentError;
-  if (!enrollment) return { cohort: null, modules: [], progress: [] };
 
-  const [{ data: cohort, error: cohortError }, { data: modules, error: modulesError }, { data: progress, error: progressError }] = await Promise.all([
-    supabase.from('cohorts').select('id, title, description').eq('id', enrollment.cohort_id).maybeSingle(),
-    supabase.from('modules').select(courseSelect).eq('cohort_id', enrollment.cohort_id).order('position', { ascending: true }),
-    supabase.from('lesson_progress').select('lesson_id, completed').eq('user_id', userId),
+  const enrolledCohortIds = (enrollments ?? []).map((e) => e.cohort_id);
+  if (!enrolledCohortIds.length) {
+    return { cohort: null, modules: [], progress: [], enrolledCohorts: [] };
+  }
+
+  // Load metadata for all enrolled cohorts
+  const { data: cohortsData, error: cohortsError } = await supabase
+    .from('cohorts')
+    .select('id, title, description')
+    .in('id', enrolledCohortIds)
+    .order('title');
+
+  if (cohortsError) throw cohortsError;
+
+  const enrolledCohorts: Cohort[] = (cohortsData ?? []).map((c) => ({
+    id: c.id,
+    name: c.title,
+    description: c.description,
+  }));
+
+  // Target cohort: either requested or default to first enrolled
+  const targetCohort = (cohortId && enrolledCohorts.find((c) => c.id === cohortId)) || enrolledCohorts[0];
+  if (!targetCohort) {
+    return { cohort: null, modules: [], progress: [], enrolledCohorts };
+  }
+
+  const [{ data: modules, error: modulesError }, { data: progress, error: progressError }] = await Promise.all([
+    supabase.from('modules').select(courseSelect).eq('cohort_id', targetCohort.id).order('position', { ascending: true }),
+    supabase.from('lesson_progress').select('lesson_id, completed, completed_at').eq('user_id', userId),
   ]);
 
-  if (cohortError) throw cohortError;
   if (modulesError) throw modulesError;
   if (progressError) throw progressError;
 
   return {
-    cohort: cohort ? { id: cohort.id, name: cohort.title, description: cohort.description } : null,
+    cohort: targetCohort,
     modules: ((modules ?? []) as Module[]).map((module) => ({
       ...module,
       lessons: [...(module.lessons ?? [])].sort((a, b) => a.position - b.position),
     })),
     progress: (progress ?? []) as LessonProgress[],
+    enrolledCohorts,
   };
+}
+
+export async function listEnrolledCohorts(userId: string): Promise<Cohort[]> {
+  const { data: enrollments, error: enrollmentsError } = await supabase
+    .from('enrollments')
+    .select('cohort_id')
+    .eq('user_id', userId);
+
+  if (enrollmentsError) throw enrollmentsError;
+  const cohortIds = (enrollments ?? []).map((e) => e.cohort_id);
+  if (!cohortIds.length) return [];
+
+  const { data, error } = await supabase
+    .from('cohorts')
+    .select('id, title, description')
+    .in('id', cohortIds)
+    .order('title');
+
+  if (error) throw error;
+  return (data ?? []).map((c) => ({ id: c.id, name: c.title, description: c.description }));
+}
+
+export async function listAllStudentCohorts(userId: string): Promise<(Cohort & { isEnrolled: boolean })[]> {
+  const [{ data: allCohorts, error: cohortsError }, { data: enrollments, error: enrollmentsError }] = await Promise.all([
+    supabase.from('cohorts').select('id, title, description').order('title'),
+    supabase.from('enrollments').select('cohort_id').eq('user_id', userId),
+  ]);
+
+  if (cohortsError) throw cohortsError;
+  if (enrollmentsError) throw enrollmentsError;
+
+  const enrolledSet = new Set((enrollments ?? []).map((e) => e.cohort_id));
+  return (allCohorts ?? []).map((cohort) => ({
+    id: cohort.id,
+    name: cohort.title,
+    description: cohort.description,
+    isEnrolled: enrolledSet.has(cohort.id),
+  }));
 }
 
 export async function markLessonComplete(userId: string, lessonId: string, completed: boolean) {
   const { error } = await supabase.from('lesson_progress').upsert(
-    { user_id: userId, lesson_id: lessonId, completed },
+    { user_id: userId, lesson_id: lessonId, completed, completed_at: new Date().toISOString() },
     { onConflict: 'user_id,lesson_id' }
   );
   if (error) throw error;
@@ -621,15 +716,183 @@ async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise
   if (!submissions.length) return [];
   const { data } = await supabase
     .from('feedback')
-    .select('submission_id, comments, created_at')
+    .select('id, submission_id, mentor_id, comments, created_at')
     .in('submission_id', submissions.map((submission) => submission.id))
     .order('created_at', { ascending: false });
 
   const feedbackBySubmission = new Map<string, string>();
+  const historyBySubmission = new Map<string, FeedbackItem[]>();
+
   for (const item of data ?? []) {
     if (!feedbackBySubmission.has(item.submission_id)) {
       feedbackBySubmission.set(item.submission_id, item.comments);
     }
+    const current = historyBySubmission.get(item.submission_id) || [];
+    current.push(item as FeedbackItem);
+    historyBySubmission.set(item.submission_id, current);
   }
-  return submissions.map((submission) => ({ ...submission, feedback: feedbackBySubmission.get(submission.id) ?? null }));
+
+  return submissions.map((submission) => ({
+    ...submission,
+    feedback: feedbackBySubmission.get(submission.id) ?? null,
+    feedback_history: historyBySubmission.get(submission.id) ?? [],
+  }));
+}
+
+// Student Announcements
+export async function listStudentAnnouncements(): Promise<StudentAnnouncement[]> {
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('id, title, body, created_at')
+    .eq('published', true)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('Unable to load announcements:', error);
+    return [];
+  }
+  return (data ?? []) as StudentAnnouncement[];
+}
+
+// Student Live Sessions
+export async function listStudentLiveSessions(): Promise<StudentLiveSession[]> {
+  const { data, error } = await supabase
+    .from('live_sessions')
+    .select('id, title, description, starts_at, meeting_url')
+    .order('starts_at', { ascending: true });
+
+  if (error) {
+    console.warn('Unable to load live sessions:', error);
+    return [];
+  }
+  return (data ?? []) as StudentLiveSession[];
+}
+
+// Student Notifications
+export async function listStudentNotifications(userId: string): Promise<StudentNotification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id, user_id, title, body, read_at, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('Unable to load notifications:', error);
+    return [];
+  }
+  return (data ?? []) as StudentNotification[];
+}
+
+export async function markNotificationRead(notificationId: string): Promise<void> {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('id', notificationId);
+  if (error) throw error;
+}
+
+export async function markAllNotificationsRead(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .is('read_at', null);
+  if (error) throw error;
+}
+
+// Real Metric Calculators
+export function calculateStreak(timestamps: (string | null | undefined)[]): number {
+  const validDates = timestamps
+    .filter((ts): ts is string => Boolean(ts))
+    .map((ts) => {
+      const d = new Date(ts);
+      return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+    })
+    .filter((d): d is string => Boolean(d));
+
+  if (!validDates.length) return 0;
+
+  const uniqueDays = Array.from(new Set(validDates)).sort().reverse();
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = yesterdayDate.toISOString().slice(0, 10);
+
+  // If latest activity is neither today nor yesterday, streak is broken
+  if (uniqueDays[0] !== today && uniqueDays[0] !== yesterday) {
+    return 0;
+  }
+
+  let streak = 1;
+  let current = new Date(uniqueDays[0]);
+
+  for (let i = 1; i < uniqueDays.length; i++) {
+    const prevExpected = new Date(current);
+    prevExpected.setDate(prevExpected.getDate() - 1);
+    const prevExpectedStr = prevExpected.toISOString().slice(0, 10);
+
+    if (uniqueDays[i] === prevExpectedStr) {
+      streak++;
+      current = prevExpected;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
+export function calculateLearningTime(completedLessons: Lesson[]): string {
+  if (!completedLessons.length) return '0 mins';
+
+  let totalMinutes = 0;
+  for (const lesson of completedLessons) {
+    totalMinutes += (lesson.duration_minutes && lesson.duration_minutes > 0)
+      ? lesson.duration_minutes
+      : 20; // Default estimate 20 minutes if duration is unspecified
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+
+  if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+  if (hours > 0) return `${hours} hrs`;
+  return `${mins} mins`;
+}
+
+export function parseVideoUrl(url: string | null): {
+  type: 'embed' | 'video' | 'empty';
+  embedUrl: string | null;
+  directUrl: string | null;
+} {
+  if (!url || !url.trim()) return { type: 'empty', embedUrl: null, directUrl: null };
+
+  const trimmed = url.trim();
+
+  // YouTube format match
+  const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return {
+      type: 'embed',
+      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`,
+      directUrl: null,
+    };
+  }
+
+  // Vimeo format match
+  const vimeoMatch = trimmed.match(/(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+))/i);
+  if (vimeoMatch && vimeoMatch[3]) {
+    return {
+      type: 'embed',
+      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[3]}?dnt=1&title=0&byline=0`,
+      directUrl: null,
+    };
+  }
+
+  // Direct video file link (.mp4, .webm, storage public URL, etc.)
+  return {
+    type: 'video',
+    embedUrl: null,
+    directUrl: trimmed,
+  };
 }
