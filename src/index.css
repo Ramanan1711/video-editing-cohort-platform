@@ -22,3 +22,64 @@ body { margin: 0; min-width: 320px; }
 .number-badge.dark { background: #1e293b; color: #fb923c; }
 
 button, a { -webkit-tap-highlight-color: transparent; }
+
+/* Certificate Print Optimization */
+@media print {
+  @page {
+    size: landscape;
+    margin: 0 !important;
+  }
+
+  body.certificate-modal-open {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.certificate-modal-open #root {
+    display: none !important;
+  }
+
+  body.certificate-modal-open .certificate-portal-root {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 999999 !important;
+  }
+
+  body.certificate-modal-open .certificate-print-wrapper {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.certificate-modal-open #certificate-print-area {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
