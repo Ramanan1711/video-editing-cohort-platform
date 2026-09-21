@@ -799,7 +799,6 @@ export function ReviewSubmissions() {
                             {/* Timestamp Note Builder Bar */}
                             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                                <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-mono font-bold text-white">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -816,7 +815,6 @@ export function ReviewSubmissions() {
                                 >
                                   <Clock size={12} className="text-orange-400" />
                                   {formatTimecode(activePlaybackTime[submission.id] || 0)}
-                                </span>
                                 </button>
 
                                 <select
@@ -935,24 +933,6 @@ export function ReviewSubmissions() {
                               Rubric Assessment (5-Point Standardized Matrix)
                             </h4>
                           </div>
-                          {(() => {
-                            const avg = Math.round((rubricTotal / 5) * 10) / 10;
-                            let grade = 'Needs Revision';
-                            if (avg >= 4.8) grade = 'A+ (Exemplary)';
-                            else if (avg >= 4.3) grade = 'A (Excellent)';
-                            else if (avg >= 3.8) grade = 'B+ (Proficient)';
-                            else if (avg >= 3.3) grade = 'B (Competent)';
-                            else if (avg >= 2.5) grade = 'C (Developing)';
-                            return (
-                              <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2.5 py-1 text-xs font-black text-orange-700">
-                                <span>Avg: {avg} / 5.0</span>
-                                <span className="opacity-40">•</span>
-                                <span>{grade}</span>
-                                <span className="opacity-40">•</span>
-                                <span className="text-[10px] font-bold text-orange-600">({rubricTotal}/25)</span>
-                              </span>
-                            );
-                          })()}
                           <div className="flex flex-wrap items-center gap-2">
                             <select
                               defaultValue=""
