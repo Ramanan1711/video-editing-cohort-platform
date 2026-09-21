@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { queryCache } from './queryCache';
 import type { MentorSubmission, FeedbackItem } from './courseService';
 
 export interface RubricScore {
@@ -296,6 +297,101 @@ export const RUBRIC_REVIEW_TEMPLATES: RubricReviewTemplate[] = [
   },
 ];
 
+export interface AssignmentCohortMapItem {
+  assignmentId: string;
+  assignmentTitle: string;
+  assignmentInstructions: string | null;
+  assignmentDeadline: string | null;
+  cohortId: string;
+  cohortName: string;
+}
+
+export async function getAssignmentCohortMap(): Promise<Map<string, AssignmentCohortMapItem>> {
+  return queryCache.getOrFetch(
+    'assignment_cohort_map',
+    async () => {
+      const { data: assignments, error: aErr } = await supabase
+        .from('assignments')
+        .select('id, lesson_id, title, instructions, deadline');
+      if (aErr || !assignments) return new Map<string, AssignmentCohortMapItem>();
+
+      const lessonIds = Array.from(new Set(assignments.map((a) => a.lesson_id)));
+      const { data: lessons } = lessonIds.length
+        ? await supabase.from('lessons').select('id, module_id').in('id', lessonIds)
+        : { data: [] };
+      const lessonMap = new Map((lessons ?? []).map((l) => [l.id, l.module_id]));
+
+      const moduleIds = Array.from(new Set((lessons ?? []).map((l) => l.module_id)));
+      const { data: modules } = moduleIds.length
+        ? await supabase.from('modules').select('id, cohort_id').in('id', moduleIds)
+        : { data: [] };
+      const moduleMap = new Map((modules ?? []).map((m) => [m.id, m.cohort_id]));
+
+      const cohortIds = Array.from(new Set((modules ?? []).map((m) => m.cohort_id)));
+      let cohortsData: { id: string; title?: string; name?: string }[] = [];
+      if (cohortIds.length) {
+        const res = await supabase.from('cohorts').select('id, title').in('id', cohortIds);
+        if (!res.error && res.data) {
+          cohortsData = res.data;
+        } else {
+          const fallback = await supabase.from('cohorts').select('id, name').in('id', cohortIds);
+          cohortsData = fallback.data ?? [];
+        }
+      }
+      const cohortMap = new Map(cohortsData.map((c) => [c.id, c.title || c.name || 'Cohort']));
+
+      const map = new Map<string, AssignmentCohortMapItem>();
+      for (const a of assignments) {
+        const moduleId = lessonMap.get(a.lesson_id);
+        const cohortId = moduleId ? moduleMap.get(moduleId) : undefined;
+        const cohortName = cohortId ? cohortMap.get(cohortId) || 'Cohort' : 'Cohort';
+        map.set(a.id, {
+          assignmentId: a.id,
+          assignmentTitle: a.title,
+          assignmentInstructions: a.instructions,
+          assignmentDeadline: a.deadline,
+          cohortId: cohortId || '',
+          cohortName,
+        });
+      }
+      return map;
+    },
+    180_000,
+    ['curriculum', 'cohorts']
+  );
+}
+
+export function subscribeToMentorSubmissions(
+  cohortIds?: string[],
+  onUpdate?: () => void
+): () => void {
+  const channelName = cohortIds?.length
+    ? `mentor-submissions-${cohortIds.slice(0, 3).join('-')}`
+    : 'mentor-submissions-all';
+
+  const channel = supabase
+    .channel(channelName)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'submissions' },
+      () => {
+        if (onUpdate) onUpdate();
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'feedback' },
+      () => {
+        if (onUpdate) onUpdate();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
 export async function listDetailedMentorSubmissions(
   allowedCohortIds?: string[]
 ): Promise<DetailedMentorSubmission[]> {
@@ -304,28 +400,16 @@ export async function listDetailedMentorSubmissions(
     return [];
   }
 
-  // If specific cohorts are requested, resolve the assignment IDs first to scope DB query
+  // Use cached relational assignment-to-cohort map
+  const assignmentCohortMap = await getAssignmentCohortMap();
+
   let scopedAssignmentIds: string[] | null = null;
   if (allowedCohortIds && allowedCohortIds.length > 0) {
-    const { data: modules } = await supabase
-      .from('modules')
-      .select('id, cohort_id')
-      .in('cohort_id', allowedCohortIds);
-    const moduleIds = (modules ?? []).map((m) => m.id);
-    if (moduleIds.length === 0) return [];
+    const allowedSet = new Set(allowedCohortIds);
+    scopedAssignmentIds = Array.from(assignmentCohortMap.values())
+      .filter((item) => allowedSet.has(item.cohortId))
+      .map((item) => item.assignmentId);
 
-    const { data: lessons } = await supabase
-      .from('lessons')
-      .select('id, module_id')
-      .in('module_id', moduleIds);
-    const lessonIds = (lessons ?? []).map((l) => l.id);
-    if (lessonIds.length === 0) return [];
-
-    const { data: assignments } = await supabase
-      .from('assignments')
-      .select('id')
-      .in('lesson_id', lessonIds);
-    scopedAssignmentIds = (assignments ?? []).map((a) => a.id);
     if (scopedAssignmentIds.length === 0) return [];
   }
 
@@ -345,13 +429,9 @@ export async function listDetailedMentorSubmissions(
 
   const submissionIds = rawSubmissions.map((s) => s.id);
   const studentIds = Array.from(new Set(rawSubmissions.map((s) => s.student_id)));
-  const assignmentIds = Array.from(new Set(rawSubmissions.map((s) => s.assignment_id)));
 
-  const [{ data: profiles }, { data: assignments }, { data: feedbackData }] = await Promise.all([
+  const [{ data: profiles }, { data: feedbackData }] = await Promise.all([
     studentIds.length ? supabase.from('profiles').select('id, full_name, email').in('id', studentIds) : { data: [] },
-    assignmentIds.length
-      ? supabase.from('assignments').select('id, lesson_id, title, instructions, deadline').in('id', assignmentIds)
-      : { data: [] },
     submissionIds.length
       ? supabase
           .from('feedback')
@@ -362,33 +442,6 @@ export async function listDetailedMentorSubmissions(
   ]);
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-  const assignmentMap = new Map((assignments ?? []).map((a) => [a.id, a]));
-
-  // Resolve lessons and cohorts for assignments
-  const lessonIds = Array.from(new Set((assignments ?? []).map((a) => a.lesson_id)));
-  const { data: lessons } = lessonIds.length
-    ? await supabase.from('lessons').select('id, module_id').in('id', lessonIds)
-    : { data: [] };
-  const lessonMap = new Map((lessons ?? []).map((l) => [l.id, l.module_id]));
-
-  const moduleIds = Array.from(new Set((lessons ?? []).map((l) => l.module_id)));
-  const { data: modules } = moduleIds.length
-    ? await supabase.from('modules').select('id, cohort_id').in('id', moduleIds)
-    : { data: [] };
-  const moduleMap = new Map((modules ?? []).map((m) => [m.id, m.cohort_id]));
-
-  const cohortIds = Array.from(new Set((modules ?? []).map((m) => m.cohort_id)));
-  let cohortsData: { id: string; title?: string; name?: string }[] = [];
-  if (cohortIds.length) {
-    const res = await supabase.from('cohorts').select('id, title').in('id', cohortIds);
-    if (!res.error && res.data) {
-      cohortsData = res.data;
-    } else {
-      const fallback = await supabase.from('cohorts').select('id, name').in('id', cohortIds);
-      cohortsData = fallback.data ?? [];
-    }
-  }
-  const cohortMap = new Map(cohortsData.map((c) => [c.id, c.title || c.name || 'Cohort']));
 
   // Map feedback
   const feedbackBySub = new Map<string, DetailedFeedbackItem[]>();
@@ -411,10 +464,9 @@ export async function listDetailedMentorSubmissions(
 
   for (const s of rawSubmissions) {
     const student = profileMap.get(s.student_id);
-    const assignment = assignmentMap.get(s.assignment_id);
-    const moduleId = assignment ? lessonMap.get(assignment.lesson_id) : undefined;
-    const cohortId = moduleId ? moduleMap.get(moduleId) : undefined;
-    const cohortName = cohortId ? cohortMap.get(cohortId) : 'Cohort';
+    const assignMeta = assignmentCohortMap.get(s.assignment_id);
+    const cohortId = assignMeta?.cohortId;
+    const cohortName = assignMeta?.cohortName || 'Cohort';
 
     // Filter by allowed cohorts if specified
     if (allowedCohortIds && allowedCohortIds.length > 0 && cohortId && !allowedCohortIds.includes(cohortId)) {
@@ -439,9 +491,9 @@ export async function listDetailedMentorSubmissions(
       updated_at: s.updated_at,
       student_name: student?.full_name || 'Student',
       student_email: student?.email || '',
-      assignment_title: assignment?.title || 'Assignment',
-      assignment_instructions: assignment?.instructions || null,
-      assignment_deadline: assignment?.deadline || null,
+      assignment_title: assignMeta?.assignmentTitle || 'Assignment',
+      assignment_instructions: assignMeta?.assignmentInstructions || null,
+      assignment_deadline: assignMeta?.assignmentDeadline || null,
       cohort_name: cohortName,
       sla_target_hours: targetHours,
       escalated_at: s.escalated_at || null,
@@ -894,6 +946,8 @@ export async function submitDetailedReview(
       p_private_notes: privateNotes?.trim() || null,
     });
 
+    queryCache.invalidate('stats');
+    queryCache.invalidate('submissions');
     if (!v2Error) return;
 
     // Fallback: If review_submission_v2 is missing in DB, use review_submission
@@ -912,6 +966,8 @@ export async function submitDetailedReview(
         .update({ private_notes: privateNotes.trim() })
         .eq('id', submissionId);
     }
+    queryCache.invalidate('stats');
+    queryCache.invalidate('submissions');
   } catch (err) {
     console.error('Error in submitDetailedReview:', err);
     throw new Error(err instanceof Error ? err.message : 'Unable to submit review.', { cause: err });

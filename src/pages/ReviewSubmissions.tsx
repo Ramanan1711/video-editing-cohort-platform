@@ -24,6 +24,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ReviewQueueSkeleton } from '../components/ui/Skeletons';
 import { StateFallback } from '../components/ui/StateFallback';
+import { Pagination } from '../components/ui/Pagination';
 import { detectResourceType, getSecureSubmissionUrl } from '../lib/courseService';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/useToast';
@@ -32,6 +33,7 @@ import {
   escalateSubmissionToAdmin,
   getMentorAssignedCohorts,
   listDetailedMentorSubmissions,
+  subscribeToMentorSubmissions,
   submitDetailedReview,
   RUBRIC_REVIEW_TEMPLATES,
   type DetailedMentorSubmission,
@@ -59,6 +61,8 @@ export function ReviewSubmissions() {
   const [selectedCohort, setSelectedCohort] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('urgency');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
@@ -232,6 +236,26 @@ export function ReviewSubmissions() {
       return 0;
     });
   }, [submissions, statusTab, selectedCohort, searchQuery, sortOption]);
+
+  // Paginated Submissions Slice
+  const totalSubPages = Math.max(1, Math.ceil(filteredSubmissions.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalSubPages);
+  const pagedSubmissions = useMemo(() => {
+    const start = (safeCurrentPage - 1) * pageSize;
+    return filteredSubmissions.slice(start, start + pageSize);
+  }, [filteredSubmissions, safeCurrentPage, pageSize]);
+
+  // Real-time listener for incoming submissions & feedback updates
+  useEffect(() => {
+    if (!isAuthorized) return;
+    const cohortIds = assignedCohorts.map((c) => c.id);
+    const unsubscribe = subscribeToMentorSubmissions(cohortIds, () => {
+      setReloadTrigger((prev) => prev + 1);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [isAuthorized, assignedCohorts]);
 
   if (!isAuthorized) {
     return (
@@ -599,7 +623,7 @@ export function ReviewSubmissions() {
           </Card>
         ) : filteredSubmissions.length ? (
           <div className="space-y-8">
-            {filteredSubmissions.map((submission) => {
+            {pagedSubmissions.map((submission) => {
               const fileType = detectResourceType(submission.file_url);
               const resolvedUrl = secureUrls[submission.id] || submission.file_url;
               const isResubmission = Boolean(
@@ -1170,6 +1194,18 @@ export function ReviewSubmissions() {
                 </Card>
               );
             })}
+            {filteredSubmissions.length > pageSize && (
+              <div className="pt-2">
+                <Pagination
+                  currentPage={safeCurrentPage}
+                  totalPages={totalSubPages}
+                  totalItems={filteredSubmissions.length}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <StateFallback

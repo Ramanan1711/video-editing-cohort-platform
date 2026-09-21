@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
+import { Pagination } from './ui/Pagination';
 import {
   addCommunityComment,
   createCommunityPost,
@@ -47,6 +48,8 @@ export function CommunityBoard({
   isInlineLesson = false,
 }: CommunityBoardProps) {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -84,6 +87,10 @@ export function CommunityBoard({
       active = false;
     };
   }, [cohortId, lessonId, searchQuery, refreshKey]);
+
+  const totalPages = Math.max(1, Math.ceil(posts.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pagedPosts = posts.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
 
   // Real-time subscription to cohort community events (posts, comments, reactions)
   useEffect(() => {
@@ -226,12 +233,18 @@ export function CommunityBoard({
             type="text"
             placeholder={isInlineLesson ? "Search lesson discussions..." : "Search discussions..."}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-8 text-xs outline-none focus:border-orange-400"
           />
           {searchQuery && (
             <button
-              onClick={() => setSearchQuery('')}
+              onClick={() => {
+                setSearchQuery('');
+                setCurrentPage(1);
+              }}
               className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
             >
               <X size={13} />
@@ -262,8 +275,9 @@ export function CommunityBoard({
             ))}
           </div>
         ) : posts.length ? (
-          posts.map((post) => {
-            const isAuthorMentor = post.author_role === 'mentor' || post.author_role === 'admin';
+          <>
+            {pagedPosts.map((post) => {
+              const isAuthorMentor = post.author_role === 'mentor' || post.author_role === 'admin';
 
             return (
               <Card
@@ -405,7 +419,21 @@ export function CommunityBoard({
                 )}
               </Card>
             );
-          })
+          })}
+
+        {!loading && posts.length > pageSize && (
+          <div className="pt-2">
+            <Pagination
+              currentPage={safeCurrentPage}
+              totalPages={totalPages}
+              totalItems={posts.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+            />
+          </div>
+        )}
+        </>
         ) : (
           <Card className="p-10 text-center text-slate-400">
             <MessageSquare size={32} className="mx-auto mb-2 text-slate-300" />

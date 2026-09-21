@@ -27,6 +27,22 @@ export interface CommunityComment {
   author_role?: string;
 }
 
+export interface ListCohortPostsParams {
+  cohortId?: string | null;
+  lessonId?: string;
+  searchQuery?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PagedCommunityPosts {
+  posts: CommunityPost[];
+  totalCount: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+}
+
 export async function listCohortPosts(
   cohortId?: string,
   lessonId?: string,
@@ -148,6 +164,32 @@ export async function listCohortPosts(
     console.warn('Failed to load community posts:', err);
     return [];
   }
+}
+
+export async function listCohortPostsPaged(
+  params: ListCohortPostsParams = {}
+): Promise<PagedCommunityPosts> {
+  const page = Math.max(1, params.page ?? 1);
+  const pageSize = Math.max(1, params.pageSize ?? 10);
+
+  const allPosts = await listCohortPosts(
+    params.cohortId || undefined,
+    params.lessonId,
+    params.searchQuery
+  );
+
+  const totalCount = allPosts.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const from = (page - 1) * pageSize;
+  const posts = allPosts.slice(from, from + pageSize);
+
+  return {
+    posts,
+    totalCount,
+    totalPages,
+    page,
+    pageSize,
+  };
 }
 
 export async function createCommunityPost(

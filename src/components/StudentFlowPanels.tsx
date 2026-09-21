@@ -32,6 +32,7 @@ import {
   listSubmissionVersions,
   markFeedbackRead,
   submitOrReplaceAssignment,
+  subscribeToUserSubmissions,
   type Assignment,
   type Cohort,
   type Submission,
@@ -357,6 +358,18 @@ export function AssignmentPanel({
       active = false;
     };
   }, [cohortId, userId]);
+
+  // Real-time listener for mentor critiques, approvals, and replies
+  useEffect(() => {
+    const unsubscribe = subscribeToUserSubmissions(userId, () => {
+      listMySubmissions(userId)
+        .then((latestSubs) => setSubmissions(latestSubs))
+        .catch((err) => console.warn('Real-time submission refresh failed:', err));
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [userId]);
 
   const submit = async (event: React.FormEvent, isDraft = false) => {
     event.preventDefault();

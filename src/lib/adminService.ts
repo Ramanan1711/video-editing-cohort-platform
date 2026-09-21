@@ -1,6 +1,40 @@
 import { supabase } from './supabaseClient';
+import { queryCache } from './queryCache';
 import type { AdminSubRole } from './adminPermissions';
 export type { AdminSubRole } from './adminPermissions';
+
+export interface PagedResult<T> {
+  data: T[];
+  totalCount: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface ListUsersParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  role?: string;
+  status?: string;
+}
+
+export interface ListAuditLogsParams {
+  page?: number;
+  pageSize?: number;
+  actionFilter?: string;
+}
+
+export interface ListEnrollmentsParams {
+  cohortId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ListAnnouncementsParams {
+  page?: number;
+  pageSize?: number;
+}
 
 export interface AdminStats {
   users: number;
@@ -259,50 +293,116 @@ export async function listAuditLogs(
   }
 }
 
+export async function listAuditLogsPaged(
+  params: ListAuditLogsParams = {}
+): Promise<PagedResult<AuditLog>> {
+  const page = Math.max(1, params.page ?? 1);
+  const pageSize = Math.max(1, params.pageSize ?? 25);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  try {
+    let query = supabase
+      .from('audit_logs')
+      .select('id, actor_id, action, entity_type, entity_id, metadata, created_at', { count: 'exact' })
+      .order('created_at', { ascending: false });
+
+    if (params.actionFilter && params.actionFilter !== 'all') {
+      query = query.eq('action', params.actionFilter);
+    }
+
+    query = query.range(from, to);
+
+    const { data: logs, count, error } = await query;
+    if (error) throw error;
+    const totalCount = count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+    if (!logs || logs.length === 0) {
+      return { data: [], totalCount, totalPages, page, pageSize };
+    }
+
+    const actorIds = Array.from(new Set(logs.map((l) => l.actor_id).filter((id): id is string => Boolean(id))));
+    const { data: profiles } = actorIds.length
+      ? await supabase.from('profiles').select('id, full_name, email').in('id', actorIds)
+      : { data: [] };
+
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+    const populatedLogs: AuditLog[] = logs.map((l) => {
+      const actor = l.actor_id ? profileMap.get(l.actor_id) : undefined;
+      return {
+        ...l,
+        metadata: (l.metadata || {}) as Record<string, unknown>,
+        actor: actor ? { full_name: actor.full_name, email: actor.email } : null,
+        actor_name: actor?.full_name || (l.actor_id ? 'Admin' : 'System'),
+        actor_email: actor?.email || '',
+      };
+    });
+
+    return { data: populatedLogs, totalCount, totalPages, page, pageSize };
+  } catch (err: unknown) {
+    const errorObj = err as { code?: string; message?: string } | undefined;
+    if (errorObj?.code === '42P01' || errorObj?.message?.includes('audit_logs')) {
+      console.warn('audit_logs table not yet migrated, returning empty logs:', errorObj.message);
+      return { data: [], totalCount: 0, totalPages: 1, page, pageSize };
+    }
+    console.error('audit_logs query failed:', err);
+    throw err;
+  }
+}
+
 // ============================================================================
 // 2. High-Level Platform Metrics & Actionable Executive Metrics
 // ============================================================================
 
 export async function getAdminStats(): Promise<AdminStats> {
-  const [
-    usersRes,
-    studentsRes,
-    mentorsRes,
-    adminsRes,
-    cohortsRes,
-    enrollmentsRes,
-    postsRes,
-    pendingSubRes,
-    reviewedSubRes,
-    announcementsRes,
-    sessionsRes,
-  ] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact', head: true }),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student'),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'mentor'),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'admin'),
-    supabase.from('cohorts').select('id', { count: 'exact', head: true }),
-    supabase.from('enrollments').select('user_id', { count: 'exact', head: true }),
-    supabase.from('community_posts').select('id', { count: 'exact', head: true }),
-    supabase.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'reviewed'),
-    supabase.from('announcements').select('id', { count: 'exact', head: true }),
-    supabase.from('live_sessions').select('id', { count: 'exact', head: true }),
-  ]);
+  return queryCache.getOrFetch(
+    'admin_stats',
+    async () => {
+      const [
+        usersRes,
+        studentsRes,
+        mentorsRes,
+        adminsRes,
+        cohortsRes,
+        enrollmentsRes,
+        postsRes,
+        pendingSubRes,
+        reviewedSubRes,
+        announcementsRes,
+        sessionsRes,
+      ] = await Promise.all([
+        supabase.from('profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student'),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'mentor'),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'admin'),
+        supabase.from('cohorts').select('id', { count: 'exact', head: true }),
+        supabase.from('enrollments').select('user_id', { count: 'exact', head: true }),
+        supabase.from('community_posts').select('id', { count: 'exact', head: true }),
+        supabase.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'reviewed'),
+        supabase.from('announcements').select('id', { count: 'exact', head: true }),
+        supabase.from('live_sessions').select('id', { count: 'exact', head: true }),
+      ]);
 
-  return {
-    users: usersRes.count ?? 0,
-    students: studentsRes.count ?? 0,
-    mentors: mentorsRes.count ?? 0,
-    admins: adminsRes.count ?? 0,
-    cohorts: cohortsRes.count ?? 0,
-    enrollments: enrollmentsRes.count ?? 0,
-    posts: postsRes.count ?? 0,
-    pendingSubmissions: pendingSubRes.count ?? 0,
-    reviewedSubmissions: reviewedSubRes.count ?? 0,
-    announcements: announcementsRes.count ?? 0,
-    sessions: sessionsRes.count ?? 0,
-  };
+      return {
+        users: usersRes.count ?? 0,
+        students: studentsRes.count ?? 0,
+        mentors: mentorsRes.count ?? 0,
+        admins: adminsRes.count ?? 0,
+        cohorts: cohortsRes.count ?? 0,
+        enrollments: enrollmentsRes.count ?? 0,
+        posts: postsRes.count ?? 0,
+        pendingSubmissions: pendingSubRes.count ?? 0,
+        reviewedSubmissions: reviewedSubRes.count ?? 0,
+        announcements: announcementsRes.count ?? 0,
+        sessions: sessionsRes.count ?? 0,
+      };
+    },
+    60_000,
+    ['admin', 'stats']
+  );
 }
 
 export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics> {
@@ -662,12 +762,56 @@ export async function listUsers(): Promise<UserProfile[]> {
   return (data ?? []) as UserProfile[];
 }
 
+export async function listUsersPaged(
+  params: ListUsersParams = {}
+): Promise<PagedResult<UserProfile>> {
+  const page = Math.max(1, params.page ?? 1);
+  const pageSize = Math.max(1, params.pageSize ?? 25);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from('profiles')
+    .select('id, full_name, email, role, admin_role, status, created_at', { count: 'exact' });
+
+  if (params.role && params.role !== 'all') {
+    query = query.eq('role', params.role);
+  }
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status);
+  }
+  if (params.search && params.search.trim()) {
+    const s = params.search.trim();
+    query = query.or(`full_name.ilike.%${s}%,email.ilike.%${s}%`);
+  }
+
+  query = query.order('created_at', { ascending: false }).range(from, to);
+
+  const { data, count, error } = await query;
+  if (error) throw error;
+  const totalCount = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  return {
+    data: (data ?? []) as UserProfile[],
+    totalCount,
+    totalPages,
+    page,
+    pageSize,
+  };
+}
+
 export async function updateUserRole(
   userId: string,
   role: 'student' | 'mentor' | 'admin',
   actorId?: string
 ): Promise<UserProfile> {
   const { data: previous } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+
+  // Invalidate user & admin caches
+  queryCache.invalidate('admin');
+  queryCache.invalidate('users');
+  queryCache.invalidate('stats');
 
   // 1. Attempt validated server-side RPC (protects last super_admin, enforces permissions & emits audit)
   const { data: rpcData, error: rpcError } = await supabase.rpc('admin_update_user_role', {
@@ -707,6 +851,9 @@ export async function updateAdminSubRole(
   adminRole: 'super_admin' | 'content_admin' | 'operations_admin' | 'moderator',
   actorId?: string
 ): Promise<UserProfile> {
+  queryCache.invalidate('admin');
+  queryCache.invalidate('users');
+
   // 1. Attempt validated server-side RPC
   const { data: rpcData, error: rpcError } = await supabase.rpc('admin_update_user_role', {
     p_user_id: userId,
@@ -742,6 +889,10 @@ export async function updateUserStatus(
   status: 'active' | 'suspended',
   actorId?: string
 ): Promise<UserProfile> {
+  queryCache.invalidate('admin');
+  queryCache.invalidate('users');
+  queryCache.invalidate('stats');
+
   // 1. Attempt validated server-side RPC
   const { data: rpcData, error: rpcError } = await supabase.rpc('admin_update_user_status', {
     p_user_id: userId,
@@ -777,6 +928,9 @@ export async function bulkUpdateUserStatus(
   status: 'active' | 'suspended',
   actorId?: string
 ): Promise<{ updatedCount: number; errors: string[] }> {
+  queryCache.invalidate('admin');
+  queryCache.invalidate('users');
+  queryCache.invalidate('stats');
   let updatedCount = 0;
   const errors: string[] = [];
 
@@ -838,12 +992,71 @@ export async function listCohortEnrollments(cohortId?: string): Promise<AdminEnr
   });
 }
 
+export async function listCohortEnrollmentsPaged(
+  params: ListEnrollmentsParams = {}
+): Promise<PagedResult<AdminEnrollment>> {
+  const page = Math.max(1, params.page ?? 1);
+  const pageSize = Math.max(1, params.pageSize ?? 25);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from('enrollments')
+    .select('user_id, cohort_id, status, created_at', { count: 'exact' })
+    .order('created_at', { ascending: false });
+
+  if (params.cohortId && params.cohortId !== 'all') {
+    query = query.eq('cohort_id', params.cohortId);
+  }
+
+  query = query.range(from, to);
+
+  const { data: enrollments, count, error } = await query;
+  if (error) throw error;
+  const totalCount = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  if (!enrollments || enrollments.length === 0) {
+    return { data: [], totalCount, totalPages, page, pageSize };
+  }
+
+  const userIds = Array.from(new Set(enrollments.map((e) => e.user_id)));
+  const cohortIds = Array.from(new Set(enrollments.map((e) => e.cohort_id)));
+
+  const [{ data: profiles }, { data: cohorts }] = await Promise.all([
+    supabase.from('profiles').select('id, full_name, email').in('id', userIds),
+    supabase.from('cohorts').select('id, name').in('id', cohortIds),
+  ]);
+
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const cohortMap = new Map((cohorts ?? []).map((c) => [c.id, c.name]));
+
+  const data: AdminEnrollment[] = enrollments.map((e) => {
+    const student = profileMap.get(e.user_id);
+    return {
+      user_id: e.user_id,
+      cohort_id: e.cohort_id,
+      status: e.status,
+      created_at: e.created_at,
+      student_name: student?.full_name || 'Student',
+      student_email: student?.email || '',
+      cohort_name: cohortMap.get(e.cohort_id) || 'Cohort',
+    };
+  });
+
+  return { data, totalCount, totalPages, page, pageSize };
+}
+
 export async function enrollUserInCohort(
   userId: string,
   cohortId: string,
   status: 'active' | 'waitlisted' = 'active',
   actorId?: string
 ): Promise<void> {
+  queryCache.invalidate('admin');
+  queryCache.invalidate('enrollments');
+  queryCache.invalidate('stats');
+
   const { error } = await supabase.from('enrollments').upsert(
     { user_id: userId, cohort_id: cohortId, status, created_at: new Date().toISOString() },
     { onConflict: 'user_id,cohort_id' }
@@ -863,6 +1076,10 @@ export async function updateEnrollmentStatus(
   status: 'active' | 'completed' | 'dropped' | 'waitlisted',
   actorId?: string
 ): Promise<void> {
+  queryCache.invalidate('admin');
+  queryCache.invalidate('enrollments');
+  queryCache.invalidate('stats');
+
   const { error } = await supabase
     .from('enrollments')
     .update({ status })
@@ -876,6 +1093,10 @@ export async function updateEnrollmentStatus(
 }
 
 export async function removeEnrollment(userId: string, cohortId: string, actorId?: string): Promise<void> {
+  queryCache.invalidate('admin');
+  queryCache.invalidate('enrollments');
+  queryCache.invalidate('stats');
+
   const { error } = await supabase
     .from('enrollments')
     .delete()
@@ -1146,11 +1367,42 @@ export async function listAnnouncements(): Promise<AdminAnnouncement[]> {
   return (data ?? []) as AdminAnnouncement[];
 }
 
+export async function listAnnouncementsPaged(
+  params: ListAnnouncementsParams = {}
+): Promise<PagedResult<AdminAnnouncement>> {
+  const page = Math.max(1, params.page ?? 1);
+  const pageSize = Math.max(1, params.pageSize ?? 10);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, count, error } = await supabase
+    .from('announcements')
+    .select('id, title, body, published, created_at', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  if (error) throw error;
+  const totalCount = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  return {
+    data: (data ?? []) as AdminAnnouncement[],
+    totalCount,
+    totalPages,
+    page,
+    pageSize,
+  };
+}
+
 export async function createAnnouncement(
   authorId: string,
   title: string,
   body: string
 ): Promise<AdminAnnouncement> {
+  queryCache.invalidate('admin');
+  queryCache.invalidate('announcements');
+  queryCache.invalidate('stats');
+
   // 1. Attempt validated server-side RPC (verifies author role, input length, and emits audit event)
   const { data: rpcData, error: rpcError } = await supabase.rpc('publish_announcement', {
     p_title: title,
@@ -1182,6 +1434,9 @@ export async function updateAnnouncement(
   input: { title?: string; body?: string; published?: boolean },
   actorId?: string
 ): Promise<AdminAnnouncement> {
+  queryCache.invalidate('admin');
+  queryCache.invalidate('announcements');
+
   const { data, error } = await supabase
     .from('announcements')
     .update(input)
@@ -1195,6 +1450,10 @@ export async function updateAnnouncement(
 }
 
 export async function deleteAnnouncement(id: string, actorId?: string): Promise<void> {
+  queryCache.invalidate('admin');
+  queryCache.invalidate('announcements');
+  queryCache.invalidate('stats');
+
   const { error } = await supabase.from('announcements').delete().eq('id', id);
   if (error) throw error;
 

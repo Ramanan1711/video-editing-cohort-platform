@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { parseDatabaseError } from './errorHandling';
+import { queryCache } from './queryCache';
 
 export interface Cohort {
   id: string;
@@ -468,39 +469,46 @@ export async function updateLessonWatchProgress(
 }
 
 export async function listCohorts(): Promise<Cohort[]> {
-  const { data, error } = await supabase
-    .from('cohorts')
-    .select('id, title, description, status, capacity, visibility, enrollment_start, enrollment_end')
-    .order('title');
+  return queryCache.getOrFetch(
+    'cohorts_list',
+    async () => {
+      const { data, error } = await supabase
+        .from('cohorts')
+        .select('id, title, description, status, capacity, visibility, enrollment_start, enrollment_end')
+        .order('title');
 
-  if (error) {
-    const { data: fallback, error: fallbackError } = await supabase
-      .from('cohorts')
-      .select('id, title, description')
-      .order('title');
-    if (fallbackError) throw fallbackError;
-    return (fallback ?? []).map((c) => ({
-      id: c.id,
-      name: c.title,
-      description: c.description,
-      status: 'published',
-      capacity: 30,
-      visibility: 'public',
-      enrollment_start: null,
-      enrollment_end: null,
-    }));
-  }
+      if (error) {
+        const { data: fallback, error: fallbackError } = await supabase
+          .from('cohorts')
+          .select('id, title, description')
+          .order('title');
+        if (fallbackError) throw fallbackError;
+        return (fallback ?? []).map((c) => ({
+          id: c.id,
+          name: c.title,
+          description: c.description,
+          status: 'published',
+          capacity: 30,
+          visibility: 'public',
+          enrollment_start: null,
+          enrollment_end: null,
+        }));
+      }
 
-  return (data ?? []).map((cohort) => ({
-    id: cohort.id,
-    name: cohort.title,
-    description: cohort.description,
-    status: cohort.status ?? 'published',
-    capacity: cohort.capacity ?? 30,
-    visibility: cohort.visibility ?? 'public',
-    enrollment_start: cohort.enrollment_start ?? null,
-    enrollment_end: cohort.enrollment_end ?? null,
-  }));
+      return (data ?? []).map((cohort) => ({
+        id: cohort.id,
+        name: cohort.title,
+        description: cohort.description,
+        status: cohort.status ?? 'published',
+        capacity: cohort.capacity ?? 30,
+        visibility: cohort.visibility ?? 'public',
+        enrollment_start: cohort.enrollment_start ?? null,
+        enrollment_end: cohort.enrollment_end ?? null,
+      }));
+    },
+    300_000,
+    ['cohorts']
+  );
 }
 
 export async function listAvailableCohorts(userId: string): Promise<Cohort[]> {
@@ -538,6 +546,9 @@ export async function enrollInCohort(userId: string, cohortId: string): Promise<
 }
 
 export async function createCohort(input: CohortInput): Promise<Cohort> {
+  queryCache.invalidate('cohorts');
+  queryCache.invalidate('stats');
+
   const payload: Record<string, unknown> = {
     title: input.name,
     description: input.description,
@@ -566,6 +577,8 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
 }
 
 export async function updateCohort(id: string, input: Partial<CohortInput>): Promise<Cohort> {
+  queryCache.invalidate('cohorts');
+
   const payload: Record<string, unknown> = {};
   if (input.name !== undefined) payload.title = input.name;
   if (input.description !== undefined) payload.description = input.description;
@@ -596,6 +609,9 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
 }
 
 export async function deleteCohort(id: string, force: boolean = false) {
+  queryCache.invalidate('cohorts');
+  queryCache.invalidate('stats');
+
   // 1. Attempt validated server-side RPC (safely archives if active enrollments/submissions exist)
   const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_cohort', {
     p_cohort_id: id,
@@ -637,23 +653,31 @@ export async function listModules(cohortId?: string): Promise<Module[]> {
 }
 
 export async function createModule(input: ModuleInput): Promise<Module> {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
   const { data, error } = await supabase.from('modules').insert(input).select('id, cohort_id, title, description, position').single();
   if (error) throw error;
   return { ...(data as Module), lessons: [] };
 }
 
 export async function updateModule(id: string, input: Omit<ModuleInput, 'cohort_id'>): Promise<Module> {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
   const { data, error } = await supabase.from('modules').update(input).eq('id', id).select('id, cohort_id, title, description, position').single();
   if (error) throw error;
   return { ...(data as Module), lessons: [] };
 }
 
 export async function deleteModule(id: string) {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
   const { error } = await supabase.from('modules').delete().eq('id', id);
   if (error) throw error;
 }
 
 export async function createLesson(input: LessonInput): Promise<Lesson> {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
   let res = await supabase.from('lessons').insert(input).select('id, module_id, title, description, video_url, duration_minutes, position, status').single();
   if (res.error) {
     const legacyInput = { ...input };
@@ -665,6 +689,8 @@ export async function createLesson(input: LessonInput): Promise<Lesson> {
 }
 
 export async function updateLesson(id: string, input: Omit<LessonInput, 'module_id'>): Promise<Lesson> {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
   let res = await supabase.from('lessons').update(input).eq('id', id).select('id, module_id, title, description, video_url, duration_minutes, position, status').single();
   if (res.error) {
     const legacyInput = { ...input };
@@ -676,16 +702,22 @@ export async function updateLesson(id: string, input: Omit<LessonInput, 'module_
 }
 
 export async function deleteLesson(id: string) {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
   const { error } = await supabase.from('lessons').delete().eq('id', id);
   if (error) throw error;
 }
 
 export async function reorderModule(moduleId: string, newPosition: number): Promise<void> {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
   const { error } = await supabase.from('modules').update({ position: newPosition }).eq('id', moduleId);
   if (error) throw error;
 }
 
 export async function reorderLesson(lessonId: string, newPosition: number): Promise<void> {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
   const { error } = await supabase.from('lessons').update({ position: newPosition }).eq('id', lessonId);
   if (error) throw error;
 }
@@ -694,6 +726,8 @@ export async function updateLessonStatus(
   lessonId: string,
   status: 'draft' | 'review' | 'published' | 'archived'
 ): Promise<void> {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
   const { error } = await supabase.from('lessons').update({ status }).eq('id', lessonId);
   if (error) throw error;
 }
@@ -703,8 +737,83 @@ export async function bulkUpdateLessonStatus(
   status: 'draft' | 'review' | 'published' | 'archived'
 ): Promise<void> {
   if (!lessonIds.length) return;
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
   const { error } = await supabase.from('lessons').update({ status }).in('id', lessonIds);
   if (error) throw error;
+}
+
+export function subscribeToSubmissionFeedback(
+  submissionId: string,
+  onUpdate: () => void
+): () => void {
+  const channel = supabase
+    .channel(`submission-feedback-${submissionId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'feedback',
+        filter: `submission_id=eq.${submissionId}`,
+      },
+      () => onUpdate()
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'feedback_replies',
+      },
+      () => onUpdate()
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+export function subscribeToUserSubmissions(
+  userId: string,
+  onUpdate: () => void
+): () => void {
+  const channel = supabase
+    .channel(`user-submissions-${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'submissions',
+        filter: `student_id=eq.${userId}`,
+      },
+      () => onUpdate()
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'feedback',
+      },
+      () => onUpdate()
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'feedback_replies',
+      },
+      () => onUpdate()
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
 }
 
 export async function duplicateLesson(lessonId: string): Promise<Lesson> {

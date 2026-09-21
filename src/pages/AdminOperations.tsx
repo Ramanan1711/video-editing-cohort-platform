@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Pagination } from '../components/ui/Pagination';
 import { DashboardSkeleton } from '../components/ui/Skeletons';
 import { StateFallback } from '../components/ui/StateFallback';
 import { useAuth } from '../context/useAuth';
@@ -200,6 +201,19 @@ export function AdminOperations() {
   const [savingSession, setSavingSession] = useState(false);
 
   const [nowTimestamp] = useState(() => Date.now());
+
+  // Pagination states
+  const [userPage, setUserPage] = useState(1);
+  const [userPageSize, setUserPageSize] = useState(25);
+
+  const [enrollmentPage, setEnrollmentPage] = useState(1);
+  const [enrollmentPageSize, setEnrollmentPageSize] = useState(25);
+
+  const [announcementPage, setAnnouncementPage] = useState(1);
+  const [announcementPageSize, setAnnouncementPageSize] = useState(10);
+
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(25);
 
   const canManageRoles = hasAdminPermission(profile?.admin_role, 'manage_roles');
   const canManageStatus = hasAdminPermission(profile?.admin_role, 'manage_user_status');
@@ -825,6 +839,35 @@ export function AdminOperations() {
       return matchesSearch && matchesAction;
     });
   }, [auditLogs, auditSearch, auditActionFilter]);
+
+  // Paginated Slices with safe clamped pages
+  const totalUserPages = Math.max(1, Math.ceil(filteredUsers.length / userPageSize));
+  const safeUserPage = Math.min(userPage, totalUserPages);
+  const pagedUsers = useMemo(() => {
+    const start = (safeUserPage - 1) * userPageSize;
+    return filteredUsers.slice(start, start + userPageSize);
+  }, [filteredUsers, safeUserPage, userPageSize]);
+
+  const totalEnrollmentPages = Math.max(1, Math.ceil(filteredEnrollments.length / enrollmentPageSize));
+  const safeEnrollmentPage = Math.min(enrollmentPage, totalEnrollmentPages);
+  const pagedEnrollments = useMemo(() => {
+    const start = (safeEnrollmentPage - 1) * enrollmentPageSize;
+    return filteredEnrollments.slice(start, start + enrollmentPageSize);
+  }, [filteredEnrollments, safeEnrollmentPage, enrollmentPageSize]);
+
+  const totalAnnouncementPages = Math.max(1, Math.ceil(announcements.length / announcementPageSize));
+  const safeAnnouncementPage = Math.min(announcementPage, totalAnnouncementPages);
+  const pagedAnnouncements = useMemo(() => {
+    const start = (safeAnnouncementPage - 1) * announcementPageSize;
+    return announcements.slice(start, start + announcementPageSize);
+  }, [announcements, safeAnnouncementPage, announcementPageSize]);
+
+  const totalAuditPages = Math.max(1, Math.ceil(filteredAuditLogs.length / auditPageSize));
+  const safeAuditPage = Math.min(auditPage, totalAuditPages);
+  const pagedAuditLogs = useMemo(() => {
+    const start = (safeAuditPage - 1) * auditPageSize;
+    return filteredAuditLogs.slice(start, start + auditPageSize);
+  }, [filteredAuditLogs, safeAuditPage, auditPageSize]);
 
   const tabs: { id: AdminTab; label: string; count?: number; permission?: AdminPermission }[] = [
     { id: 'overview', label: 'Summary Dashboard' },
@@ -1749,7 +1792,10 @@ export function AdminOperations() {
                   <Search size={14} className="text-slate-400" />
                   <input
                     value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
+                    onChange={(e) => {
+                      setUserSearch(e.target.value);
+                      setUserPage(1);
+                    }}
                     placeholder="Search by name or email..."
                     className="w-40 sm:w-56 bg-transparent outline-none text-xs"
                   />
@@ -1757,7 +1803,10 @@ export function AdminOperations() {
 
                 <select
                   value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
+                  onChange={(e) => {
+                    setRoleFilter(e.target.value as typeof roleFilter);
+                    setUserPage(1);
+                  }}
                   className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 outline-none"
                 >
                   <option value="all">All Roles</option>
@@ -1768,7 +1817,10 @@ export function AdminOperations() {
 
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value as typeof statusFilter);
+                    setUserPage(1);
+                  }}
                   className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 outline-none"
                 >
                   <option value="all">All Statuses</option>
@@ -1836,8 +1888,8 @@ export function AdminOperations() {
             )}
 
             <div className="mt-6 divide-y divide-slate-100">
-              {filteredUsers.length ? (
-                filteredUsers.map((item) => {
+              {pagedUsers.length ? (
+                pagedUsers.map((item) => {
                   const isSelf = item.id === user?.id;
                   const isUpdating = updatingUserId === item.id;
                   const isSuspended = item.status === 'suspended';
@@ -1969,6 +2021,17 @@ export function AdminOperations() {
                 <p className="py-12 text-center text-xs text-slate-400">No matching users found.</p>
               )}
             </div>
+
+            {filteredUsers.length > userPageSize && (
+              <Pagination
+                currentPage={safeUserPage}
+                totalPages={totalUserPages}
+                totalItems={filteredUsers.length}
+                pageSize={userPageSize}
+                onPageChange={setUserPage}
+                onPageSizeChange={setUserPageSize}
+              />
+            )}
           </Card>
         )}
 
@@ -1988,7 +2051,10 @@ export function AdminOperations() {
                   <Layers size={13} className="text-slate-400" />
                   <select
                     value={selectedCohortId}
-                    onChange={(e) => setSelectedCohortId(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedCohortId(e.target.value);
+                      setEnrollmentPage(1);
+                    }}
                     className="bg-transparent text-xs font-bold text-slate-700 outline-none"
                   >
                     <option value="all">All Cohorts ({enrollments.length})</option>
@@ -2091,8 +2157,8 @@ export function AdminOperations() {
             {/* View 1: Student Enrollments */}
             {enrollmentView === 'students' && (
               <div className="mt-6 divide-y divide-slate-100">
-                {filteredEnrollments.length ? (
-                  filteredEnrollments.map((item) => (
+                {pagedEnrollments.length ? (
+                  pagedEnrollments.map((item) => (
                     <div
                       key={`${item.user_id}-${item.cohort_id}`}
                       className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"
@@ -2160,6 +2226,19 @@ export function AdminOperations() {
                   ))
                 ) : (
                   <p className="py-12 text-center text-xs text-slate-400">No student enrollments found for this filter.</p>
+                )}
+
+                {filteredEnrollments.length > enrollmentPageSize && (
+                  <div className="pt-2">
+                    <Pagination
+                      currentPage={safeEnrollmentPage}
+                      totalPages={totalEnrollmentPages}
+                      totalItems={filteredEnrollments.length}
+                      pageSize={enrollmentPageSize}
+                      onPageChange={setEnrollmentPage}
+                      onPageSizeChange={setEnrollmentPageSize}
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -2632,9 +2711,9 @@ export function AdminOperations() {
             {/* List */}
             <Card className="p-6">
               <h2 className="text-base font-black text-slate-950">Published Dispatches ({announcements.length})</h2>
-              <div className="mt-4 space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {announcements.length ? (
-                  announcements.map((item) => (
+              <div className="mt-4 space-y-3 pr-1">
+                {pagedAnnouncements.length ? (
+                  pagedAnnouncements.map((item) => (
                     <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -2671,6 +2750,19 @@ export function AdminOperations() {
                   <p className="py-8 text-center text-xs text-slate-400">No announcements published yet.</p>
                 )}
               </div>
+
+              {announcements.length > announcementPageSize && (
+                <div className="pt-3">
+                  <Pagination
+                    currentPage={safeAnnouncementPage}
+                    totalPages={totalAnnouncementPages}
+                    totalItems={announcements.length}
+                    pageSize={announcementPageSize}
+                    onPageChange={setAnnouncementPage}
+                    onPageSizeChange={setAnnouncementPageSize}
+                  />
+                </div>
+              )}
             </Card>
           </div>
         )}
@@ -2918,7 +3010,10 @@ export function AdminOperations() {
                   <Search size={14} className="text-slate-400" />
                   <input
                     value={auditSearch}
-                    onChange={(e) => setAuditSearch(e.target.value)}
+                    onChange={(e) => {
+                      setAuditSearch(e.target.value);
+                      setAuditPage(1);
+                    }}
                     placeholder="Search action, actor, entity..."
                     className="w-40 sm:w-56 bg-transparent outline-none text-xs"
                   />
@@ -2926,7 +3021,10 @@ export function AdminOperations() {
 
                 <select
                   value={auditActionFilter}
-                  onChange={(e) => setAuditActionFilter(e.target.value)}
+                  onChange={(e) => {
+                    setAuditActionFilter(e.target.value);
+                    setAuditPage(1);
+                  }}
                   className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 outline-none"
                 >
                   <option value="all">All Actions ({auditLogs.length})</option>
@@ -2964,8 +3062,8 @@ export function AdminOperations() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {filteredAuditLogs.length ? (
-                    filteredAuditLogs.map((log) => (
+                  {pagedAuditLogs.length ? (
+                    pagedAuditLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-slate-50/60 transition">
                         <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
                           {new Date(log.created_at).toLocaleString([], {
@@ -3008,6 +3106,19 @@ export function AdminOperations() {
                 </tbody>
               </table>
             </div>
+
+            {filteredAuditLogs.length > auditPageSize && (
+              <div className="pt-3">
+                <Pagination
+                  currentPage={safeAuditPage}
+                  totalPages={totalAuditPages}
+                  totalItems={filteredAuditLogs.length}
+                  pageSize={auditPageSize}
+                  onPageChange={setAuditPage}
+                  onPageSizeChange={setAuditPageSize}
+                />
+              </div>
+            )}
           </Card>
         )}
 
