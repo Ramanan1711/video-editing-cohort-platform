@@ -10,12 +10,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Compass,
   ExternalLink,
   FileArchive,
   FileText,
+  Flame,
   Gauge,
   Image as ImageIcon,
   Layers,
+  Lightbulb,
   Lock,
   LogOut,
   Megaphone,
@@ -25,10 +28,13 @@ import {
   Radio,
   RefreshCw,
   Search,
+  Shield,
   Sparkles,
+  Trophy,
   Video,
   WifiOff,
   X,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import {
@@ -36,6 +42,7 @@ import {
   calculateStreak,
   formatFileSize,
   getStudentCourseData,
+  listAssignments,
   listLessonResources,
   listMySubmissions,
   listStudentAnnouncements,
@@ -43,6 +50,7 @@ import {
   markLessonComplete,
   parseVideoUrl,
   updateLessonWatchProgress,
+  type Assignment,
   type Lesson,
   type LessonResource,
   type StudentAnnouncement,
@@ -50,6 +58,15 @@ import {
   type StudentLiveSession,
   type Submission,
 } from '../lib/courseService';
+import {
+  calculateGamificationProfile,
+  syncGamificationProfile,
+  type GamificationProfile,
+} from '../lib/gamificationService';
+import {
+  generateSmartRecommendations,
+  type StudioRecommendation,
+} from '../lib/recommendationService';
 import {
   AssignmentPanel,
   CohortDiscoveryModal,
@@ -70,6 +87,7 @@ export function StudentDashboard() {
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
+  const [cohortAssignments, setCohortAssignments] = useState<Assignment[]>([]);
   const [liveSessions, setLiveSessions] = useState<StudentLiveSession[]>([]);
   const [announcements, setAnnouncements] = useState<StudentAnnouncement[]>([]);
   const [activeTab, setActiveTab] = useState<
@@ -80,6 +98,7 @@ export function StudentDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [discoveryModalOpen, setDiscoveryModalOpen] = useState(false);
   const [certificateModalOpen, setCertificateModalOpen] = useState(false);
+  const [achievementsModalOpen, setAchievementsModalOpen] = useState(false);
   const [lessonSearchQuery, setLessonSearchQuery] = useState('');
   const [collapsedModuleIds, setCollapsedModuleIds] = useState<Set<string>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
@@ -101,7 +120,7 @@ export function StudentDashboard() {
     };
   }, []);
 
-  // Fetch course, submissions, live sessions, announcements
+  // Fetch course, submissions, live sessions, announcements, assignments
   useEffect(() => {
     if (!user) return;
     let active = true;
@@ -109,11 +128,12 @@ export function StudentDashboard() {
     async function loadDashboardData() {
       try {
         setLoading(true);
-        const [courseData, submissionsData, sessionsData, announcementsData] = await Promise.all([
+        const [courseData, submissionsData, sessionsData, announcementsData, assignmentsData] = await Promise.all([
           getStudentCourseData(user!.id, selectedCohortId ?? undefined),
           listMySubmissions(user!.id).catch(() => []),
           listStudentLiveSessions().catch(() => []),
           listStudentAnnouncements().catch(() => []),
+          listAssignments(selectedCohortId ?? undefined).catch(() => []),
         ]);
 
         if (!active) return;
@@ -121,6 +141,7 @@ export function StudentDashboard() {
         setMySubmissions(submissionsData);
         setLiveSessions(sessionsData);
         setAnnouncements(announcementsData);
+        setCohortAssignments(assignmentsData);
 
         // Auto select first lesson if no lesson selected or cohort changed
         const firstLessonId = courseData.modules[0]?.lessons[0]?.id ?? null;
@@ -165,6 +186,36 @@ export function StudentDashboard() {
     ];
     return calculateStreak(activityTimestamps);
   }, [course.progress, mySubmissions]);
+
+  // Gamification Profile & Badges
+  const gamification: GamificationProfile = useMemo(() => {
+    const allReplies = mySubmissions.flatMap((s) =>
+      (s.feedback_history ?? []).flatMap((f) => f.replies ?? [])
+    );
+    return calculateGamificationProfile(
+      course.progress,
+      mySubmissions,
+      allReplies,
+      streak
+    );
+  }, [course.progress, mySubmissions, streak]);
+
+  // Sync gamification in background (non-blocking)
+  useEffect(() => {
+    if (user?.id && gamification) {
+      void syncGamificationProfile(user.id, gamification);
+    }
+  }, [user?.id, gamification]);
+
+  // Smart Studio AI Recommendations
+  const studioRecommendations: StudioRecommendation[] = useMemo(() => {
+    return generateSmartRecommendations(
+      course.modules,
+      course.progress,
+      cohortAssignments,
+      mySubmissions
+    );
+  }, [course.modules, course.progress, cohortAssignments, mySubmissions]);
 
   const learningTimeStr = useMemo(() => {
     return calculateLearningTime(completedLessons);
@@ -307,6 +358,39 @@ export function StudentDashboard() {
                 </button>
               </div>
             )}
+
+            {/* Gamification Level & XP Badge */}
+            <button
+              type="button"
+              onClick={() => setAchievementsModalOpen(true)}
+              className="flex items-center gap-2 rounded-xl border border-amber-200/90 bg-gradient-to-r from-amber-50/90 to-orange-50/90 px-3 py-1.5 text-xs font-bold text-amber-950 transition hover:border-amber-300 hover:shadow-xs"
+              title="View Editor Level & Achievements"
+            >
+              <div className="flex size-6 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs">
+                <Trophy size={13} />
+              </div>
+              <div className="text-left hidden md:block">
+                <div className="flex items-center gap-1.5 leading-none">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-orange-600">
+                    Lvl {gamification.level}
+                  </span>
+                  <span className="text-[11px] font-black text-slate-800 truncate max-w-28">
+                    {gamification.tierTitle}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <div className="h-1.5 w-16 overflow-hidden rounded-full bg-amber-200/70">
+                    <div
+                      className="h-full rounded-full bg-orange-500 transition-all duration-300"
+                      style={{
+                        width: `${gamification.progressPercent}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-[9px] font-mono font-bold text-slate-500">{gamification.totalXp} XP</span>
+                </div>
+              </div>
+            </button>
 
             {/* Notification Center */}
             {user && <NotificationCenter userId={user.id} />}
@@ -571,9 +655,26 @@ export function StudentDashboard() {
               </div>
 
               {/* Real Metric Stat Pills */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setAchievementsModalOpen(true)}
+                  className="flex items-center gap-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3.5 py-2 shadow-2xs hover:border-amber-300 transition text-left"
+                  title="Click to inspect Editor Level & Milestones"
+                >
+                  <Trophy size={16} className="text-amber-600" />
+                  <div>
+                    <p className="text-[10px] uppercase font-bold text-amber-800">
+                      Lvl {gamification.level} · {gamification.tierTitle}
+                    </p>
+                    <p className="text-xs font-black text-slate-950">
+                      {gamification.totalXp} XP <span className="text-[10px] font-normal text-slate-500">({gamification.badges.filter((b) => b.unlocked).length}/7 Badges)</span>
+                    </p>
+                  </div>
+                </button>
+
                 <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-2xs">
-                  <Sparkles size={16} className="text-orange-500" />
+                  <Flame size={16} className="text-orange-500" />
                   <div className="text-left">
                     <p className="text-[10px] uppercase font-bold text-slate-400">Streak</p>
                     <p className="text-xs font-black text-slate-950">
@@ -591,6 +692,154 @@ export function StudentDashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Habit Momentum & 14-Day Activity Heatmap */}
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4.5 sm:p-5 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-8 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
+                    <Flame size={18} />
+                  </span>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                      14-Day Editing Momentum &amp; Habit Activity
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Daily timeline drills reinforce muscle memory and editorial instinct.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                    <Zap size={14} className="text-amber-500" />
+                    <span>
+                      Momentum: {Math.min(100, Math.round((gamification.weeklyActiveCount / gamification.weeklyTarget) * 100))}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                    <Shield
+                      size={14}
+                      className={gamification.hasStreakShield ? 'text-emerald-500' : 'text-slate-400'}
+                    />
+                    <span className="text-[11px]">
+                      {gamification.hasStreakShield ? 'Streak Shield Ready' : 'Streak Shield Active'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 14 Days Visual Heatmap Blocks */}
+              <div className="mt-3.5">
+                <div className="flex items-center justify-between gap-1.5 overflow-x-auto pb-1">
+                  {gamification.recentHeatmap.map((day) => (
+                    <div
+                      key={day.dateStr}
+                      className="flex flex-col items-center gap-1 flex-1 min-w-[34px]"
+                      title={`${day.dateStr}: ${day.isActive ? 'Active session' : 'Rest day'}`}
+                    >
+                      <div
+                        className={`h-7 w-full rounded-lg border transition-all ${
+                          day.isActive
+                            ? 'bg-orange-500 border-orange-600 text-white shadow-2xs'
+                            : day.isToday
+                            ? 'bg-slate-100 border-dashed border-orange-400'
+                            : 'bg-slate-50 border-slate-200/80'
+                        }`}
+                      />
+                      <span
+                        className={`text-[10px] font-bold ${
+                          day.isToday ? 'text-orange-600 font-black' : 'text-slate-400'
+                        }`}
+                      >
+                        {day.dayLabel}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* AI Studio Copilot Smart Recommendations */}
+            {studioRecommendations.length > 0 && (
+              <div className="mb-6 rounded-2xl border border-orange-200/90 bg-gradient-to-br from-orange-50/40 via-white to-amber-50/40 p-5 shadow-2xs">
+                <div className="flex items-center justify-between border-b border-orange-100/70 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs">
+                      <Lightbulb size={15} />
+                    </span>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-orange-950">
+                        Studio Copilot · Smart Learning Advisor
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Targeted recommendations grounded in your watch history, submissions, and mentor critique scores.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="hidden sm:inline-block rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-extrabold text-orange-800 uppercase tracking-wider">
+                    AI Guided
+                  </span>
+                </div>
+
+                <div className="mt-3.5 grid gap-3 sm:grid-cols-2">
+                  {studioRecommendations.map((rec, i) => (
+                    <div
+                      key={i}
+                      className="flex flex-col justify-between rounded-xl border border-slate-200/70 bg-white/90 p-3.5 shadow-3xs"
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1 text-[10px] font-black uppercase tracking-wider">
+                          {rec.type === 'next_lesson' ? (
+                            <span className="text-orange-600 flex items-center gap-1">
+                              <Compass size={12} /> Next Up
+                            </span>
+                          ) : rec.type === 'weak_skill' ? (
+                            <span className="text-rose-600 flex items-center gap-1">
+                              <AlertCircle size={12} /> Rubric Focus Area
+                            </span>
+                          ) : rec.type === 'deadline' ? (
+                            <span className="text-amber-600 flex items-center gap-1">
+                              <Clock3 size={12} /> Urgent Deadline
+                            </span>
+                          ) : (
+                            <span className="text-blue-600 flex items-center gap-1">
+                              <Sparkles size={12} /> Pro Polish Tip
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-xs font-bold text-slate-950 leading-tight">{rec.title}</h4>
+                        <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">{rec.subtitle}</p>
+                      </div>
+
+                      {rec.actionText && (
+                        <div className="mt-3 pt-2 border-t border-slate-100">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (rec.actionType === 'navigate_lesson' && rec.targetId) {
+                                const target = allLessons.find((l) => l.id === rec.targetId);
+                                if (target) selectLesson(target);
+                              } else if (rec.actionType === 'navigate_assignment') {
+                                setActiveTab('assignments');
+                              } else if (rec.actionType === 'open_modal') {
+                                setAchievementsModalOpen(true);
+                              } else {
+                                setActiveTab('assignments');
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline"
+                          >
+                            <span>{rec.actionText}</span>
+                            <ChevronRight size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Error Banner with Retry */}
             {error && (
@@ -724,6 +973,9 @@ export function StudentDashboard() {
                           cohortId={course.cohort?.id}
                           initialWatchPercentage={
                             course.progress.find((p) => p.lesson_id === selectedLesson.id)?.watch_percentage ?? 0
+                          }
+                          initialLastPositionSeconds={
+                            course.progress.find((p) => p.lesson_id === selectedLesson.id)?.last_position_seconds ?? 0
                           }
                           onWatchProgressUpdate={handleWatchProgress}
                         />
@@ -949,6 +1201,125 @@ export function StudentDashboard() {
           studentId={user.id}
         />
       )}
+
+      {/* Level Up Progression & Milestone Achievements Modal */}
+      {achievementsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto text-left">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md">
+                  <Trophy size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-950">
+                    Level {gamification.level}: {gamification.tierTitle}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Challenge progression milestones &amp; master editor achievements.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAchievementsModalOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Level XP Progress Bar */}
+            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+              <div className="flex items-center justify-between text-xs font-bold text-amber-950 mb-2">
+                <span>XP Progression</span>
+                <span>
+                  {gamification.totalXp} / {gamification.nextLevelXp || 'Max'} XP
+                </span>
+              </div>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-amber-200/70">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500"
+                  style={{
+                    width: `${gamification.progressPercent}%`,
+                  }}
+                />
+              </div>
+              <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-600">
+                <span>
+                  Next Rank:{' '}
+                  <strong>
+                    {gamification.level >= 5
+                      ? 'Master Lead Editor (Max Level)'
+                      : `Level ${gamification.level + 1} • ${gamification.nextTierTitle}`}
+                  </strong>
+                </span>
+                <span>
+                  {gamification.nextLevelXp && gamification.totalXp < gamification.nextLevelXp
+                    ? `${gamification.nextLevelXp - gamification.totalXp} XP to next level`
+                    : 'Max rank achieved!'}
+                </span>
+              </div>
+            </div>
+
+            {/* Milestone Badges Grid */}
+            <div className="mt-6">
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3">
+                Milestone Badges ({gamification.badges.filter((b) => b.unlocked).length} of{' '}
+                {gamification.badges.length} Unlocked)
+              </h4>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {gamification.badges.map((badge) => (
+                  <div
+                    key={badge.id}
+                    className={`flex items-start gap-3 rounded-xl border p-3.5 transition ${
+                      badge.unlocked
+                        ? 'border-amber-200 bg-gradient-to-br from-amber-50/50 to-white text-slate-900 shadow-2xs'
+                        : 'border-slate-200 bg-slate-50/60 opacity-60'
+                    }`}
+                  >
+                    <div
+                      className={`flex size-9 shrink-0 items-center justify-center rounded-xl text-base ${
+                        badge.unlocked ? 'bg-amber-100' : 'bg-slate-200'
+                      }`}
+                    >
+                      {badge.category === 'craft' ? (
+                        <Award size={18} className="text-amber-600" />
+                      ) : badge.category === 'consistency' ? (
+                        <Flame size={18} className="text-orange-500" />
+                      ) : badge.category === 'timeline' ? (
+                        <Layers size={18} className="text-blue-500" />
+                      ) : (
+                        <Sparkles size={18} className="text-purple-500" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <h5 className="text-xs font-bold text-slate-950 truncate">{badge.name}</h5>
+                        {badge.unlocked ? (
+                          <span className="rounded bg-emerald-100 px-1.5 py-0.2 text-[9px] font-black text-emerald-800 uppercase">
+                            Unlocked
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-0.5 text-[9px] font-bold text-slate-400">
+                            <Lock size={9} /> Locked
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-slate-500 leading-snug">{badge.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
+              <Button size="sm" variant="secondary" onClick={() => setAchievementsModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -964,6 +1335,7 @@ interface LessonPlayerProps {
   userId?: string;
   cohortId?: string | null;
   initialWatchPercentage?: number;
+  initialLastPositionSeconds?: number;
   onWatchProgressUpdate?: (lessonId: string, watchPercentage: number, autoCompleted: boolean) => void;
 }
 
@@ -977,12 +1349,16 @@ function LessonPlayer({
   userId,
   cohortId,
   initialWatchPercentage = 0,
+  initialLastPositionSeconds = 0,
   onWatchProgressUpdate,
 }: LessonPlayerProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'resources' | 'notes' | 'discussion'>('overview');
   const [resources, setResources] = useState<LessonResource[]>([]);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [watchPercentage, setWatchPercentage] = useState<number>(initialWatchPercentage);
+  const [showResumePrompt, setShowResumePrompt] = useState<boolean>(
+    () => initialLastPositionSeconds > 10 && !completed
+  );
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastSyncTimeRef = useRef<number>(0);
 
@@ -1040,10 +1416,54 @@ function LessonPlayer({
     }
   };
 
+  const handleResumePlayback = () => {
+    if (videoRef.current && initialLastPositionSeconds > 0) {
+      videoRef.current.currentTime = initialLastPositionSeconds;
+      void videoRef.current.play().catch(() => {});
+    }
+    setShowResumePrompt(false);
+  };
+
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-950/5">
       {/* Video Display Container */}
       <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
+        {/* Floating Resume Playback Prompt */}
+        {showResumePrompt && initialLastPositionSeconds > 0 && (
+          <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900/90 p-3.5 text-white backdrop-blur-md border border-white/10 shadow-2xl">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-7 items-center justify-center rounded-lg bg-orange-500 text-white shadow-xs">
+                <Play size={13} fill="currentColor" />
+              </span>
+              <div>
+                <p className="text-xs font-bold">
+                  Resume playback from {Math.floor(initialLastPositionSeconds / 60)}:
+                  {String(Math.floor(initialLastPositionSeconds % 60)).padStart(2, '0')}?
+                </p>
+                <p className="text-[10px] text-slate-300">
+                  Pick up where you left off during your last editing session.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResumePlayback}
+                className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600 transition shadow-2xs"
+              >
+                Resume ({Math.floor(initialLastPositionSeconds / 60)}:{String(Math.floor(initialLastPositionSeconds % 60)).padStart(2, '0')})
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowResumePrompt(false)}
+                className="rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition"
+              >
+                Start Over
+              </button>
+            </div>
+          </div>
+        )}
+
         {videoMeta.type === 'embed' ? (
           <iframe
             src={videoMeta.embedUrl!}

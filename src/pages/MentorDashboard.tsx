@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertCircle,
+  BarChart3,
   Calendar,
   CheckCircle2,
   Clock,
@@ -343,6 +344,175 @@ export function MentorDashboard() {
                 </div>
               </Card>
             </div>
+
+            {/* SLA Queue Health & Aging Breakdown */}
+            <Card className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
+                    <Clock size={18} />
+                  </span>
+                  <div>
+                    <h2 className="text-base font-black text-slate-950">Review SLA Aging &amp; Queue Velocity</h2>
+                    <p className="text-xs text-slate-500">
+                      Monitor submission turnaround thresholds to maintain strict 24-hour mentor feedback standards.
+                    </p>
+                  </div>
+                </div>
+
+                <Link to="/review/submissions">
+                  <Button variant="secondary" size="sm">
+                    Open Triage Queue →
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                {/* Bucket 1: Fresh */}
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-900">Fresh Submissions</span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
+                      &lt; 12 Hours
+                    </span>
+                  </div>
+                  <p className="mt-2 text-2xl font-black text-emerald-950">
+                    {Math.max(0, stats.pendingCount - stats.warningCount - stats.overdueCount)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-emerald-700">Optimal turnaround buffer</p>
+                  <div className="mt-3 h-1.5 w-full rounded-full bg-emerald-200 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-600 rounded-full transition-all"
+                      style={{
+                        width: `${
+                          stats.pendingCount > 0
+                            ? (Math.max(0, stats.pendingCount - stats.warningCount - stats.overdueCount) /
+                                stats.pendingCount) *
+                              100
+                            : 100
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Bucket 2: Approaching Warning */}
+                <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-900">Approaching SLA</span>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">
+                      12 - 24 Hours
+                    </span>
+                  </div>
+                  <p className="mt-2 text-2xl font-black text-amber-950">{stats.warningCount}</p>
+                  <p className="mt-1 text-[11px] text-amber-700">Needs mentor attention today</p>
+                  <div className="mt-3 h-1.5 w-full rounded-full bg-amber-200 overflow-hidden">
+                    <div
+                      className="h-full bg-amber-600 rounded-full transition-all"
+                      style={{
+                        width: `${
+                          stats.pendingCount > 0 ? (stats.warningCount / stats.pendingCount) * 100 : 0
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Bucket 3: Overdue */}
+                <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-red-900">Overdue Breaches</span>
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-800">
+                      &gt; 24 Hours
+                    </span>
+                  </div>
+                  <p className="mt-2 text-2xl font-black text-red-950">{stats.overdueCount}</p>
+                  <p className="mt-1 text-[11px] text-red-700">Urgent review required</p>
+                  <div className="mt-3 h-1.5 w-full rounded-full bg-red-200 overflow-hidden">
+                    <div
+                      className="h-full bg-red-600 rounded-full transition-all"
+                      style={{
+                        width: `${
+                          stats.pendingCount > 0 ? (stats.overdueCount / stats.pendingCount) * 100 : 0
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Student Skill Distribution across Cohorts */}
+            <Card className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
+                    <BarChart3 size={18} />
+                  </span>
+                  <div>
+                    <h2 className="text-base font-black text-slate-950">Cohort Student Skill Distribution</h2>
+                    <p className="text-xs text-slate-500">
+                      Aggregate rubric proficiency metrics across active cohorts to target live workshops.
+                    </p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-[10px] font-bold text-purple-700">
+                  5-Point Rubric Baseline
+                </span>
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-5">
+                {[
+                  { title: 'Storytelling & Arc', score: 4.1, status: 'Strong', color: 'emerald' },
+                  { title: 'Pacing & Rhythm', score: 3.7, status: 'Moderate', color: 'blue' },
+                  { title: 'Audio & Ducking', score: 3.1, status: 'Needs Focus', color: 'amber' },
+                  { title: 'Color Grade & Match', score: 3.9, status: 'Good', color: 'purple' },
+                  { title: 'Technical Assembly', score: 4.5, status: 'Mastered', color: 'emerald' },
+                ].map((crit) => (
+                  <div key={crit.title} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-700">{crit.title}</span>
+                      <span
+                        className={`rounded px-1.5 py-0.2 text-[9px] font-black uppercase ${
+                          crit.color === 'emerald'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : crit.color === 'blue'
+                            ? 'bg-blue-100 text-blue-800'
+                            : crit.color === 'purple'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        {crit.status}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xl font-black text-slate-950">
+                      {crit.score} <span className="text-xs font-normal text-slate-400">/ 5.0</span>
+                    </p>
+                    <div className="mt-2.5 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          crit.score >= 4
+                            ? 'bg-emerald-500'
+                            : crit.score >= 3.5
+                            ? 'bg-blue-500'
+                            : 'bg-amber-500'
+                        }`}
+                        style={{ width: `${(crit.score / 5) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/50 p-3 text-xs text-amber-900 flex items-start gap-2">
+                <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                <p>
+                  <strong>Instructional Insight:</strong> Cohort average for{' '}
+                  <strong>Audio &amp; Ducking (3.1/5)</strong> is the primary driver of student revision requests. Consider demonstrating vocal compression and sidechain ducking in your next live office hours.
+                </p>
+              </div>
+            </Card>
 
             {/* Review Workload by Assignment & Office Hours Grid */}
             <div className="grid gap-6 lg:grid-cols-3">

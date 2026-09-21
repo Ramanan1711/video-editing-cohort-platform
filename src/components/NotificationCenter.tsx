@@ -1,5 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { Bell, Check, CheckCheck, Clock, LoaderCircle, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  Clock,
+  ExternalLink,
+  LoaderCircle,
+  X,
+} from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 import {
   listStudentNotifications,
   markAllNotificationsRead,
@@ -11,11 +20,13 @@ interface NotificationCenterProps {
   userId: string;
 }
 
+export type NotificationTab = 'all' | 'reviews' | 'community' | 'deadlines' | 'unread';
+
 export function NotificationCenter({ userId }: NotificationCenterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<StudentNotification[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [filter, setFilter] = useState<NotificationTab>('all');
   const [actionLoading, setActionLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -32,8 +43,31 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
       .finally(() => {
         if (active) setLoading(false);
       });
+
+    // Realtime notification sync
+    const channel = supabase
+      .channel(`student-notifications-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'student_notifications',
+          filter: `student_id=eq.${userId}`,
+        },
+        (payload) => {
+          const newNotif = payload.new as StudentNotification;
+          setNotifications((prev) => {
+            if (prev.some((item) => item.id === newNotif.id)) return prev;
+            return [newNotif, ...prev];
+          });
+        }
+      )
+      .subscribe();
+
     return () => {
       active = false;
+      void supabase.removeChannel(channel);
     };
   }, [userId]);
 
@@ -59,9 +93,42 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
   }, [isOpen]);
 
   const unreadCount = notifications.filter((n) => !n.read_at).length;
-  const filteredNotifications = filter === 'unread'
-    ? notifications.filter((n) => !n.read_at)
-    : notifications;
+
+  const filteredNotifications = useMemo(() => {
+    switch (filter) {
+      case 'unread':
+        return notifications.filter((n) => !n.read_at);
+      case 'reviews':
+        return notifications.filter(
+          (n) =>
+            n.category === 'review' ||
+            n.title.toLowerCase().includes('feedback') ||
+            n.title.toLowerCase().includes('critique') ||
+            n.title.toLowerCase().includes('grade') ||
+            n.title.toLowerCase().includes('reviewed')
+        );
+      case 'community':
+        return notifications.filter(
+          (n) =>
+            n.category === 'community' ||
+            n.title.toLowerCase().includes('comment') ||
+            n.title.toLowerCase().includes('reply') ||
+            n.title.toLowerCase().includes('reaction')
+        );
+      case 'deadlines':
+        return notifications.filter(
+          (n) =>
+            n.category === 'deadline' ||
+            n.category === 'system' ||
+            n.title.toLowerCase().includes('due') ||
+            n.title.toLowerCase().includes('deadline') ||
+            n.title.toLowerCase().includes('reminder')
+        );
+      case 'all':
+      default:
+        return notifications;
+    }
+  }, [notifications, filter]);
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -145,27 +212,38 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex border-b border-slate-100 px-4 pt-2 text-xs font-bold">
-            <button
-              onClick={() => setFilter('all')}
-              className={`pb-2.5 px-2 border-b-2 transition ${
-                filter === 'all'
-                  ? 'border-orange-500 text-orange-600'
-                  : 'border-transparent text-slate-400 hover:text-slate-700'
-              }`}
-            >
-              All ({notifications.length})
-            </button>
-            <button
-              onClick={() => setFilter('unread')}
-              className={`pb-2.5 px-2 border-b-2 transition ${
-                filter === 'unread'
-                  ? 'border-orange-500 text-orange-600'
-                  : 'border-transparent text-slate-400 hover:text-slate-700'
-              }`}
-            >
-              Unread ({unreadCount})
-            </button>
+          <div className="flex overflow-x-auto border-b border-slate-100 px-3 pt-2 text-[11px] font-bold gap-1 scrollbar-none">
+            {[
+              { id: 'all' as const, label: 'All', count: notifications.length },
+              {
+                id: 'reviews' as const,
+                label: 'Reviews',
+                count: notifications.filter((n) => n.category === 'review' || n.title.toLowerCase().includes('feedback')).length,
+              },
+              {
+                id: 'community' as const,
+                label: 'Community',
+                count: notifications.filter((n) => n.category === 'community' || n.title.toLowerCase().includes('comment')).length,
+              },
+              {
+                id: 'deadlines' as const,
+                label: 'Deadlines',
+                count: notifications.filter((n) => n.category === 'deadline' || n.title.toLowerCase().includes('due')).length,
+              },
+              { id: 'unread' as const, label: 'Unread', count: unreadCount },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setFilter(tab.id)}
+                className={`pb-2 px-2 border-b-2 whitespace-nowrap transition ${
+                  filter === tab.id
+                    ? 'border-orange-500 text-orange-600'
+                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                }`}
+              >
+                {tab.label} {tab.count > 0 && `(${tab.count})`}
+              </button>
+            ))}
           </div>
 
           {/* List */}
@@ -177,12 +255,14 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
             ) : filteredNotifications.length === 0 ? (
               <div className="p-8 text-center">
                 <p className="text-xs font-semibold text-slate-400">
-                  {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
+                  {filter === 'unread' ? 'No unread notifications' : 'No notifications in this category'}
                 </p>
               </div>
             ) : (
               filteredNotifications.map((notification) => {
                 const isRead = Boolean(notification.read_at);
+                const category = notification.category || 'system';
+
                 return (
                   <div
                     key={notification.id}
@@ -190,18 +270,48 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
                       isRead ? 'bg-white hover:bg-slate-50/80' : 'bg-orange-50/40 hover:bg-orange-50/70'
                     }`}
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
                         {!isRead && (
                           <span className="size-2 shrink-0 rounded-full bg-orange-500" />
                         )}
-                        <h4 className={`text-xs font-bold leading-tight ${isRead ? 'text-slate-800' : 'text-slate-950 font-black'}`}>
+                        <span
+                          className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                            category === 'review'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : category === 'community'
+                              ? 'bg-violet-100 text-violet-800'
+                              : category === 'deadline'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {category === 'review'
+                            ? 'Review & Grade'
+                            : category === 'community'
+                            ? 'Community'
+                            : category === 'deadline'
+                            ? 'Deadline'
+                            : 'Notification'}
+                        </span>
+                        <h4 className={`text-xs leading-tight truncate ${isRead ? 'font-bold text-slate-800' : 'font-black text-slate-950'}`}>
                           {notification.title}
                         </h4>
                       </div>
                       <p className="mt-1 text-xs text-slate-600 leading-relaxed">
                         {notification.body}
                       </p>
+
+                      {notification.action_url && (
+                        <a
+                          href={notification.action_url}
+                          className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline"
+                        >
+                          <span>Open details</span>
+                          <ExternalLink size={10} />
+                        </a>
+                      )}
+
                       <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400">
                         <Clock size={11} />
                         <span>{formatRelativeTime(notification.created_at)}</span>

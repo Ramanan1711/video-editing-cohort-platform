@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   Bell,
   BookOpen,
   Calendar as CalendarIcon,
@@ -101,6 +102,16 @@ export function StudentCalendar({ userId, cohortId }: StudentCalendarProps) {
     return events.filter((e) => e.type === filter);
   }, [events, filter]);
 
+  const urgentDeadlines = useMemo(() => {
+    return events.filter((e) => {
+      if (e.type !== 'assignment') return false;
+      if (e.status === 'reviewed') return false;
+      const t = new Date(e.date).getTime();
+      const diffHours = (t - nowTimestamp) / (1000 * 60 * 60);
+      return diffHours > 0 && diffHours <= 48;
+    });
+  }, [events, nowTimestamp]);
+
   // Export event as .ics
   const downloadIcs = (event: CalendarEvent) => {
     const startDate = new Date(event.date);
@@ -184,6 +195,49 @@ export function StudentCalendar({ userId, cohortId }: StudentCalendarProps) {
           </Button>
         </div>
       </div>
+
+      {/* Urgent Deadlines Alert Banner (<48h) */}
+      {urgentDeadlines.length > 0 && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50/90 p-4 shadow-xs text-slate-900">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
+                <AlertTriangle size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-black text-amber-950">
+                    Urgent Submission Window ({urgentDeadlines.length} {urgentDeadlines.length === 1 ? 'task' : 'tasks'} due &lt;48h)
+                  </h4>
+                  <span className="rounded-md bg-amber-200/80 px-2 py-0.5 text-[10px] font-black uppercase text-amber-900">
+                    Priority Alert
+                  </span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-amber-800">
+                  {urgentDeadlines.map((task) => {
+                    const hoursLeft = Math.max(1, Math.round((new Date(task.date).getTime() - nowTimestamp) / (1000 * 60 * 60)));
+                    return (
+                      <span key={task.id} className="inline-flex items-center gap-1 font-semibold">
+                        • <strong className="text-amber-950">{task.title}</strong> (due in ~{hoursLeft} hrs)
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setFilter('assignment')}
+                className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100/60"
+              >
+                Focus Deadlines
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter Badges */}
       <div className="flex flex-wrap items-center gap-2 text-xs font-bold">

@@ -96,6 +96,20 @@ export interface FeedbackItem {
   created_at: string;
   mentor_name?: string;
   replies?: FeedbackReply[];
+  rubric?: {
+    storytelling?: number;
+    pacing?: number;
+    audio?: number;
+    color?: number;
+    technical?: number;
+  };
+  timestamped_notes?: {
+    id: string;
+    timestamp_seconds: number;
+    formatted_time: string;
+    category: 'pacing' | 'audio' | 'color' | 'storytelling' | 'technical' | 'general';
+    text: string;
+  }[];
 }
 
 export interface SubmissionVersion {
@@ -162,6 +176,8 @@ export interface StudentNotification {
   body: string;
   read_at: string | null;
   created_at: string;
+  category?: 'review' | 'community' | 'deadline' | 'system';
+  action_url?: string | null;
 }
 
 export interface StudentAnnouncement {
@@ -283,10 +299,23 @@ export async function getStudentCourseData(userId: string, cohortId?: string): P
     return { cohort: null, modules: [], progress: [], enrolledCohorts };
   }
 
-  const [{ data: rawModules, error: modulesError }, { data: progress, error: progressError }] = await Promise.all([
+  let progressData: LessonProgress[];
+  const [{ data: rawModules, error: modulesError }, { data: rawProgress, error: progressError }] = await Promise.all([
     supabase.from('modules').select(courseSelect).eq('cohort_id', targetCohort.id).order('position', { ascending: true }),
-    supabase.from('lesson_progress').select('lesson_id, completed, completed_at').eq('user_id', userId),
+    supabase.from('lesson_progress').select('lesson_id, completed, completed_at, watch_percentage, last_position_seconds').eq('user_id', userId),
   ]);
+
+  if (progressError && (progressError.message.includes('watch_percentage') || progressError.message.includes('last_position_seconds'))) {
+    const { data: fallbackProgress } = await supabase
+      .from('lesson_progress')
+      .select('lesson_id, completed, completed_at')
+      .eq('user_id', userId);
+    progressData = (fallbackProgress ?? []) as LessonProgress[];
+  } else if (progressError) {
+    throw progressError;
+  } else {
+    progressData = (rawProgress ?? []) as LessonProgress[];
+  }
 
   let modules: Module[] | null = (rawModules ?? []) as Module[];
   if (modulesError) {
@@ -297,7 +326,6 @@ export async function getStudentCourseData(userId: string, cohortId?: string): P
       lessons: (m.lessons || []).map((l) => ({ ...l, status: l.status ?? 'published' })),
     }));
   }
-  if (progressError) throw progressError;
 
   return {
     cohort: targetCohort,
@@ -305,7 +333,7 @@ export async function getStudentCourseData(userId: string, cohortId?: string): P
       ...module,
       lessons: [...(module.lessons ?? [])].sort((a, b) => a.position - b.position),
     })),
-    progress: (progress ?? []) as LessonProgress[],
+    progress: progressData,
     enrolledCohorts,
   };
 }
@@ -711,7 +739,8 @@ export async function deleteEnrollment(userId: string, cohortId: string) {
 }
 
 // Assignment CRUD
-export async function listAssignments(cohortId: string): Promise<Assignment[]> {
+export async function listAssignments(cohortId?: string): Promise<Assignment[]> {
+  if (!cohortId) return listAllAssignments();
   const modules = await listModules(cohortId);
   const lessonIds = modules.flatMap((module) => module.lessons.map((lesson) => lesson.id));
   if (!lessonIds.length) return [];
@@ -1251,23 +1280,35 @@ export async function reviewSubmission(
 
 async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise<Submission[]> {
   if (!submissions.length) return [];
-  const { data } = await supabase
+  let feedbackData;
+  const { data: enhancedData, error: enhancedError } = await supabase
     .from('feedback')
-    .select('id, submission_id, mentor_id, comments, created_at')
+    .select('id, submission_id, mentor_id, comments, rubric, timestamped_notes, created_at')
     .in('submission_id', submissions.map((submission) => submission.id))
     .order('created_at', { ascending: false });
+
+  if (enhancedError && (enhancedError.message.includes('rubric') || enhancedError.message.includes('timestamped_notes'))) {
+    const { data: legacyData } = await supabase
+      .from('feedback')
+      .select('id, submission_id, mentor_id, comments, created_at')
+      .in('submission_id', submissions.map((submission) => submission.id))
+      .order('created_at', { ascending: false });
+    feedbackData = legacyData;
+  } else {
+    feedbackData = enhancedData;
+  }
 
   const feedbackBySubmission = new Map<string, string>();
   const historyBySubmission = new Map<string, FeedbackItem[]>();
 
-  const mentorIds = Array.from(new Set((data ?? []).map((f) => f.mentor_id)));
+  const mentorIds = Array.from(new Set((feedbackData ?? []).map((f) => f.mentor_id)));
   const { data: mentorProfiles } = mentorIds.length
     ? await supabase.from('profiles').select('id, full_name').in('id', mentorIds)
     : { data: [] };
   const mentorMap = new Map((mentorProfiles ?? []).map((p) => [p.id, p.full_name]));
 
   // Fetch feedback replies if table exists
-  const feedbackIds = (data ?? []).map((f) => f.id);
+  const feedbackIds = (feedbackData ?? []).map((f) => f.id);
   const repliesByFeedback = new Map<string, FeedbackReply[]>();
 
   if (feedbackIds.length > 0) {
@@ -1299,7 +1340,7 @@ async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise
     }
   }
 
-  for (const item of data ?? []) {
+  for (const item of feedbackData ?? []) {
     if (!feedbackBySubmission.has(item.submission_id)) {
       feedbackBySubmission.set(item.submission_id, item.comments);
     }
@@ -1352,9 +1393,26 @@ export async function listStudentLiveSessions(): Promise<StudentLiveSession[]> {
 export async function listStudentNotifications(userId: string): Promise<StudentNotification[]> {
   const { data, error } = await supabase
     .from('notifications')
-    .select('id, user_id, title, body, read_at, created_at')
+    .select('id, user_id, title, body, read_at, created_at, category, action_url')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
+
+  if (error && (error.message.includes('category') || error.message.includes('action_url'))) {
+    const { data: legacy, error: legacyError } = await supabase
+      .from('notifications')
+      .select('id, user_id, title, body, read_at, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (legacyError) return [];
+    return (legacy ?? []).map((n) => {
+      let cat: 'review' | 'community' | 'deadline' | 'system' = 'system';
+      const text = `${n.title} ${n.body}`.toLowerCase();
+      if (text.includes('review') || text.includes('feedback') || text.includes('critique') || text.includes('grade')) cat = 'review';
+      else if (text.includes('comment') || text.includes('post') || text.includes('reply') || text.includes('mention')) cat = 'community';
+      else if (text.includes('deadline') || text.includes('due') || text.includes('assignment')) cat = 'deadline';
+      return { ...n, category: cat };
+    });
+  }
 
   if (error) {
     console.warn('Unable to load notifications:', error);

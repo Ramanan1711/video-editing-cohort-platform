@@ -20,6 +20,7 @@ import {
   listCohortPosts,
   listCommunityComments,
   reportCommunityPost,
+  subscribeToCohortCommunity,
   togglePostReaction,
   type CommunityComment,
   type CommunityPost,
@@ -83,6 +84,16 @@ export function CommunityBoard({
       active = false;
     };
   }, [cohortId, lessonId, searchQuery, refreshKey]);
+
+  // Real-time subscription to cohort community events
+  useEffect(() => {
+    const unsubscribe = subscribeToCohortCommunity(cohortId, () => {
+      setRefreshKey((k) => k + 1);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [cohortId]);
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,11 +229,18 @@ export function CommunityBoard({
           )}
         </div>
 
-        {isInlineLesson && (
-          <Button size="sm" variant="secondary" onClick={() => setShowCreateModal(true)}>
-            <Plus size={14} /> Ask Question
-          </Button>
-        )}
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 text-[10px] font-bold text-emerald-700 shadow-2xs">
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Live Sync</span>
+          </div>
+
+          {isInlineLesson && (
+            <Button size="sm" variant="secondary" onClick={() => setShowCreateModal(true)}>
+              <Plus size={14} /> Ask Question
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Posts Stream */}

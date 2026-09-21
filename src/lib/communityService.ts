@@ -300,3 +300,38 @@ export async function reportCommunityPost(
     console.warn('community_reports table unavailable, logging report intent:', err);
   }
 }
+
+export function subscribeToCohortCommunity(
+  cohortId?: string | null,
+  onUpdate?: () => void
+): () => void {
+  const channelName = cohortId ? `cohort-community-${cohortId}` : 'cohort-community-all';
+  const channel = supabase
+    .channel(channelName)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'community_posts' },
+      () => {
+        if (onUpdate) onUpdate();
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'community_comments' },
+      () => {
+        if (onUpdate) onUpdate();
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'community_reactions' },
+      () => {
+        if (onUpdate) onUpdate();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}

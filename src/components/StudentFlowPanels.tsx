@@ -846,6 +846,82 @@ function AssignmentCard({
                     </div>
                     <p className="text-xs text-slate-800 leading-relaxed whitespace-pre-wrap">{item.comments}</p>
 
+                    {/* 5-Point Rubric Evaluation */}
+                    {item.rubric && (
+                      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 text-xs">
+                        <div className="flex items-center justify-between border-b border-slate-200/60 pb-1.5 mb-2">
+                          <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">
+                            Rubric Evaluation
+                          </span>
+                          {(() => {
+                            const scores = [
+                              item.rubric?.storytelling,
+                              item.rubric?.pacing,
+                              item.rubric?.audio,
+                              item.rubric?.color,
+                              item.rubric?.technical,
+                            ].filter((v): v is number => typeof v === 'number');
+                            if (!scores.length) return null;
+                            const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+                            const grade = avg >= 4.5 ? 'A+' : avg >= 4.0 ? 'A' : avg >= 3.5 ? 'B+' : avg >= 3.0 ? 'B' : avg >= 2.0 ? 'C' : 'Needs Polish';
+                            return (
+                              <span className="rounded-md bg-orange-500 px-2 py-0.5 text-[10px] font-black text-white">
+                                Grade {grade} ({avg.toFixed(1)}/5)
+                              </span>
+                            );
+                          })()}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                          {[
+                            { label: 'Storytelling & Narrative', val: item.rubric.storytelling ?? 0 },
+                            { label: 'Pacing & Rhythm', val: item.rubric.pacing ?? 0 },
+                            { label: 'Audio & Ducking', val: item.rubric.audio ?? 0 },
+                            { label: 'Color Grade & Match', val: item.rubric.color ?? 0 },
+                            { label: 'Technical Assembly', val: item.rubric.technical ?? 0 },
+                          ].map((crit) => (
+                            <div key={crit.label} className="flex flex-col gap-0.5">
+                              <div className="flex justify-between text-[10px] text-slate-600 font-medium">
+                                <span>{crit.label}</span>
+                                <span className="font-bold text-slate-800">{crit.val}/5</span>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${
+                                    crit.val >= 4
+                                      ? 'bg-emerald-500'
+                                      : crit.val >= 3
+                                      ? 'bg-orange-500'
+                                      : 'bg-red-400'
+                                  }`}
+                                  style={{ width: `${(crit.val / 5) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Timestamped Critique Notes */}
+                    {item.timestamped_notes && item.timestamped_notes.length > 0 && (
+                      <div className="mt-2.5 rounded-lg border border-amber-200/70 bg-amber-50/60 p-2.5 text-xs">
+                        <div className="flex items-center gap-1 text-[11px] font-bold text-amber-900 mb-1.5">
+                          <Clock size={12} className="text-amber-600" />
+                          <span>Timeline Markers ({item.timestamped_notes.length})</span>
+                        </div>
+                        <div className="space-y-1">
+                          {item.timestamped_notes.map((noteItem, nIdx) => (
+                            <div key={nIdx} className="flex items-start gap-2 text-[11px]">
+                              <span className="font-mono font-bold rounded bg-amber-200/60 px-1.5 py-0.5 text-amber-900 shrink-0">
+                                {noteItem.formatted_time || `${Math.floor(noteItem.timestamp_seconds / 60)}:${String(Math.floor(noteItem.timestamp_seconds % 60)).padStart(2, '0')}`}
+                              </span>
+                              <span className="text-slate-700 leading-snug">{noteItem.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Feedback Replies */}
                     {(item.replies || []).length > 0 && (
                       <div className="mt-2.5 space-y-1.5 border-t border-slate-100 pt-2">
