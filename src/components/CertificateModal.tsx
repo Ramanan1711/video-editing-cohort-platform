@@ -148,11 +148,26 @@ export function CertificateModal({
               Requirements Checklist
             </div>
 
+            {/* Enrollment Requirement */}
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck size={16} className="text-slate-400" />
+                <span>Active Cohort Enrollment</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-medium text-emerald-400">Verified</span>
+                <CheckCircle2 size={16} className="text-emerald-400" />
+              </div>
+            </div>
+
             {/* Lessons Requirement */}
             <div className="flex items-center justify-between gap-3 text-sm">
               <div className="flex items-center gap-2.5">
                 <BookOpen size={16} className="text-slate-400" />
-                <span>Course Lessons</span>
+                <div>
+                  <span>Course Lessons</span>
+                  <p className="text-[10px] text-slate-400">≥80% watch verification required</p>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono font-medium text-slate-300">
@@ -171,7 +186,10 @@ export function CertificateModal({
             <div className="flex items-center justify-between gap-3 text-sm">
               <div className="flex items-center gap-2.5">
                 <FileCheck2 size={16} className="text-slate-400" />
-                <span>Approved Assignments</span>
+                <div>
+                  <span>Approved Assignments</span>
+                  <p className="text-[10px] text-slate-400">Reviewed &amp; passed by mentor</p>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono font-medium text-slate-300">

@@ -110,6 +110,19 @@ export interface FeedbackItem {
     category: 'pacing' | 'audio' | 'color' | 'storytelling' | 'technical' | 'general';
     text: string;
   }[];
+  student_read_at?: string | null;
+}
+
+export interface StudentStudyReminder {
+  id: string;
+  user_id: string;
+  cohort_id?: string | null;
+  title: string;
+  description?: string | null;
+  scheduled_at: string;
+  reminder_type: 'study_block' | 'assignment_prep' | 'review_session' | 'custom';
+  is_completed: boolean;
+  created_at?: string;
 }
 
 export interface SubmissionVersion {
@@ -158,6 +171,7 @@ export interface CalendarEvent {
   status?: string;
   actionUrl?: string;
   isCompleted?: boolean;
+  reminderType?: 'study_block' | 'assignment_prep' | 'review_session' | 'custom';
 }
 
 export interface MentorSubmission extends Submission {
@@ -376,9 +390,45 @@ export async function listAllStudentCohorts(userId: string): Promise<(Cohort & {
   }));
 }
 
-export async function markLessonComplete(userId: string, lessonId: string, completed: boolean) {
+export async function markLessonComplete(
+  userId: string,
+  lessonId: string,
+  completed: boolean,
+  options?: { watchPercentage?: number; positionSeconds?: number }
+) {
+  if (completed) {
+    try {
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc('verify_and_complete_lesson', {
+        p_user_id: userId,
+        p_lesson_id: lessonId,
+        p_watch_percentage: Math.round(options?.watchPercentage ?? 100),
+        p_position_seconds: Math.round(options?.positionSeconds ?? 0),
+      });
+
+      if (!rpcErr && rpcRes) {
+        const res = rpcRes as { success?: boolean; reason?: string };
+        if (res.success === false) {
+          throw new Error(res.reason || 'You must watch at least 80% of this video lesson before marking it complete.');
+        }
+        return;
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes('80%')) {
+        throw err;
+      }
+      console.warn('verify_and_complete_lesson RPC fallback:', err);
+    }
+  }
+
   const { error } = await supabase.from('lesson_progress').upsert(
-    { user_id: userId, lesson_id: lessonId, completed, completed_at: new Date().toISOString() },
+    {
+      user_id: userId,
+      lesson_id: lessonId,
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+      ...(options?.watchPercentage !== undefined ? { watch_percentage: Math.min(100, Math.round(options.watchPercentage)) } : {}),
+      ...(options?.positionSeconds !== undefined ? { last_position_seconds: Math.round(options.positionSeconds) } : {}),
+    },
     { onConflict: 'user_id,lesson_id' }
   );
   if (error) throw error;
@@ -1296,17 +1346,32 @@ async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise
   let feedbackData;
   const { data: enhancedData, error: enhancedError } = await supabase
     .from('feedback')
-    .select('id, submission_id, mentor_id, comments, rubric, timestamped_notes, created_at')
+    .select('id, submission_id, mentor_id, comments, rubric, timestamped_notes, student_read_at, created_at')
     .in('submission_id', submissions.map((submission) => submission.id))
     .order('created_at', { ascending: false });
 
-  if (enhancedError && (enhancedError.message.includes('rubric') || enhancedError.message.includes('timestamped_notes'))) {
-    const { data: legacyData } = await supabase
+  if (
+    enhancedError &&
+    (enhancedError.message.includes('rubric') ||
+      enhancedError.message.includes('timestamped_notes') ||
+      enhancedError.message.includes('student_read_at'))
+  ) {
+    const { data: midData, error: midError } = await supabase
       .from('feedback')
-      .select('id, submission_id, mentor_id, comments, created_at')
+      .select('id, submission_id, mentor_id, comments, rubric, timestamped_notes, created_at')
       .in('submission_id', submissions.map((submission) => submission.id))
       .order('created_at', { ascending: false });
-    feedbackData = legacyData;
+
+    if (midError) {
+      const { data: legacyData } = await supabase
+        .from('feedback')
+        .select('id, submission_id, mentor_id, comments, created_at')
+        .in('submission_id', submissions.map((submission) => submission.id))
+        .order('created_at', { ascending: false });
+      feedbackData = legacyData;
+    } else {
+      feedbackData = midData;
+    }
   } else {
     feedbackData = enhancedData;
   }
@@ -1371,6 +1436,26 @@ async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise
     feedback: feedbackBySubmission.get(submission.id) ?? null,
     feedback_history: historyBySubmission.get(submission.id) ?? [],
   }));
+}
+
+export async function markFeedbackRead(feedbackId: string): Promise<void> {
+  try {
+    const { error: rpcError } = await supabase.rpc('mark_feedback_as_read', {
+      p_feedback_id: feedbackId,
+    });
+    if (!rpcError) return;
+  } catch {
+    // fallback
+  }
+
+  try {
+    await supabase
+      .from('feedback')
+      .update({ student_read_at: new Date().toISOString() })
+      .eq('id', feedbackId);
+  } catch (err) {
+    console.warn('markFeedbackRead error:', err);
+  }
 }
 
 // Student Announcements
@@ -1653,20 +1738,31 @@ export async function verifyCertificateEligibility(
 
   // Client-side fallback check
   try {
-    const [modulesRes, progressRes, assignRes, subsRes] = await Promise.all([
-      supabase.from('modules').select('id, lessons(id)').eq('cohort_id', cohortId),
-      supabase.from('lesson_progress').select('lesson_id, completed').eq('user_id', studentId).eq('completed', true),
-      supabase.from('assignments').select('id').eq('cohort_id', cohortId),
+    const [modulesRes, progressRes, cohortAssigns, subsRes] = await Promise.all([
+      supabase.from('modules').select('id, lessons(id, video_url)').eq('cohort_id', cohortId),
+      supabase.from('lesson_progress').select('lesson_id, completed, watch_percentage').eq('user_id', studentId),
+      listAssignments(cohortId),
       supabase.from('submissions').select('assignment_id, status').eq('student_id', studentId).eq('status', 'reviewed'),
     ]);
 
-    const allLessonIds = (modulesRes.data ?? []).flatMap((m) => ((m.lessons as Array<{ id: string }>) ?? []).map((l) => l.id));
-    const completedLessonIds = new Set((progressRes.data ?? []).map((p) => p.lesson_id));
-    const completedLessons = allLessonIds.filter((id) => completedLessonIds.has(id)).length;
+    const allLessons = (modulesRes.data ?? []).flatMap((m) => ((m.lessons as Array<{ id: string; video_url?: string }>) ?? []));
+    const allLessonIds = allLessons.map((l) => l.id);
+    const progressMap = new Map((progressRes.data ?? []).map((p) => [p.lesson_id, p]));
 
-    const totalAssigns = (assignRes.data ?? []).length;
+    // Enforce 80% watch progress or completed
+    const completedLessons = allLessons.filter((l) => {
+      const prog = progressMap.get(l.id);
+      if (!prog) return false;
+      const hasVideo = Boolean(l.video_url && l.video_url.trim().length > 0);
+      if (hasVideo) {
+        return (prog.watch_percentage ?? 0) >= 80 || prog.completed;
+      }
+      return Boolean(prog.completed);
+    }).length;
+
+    const totalAssigns = cohortAssigns.length;
     const approvedAssignIds = new Set((subsRes.data ?? []).map((s) => s.assignment_id));
-    const approvedAssigns = (assignRes.data ?? []).filter((a) => approvedAssignIds.has(a.id)).length;
+    const approvedAssigns = cohortAssigns.filter((a) => approvedAssignIds.has(a.id)).length;
 
     const isLessonsComplete = allLessonIds.length === 0 || completedLessons >= allLessonIds.length;
     const isAssignsComplete = totalAssigns === 0 || approvedAssigns >= totalAssigns;
@@ -1687,7 +1783,7 @@ export async function verifyCertificateEligibility(
       return {
         eligible: false,
         reason: !isLessonsComplete
-          ? `${allLessonIds.length - completedLessons} required lesson(s) not completed yet.`
+          ? `${allLessonIds.length - completedLessons} required lesson(s) not completed (≥80% watch verification required).`
           : `${totalAssigns - approvedAssigns} assignment(s) not reviewed or approved yet.`,
         completed_lessons: completedLessons,
         total_lessons: allLessonIds.length,
@@ -1700,6 +1796,143 @@ export async function verifyCertificateEligibility(
       eligible: false,
       reason: fallbackErr instanceof Error ? fallbackErr.message : 'Failed to verify certificate eligibility.',
     };
+  }
+}
+
+// ==============================================================================
+// Student Study Planning Reminders (Database-Backed with Offline Fallback)
+// ==============================================================================
+export async function listStudentStudyReminders(
+  userId: string,
+  cohortId?: string
+): Promise<StudentStudyReminder[]> {
+  try {
+    let query = supabase
+      .from('student_study_reminders')
+      .select('*')
+      .eq('user_id', userId)
+      .order('scheduled_at', { ascending: true });
+
+    if (cohortId) {
+      query = query.or(`cohort_id.eq.${cohortId},cohort_id.is.null`);
+    }
+    const { data, error } = await query;
+    if (!error && data) {
+      return data as StudentStudyReminder[];
+    }
+  } catch (err) {
+    console.warn('student_study_reminders table query error, falling back to localStorage:', err);
+  }
+
+  // Fallback to localStorage
+  try {
+    const raw = localStorage.getItem(`student_study_reminders_${userId}`);
+    if (raw) {
+      const items = JSON.parse(raw) as StudentStudyReminder[];
+      if (cohortId) {
+        return items.filter((r) => !r.cohort_id || r.cohort_id === cohortId);
+      }
+      return items;
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+export async function createStudentStudyReminder(
+  input: Omit<StudentStudyReminder, 'id' | 'created_at'>
+): Promise<StudentStudyReminder> {
+  try {
+    const { data, error } = await supabase
+      .from('student_study_reminders')
+      .insert({
+        user_id: input.user_id,
+        cohort_id: input.cohort_id || null,
+        title: input.title,
+        description: input.description || null,
+        scheduled_at: input.scheduled_at,
+        reminder_type: input.reminder_type || 'study_block',
+        is_completed: input.is_completed || false,
+      })
+      .select('*')
+      .single();
+
+    if (!error && data) {
+      return data as StudentStudyReminder;
+    }
+  } catch (err) {
+    console.warn('Failed to insert student study reminder in Supabase, using localStorage:', err);
+  }
+
+  // Fallback
+  const fallbackItem: StudentStudyReminder = {
+    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    ...input,
+    created_at: new Date().toISOString(),
+  };
+  try {
+    const raw = localStorage.getItem(`student_study_reminders_${input.user_id}`);
+    const current = raw ? (JSON.parse(raw) as StudentStudyReminder[]) : [];
+    localStorage.setItem(`student_study_reminders_${input.user_id}`, JSON.stringify([...current, fallbackItem]));
+  } catch {
+    // ignore
+  }
+  return fallbackItem;
+}
+
+export async function toggleStudyReminder(
+  id: string,
+  isCompleted: boolean,
+  userId: string
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('student_study_reminders')
+      .update({ is_completed: isCompleted })
+      .eq('id', id);
+    if (!error) return;
+  } catch {
+    // ignore
+  }
+
+  // Fallback
+  try {
+    const raw = localStorage.getItem(`student_study_reminders_${userId}`);
+    if (raw) {
+      const current = JSON.parse(raw) as StudentStudyReminder[];
+      const updated = current.map((r) => (r.id === id ? { ...r, is_completed: isCompleted } : r));
+      localStorage.setItem(`student_study_reminders_${userId}`, JSON.stringify(updated));
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export async function deleteStudentStudyReminder(
+  id: string,
+  userId: string
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('student_study_reminders')
+      .delete()
+      .eq('id', id);
+    if (!error) return;
+  } catch {
+    // ignore
+  }
+
+  // Fallback
+  try {
+    const raw = localStorage.getItem(`student_study_reminders_${userId}`);
+    if (raw) {
+      const current = JSON.parse(raw) as StudentStudyReminder[];
+      const updated = current.filter((r) => r.id !== id);
+      localStorage.setItem(`student_study_reminders_${userId}`, JSON.stringify(updated));
+    }
+  } catch {
+    // ignore
   }
 }
 
@@ -1747,12 +1980,19 @@ export async function listStudentCalendarEvents(
       });
     }
 
-    // Load personal reminders from localStorage
+    // Load personal study reminders from database (with offline fallback)
     try {
-      const stored = localStorage.getItem(`student_reminders_${studentId}`);
-      if (stored) {
-        const reminders = JSON.parse(stored) as CalendarEvent[];
-        events.push(...reminders);
+      const studyReminders = await listStudentStudyReminders(studentId, cohortId);
+      for (const r of studyReminders) {
+        events.push({
+          id: r.id,
+          title: r.title,
+          description: r.description,
+          type: 'reminder',
+          date: r.scheduled_at,
+          isCompleted: r.is_completed,
+          reminderType: r.reminder_type,
+        });
       }
     } catch {
       // ignore

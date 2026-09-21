@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
+  ArrowRightLeft,
   Award,
   Calendar,
   Check,
@@ -29,6 +30,7 @@ import {
   listAvailableCohorts,
   listMySubmissions,
   listSubmissionVersions,
+  markFeedbackRead,
   submitOrReplaceAssignment,
   type Assignment,
   type Cohort,
@@ -283,7 +285,15 @@ export function CohortDiscoveryModal({
   );
 }
 
-export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId: string }) {
+export function AssignmentPanel({
+  userId,
+  cohortId,
+  onFeedbackRead,
+}: {
+  userId: string;
+  cohortId: string;
+  onFeedbackRead?: () => void;
+}) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
@@ -293,11 +303,15 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [acknowledgedLate, setAcknowledgedLate] = useState(false);
+  const [nowTimestamp] = useState(() => Date.now());
 
   // Version History Modal State
   const [viewingVersionSubmission, setViewingVersionSubmission] = useState<Submission | null>(null);
   const [submissionVersions, setSubmissionVersions] = useState<SubmissionVersion[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
+  const [versionViewTab, setVersionViewTab] = useState<'timeline' | 'compare'>('timeline');
+  const [compareVersionId, setCompareVersionId] = useState<string>('');
 
   // Revision Checklist State for Resubmission
   const [checklist, setChecklist] = useState<Record<string, boolean>>({
@@ -380,6 +394,7 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
       setActiveAssignment(null);
       setFile(null);
       setIsResubmitting(false);
+      setAcknowledgedLate(false);
       setChecklist({ pacing: false, audio: false, color: false, critique: false });
       await load();
     } catch (reason) {
@@ -394,15 +409,20 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
     setIsResubmitting(isResubmit);
     setFile(null);
     setError(null);
+    setAcknowledgedLate(false);
     setChecklist({ pacing: false, audio: false, color: false, critique: false });
   };
 
   const handleOpenVersions = async (submission: Submission) => {
     setViewingVersionSubmission(submission);
     setLoadingVersions(true);
+    setVersionViewTab('timeline');
     try {
       const versions = await listSubmissionVersions(submission.id);
       setSubmissionVersions(versions);
+      if (versions.length > 0) {
+        setCompareVersionId(versions[0].id);
+      }
     } catch (err) {
       console.warn('Failed to load versions:', err);
     } finally {
@@ -413,6 +433,25 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
   const handleSendFeedbackReply = async (feedbackId: string, message: string) => {
     await addFeedbackReply(feedbackId, userId, message);
     await load();
+  };
+
+  const handleMarkCritiqueRead = async (feedbackId: string) => {
+    try {
+      await markFeedbackRead(feedbackId);
+      setSubmissions((prev) =>
+        prev.map((sub) => ({
+          ...sub,
+          feedback_history: (sub.feedback_history || []).map((f) =>
+            f.id === feedbackId ? { ...f, student_read_at: new Date().toISOString() } : f
+          ),
+        }))
+      );
+      if (onFeedbackRead) {
+        onFeedbackRead();
+      }
+    } catch (err) {
+      console.warn('Failed to mark critique read:', err);
+    }
   };
 
   return (
@@ -458,6 +497,7 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
               onResubmit={() => openSubmitModal(assignment, true)}
               onOpenVersions={handleOpenVersions}
               onSendReply={handleSendFeedbackReply}
+              onMarkFeedbackRead={handleMarkCritiqueRead}
             />
           ))}
         </div>
@@ -498,6 +538,35 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
               <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
                 <Calendar size={14} className="text-orange-500" />
                 <span>Due by: {formatDeadline(activeAssignment.deadline)}</span>
+              </div>
+            )}
+
+            {/* Late Submission Warning and Required Acknowledgment */}
+            {Boolean(
+              activeAssignment.deadline &&
+                new Date(activeAssignment.deadline).getTime() < nowTimestamp
+            ) && (
+              <div className="mt-3 rounded-xl border border-red-200 bg-red-50/90 p-3.5 text-xs text-red-900">
+                <div className="flex items-center gap-2 font-bold text-red-800">
+                  <AlertTriangle size={15} className="text-red-600 shrink-0" />
+                  <span>Late Submission Warning</span>
+                </div>
+                <p className="mt-1 text-slate-700 leading-relaxed">
+                  The official deadline for this cohort assignment was{' '}
+                  <span className="font-semibold text-slate-900">
+                    {formatDeadline(activeAssignment.deadline!)}
+                  </span>
+                  . Submissions after this date are flagged as late for mentor review.
+                </p>
+                <label className="mt-2.5 flex items-start gap-2 cursor-pointer font-bold text-red-950">
+                  <input
+                    type="checkbox"
+                    checked={acknowledgedLate}
+                    onChange={(e) => setAcknowledgedLate(e.target.checked)}
+                    className="mt-0.5 rounded text-red-600 focus:ring-red-500"
+                  />
+                  <span>I acknowledge that this work is being submitted past the deadline.</span>
+                </label>
               </div>
             )}
 
@@ -587,7 +656,18 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
                 >
                   Save as Draft
                 </Button>
-                <Button type="submit" loading={saving}>
+                <Button
+                  type="submit"
+                  loading={saving}
+                  disabled={
+                    saving ||
+                    (Boolean(
+                      activeAssignment.deadline &&
+                        new Date(activeAssignment.deadline).getTime() < nowTimestamp
+                    ) &&
+                      !acknowledgedLate)
+                  }
+                >
                   {saving ? 'Uploading...' : isResubmitting ? 'Submit Revision' : 'Submit for Review'}
                 </Button>
               </div>
@@ -596,10 +676,10 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
         </div>
       )}
 
-      {/* Submission Version History Modal */}
+      {/* Submission Version History Modal with Smart Side-by-Side Comparison */}
       {viewingVersionSubmission && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-left">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-left">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <History size={18} className="text-orange-500" />
@@ -614,71 +694,232 @@ export function AssignmentPanel({ userId, cohortId }: { userId: string; cohortId
               </button>
             </div>
 
-            <div className="mt-4 space-y-3 max-h-80 overflow-y-auto">
-              {/* Current Active Version */}
-              <div className="rounded-xl border border-orange-300 bg-orange-50/30 p-3.5">
-                <div className="flex items-center justify-between">
-                  <span className="rounded bg-orange-500 px-2 py-0.5 text-[10px] font-black uppercase text-white">
-                    Version {viewingVersionSubmission.version_number || 1} (Active)
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-semibold">
-                    {viewingVersionSubmission.created_at
-                      ? new Date(viewingVersionSubmission.created_at).toLocaleDateString([], {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : 'Latest'}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-700 capitalize">Status: {viewingVersionSubmission.status}</span>
-                  <a
-                    href={viewingVersionSubmission.file_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 font-bold text-orange-600 underline"
-                  >
-                    View File <ExternalLink size={11} />
-                  </a>
-                </div>
-              </div>
-
-              {/* Archived Historical Versions */}
-              {loadingVersions ? (
-                <div className="py-4 text-center text-xs text-slate-400">Loading prior revisions...</div>
-              ) : submissionVersions.length ? (
-                submissionVersions.map((ver) => (
-                  <div key={ver.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-black text-slate-700">Version {ver.version_number} (Archived)</span>
-                      <span className="text-[10px] text-slate-400">
-                        {new Date(ver.created_at).toLocaleDateString([], {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    </div>
-                    <div className="mt-1.5 flex items-center justify-between">
-                      <span className="text-slate-500 capitalize">Prior status: {ver.status}</span>
-                      <a
-                        href={ver.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 font-semibold text-slate-700 underline hover:text-orange-600"
-                      >
-                        Archived File <ExternalLink size={11} />
-                      </a>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="py-2 text-center text-xs text-slate-400">No previous versions archived yet.</p>
-              )}
+            {/* View Mode Toggle: Timeline vs Smart Side-by-Side Comparison */}
+            <div className="mt-4 flex rounded-xl border border-slate-200 bg-slate-100 p-1 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setVersionViewTab('timeline')}
+                className={`flex-1 rounded-lg py-1.5 transition ${
+                  versionViewTab === 'timeline'
+                    ? 'bg-white text-slate-950 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-950'
+                }`}
+              >
+                Version Timeline
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setVersionViewTab('compare');
+                  if (submissionVersions.length > 0 && !compareVersionId) {
+                    setCompareVersionId(submissionVersions[0].id);
+                  }
+                }}
+                className={`flex items-center justify-center gap-1.5 flex-1 rounded-lg py-1.5 transition ${
+                  versionViewTab === 'compare'
+                    ? 'bg-white text-orange-600 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-950'
+                }`}
+              >
+                <ArrowRightLeft size={13} />
+                <span>Smart Side-by-Side Comparison</span>
+              </button>
             </div>
+
+            {versionViewTab === 'timeline' ? (
+              <div className="mt-4 space-y-3 max-h-96 overflow-y-auto pr-1">
+                {/* Current Active Version */}
+                <div className="rounded-xl border border-orange-300 bg-orange-50/30 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="rounded bg-orange-500 px-2 py-0.5 text-[10px] font-black uppercase text-white">
+                      Version {viewingVersionSubmission.version_number || 1} (Active)
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">
+                      {viewingVersionSubmission.created_at
+                        ? new Date(viewingVersionSubmission.created_at).toLocaleDateString([], {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : 'Latest'}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-700 capitalize">Status: {viewingVersionSubmission.status}</span>
+                    <a
+                      href={viewingVersionSubmission.file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 font-bold text-orange-600 underline"
+                    >
+                      View Active File <ExternalLink size={11} />
+                    </a>
+                  </div>
+                </div>
+
+                {/* Archived Historical Versions */}
+                {loadingVersions ? (
+                  <div className="py-4 text-center text-xs text-slate-400">Loading prior revisions...</div>
+                ) : submissionVersions.length ? (
+                  submissionVersions.map((ver) => (
+                    <div key={ver.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-slate-700">Version {ver.version_number} (Archived)</span>
+                        <span className="text-[10px] text-slate-400">
+                          {new Date(ver.created_at).toLocaleDateString([], {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between">
+                        <span className="text-slate-500 capitalize">Prior status: {ver.status}</span>
+                        <a
+                          href={ver.file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-semibold text-slate-700 underline hover:text-orange-600"
+                        >
+                          Archived File <ExternalLink size={11} />
+                        </a>
+                      </div>
+                      {ver.notes && (
+                        <p className="mt-1.5 rounded border border-slate-200 bg-white/80 p-2 text-[11px] text-slate-600 leading-snug">
+                          <strong className="font-bold text-slate-700">Notes:</strong> {ver.notes}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="py-2 text-center text-xs text-slate-400">No previous versions archived yet.</p>
+                )}
+              </div>
+            ) : (
+              /* Smart Side-by-Side Comparison */
+              <div className="mt-4 max-h-96 overflow-y-auto pr-1">
+                {submissionVersions.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center text-xs text-slate-500">
+                    <ArrowRightLeft size={24} className="mx-auto mb-2 text-slate-400" />
+                    <p className="font-bold text-slate-700">Single Version Submission</p>
+                    <p className="mt-1 text-slate-500">
+                      Only 1 version exists so far. Uploading a resubmission creates a new revision milestone, allowing side-by-side comparison of notes, files, and mentor evaluations here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Select Prior Version to compare with */}
+                    {submissionVersions.length > 1 && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-bold text-slate-600">Compare against:</span>
+                        <select
+                          value={compareVersionId}
+                          onChange={(e) => setCompareVersionId(e.target.value)}
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-orange-400"
+                        >
+                          {submissionVersions.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              Version {v.version_number} ({new Date(v.created_at).toLocaleDateString()})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {(() => {
+                      const selectedVer =
+                        submissionVersions.find((v) => v.id === compareVersionId) || submissionVersions[0];
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          {/* Prior Version Column */}
+                          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-2.5">
+                            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                              <span className="font-black text-slate-700">
+                                Version {selectedVer.version_number} (Prior)
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {new Date(selectedVer.created_at).toLocaleDateString([], {
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</span>
+                              <p className="capitalize font-semibold text-slate-700">{selectedVer.status}</p>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">File Asset</span>
+                              <div className="mt-0.5">
+                                <a
+                                  href={selectedVer.file_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 font-semibold text-slate-600 underline hover:text-orange-600"
+                                >
+                                  Open Archived Media <ExternalLink size={10} />
+                                </a>
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Revision Notes</span>
+                              <p className="mt-0.5 text-slate-600 text-[11px] leading-relaxed">
+                                {selectedVer.notes || 'Prior submission draft.'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Current Active Version Column */}
+                          <div className="rounded-xl border border-orange-300 bg-orange-50/40 p-3.5 space-y-2.5">
+                            <div className="flex items-center justify-between border-b border-orange-200 pb-2">
+                              <span className="font-black text-orange-950">
+                                Version {viewingVersionSubmission.version_number || (selectedVer.version_number + 1)} (Active)
+                              </span>
+                              <span className="text-[10px] text-orange-700 font-semibold">
+                                {viewingVersionSubmission.created_at
+                                  ? new Date(viewingVersionSubmission.created_at).toLocaleDateString([], {
+                                      month: 'short',
+                                      day: 'numeric',
+                                    })
+                                  : 'Current'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-orange-700">Current Status</span>
+                              <p className="capitalize font-black text-orange-950">{viewingVersionSubmission.status}</p>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-orange-700">Active File</span>
+                              <div className="mt-0.5">
+                                <a
+                                  href={viewingVersionSubmission.file_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 font-bold text-orange-700 underline hover:text-orange-900"
+                                >
+                                  Open Latest Revision <ExternalLink size={10} />
+                                </a>
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-orange-700">Mentor Review</span>
+                              <p className="mt-0.5 text-slate-700 text-[11px] leading-relaxed">
+                                {viewingVersionSubmission.feedback ||
+                                  (viewingVersionSubmission.status === 'reviewed'
+                                    ? 'Reviewed & Approved by Mentor'
+                                    : 'Awaiting Mentor Review for this revision')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
               <Button variant="secondary" size="sm" onClick={() => setViewingVersionSubmission(null)}>
@@ -699,6 +940,7 @@ function AssignmentCard({
   onResubmit,
   onOpenVersions,
   onSendReply,
+  onMarkFeedbackRead,
 }: {
   assignment: Assignment;
   submission?: Submission;
@@ -706,9 +948,12 @@ function AssignmentCard({
   onResubmit: () => void;
   onOpenVersions?: (submission: Submission) => void;
   onSendReply?: (feedbackId: string, message: string) => Promise<void>;
+  onMarkFeedbackRead?: (feedbackId: string) => Promise<void> | void;
 }) {
   const status = submission?.status;
   const deadlineStatus = getDeadlineStatus(assignment.deadline);
+  const unreadCritiques = (submission?.feedback_history || []).filter((item) => !item.student_read_at);
+  const hasUnread = unreadCritiques.length > 0;
   const [replyOpen, setReplyOpen] = useState<Record<string, boolean>>({});
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [replySending, setReplySending] = useState<string | null>(null);
@@ -719,6 +964,9 @@ function AssignmentCard({
     setReplySending(feedbackId);
     try {
       await onSendReply(feedbackId, text);
+      if (onMarkFeedbackRead) {
+        void onMarkFeedbackRead(feedbackId);
+      }
       setReplyDrafts((prev) => ({ ...prev, [feedbackId]: '' }));
       setReplyOpen((prev) => ({ ...prev, [feedbackId]: false }));
     } catch (err) {
@@ -737,6 +985,12 @@ function AssignmentCard({
             <h3 className="mt-1 text-base font-black text-slate-950">{assignment.title}</h3>
           </div>
           <div className="flex flex-col items-end gap-1">
+            {hasUnread && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-800 animate-pulse">
+                <Sparkles size={11} className="text-orange-600" /> New Critique
+              </span>
+            )}
+
             {status === 'reviewed' ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
                 <Check size={13} /> Reviewed &amp; Passed
@@ -839,10 +1093,28 @@ function AssignmentCard({
                 {submission.feedback_history.map((item, idx) => (
                   <div key={item.id || idx} className="rounded-lg bg-white/90 p-3 shadow-2xs border border-slate-100">
                     <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                      <span className="font-bold text-slate-800">
-                        {item.mentor_name ? `Critique by ${item.mentor_name}` : `Critique #${idx + 1}`}
-                      </span>
-                      <span>{new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-800">
+                          {item.mentor_name ? `Critique by ${item.mentor_name}` : `Critique #${idx + 1}`}
+                        </span>
+                        {!item.student_read_at && (
+                          <span className="rounded bg-orange-500 px-1.5 py-0.5 text-[9px] font-black uppercase text-white">
+                            New
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!item.student_read_at && onMarkFeedbackRead && (
+                          <button
+                            type="button"
+                            onClick={() => void onMarkFeedbackRead(item.id)}
+                            className="font-bold text-orange-600 hover:underline"
+                          >
+                            Mark Read
+                          </button>
+                        )}
+                        <span>{new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
                     </div>
                     <p className="text-xs text-slate-800 leading-relaxed whitespace-pre-wrap">{item.comments}</p>
 

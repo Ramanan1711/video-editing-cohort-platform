@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertCircle,
@@ -102,6 +102,7 @@ export function StudentDashboard() {
   const [lessonSearchQuery, setLessonSearchQuery] = useState('');
   const [collapsedModuleIds, setCollapsedModuleIds] = useState<Set<string>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
+  const [engagementAlert, setEngagementAlert] = useState<{ title: string; message: string } | null>(null);
   const [nowTimestamp] = useState(() => Date.now());
   const [isOnline, setIsOnline] = useState<boolean>(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -221,6 +222,28 @@ export function StudentDashboard() {
     return calculateLearningTime(completedLessons);
   }, [completedLessons]);
 
+  const unreadFeedbackCount = useMemo(() => {
+    let count = 0;
+    for (const sub of mySubmissions) {
+      for (const item of sub.feedback_history ?? []) {
+        if (!item.student_read_at) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }, [mySubmissions]);
+
+  const refreshSubmissions = useCallback(async () => {
+    if (!user) return;
+    try {
+      const submissionsData = await listMySubmissions(user.id);
+      setMySubmissions(submissionsData);
+    } catch (err) {
+      console.warn('Failed to refresh student submissions:', err);
+    }
+  }, [user]);
+
   const selectLesson = (lesson: Lesson) => {
     setSelectedLessonId(lesson.id);
     setActiveTab('curriculum');
@@ -242,13 +265,32 @@ export function StudentDashboard() {
   const toggleComplete = async () => {
     if (!user || !selectedLesson) return;
     const completed = !completedIds.has(selectedLesson.id);
+    const existing = course.progress.find((item) => item.lesson_id === selectedLesson.id);
+    const currentWatchPct = existing?.watch_percentage ?? 0;
+    const hasVideo = Boolean(selectedLesson.video_url && selectedLesson.video_url.trim().length > 0);
+
+    if (completed && hasVideo && currentWatchPct < 80) {
+      setEngagementAlert({
+        title: 'Video Watch Verification Required',
+        message: `You have currently watched ${currentWatchPct}% of "${selectedLesson.title}". CUT / CRAFT requires at least 80% verified video watch progress before marking a lesson complete and issuing milestone credits.`,
+      });
+      return;
+    }
+
     try {
-      await markLessonComplete(user.id, selectedLesson.id, completed);
+      await markLessonComplete(user.id, selectedLesson.id, completed, {
+        watchPercentage: currentWatchPct,
+      });
       setCourse((current) => ({
         ...current,
         progress: [
           ...current.progress.filter((item) => item.lesson_id !== selectedLesson.id),
-          { lesson_id: selectedLesson.id, completed, completed_at: new Date().toISOString() },
+          {
+            lesson_id: selectedLesson.id,
+            completed,
+            completed_at: completed ? new Date().toISOString() : undefined,
+            watch_percentage: completed && hasVideo ? Math.max(currentWatchPct, 80) : currentWatchPct,
+          },
         ],
       }));
     } catch (updateError) {
@@ -903,6 +945,11 @@ export function StudentDashboard() {
                   >
                     <BookOpen size={16} />
                     <span>Assignments &amp; Reviews</span>
+                    {unreadFeedbackCount > 0 && (
+                      <span className="flex size-4.5 items-center justify-center rounded-full bg-orange-500 text-[10px] font-black text-white shadow-2xs animate-pulse">
+                        {unreadFeedbackCount}
+                      </span>
+                    )}
                   </button>
 
                   <button
@@ -1015,7 +1062,11 @@ export function StudentDashboard() {
                 {/* TAB 2: Assignments & Proof Loop */}
                 {activeTab === 'assignments' && user && course.cohort && (
                   <div>
-                    <AssignmentPanel userId={user.id} cohortId={course.cohort.id} />
+                    <AssignmentPanel
+                      userId={user.id}
+                      cohortId={course.cohort.id}
+                      onFeedbackRead={refreshSubmissions}
+                    />
                   </div>
                 )}
 
@@ -1200,6 +1251,31 @@ export function StudentDashboard() {
           cohortId={course.cohort.id}
           studentId={user.id}
         />
+      )}
+
+      {/* Engagement & Watch Progress Warning Modal */}
+      {engagementAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 text-left">
+            <div className="flex items-center gap-3 text-amber-600 mb-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-amber-100">
+                <Lock size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-950">{engagementAlert.title}</h3>
+                <p className="text-[11px] font-bold text-amber-700">Watch Verification Required</p>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+              {engagementAlert.message}
+            </p>
+            <div className="mt-5 flex justify-end">
+              <Button variant="primary" size="sm" onClick={() => setEngagementAlert(null)}>
+                Understood, Continue Watching
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Level Up Progression & Milestone Achievements Modal */}
@@ -1577,22 +1653,43 @@ function LessonPlayer({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={onToggleComplete}
-              className={`rounded-xl px-4 py-2.5 text-xs font-bold transition shadow-xs ${
-                completed
-                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                  : 'bg-slate-950 text-white hover:bg-orange-600'
-              }`}
-            >
-              {completed ? (
-                <span className="flex items-center gap-1.5">
-                  <Check size={15} /> Completed
-                </span>
-              ) : (
-                'Mark as Complete'
-              )}
-            </button>
+            {(() => {
+              const hasVideo = Boolean(lesson.video_url && lesson.video_url.trim().length > 0);
+              const isLocked = !completed && hasVideo && watchPercentage < 80;
+
+              return (
+                <button
+                  onClick={onToggleComplete}
+                  disabled={isLocked}
+                  title={
+                    isLocked
+                      ? `Watch at least 80% to mark complete (currently ${watchPercentage}%)`
+                      : completed
+                      ? 'Click to toggle incomplete'
+                      : 'Mark lesson as complete'
+                  }
+                  className={`rounded-xl px-4 py-2.5 text-xs font-bold transition shadow-xs ${
+                    completed
+                      ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                      : isLocked
+                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                      : 'bg-slate-950 text-white hover:bg-orange-600'
+                  }`}
+                >
+                  {completed ? (
+                    <span className="flex items-center gap-1.5">
+                      <Check size={15} /> Completed
+                    </span>
+                  ) : isLocked ? (
+                    <span className="flex items-center gap-1.5">
+                      <Lock size={13} className="text-slate-400" /> Watch 80% to Complete ({watchPercentage}%)
+                    </span>
+                  ) : (
+                    'Mark as Complete'
+                  )}
+                </button>
+              );
+            })()}
           </div>
         </div>
 

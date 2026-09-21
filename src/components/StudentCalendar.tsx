@@ -17,7 +17,13 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
-import { listStudentCalendarEvents, type CalendarEvent } from '../lib/courseService';
+import {
+  listStudentCalendarEvents,
+  createStudentStudyReminder,
+  toggleStudyReminder,
+  deleteStudentStudyReminder,
+  type CalendarEvent,
+} from '../lib/courseService';
 
 interface StudentCalendarProps {
   userId: string;
@@ -33,6 +39,8 @@ export function StudentCalendar({ userId, cohortId }: StudentCalendarProps) {
   const [reminderTitle, setReminderTitle] = useState('');
   const [reminderDate, setReminderDate] = useState('');
   const [reminderDesc, setReminderDesc] = useState('');
+  const [reminderType, setReminderType] = useState<'study_block' | 'assignment_prep' | 'review_session' | 'custom'>('study_block');
+  const [savingReminder, setSavingReminder] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [nowTimestamp] = useState(() => Date.now());
   const [refreshKey, setRefreshKey] = useState(0);
@@ -56,45 +64,54 @@ export function StudentCalendar({ userId, cohortId }: StudentCalendarProps) {
     };
   }, [userId, cohortId, refreshKey]);
 
-  const handleAddReminder = (e: React.FormEvent) => {
+  const handleAddReminder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reminderTitle.trim() || !reminderDate) return;
 
-    const newReminder: CalendarEvent = {
-      id: `rem-${Date.now()}`,
-      title: reminderTitle.trim(),
-      description: reminderDesc.trim() || null,
-      type: 'reminder',
-      date: new Date(reminderDate).toISOString(),
-    };
-
+    setSavingReminder(true);
     try {
-      const stored = localStorage.getItem(`student_reminders_${userId}`);
-      const list = stored ? (JSON.parse(stored) as CalendarEvent[]) : [];
-      list.push(newReminder);
-      localStorage.setItem(`student_reminders_${userId}`, JSON.stringify(list));
-    } catch {
-      // ignore
-    }
+      await createStudentStudyReminder({
+        user_id: userId,
+        cohort_id: cohortId || null,
+        title: reminderTitle.trim(),
+        description: reminderDesc.trim() || null,
+        scheduled_at: new Date(reminderDate).toISOString(),
+        reminder_type: reminderType,
+        is_completed: false,
+      });
 
-    setShowAddReminder(false);
-    setReminderTitle('');
-    setReminderDate('');
-    setReminderDesc('');
-    setRefreshKey((k) => k + 1);
+      setShowAddReminder(false);
+      setReminderTitle('');
+      setReminderDate('');
+      setReminderDesc('');
+      setReminderType('study_block');
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      console.warn('Failed to add study reminder:', err);
+    } finally {
+      setSavingReminder(false);
+    }
   };
 
-  const handleDeleteReminder = (id: string) => {
+  const handleToggleReminder = async (id: string, isCompleted: boolean) => {
+    // Optimistic update
+    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, isCompleted } : e)));
     try {
-      const stored = localStorage.getItem(`student_reminders_${userId}`);
-      if (stored) {
-        const list = (JSON.parse(stored) as CalendarEvent[]).filter((item) => item.id !== id);
-        localStorage.setItem(`student_reminders_${userId}`, JSON.stringify(list));
-      }
-    } catch {
-      // ignore
+      await toggleStudyReminder(id, isCompleted, userId);
+    } catch (err) {
+      console.warn('Failed to toggle study reminder:', err);
+      setRefreshKey((k) => k + 1);
     }
+  };
+
+  const handleDeleteReminder = async (id: string) => {
     setEvents((prev) => prev.filter((e) => e.id !== id));
+    try {
+      await deleteStudentStudyReminder(id, userId);
+    } catch (err) {
+      console.warn('Failed to delete reminder:', err);
+      setRefreshKey((k) => k + 1);
+    }
   };
 
   const filteredEvents = useMemo(() => {
@@ -323,7 +340,48 @@ export function StudentCalendar({ userId, cohortId }: StudentCalendarProps) {
 
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="text-sm font-black text-slate-950">{item.title}</h4>
+                        {item.type === 'reminder' && (
+                          <button
+                            type="button"
+                            onClick={() => void handleToggleReminder(item.id, !item.isCompleted)}
+                            className={`flex size-5 shrink-0 items-center justify-center rounded-md border transition ${
+                              item.isCompleted
+                                ? 'border-emerald-500 bg-emerald-500 text-white'
+                                : 'border-slate-300 bg-white text-transparent hover:border-orange-500'
+                            }`}
+                            title={item.isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
+                          >
+                            <Check size={12} className="stroke-[3]" />
+                          </button>
+                        )}
+                        <h4
+                          className={`text-sm font-black transition ${
+                            item.type === 'reminder' && item.isCompleted
+                              ? 'line-through text-slate-400'
+                              : 'text-slate-950'
+                          }`}
+                        >
+                          {item.title}
+                        </h4>
+                        {item.type === 'reminder' && (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              item.isCompleted
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-orange-50 text-orange-700'
+                            }`}
+                          >
+                            {item.isCompleted
+                              ? '✓ Done'
+                              : item.reminderType === 'assignment_prep'
+                              ? 'Rough Cut Prep'
+                              : item.reminderType === 'review_session'
+                              ? 'Critique Review'
+                              : item.reminderType === 'study_block'
+                              ? 'Study Block'
+                              : 'Study Milestone'}
+                          </span>
+                        )}
                         {item.type === 'assignment' && item.status && (
                           <span
                             className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
@@ -546,6 +604,20 @@ export function StudentCalendar({ userId, cohortId }: StudentCalendarProps) {
 
             <div className="mt-4 space-y-4">
               <label className="block text-xs font-bold text-slate-700">
+                Reminder Category
+                <select
+                  value={reminderType}
+                  onChange={(e) => setReminderType(e.target.value as typeof reminderType)}
+                  className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-900 outline-none focus:border-orange-400 font-medium"
+                >
+                  <option value="study_block">📚 Study Block / Deep Work</option>
+                  <option value="assignment_prep">✂️ Assignment Rough Cut &amp; Assembly</option>
+                  <option value="review_session">🎯 Mentor Critique &amp; Rubric Review</option>
+                  <option value="custom">⚡ General Editing Milestone</option>
+                </select>
+              </label>
+
+              <label className="block text-xs font-bold text-slate-700">
                 Reminder Title
                 <input
                   type="text"
@@ -581,10 +653,10 @@ export function StudentCalendar({ userId, cohortId }: StudentCalendarProps) {
             </div>
 
             <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
-              <Button variant="secondary" size="sm" type="button" onClick={() => setShowAddReminder(false)}>
+              <Button variant="secondary" size="sm" type="button" onClick={() => setShowAddReminder(false)} disabled={savingReminder}>
                 Cancel
               </Button>
-              <Button variant="primary" size="sm" type="submit">
+              <Button variant="primary" size="sm" type="submit" loading={savingReminder}>
                 <Check size={14} /> Save Reminder
               </Button>
             </div>
