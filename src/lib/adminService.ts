@@ -669,6 +669,22 @@ export async function updateUserRole(
 ): Promise<UserProfile> {
   const { data: previous } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
 
+  // 1. Attempt validated server-side RPC (protects last super_admin, enforces permissions & emits audit)
+  const { data: rpcData, error: rpcError } = await supabase.rpc('admin_update_user_role', {
+    p_user_id: userId,
+    p_new_role: role,
+    p_new_admin_role: null,
+  });
+
+  if (!rpcError && rpcData) {
+    return rpcData as UserProfile;
+  }
+
+  // 2. Graceful fallback to direct update if RPC is not yet migrated (42883)
+  if (rpcError && (rpcError.code !== '42883' && !rpcError.message.includes('admin_update_user_role'))) {
+    throw rpcError;
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .update({ role, updated_at: new Date().toISOString() })
@@ -691,6 +707,21 @@ export async function updateAdminSubRole(
   adminRole: 'super_admin' | 'content_admin' | 'operations_admin' | 'moderator',
   actorId?: string
 ): Promise<UserProfile> {
+  // 1. Attempt validated server-side RPC
+  const { data: rpcData, error: rpcError } = await supabase.rpc('admin_update_user_role', {
+    p_user_id: userId,
+    p_new_role: 'admin',
+    p_new_admin_role: adminRole,
+  });
+
+  if (!rpcError && rpcData) {
+    return rpcData as UserProfile;
+  }
+
+  if (rpcError && (rpcError.code !== '42883' && !rpcError.message.includes('admin_update_user_role'))) {
+    throw rpcError;
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .update({ admin_role: adminRole, updated_at: new Date().toISOString() })
@@ -711,6 +742,20 @@ export async function updateUserStatus(
   status: 'active' | 'suspended',
   actorId?: string
 ): Promise<UserProfile> {
+  // 1. Attempt validated server-side RPC
+  const { data: rpcData, error: rpcError } = await supabase.rpc('admin_update_user_status', {
+    p_user_id: userId,
+    p_new_status: status,
+  });
+
+  if (!rpcError && rpcData) {
+    return rpcData as UserProfile;
+  }
+
+  if (rpcError && (rpcError.code !== '42883' && !rpcError.message.includes('admin_update_user_status'))) {
+    throw rpcError;
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .update({ status, updated_at: new Date().toISOString() })
@@ -987,6 +1032,21 @@ export async function createAnnouncement(
   title: string,
   body: string
 ): Promise<AdminAnnouncement> {
+  // 1. Attempt validated server-side RPC (verifies author role, input length, and emits audit event)
+  const { data: rpcData, error: rpcError } = await supabase.rpc('publish_announcement', {
+    p_title: title,
+    p_body: body,
+    p_published: true,
+  });
+
+  if (!rpcError && rpcData) {
+    return rpcData as AdminAnnouncement;
+  }
+
+  if (rpcError && (rpcError.code !== '42883' && !rpcError.message.includes('publish_announcement'))) {
+    throw rpcError;
+  }
+
   const { data, error } = await supabase
     .from('announcements')
     .insert({ author_id: authorId, title, body, published: true })

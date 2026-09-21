@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   Award,
@@ -78,10 +78,13 @@ import { CertificateModal } from '../components/CertificateModal';
 import { StudentCalendar } from '../components/StudentCalendar';
 import { CommunityBoard } from '../components/CommunityBoard';
 import { Button } from '../components/ui/Button';
+import { StateFallback } from '../components/ui/StateFallback';
+import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 
 const emptyCourse: StudentCourseData = { cohort: null, modules: [], progress: [], enrolledCohorts: [] };
 
 export function StudentDashboard() {
+  const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
   const [course, setCourse] = useState<StudentCourseData>(emptyCourse);
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
@@ -90,6 +93,7 @@ export function StudentDashboard() {
   const [cohortAssignments, setCohortAssignments] = useState<Assignment[]>([]);
   const [liveSessions, setLiveSessions] = useState<StudentLiveSession[]>([]);
   const [announcements, setAnnouncements] = useState<StudentAnnouncement[]>([]);
+  const [appError, setAppError] = useState<AppError | null>(null);
   const [activeTab, setActiveTab] = useState<
     'curriculum' | 'assignments' | 'calendar' | 'community' | 'sessions' | 'announcements'
   >('curriculum');
@@ -142,9 +146,12 @@ export function StudentDashboard() {
         if (!active) return;
 
         if (courseRes.status === 'rejected') {
+          const parsed = parseDatabaseError(courseRes.reason);
+          setAppError(parsed);
           throw courseRes.reason;
         }
 
+        setAppError(null);
         const partialErrors: string[] = [];
 
         setCourse(courseRes.value);
@@ -187,7 +194,9 @@ export function StudentDashboard() {
         });
       } catch (fetchError: unknown) {
         if (active) {
-          setError(fetchError instanceof Error ? fetchError.message : 'Unable to load course data.');
+          const parsed = parseDatabaseError(fetchError);
+          setAppError(parsed);
+          setError(parsed.message);
         }
       } finally {
         if (active) setLoading(false);
@@ -374,6 +383,131 @@ export function StudentDashboard() {
       }))
       .filter((mod) => mod.lessons.length > 0);
   }, [course.modules, lessonSearchQuery]);
+
+  // Guard 1: Missing Session / Unauthenticated User
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] p-6">
+        <StateFallback
+          type="stale-auth"
+          title="Sign In Required"
+          description="Please sign in to access your video editing timeline, assignments, and cohort workspace."
+          actionText="Sign In"
+          onAction={() => navigate('/login')}
+        />
+      </div>
+    );
+  }
+
+  // Guard 2: Initial Platform Loading State
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 px-6 py-4 backdrop-blur">
+          <div className="mx-auto flex h-[41px] max-w-[1440px] items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-xl bg-orange-500/20 animate-pulse" />
+              <div className="h-4 w-28 rounded-lg bg-slate-200 animate-pulse" />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-24 rounded-full bg-slate-100 animate-pulse" />
+              <div className="size-8 rounded-full bg-slate-100 animate-pulse" />
+            </div>
+          </div>
+        </header>
+        <div className="mx-auto max-w-5xl py-12 px-6">
+          <div className="mb-4 h-6 w-48 rounded-lg bg-slate-200 animate-pulse" />
+          <div className="mb-8 h-10 w-80 rounded-xl bg-slate-200 animate-pulse" />
+          <div className="mb-8 grid gap-4 sm:grid-cols-3">
+            <div className="h-24 rounded-2xl bg-white border border-slate-100 p-4 shadow-2xs animate-pulse" />
+            <div className="h-24 rounded-2xl bg-white border border-slate-100 p-4 shadow-2xs animate-pulse" />
+            <div className="h-24 rounded-2xl bg-white border border-slate-100 p-4 shadow-2xs animate-pulse" />
+          </div>
+          <div className="h-96 rounded-3xl bg-white border border-slate-100 shadow-2xs animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  // Guard 3: Fatal Error / Connection / Permission / Migration Failure
+  if (appError) {
+    return (
+      <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 px-6 py-4 backdrop-blur">
+          <div className="mx-auto flex h-[41px] max-w-[1440px] items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white font-black text-xs">
+                C
+              </span>
+              <span className="text-sm font-black tracking-tight text-slate-950">CUT / CRAFT</span>
+            </div>
+            <button
+              onClick={signOut}
+              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Sign out"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        </header>
+        <div className="mx-auto max-w-2xl py-16 px-6">
+          <StateFallback
+            appError={appError}
+            onAction={() => {
+              setAppError(null);
+              setRefreshKey((k) => k + 1);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Guard 4: Empty Dataset (User enrolled in zero cohorts)
+  if (!course.cohort && course.enrolledCohorts.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 px-6 py-4 backdrop-blur">
+          <div className="mx-auto flex h-[41px] max-w-[1440px] items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white font-black text-xs">
+                C
+              </span>
+              <span className="text-sm font-black tracking-tight text-slate-950">CUT / CRAFT</span>
+            </div>
+            <button
+              onClick={signOut}
+              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Sign out"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        </header>
+        <div className="mx-auto max-w-2xl py-16 px-6 text-center">
+          <StateFallback
+            type="empty"
+            title="Welcome to CUT / CRAFT Cohort Studio"
+            description="You are not currently enrolled in an active video editing cohort. Discover open cohorts to unlock weekly modules, timeline assignments, and mentor feedback."
+            actionText="Explore Open Cohorts"
+            onAction={() => setDiscoveryModalOpen(true)}
+          />
+          {discoveryModalOpen && (
+            <CohortDiscoveryModal
+              userId={user.id}
+              isOpen={discoveryModalOpen}
+              onClose={() => setDiscoveryModalOpen(false)}
+              currentCohortId={undefined}
+              onSelectCohort={(cohortId) => {
+                setSelectedCohortId(cohortId);
+                setRefreshKey((k) => k + 1);
+              }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f6f7f9] text-slate-900">

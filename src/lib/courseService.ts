@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { parseDatabaseError } from './errorHandling';
 
 export interface Cohort {
   id: string;
@@ -511,6 +512,28 @@ export async function listAvailableCohorts(userId: string): Promise<Cohort[]> {
 }
 
 export async function enrollInCohort(userId: string, cohortId: string): Promise<Enrollment> {
+  // 1. Attempt validated server-side RPC (enforces capacity, enrollment window, active user status, and emits audit log)
+  const { data: rpcData, error: rpcError } = await supabase.rpc('enroll_student_in_cohort', {
+    p_cohort_id: cohortId,
+    p_student_id: userId,
+  });
+
+  if (!rpcError && rpcData) {
+    const rawStatus = (rpcData as { status?: string }).status;
+    const status: Enrollment['status'] = rawStatus === 'waitlist' ? 'waitlisted' : 'active';
+    return {
+      user_id: userId,
+      cohort_id: cohortId,
+      status,
+    };
+  }
+
+  // If RPC is missing (42883), fallback to direct table operation
+  if (rpcError && (rpcError.code === '42883' || rpcError.message.includes('enroll_student_in_cohort'))) {
+    return saveEnrollment({ user_id: userId, cohort_id: cohortId, status: 'active' });
+  }
+
+  if (rpcError) throw parseDatabaseError(rpcError);
   return saveEnrollment({ user_id: userId, cohort_id: cohortId, status: 'active' });
 }
 
@@ -572,9 +595,25 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
   };
 }
 
-export async function deleteCohort(id: string) {
-  const { error } = await supabase.from('cohorts').delete().eq('id', id);
-  if (error) throw error;
+export async function deleteCohort(id: string, force: boolean = false) {
+  // 1. Attempt validated server-side RPC (safely archives if active enrollments/submissions exist)
+  const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_cohort', {
+    p_cohort_id: id,
+    p_force: force,
+  });
+
+  if (!rpcError && rpcData) {
+    return rpcData;
+  }
+
+  // 2. Fallback to direct delete if RPC is missing
+  if (rpcError && (rpcError.code === '42883' || rpcError.message.includes('admin_delete_cohort'))) {
+    const { error } = await supabase.from('cohorts').delete().eq('id', id);
+    if (error) throw parseDatabaseError(error);
+    return { success: true, action: 'deleted' };
+  }
+
+  if (rpcError) throw parseDatabaseError(rpcError);
 }
 
 export async function listModules(cohortId?: string): Promise<Module[]> {
@@ -1594,8 +1633,11 @@ export async function listStudentAnnouncements(): Promise<StudentAnnouncement[]>
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.warn('Unable to load announcements:', error);
-    return [];
+    if (error.code === '42P01' || error.message.includes('announcements')) {
+      console.warn('Announcements table not yet migrated, returning empty list');
+      return [];
+    }
+    throw parseDatabaseError(error);
   }
   return (data ?? []) as StudentAnnouncement[];
 }
@@ -1608,8 +1650,11 @@ export async function listStudentLiveSessions(): Promise<StudentLiveSession[]> {
     .order('starts_at', { ascending: true });
 
   if (error) {
-    console.warn('Unable to load live sessions:', error);
-    return [];
+    if (error.code === '42P01' || error.message.includes('live_sessions')) {
+      console.warn('Live sessions table not yet migrated, returning empty list');
+      return [];
+    }
+    throw parseDatabaseError(error);
   }
   return (data ?? []) as StudentLiveSession[];
 }
@@ -1628,7 +1673,10 @@ export async function listStudentNotifications(userId: string): Promise<StudentN
       .select('id, user_id, title, body, read_at, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-    if (legacyError) return [];
+    if (legacyError) {
+      if (legacyError.code === '42P01' || legacyError.message.includes('notifications')) return [];
+      throw parseDatabaseError(legacyError);
+    }
     return (legacy ?? []).map((n) => {
       let cat: 'review' | 'community' | 'deadline' | 'system' = 'system';
       const text = `${n.title} ${n.body}`.toLowerCase();
@@ -1640,8 +1688,11 @@ export async function listStudentNotifications(userId: string): Promise<StudentN
   }
 
   if (error) {
-    console.warn('Unable to load notifications:', error);
-    return [];
+    if (error.code === '42P01' || error.message.includes('notifications')) {
+      console.warn('Notifications table not yet migrated, returning empty list');
+      return [];
+    }
+    throw parseDatabaseError(error);
   }
   return (data ?? []) as StudentNotification[];
 }
