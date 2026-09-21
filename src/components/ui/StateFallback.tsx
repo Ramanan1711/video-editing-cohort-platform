@@ -28,9 +28,11 @@ export interface StateFallbackProps {
   description?: string;
   actionText?: string;
   onAction?: () => void;
+  isRetrying?: boolean;
   secondaryActionText?: string;
   onSecondaryAction?: () => void;
   className?: string;
+  compact?: boolean;
 }
 
 export const StateFallback: React.FC<StateFallbackProps> = ({
@@ -40,9 +42,11 @@ export const StateFallback: React.FC<StateFallbackProps> = ({
   description,
   actionText,
   onAction,
+  isRetrying = false,
   secondaryActionText,
   onSecondaryAction,
   className = '',
+  compact = false,
 }) => {
   const navigate = useNavigate();
 
@@ -132,15 +136,17 @@ export const StateFallback: React.FC<StateFallbackProps> = ({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-sm sm:p-12 ${className}`}
+      className={`flex flex-col items-center justify-center border border-slate-200/80 bg-white text-center shadow-sm ${
+        compact ? 'rounded-2xl p-6 sm:p-8' : 'rounded-3xl p-8 sm:p-12'
+      } ${className}`}
     >
-      <div className="mb-4">{renderIcon()}</div>
+      <div className={compact ? 'mb-2.5 scale-90' : 'mb-4'}>{renderIcon()}</div>
 
-      <h3 className="text-lg sm:text-xl font-black tracking-tight text-slate-950">
+      <h3 className={`${compact ? 'text-base font-black' : 'text-lg sm:text-xl font-black'} tracking-tight text-slate-950`}>
         {resolvedTitle}
       </h3>
 
-      <p className="mt-2 max-w-md text-xs sm:text-sm text-slate-600 leading-relaxed">
+      <p className={`mt-2 max-w-md ${compact ? 'text-xs' : 'text-xs sm:text-sm'} text-slate-600 leading-relaxed`}>
         {resolvedDescription}
       </p>
 
@@ -162,11 +168,12 @@ export const StateFallback: React.FC<StateFallbackProps> = ({
         {resolvedType === 'network' && (
           <button
             type="button"
+            disabled={isRetrying}
             onClick={onAction || (() => window.location.reload())}
-            className="flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-orange-700 transition"
+            className="flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-orange-700 disabled:opacity-60 transition"
           >
-            <RefreshCw size={14} />
-            {actionText || 'Retry Connection'}
+            <RefreshCw size={14} className={isRetrying ? 'animate-spin' : ''} />
+            {isRetrying ? 'Reconnecting...' : (actionText || 'Retry Connection')}
           </button>
         )}
 
@@ -205,11 +212,12 @@ export const StateFallback: React.FC<StateFallbackProps> = ({
         {resolvedType === 'error' && onAction && (
           <button
             type="button"
+            disabled={isRetrying}
             onClick={onAction}
-            className="flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-orange-700 transition"
+            className="flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-orange-700 disabled:opacity-60 transition"
           >
-            <RefreshCw size={14} />
-            {actionText || 'Try Again'}
+            <RefreshCw size={14} className={isRetrying ? 'animate-spin' : ''} />
+            {isRetrying ? 'Retrying...' : (actionText || 'Try Again')}
           </button>
         )}
 

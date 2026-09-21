@@ -34,7 +34,11 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { CurriculumSkeleton } from '../components/ui/Skeletons';
+import { StateFallback } from '../components/ui/StateFallback';
 import { useAuth } from '../context/useAuth';
+import { useToast } from '../context/useToast';
+import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import { logAuditEvent } from '../lib/adminService';
 import { hasAdminPermission, ROLE_LABELS } from '../lib/adminPermissions';
 import {
@@ -140,15 +144,19 @@ type EditorState =
 
 export function AdminCourses() {
   const { user, profile } = useAuth();
+  const toast = useToast();
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [resources, setResources] = useState<LessonResource[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
   const [saving, setSaving] = useState(false);
   const [uploadingStatus, setUploadingStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [appError, setAppError] = useState<AppError | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'review' | 'published' | 'archived'>('all');
@@ -166,7 +174,6 @@ export function AdminCourses() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
 
   const loadData = async () => {
-    setLoading(true);
     try {
       const [cohortsRes, modulesRes, assignmentsRes, resourcesRes] = await Promise.all([
         listCohorts(),
@@ -178,13 +185,18 @@ export function AdminCourses() {
       setModules(modulesRes);
       setAssignments(assignmentsRes);
       setResources(resourcesRes);
+      setError(null);
+      setAppError(null);
       if (cohortsRes.length > 0 && !expandedCohortId) {
         setExpandedCohortId(cohortsRes[0].id);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load course data.');
+      const parsed = parseDatabaseError(err);
+      setAppError(parsed);
+      setError(parsed.message);
     } finally {
       setLoading(false);
+      setRetrying(false);
     }
   };
 
@@ -202,21 +214,34 @@ export function AdminCourses() {
         setModules(modulesRes);
         setAssignments(assignmentsRes);
         setResources(resourcesRes);
+        setError(null);
+        setAppError(null);
         if (cohortsRes.length > 0) {
           setExpandedCohortId((current) => current || cohortsRes[0].id);
         }
       })
       .catch((err: unknown) => {
-        if (active) setError(err instanceof Error ? err.message : 'Unable to load course data.');
+        if (!active) return;
+        const parsed = parseDatabaseError(err);
+        setAppError(parsed);
+        setError(parsed.message);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setRetrying(false);
+        }
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadTrigger]);
+
+  const handleRetry = () => {
+    setRetrying(true);
+    setReloadTrigger((prev) => prev + 1);
+  };
 
   const filteredCohorts = useMemo(() => {
     const term = search.toLowerCase();
@@ -608,9 +633,12 @@ export function AdminCourses() {
 
       setEditor(null);
       setUploadFile(null);
+      toast.success('Curriculum item saved successfully.');
       await loadData();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Unable to save item.');
+      const parsed = parseDatabaseError(saveError);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Save Failed');
     } finally {
       setSaving(false);
       setUploadingStatus(null);
@@ -638,10 +666,14 @@ export function AdminCourses() {
         metadata: { name },
       });
 
-      setSuccess(`Deleted ${type} successfully.`);
+      const msg = `Deleted ${type} "${name}" successfully.`;
+      setSuccess(msg);
+      toast.info(msg);
       await loadData();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : `Unable to delete this ${type}.`);
+      const parsed = parseDatabaseError(deleteError);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Delete Failed');
     }
   };
 
@@ -668,10 +700,14 @@ export function AdminCourses() {
         entity_id: currentMod.id,
         metadata: { title: currentMod.title, direction },
       });
-      setSuccess(`Moved module "${currentMod.title}" ${direction}.`);
+      const msg = `Moved module "${currentMod.title}" ${direction}.`;
+      setSuccess(msg);
+      toast.success(msg);
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reorder module.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Reorder Failed');
     }
   };
 
@@ -695,10 +731,14 @@ export function AdminCourses() {
         entity_id: currentLesson.id,
         metadata: { title: currentLesson.title, direction },
       });
-      setSuccess(`Moved lesson "${currentLesson.title}" ${direction}.`);
+      const msg = `Moved lesson "${currentLesson.title}" ${direction}.`;
+      setSuccess(msg);
+      toast.success(msg);
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reorder lesson.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Reorder Failed');
     }
   };
 
@@ -713,10 +753,14 @@ export function AdminCourses() {
         entity_id: lessonId,
         metadata: { title },
       });
-      setSuccess(`Duplicated "${title}". Created copy in draft status.`);
+      const msg = `Duplicated "${title}". Created copy in draft status.`;
+      setSuccess(msg);
+      toast.success(msg);
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to duplicate lesson.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Duplication Failed');
     }
   };
 
@@ -730,10 +774,14 @@ export function AdminCourses() {
         entity_id: moduleId,
         metadata: { title },
       });
-      setSuccess(`Duplicated module "${title}" and all its lessons.`);
+      const msg = `Duplicated module "${title}" and all its lessons.`;
+      setSuccess(msg);
+      toast.success(msg);
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to duplicate module.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Duplication Failed');
     }
   };
 
@@ -916,11 +964,14 @@ export function AdminCourses() {
 
         {/* Cohorts List */}
         {loading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((n) => (
-              <div key={n} className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-white p-6" />
-            ))}
-          </div>
+          <CurriculumSkeleton />
+        ) : appError && !cohorts.length ? (
+          <StateFallback
+            appError={appError}
+            actionText="Retry Curriculum"
+            onAction={handleRetry}
+            isRetrying={retrying}
+          />
         ) : filteredCohorts.length ? (
           <div className="space-y-6">
             {filteredCohorts.map((cohort) => {
@@ -1578,16 +1629,20 @@ export function AdminCourses() {
             })}
           </div>
         ) : (
-          <Card className="p-12 text-center">
-            <BookOpen className="mx-auto mb-3 text-slate-300" size={32} />
-            <h3 className="text-lg font-black text-slate-950">No cohorts found</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              {search ? 'Try clearing your search query.' : 'Create your first cohort to begin authoring courses.'}
-            </p>
-            <Button onClick={() => openCohortEditor()} className="mt-5">
-              <Plus size={16} /> Create Cohort
-            </Button>
-          </Card>
+          <StateFallback
+            type="empty"
+            title="No cohorts found"
+            description={search ? 'Try clearing your search query.' : 'Create your first cohort to begin authoring courses.'}
+            actionText={search ? 'Reset Search' : 'Create Cohort'}
+            onAction={() => {
+              if (search) {
+                setSearch('');
+                setStatusFilter('all');
+              } else {
+                openCohortEditor();
+              }
+            }}
+          />
         )}
       </main>
 

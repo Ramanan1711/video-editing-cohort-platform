@@ -38,7 +38,11 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { DashboardSkeleton } from '../components/ui/Skeletons';
+import { StateFallback } from '../components/ui/StateFallback';
 import { useAuth } from '../context/useAuth';
+import { useToast } from '../context/useToast';
+import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import { AdminNotificationCenter } from '../components/AdminNotificationCenter';
 import {
   hasAdminPermission,
@@ -117,6 +121,7 @@ type AdminTab =
 
 export function AdminOperations() {
   const { user, profile } = useAuth();
+  const toast = useToast();
   const [tab, setTab] = useState<AdminTab>('overview');
   const [stats, setStats] = useState<AdminStats>(emptyStats);
   const [execMetrics, setExecMetrics] = useState<AdminExecutiveMetrics | null>(null);
@@ -129,7 +134,10 @@ export function AdminOperations() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [appError, setAppError] = useState<AppError | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // User Management state
@@ -240,18 +248,31 @@ export function AdminOperations() {
         setExecMetrics(nextMetrics);
         setAuditLogs(nextLogs);
         setMentorAssignments(nextMentorAssignments);
+        setError(null);
+        setAppError(null);
       })
       .catch((reason: unknown) => {
-        if (active) setError(reason instanceof Error ? reason.message : 'Unable to load administrative operations data.');
+        if (!active) return;
+        const parsed = parseDatabaseError(reason);
+        setAppError(parsed);
+        setError(parsed.message);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setRetrying(false);
+        }
       });
 
     return () => {
       active = false;
     };
-  }, [profile?.role]);
+  }, [profile?.role, reloadTrigger]);
+
+  const handleRetry = () => {
+    setRetrying(true);
+    setReloadTrigger((prev) => prev + 1);
+  };
 
   // --- USER ACTIONS ---
   const handleRoleChange = async (targetUser: UserProfile, newRole: 'student' | 'mentor') => {
@@ -264,11 +285,15 @@ export function AdminOperations() {
     try {
       const updated = await updateUserRole(targetUser.id, newRole, user?.id);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-      setSuccess(`Role for ${targetUser.full_name || targetUser.email} updated to ${newRole}.`);
+      const msg = `Role for ${targetUser.full_name || targetUser.email} updated to ${newRole}.`;
+      setSuccess(msg);
+      toast.success(msg);
       void getAdminStats().then(setStats);
       void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update user role.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Role Update Failed');
     } finally {
       setUpdatingUserId(null);
     }
@@ -282,10 +307,14 @@ export function AdminOperations() {
       setUsers((prev) =>
         prev.map((u) => (u.id === targetUser.id ? { ...u, admin_role: newAdminRole } : u))
       );
-      setSuccess(`Sub-role for ${targetUser.full_name || targetUser.email} set to ${newAdminRole.replace('_', ' ')}.`);
+      const msg = `Sub-role for ${targetUser.full_name || targetUser.email} set to ${newAdminRole.replace('_', ' ')}.`;
+      setSuccess(msg);
+      toast.success(msg);
       void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update administrative sub-role.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Sub-Role Update Failed');
     } finally {
       setUpdatingUserId(null);
     }
@@ -301,10 +330,15 @@ export function AdminOperations() {
     try {
       const updated = await updateUserStatus(targetUser.id, newStatus, user?.id);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-      setSuccess(`Account status for ${targetUser.full_name || targetUser.email} set to ${newStatus}.`);
+      const msg = `Account status for ${targetUser.full_name || targetUser.email} set to ${newStatus}.`;
+      setSuccess(msg);
+      if (newStatus === 'suspended') toast.warning(msg);
+      else toast.success(msg);
       void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update user status.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Status Update Failed');
     } finally {
       setUpdatingUserId(null);
     }
@@ -319,6 +353,7 @@ export function AdminOperations() {
     try {
       await enrollUserInCohort(enrollStudentId, enrollTargetCohortId, 'active', user?.id);
       setSuccess('Student successfully enrolled into cohort.');
+      toast.success('Student successfully enrolled into cohort.');
       setShowEnrollModal(false);
       setEnrollStudentId('');
       setEnrollTargetCohortId('');
@@ -328,7 +363,9 @@ export function AdminOperations() {
       void getAdminExecutiveMetrics().then(setExecMetrics);
       void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to enroll student.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Enrollment Failed');
     } finally {
       setEnrollingUser(false);
     }
@@ -347,10 +384,13 @@ export function AdminOperations() {
         )
       );
       setSuccess('Enrollment status updated.');
+      toast.success(`Enrollment status set to ${status}.`);
       void getAdminExecutiveMetrics().then(setExecMetrics);
       void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update enrollment status.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Update Failed');
     }
   };
 
@@ -366,13 +406,17 @@ export function AdminOperations() {
             !(item.user_id === removalWarningUser.userId && item.cohort_id === removalWarningUser.cohortId)
         )
       );
-      setSuccess(`Removed ${removalWarningUser.studentName} from cohort.`);
+      const msg = `Removed ${removalWarningUser.studentName} from cohort.`;
+      setSuccess(msg);
+      toast.info(msg);
       setRemovalWarningUser(null);
       void getAdminStats().then(setStats);
       void getAdminExecutiveMetrics().then(setExecMetrics);
       void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to remove student from cohort.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Removal Failed');
     } finally {
       setRemovingEnrollment(false);
     }
@@ -393,8 +437,11 @@ export function AdminOperations() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       setSuccess('Enrollment CSV exported successfully.');
+      toast.success('Enrollment CSV exported successfully.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to export CSV.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Export Failed');
     } finally {
       setExportingCsv(false);
     }
@@ -415,8 +462,11 @@ export function AdminOperations() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       setSuccess('User directory CSV exported successfully.');
+      toast.success('User directory CSV exported successfully.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to export users CSV.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Export Failed');
     } finally {
       setExportingUsersCsv(false);
     }
@@ -437,8 +487,11 @@ export function AdminOperations() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       setSuccess('Submissions CSV exported successfully.');
+      toast.success('Submissions CSV exported successfully.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to export submissions CSV.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Export Failed');
     } finally {
       setExportingSubmissionsCsv(false);
     }
@@ -469,9 +522,13 @@ export function AdminOperations() {
       const ids = Array.from(selectedUserIds);
       const res = await bulkUpdateUserStatus(ids, status, user?.id);
       if (res.errors.length > 0) {
-        setError(`Updated ${res.updatedCount} user(s). Note: ${res.errors[0]}`);
+        const warnMsg = `Updated ${res.updatedCount} user(s). Note: ${res.errors[0]}`;
+        setError(warnMsg);
+        toast.warning(warnMsg);
       } else {
-        setSuccess(`Successfully updated ${res.updatedCount} user(s) to ${status}.`);
+        const successMsg = `Successfully updated ${res.updatedCount} user(s) to ${status}.`;
+        setSuccess(successMsg);
+        toast.success(successMsg);
       }
       setSelectedUserIds(new Set());
       const updated = await listUsers();
@@ -479,7 +536,9 @@ export function AdminOperations() {
       void getAdminStats().then(setStats);
       void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to execute bulk user status update.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Bulk Update Failed');
     } finally {
       setBulkUpdatingUsers(false);
     }
@@ -904,14 +963,14 @@ export function AdminOperations() {
         </nav>
 
         {loading ? (
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-28 animate-pulse rounded-2xl bg-white border border-slate-200" />
-              ))}
-            </div>
-            <div className="h-72 animate-pulse rounded-2xl bg-white border border-slate-200" />
-          </div>
+          <DashboardSkeleton cardsCount={4} showChart={true} />
+        ) : appError && stats.users === 0 ? (
+          <StateFallback
+            appError={appError}
+            actionText="Retry Operations Console"
+            onAction={handleRetry}
+            isRetrying={retrying}
+          />
         ) : (
           <>
             {/* TAB 1: SUMMARY DASHBOARD OVERVIEW */}

@@ -19,7 +19,11 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { DashboardSkeleton } from '../components/ui/Skeletons';
+import { StateFallback } from '../components/ui/StateFallback';
 import { useAuth } from '../context/useAuth';
+import { useToast } from '../context/useToast';
+import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import {
   createMentorOfficeHour,
   deleteMentorOfficeHour,
@@ -31,11 +35,15 @@ import {
 
 export function MentorDashboard() {
   const { user, profile } = useAuth();
+  const toast = useToast();
   const [stats, setStats] = useState<MentorDashboardStats | null>(null);
   const [officeHours, setOfficeHours] = useState<MentorOfficeHour[]>([]);
   const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [appError, setAppError] = useState<AppError | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // New office hour modal
@@ -60,20 +68,32 @@ export function MentorDashboard() {
         if (!active) return;
         setStats(dashboardStats);
         setOfficeHours(hours);
+        setError(null);
+        setAppError(null);
       })
       .catch((err) => {
         if (!active) return;
         console.error(err);
-        setError(err instanceof Error ? err.message : 'Unable to load mentor dashboard data.');
+        const parsed = parseDatabaseError(err);
+        setAppError(parsed);
+        setError(parsed.message);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setRetrying(false);
+        }
       });
 
     return () => {
       active = false;
     };
-  }, [user, profile?.role, isMentorOrAdmin]);
+  }, [user, profile?.role, isMentorOrAdmin, reloadTrigger]);
+
+  const handleRetry = () => {
+    setRetrying(true);
+    setReloadTrigger((prev) => prev + 1);
+  };
 
   const handleCreateOfficeHour = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +111,7 @@ export function MentorDashboard() {
       });
 
       setSuccess('Office hour session scheduled successfully.');
+      toast.success('Office hour session scheduled successfully.');
       setShowOfficeHourModal(false);
       setOhTitle('');
       setOhUrl('');
@@ -98,7 +119,9 @@ export function MentorDashboard() {
       const hours = await listMentorOfficeHours(user.id);
       setOfficeHours(hours);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to schedule office hour.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Failed to Schedule Session');
     } finally {
       setSavingOh(false);
     }
@@ -109,8 +132,11 @@ export function MentorDashboard() {
       await deleteMentorOfficeHour(id);
       setOfficeHours((prev) => prev.filter((h) => h.id !== id));
       setSuccess('Office hour removed.');
+      toast.info('Office hour session removed.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove office hour.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Failed to Remove Session');
     }
   };
 
@@ -247,14 +273,7 @@ export function MentorDashboard() {
         )}
 
         {loading ? (
-          <div className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-28 animate-pulse rounded-2xl bg-white border border-slate-200" />
-              ))}
-            </div>
-            <div className="h-64 animate-pulse rounded-2xl bg-white border border-slate-200" />
-          </div>
+          <DashboardSkeleton cardsCount={4} showChart={true} />
         ) : stats ? (
           <div className="space-y-8">
             {/* Unassigned Mentor Zero-State Banner */}
@@ -871,7 +890,23 @@ export function MentorDashboard() {
               </div>
             </Card>
           </div>
-        ) : null}
+        ) : appError ? (
+          <StateFallback
+            appError={appError}
+            actionText="Retry Dashboard"
+            onAction={handleRetry}
+            isRetrying={retrying}
+          />
+        ) : (
+          <StateFallback
+            type="empty"
+            title="No Dashboard Data"
+            description="Unable to display mentor stats. Please check your network connection and try again."
+            actionText="Reload Dashboard"
+            onAction={handleRetry}
+            isRetrying={retrying}
+          />
+        )}
       </main>
 
       {/* Schedule Office Hour Modal */}

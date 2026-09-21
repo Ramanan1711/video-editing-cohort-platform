@@ -9,14 +9,17 @@ import {
   MessageSquare,
   Search,
   Send,
-  Users,
   Video,
   X,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { TableSkeleton } from '../components/ui/Skeletons';
+import { StateFallback } from '../components/ui/StateFallback';
 import { getSecureSubmissionUrl } from '../lib/courseService';
 import { useAuth } from '../context/useAuth';
+import { useToast } from '../context/useToast';
+import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import {
   getMentorAssignedCohorts,
   listDetailedMentorSubmissions,
@@ -28,13 +31,17 @@ import {
 
 export function MentorStudents() {
   const { user, profile } = useAuth();
+  const toast = useToast();
   const [students, setStudents] = useState<MentorStudentProgress[]>([]);
   const [cohorts, setCohorts] = useState<{ id: string; name: string }[]>([]);
   const [selectedCohort, setSelectedCohort] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'attention' | 'on_track' | 'completed'>('all');
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [appError, setAppError] = useState<AppError | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // Selected student detail slide-over
@@ -71,10 +78,19 @@ export function MentorStudents() {
         const studentList = await listMentorStudents(cohortIds.length ? cohortIds : undefined);
         if (!active) return;
         setStudents(studentList);
+        setError(null);
+        setAppError(null);
       } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : 'Unable to load student progress.');
+        if (active) {
+          const parsed = parseDatabaseError(err);
+          setAppError(parsed);
+          setError(parsed.message);
+        }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setRetrying(false);
+        }
       }
     }
 
@@ -82,7 +98,12 @@ export function MentorStudents() {
     return () => {
       active = false;
     };
-  }, [user, profile, isMentorOrAdmin]);
+  }, [user, profile, isMentorOrAdmin, reloadTrigger]);
+
+  const handleRetry = () => {
+    setRetrying(true);
+    setReloadTrigger((prev) => prev + 1);
+  };
 
   // Filter students
   const filteredStudents = useMemo(() => {
@@ -131,11 +152,15 @@ export function MentorStudents() {
         messageBody.trim(),
         messageStudent.cohort_id
       );
-      setSuccess(`Direct note sent to ${messageStudent.student_name}.`);
+      const msg = `Direct note sent to ${messageStudent.student_name}.`;
+      setSuccess(msg);
+      toast.success(msg);
       setMessageStudent(null);
       setMessageBody('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Failed to send note');
     } finally {
       setSendingMessage(false);
     }
@@ -291,11 +316,14 @@ export function MentorStudents() {
 
         {/* Directory Content */}
         {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-24 animate-pulse rounded-2xl bg-white border border-slate-200" />
-            ))}
-          </div>
+          <TableSkeleton rows={6} columns={4} />
+        ) : appError && !students.length ? (
+          <StateFallback
+            appError={appError}
+            actionText="Retry Student Roster"
+            onAction={handleRetry}
+            isRetrying={retrying}
+          />
         ) : filteredStudents.length ? (
           <div className="space-y-3">
             {filteredStudents.map((student) => (
@@ -392,11 +420,17 @@ export function MentorStudents() {
             ))}
           </div>
         ) : (
-          <Card className="p-12 text-center">
-            <Users className="mx-auto text-slate-300 mb-3" size={32} />
-            <p className="text-sm font-bold text-slate-700">No students found</p>
-            <p className="mt-1 text-xs text-slate-400">Try adjusting your filters or search terms.</p>
-          </Card>
+          <StateFallback
+            type="empty"
+            title="No students found"
+            description="No students match the current filter or search criteria. Try adjusting your filters or resetting search terms."
+            actionText="Reset Filters"
+            onAction={() => {
+              setFilterMode('all');
+              setSelectedCohort('all');
+              setSearchQuery('');
+            }}
+          />
         )}
       </main>
 

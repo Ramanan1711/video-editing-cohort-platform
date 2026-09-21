@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -22,8 +22,12 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { ReviewQueueSkeleton } from '../components/ui/Skeletons';
+import { StateFallback } from '../components/ui/StateFallback';
 import { detectResourceType, getSecureSubmissionUrl } from '../lib/courseService';
 import { useAuth } from '../context/useAuth';
+import { useToast } from '../context/useToast';
+import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import {
   escalateSubmissionToAdmin,
   getMentorAssignedCohorts,
@@ -48,6 +52,7 @@ const REVIEW_TEMPLATES = [
 
 export function ReviewSubmissions() {
   const { user, profile } = useAuth();
+  const toast = useToast();
   const [submissions, setSubmissions] = useState<DetailedMentorSubmission[]>([]);
   const [assignedCohorts, setAssignedCohorts] = useState<{ id: string; name: string }[]>([]);
   const [statusTab, setStatusTab] = useState<StatusTab>('pending');
@@ -55,8 +60,11 @@ export function ReviewSubmissions() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('urgency');
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [appError, setAppError] = useState<AppError | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // Per-submission review form state
@@ -112,14 +120,16 @@ export function ReviewSubmissions() {
 
   useEffect(() => {
     if (!isAuthorized || !user) return;
-    const userId = user.id;
     let active = true;
+    const userId = user.id;
 
-    async function loadQueue() {
+    async function fetchQueue() {
       try {
         const cohorts = await getMentorAssignedCohorts(userId, profile?.role || 'mentor');
         if (!active) return;
         setAssignedCohorts(cohorts);
+        setAppError(null);
+        setError(null);
 
         const cohortIds = cohorts.map((c) => c.id);
         const data = await listDetailedMentorSubmissions(profile?.role === 'admin' ? undefined : cohortIds);
@@ -148,17 +158,29 @@ export function ReviewSubmissions() {
         setTimestampedNotes(initialTimestamps);
         setPrivateNotes(initialPrivate);
       } catch (reason: unknown) {
-        if (active) setError(reason instanceof Error ? reason.message : 'Unable to load mentor review queue.');
+        if (!active) return;
+        const parsed = parseDatabaseError(reason);
+        setAppError(parsed);
+        setError(parsed.message);
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setRetrying(false);
+        }
       }
     }
 
-    loadQueue();
+    void fetchQueue();
+
     return () => {
       active = false;
     };
-  }, [user, profile, isAuthorized]);
+  }, [user, profile, isAuthorized, reloadTrigger]);
+
+  const handleRetry = useCallback(() => {
+    setRetrying(true);
+    setReloadTrigger((prev) => prev + 1);
+  }, []);
 
   // Unique cohorts for filtering
   const availableCohorts = useMemo(() => {
@@ -303,49 +325,54 @@ export function ReviewSubmissions() {
     setError(null);
     setSuccess(null);
 
+    const prevSubmissions = submissions;
+    const rubric = rubrics[submission.id] || { storytelling: 4, pacing: 4, audio: 4, color: 4, technical: 4 };
+    const notesArray = timestampedNotes[submission.id] || [];
+    const privateNote = privateNotes[submission.id] || null;
+
+    // Optimistically update queue immediately
+    setSubmissions((current) =>
+      current.map((item) =>
+        item.id === submission.id
+          ? {
+              ...item,
+              status,
+              feedback: notes || item.feedback,
+              detailed_feedback_history: [
+                {
+                  id: `temp-${Date.now()}`,
+                  submission_id: item.id,
+                  mentor_id: user.id,
+                  comments: notes,
+                  rubric,
+                  timestamped_notes: notesArray,
+                  private_notes: privateNote,
+                  created_at: new Date().toISOString(),
+                },
+                ...(item.detailed_feedback_history || []),
+              ],
+            }
+          : item
+      )
+    );
+
+    const toastMsg =
+      status === 'reviewed'
+        ? `Approved and marked reviewed for ${submission.student_name || 'student'}.`
+        : `Requested revision from ${submission.student_name || 'student'}.`;
+
+    setSuccess(toastMsg);
+    toast.success(toastMsg);
+    setFeedbackNotes((prev) => ({ ...prev, [submission.id]: '' }));
+
     try {
-      const rubric = rubrics[submission.id] || { storytelling: 4, pacing: 4, audio: 4, color: 4, technical: 4 };
-      const notesArray = timestampedNotes[submission.id] || [];
-      const privateNote = privateNotes[submission.id] || null;
-
       await submitDetailedReview(submission.id, status, notes, rubric, notesArray, privateNote);
-
-      setSuccess(
-        status === 'reviewed'
-          ? `Approved and marked reviewed for ${submission.student_name || 'student'}.`
-          : `Requested revision from ${submission.student_name || 'student'}.`
-      );
-
-      // Optimistically update queue
-      setSubmissions((current) =>
-        current.map((item) =>
-          item.id === submission.id
-            ? {
-                ...item,
-                status,
-                feedback: notes || item.feedback,
-                detailed_feedback_history: [
-                  {
-                    id: `temp-${Date.now()}`,
-                    submission_id: item.id,
-                    mentor_id: user.id,
-                    comments: notes,
-                    rubric,
-                    timestamped_notes: notesArray,
-                    private_notes: privateNote,
-                    created_at: new Date().toISOString(),
-                  },
-                  ...(item.detailed_feedback_history || []),
-                ],
-              }
-            : item
-        )
-      );
-
-      // Clear input
-      setFeedbackNotes((prev) => ({ ...prev, [submission.id]: '' }));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Unable to review submission.');
+      // Rollback on network or DB error
+      setSubmissions(prevSubmissions);
+      const parsed = parseDatabaseError(reason);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Review Submission Failed');
     } finally {
       setSavingId(null);
     }
@@ -360,7 +387,9 @@ export function ReviewSubmissions() {
       setSubmittingEscalation(true);
       const fullReason = `${escalationReason}: ${escalationDetail}`.trim();
       await escalateSubmissionToAdmin(escalatingSubmission.id, user.id, fullReason);
-      setSuccess(`Submission flagged and escalated to Administration.`);
+      const msg = `Submission flagged and escalated to Administration.`;
+      setSuccess(msg);
+      toast.success(msg);
       setSubmissions((prev) =>
         prev.map((s) =>
           s.id === escalatingSubmission.id
@@ -371,7 +400,9 @@ export function ReviewSubmissions() {
       setEscalatingSubmission(null);
       setEscalationDetail('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to escalate submission.');
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Escalation Failed');
     } finally {
       setSubmittingEscalation(false);
     }
@@ -543,11 +574,14 @@ export function ReviewSubmissions() {
 
         {/* Queue Content */}
         {loading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="h-64 animate-pulse rounded-2xl bg-white border border-slate-200 p-6" />
-            ))}
-          </div>
+          <ReviewQueueSkeleton />
+        ) : appError && submissions.length === 0 ? (
+          <StateFallback
+            appError={appError}
+            actionText="Retry Review Queue"
+            onAction={handleRetry}
+            isRetrying={retrying}
+          />
         ) : profile?.role !== 'admin' && assignedCohorts.length === 0 ? (
           <Card className="p-10 text-center max-w-lg mx-auto border border-amber-200 bg-amber-50/40">
             <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 mb-4 shadow-2xs">
@@ -1030,7 +1064,7 @@ export function ReviewSubmissions() {
                                           ? 'Advanced'
                                           : 'Mastered'
                                       })`}
-                                      className={`size-6 rounded-md text-xs font-bold transition ${
+                                      className={`h-8 w-full sm:h-7 sm:w-7 rounded-lg text-xs font-bold transition touch-manipulation ${
                                         scoreVal >= score
                                           ? 'bg-orange-500 text-white'
                                           : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
@@ -1099,23 +1133,23 @@ export function ReviewSubmissions() {
                       </div>
 
                       {/* Action Bar */}
-                      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                      <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100 pt-4">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setEscalatingSubmission(submission)}
-                          className="text-xs text-slate-500 hover:text-red-700"
+                          className="w-full sm:w-auto text-xs text-slate-500 hover:text-red-700 justify-center"
                         >
                           <Flag size={13} /> Escalate to Admin
                         </Button>
 
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
                           <Button
                             variant="secondary"
                             size="sm"
                             onClick={() => void review(submission, 'resubmit')}
                             loading={savingId === submission.id}
-                            className="text-xs font-bold text-amber-800 hover:text-amber-900"
+                            className="w-full sm:w-auto text-xs font-bold text-amber-800 hover:text-amber-900 justify-center"
                           >
                             <RotateCcw size={14} /> Request Revision (Resubmit)
                           </Button>
@@ -1125,7 +1159,7 @@ export function ReviewSubmissions() {
                             size="sm"
                             onClick={() => void review(submission, 'reviewed')}
                             loading={savingId === submission.id}
-                            className="text-xs font-bold"
+                            className="w-full sm:w-auto text-xs font-bold justify-center"
                           >
                             <Check size={14} /> Approve &amp; Mark Reviewed
                           </Button>
@@ -1138,13 +1172,17 @@ export function ReviewSubmissions() {
             })}
           </div>
         ) : (
-          <Card className="p-16 text-center">
-            <Check className="mx-auto text-emerald-500 mb-3" size={36} />
-            <h2 className="text-xl font-black text-slate-950">Review Queue is Clear</h2>
-            <p className="mt-1.5 text-xs text-slate-500 max-w-sm mx-auto">
-              No submissions match the current filter. When students upload challenge edits, they will appear here.
-            </p>
-          </Card>
+          <StateFallback
+            type="empty"
+            title="Review Queue is Clear"
+            description="No submissions match the current filter. When students upload challenge edits, they will appear here."
+            actionText="Reset Filters"
+            onAction={() => {
+              setStatusTab('all');
+              setSelectedCohort('all');
+              setSearchQuery('');
+            }}
+          />
         )}
       </main>
 
