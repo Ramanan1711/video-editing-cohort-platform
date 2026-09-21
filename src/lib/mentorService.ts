@@ -245,6 +245,57 @@ export function calculateSLA(
   return { waitingHours, status };
 }
 
+export interface RubricReviewTemplate {
+  id: string;
+  name: string;
+  stage: string;
+  scores: RubricScore;
+  suggestedComments: string;
+}
+
+export const RUBRIC_REVIEW_TEMPLATES: RubricReviewTemplate[] = [
+  {
+    id: 'rough-cut',
+    name: 'Rough Cut Assembly',
+    stage: 'Draft / Assembly',
+    scores: { storytelling: 3, pacing: 3, audio: 2, color: 2, technical: 3 },
+    suggestedComments:
+      'Good initial assembly and story spine established. Focus next pass on dialogue audio levels and tightening jump cuts in scene transitions.',
+  },
+  {
+    id: 'pacing-rhythm',
+    name: 'Pacing & Narrative Flow',
+    stage: 'Intermediate Cut',
+    scores: { storytelling: 4, pacing: 4, audio: 3, color: 3, technical: 4 },
+    suggestedComments:
+      'Scene pacing breathes much better. Consider trimming 6-8 frames before dramatic beats to maximize emotional impact. Dialogue audio ducking needed.',
+  },
+  {
+    id: 'sound-design',
+    name: 'Audio & Sound Design Mix',
+    stage: 'Audio Pass',
+    scores: { storytelling: 4, pacing: 4, audio: 5, color: 3, technical: 4 },
+    suggestedComments:
+      'Excellent dynamic range and atmospheric foley. Audio mix levels sit cleanly at -6dB peaks with room tone properly bridged.',
+  },
+  {
+    id: 'color-grading',
+    name: 'Color Grading & Look',
+    stage: 'Color / Polish',
+    scores: { storytelling: 4, pacing: 4, audio: 4, color: 5, technical: 4 },
+    suggestedComments:
+      'Skin tones are properly isolated on vectorscope. Contrast curve and LUT application maintain consistent shadow roll-off across all setups.',
+  },
+  {
+    id: 'picture-lock',
+    name: 'Picture Lock & Master Approved',
+    stage: 'Final Master',
+    scores: { storytelling: 5, pacing: 5, audio: 5, color: 5, technical: 5 },
+    suggestedComments:
+      'Outstanding work! Narrative arc, rhythmic pacing, audio mix, and color grading all hit broadcast/festival standard. Approved with distinction.',
+  },
+];
+
 export async function listDetailedMentorSubmissions(
   allowedCohortIds?: string[]
 ): Promise<DetailedMentorSubmission[]> {
@@ -259,6 +310,10 @@ export async function listDetailedMentorSubmissions(
     const { data: modules } = await supabase
       .from('modules')
       .select('id, cohort_id')
+    // Optimized direct cohort query
+    const { data: cohortAssignments, error: directErr } = await supabase
+      .from('assignments')
+      .select('id')
       .in('cohort_id', allowedCohortIds);
     const moduleIds = (modules ?? []).map((m) => m.id);
     if (moduleIds.length === 0) return [];
@@ -276,6 +331,31 @@ export async function listDetailedMentorSubmissions(
       .in('lesson_id', lessonIds);
     scopedAssignmentIds = (assignments ?? []).map((a) => a.id);
     if (scopedAssignmentIds.length === 0) return [];
+    if (!directErr && cohortAssignments && cohortAssignments.length > 0) {
+      scopedAssignmentIds = cohortAssignments.map((a) => a.id);
+    } else {
+      // Graceful fallback in case of legacy assignments linked only via module/lesson
+      const { data: modules } = await supabase
+        .from('modules')
+        .select('id')
+        .in('cohort_id', allowedCohortIds);
+      const moduleIds = (modules ?? []).map((m) => m.id);
+      if (moduleIds.length > 0) {
+        const { data: lessons } = await supabase
+          .from('lessons')
+          .select('id')
+          .in('module_id', moduleIds);
+        const lessonIds = (lessons ?? []).map((l) => l.id);
+        if (lessonIds.length > 0) {
+          const { data: legacyAssignments } = await supabase
+            .from('assignments')
+            .select('id')
+            .in('lesson_id', lessonIds);
+          scopedAssignmentIds = (legacyAssignments ?? []).map((a) => a.id);
+        }
+      }
+    }
+    if (!scopedAssignmentIds || scopedAssignmentIds.length === 0) return [];
   }
 
   let subQuery = supabase

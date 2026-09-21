@@ -4,6 +4,7 @@ import {
   Activity,
   AlertTriangle,
   Award,
+  Ban,
   BookOpen,
   Calendar,
   CalendarDays,
@@ -48,6 +49,7 @@ import {
 import {
   assignMentorToCohort,
   bulkEnrollStudents,
+  bulkUpdateUserStatus,
   createAnnouncement,
   createLiveSession,
   deleteAnnouncement,
@@ -56,6 +58,8 @@ import {
   enrollUserInCohort,
   exportAuditLogsCSV,
   exportEnrollmentsCSV,
+  exportSubmissionsCSV,
+  exportUsersCSV,
   getAdminExecutiveMetrics,
   getAdminStats,
   getBulkEnrollmentTemplateCSV,
@@ -133,6 +137,10 @@ export function AdminOperations() {
   const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'mentor' | 'admin'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [bulkUpdatingUsers, setBulkUpdatingUsers] = useState(false);
+  const [exportingUsersCsv, setExportingUsersCsv] = useState(false);
+  const [exportingSubmissionsCsv, setExportingSubmissionsCsv] = useState(false);
 
   // Enrollment Management state
   const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
@@ -389,6 +397,91 @@ export function AdminOperations() {
       setError(err instanceof Error ? err.message : 'Failed to export CSV.');
     } finally {
       setExportingCsv(false);
+    }
+  };
+
+  const handleExportUsers = async () => {
+    setExportingUsersCsv(true);
+    setError(null);
+    try {
+      const csv = await exportUsersCSV();
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `platform-users-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setSuccess('User directory CSV exported successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export users CSV.');
+    } finally {
+      setExportingUsersCsv(false);
+    }
+  };
+
+  const handleExportSubmissions = async () => {
+    setExportingSubmissionsCsv(true);
+    setError(null);
+    try {
+      const csv = await exportSubmissionsCSV(selectedCohortId === 'all' ? undefined : selectedCohortId);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `student-submissions-${selectedCohortId}-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setSuccess('Submissions CSV exported successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export submissions CSV.');
+    } finally {
+      setExportingSubmissionsCsv(false);
+    }
+  };
+
+  const handleToggleSelectUser = (id: string) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleToggleSelectAllUsers = (visibleIds: string[]) => {
+    setSelectedUserIds((prev) => {
+      const allSelected = visibleIds.length > 0 && visibleIds.every((id) => prev.has(id));
+      if (allSelected) return new Set();
+      return new Set(visibleIds);
+    });
+  };
+
+  const handleBulkUserStatus = async (status: 'active' | 'suspended') => {
+    if (selectedUserIds.size === 0) return;
+    setBulkUpdatingUsers(true);
+    setError(null);
+    try {
+      const ids = Array.from(selectedUserIds);
+      const res = await bulkUpdateUserStatus(ids, status, user?.id);
+      if (res.errors.length > 0) {
+        setError(`Updated ${res.updatedCount} user(s). Note: ${res.errors[0]}`);
+      } else {
+        setSuccess(`Successfully updated ${res.updatedCount} user(s) to ${status}.`);
+      }
+      setSelectedUserIds(new Set());
+      const updated = await listUsers();
+      setUsers(updated);
+      void getAdminStats().then(setStats);
+      void listAuditLogs({ limit: 100 }).then(setAuditLogs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to execute bulk user status update.');
+    } finally {
+      setBulkUpdatingUsers(false);
     }
   };
 
@@ -1180,6 +1273,66 @@ export function AdminOperations() {
                 </Link>
               </div>
             </Card>
+
+            {/* Live Operational Activity Stream */}
+            <Card className="p-5 border-slate-200">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                    <Activity size={15} />
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-950">Live Operational Activity Stream</h3>
+                    <p className="text-xs text-slate-500">Real-time platform operations and system events across all cohorts.</p>
+                  </div>
+                </div>
+                {canViewAuditLogs && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setTab('audit')}
+                    className="text-xs font-bold"
+                  >
+                    View Complete Audit Trail →
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-4 divide-y divide-slate-100">
+                {auditLogs.slice(0, 8).map((log) => (
+                  <div key={log.id} className="flex items-center justify-between py-3 text-xs">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold">
+                        {log.action.startsWith('user') ? (
+                          <UserCheck size={14} />
+                        ) : log.action.startsWith('cohort') ? (
+                          <Layers size={14} />
+                        ) : log.action.startsWith('announcement') ? (
+                          <Megaphone size={14} />
+                        ) : (
+                          <Activity size={14} />
+                        )}
+                      </span>
+                      <div>
+                        <p className="font-bold text-slate-900">
+                          <span className="font-semibold text-slate-600">{log.actor_name || 'System'}</span>:{' '}
+                          <span className="capitalize">{log.action.replace(/\./g, ' › ').replace(/_/g, ' ')}</span>
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-mono">
+                          {log.entity_type} {log.entity_id ? `• ${log.entity_id.slice(0, 8)}...` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
+                      {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {new Date(log.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                ))}
+                {!auditLogs.length && (
+                  <p className="py-6 text-center text-xs text-slate-400">No operational activities recorded recently.</p>
+                )}
+              </div>
+            </Card>
           </div>
         )}
 
@@ -1523,6 +1676,16 @@ export function AdminOperations() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={exportingUsersCsv}
+                  onClick={handleExportUsers}
+                  className="text-xs font-bold"
+                >
+                  <Download size={13} /> Export Users
+                </Button>
+
                 <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs shadow-2xs">
                   <Search size={14} className="text-slate-400" />
                   <input
@@ -1556,6 +1719,63 @@ export function AdminOperations() {
               </div>
             </div>
 
+            {/* Bulk User Actions Bar */}
+            {filteredUsers.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-2.5">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={
+                      filteredUsers.filter((u) => u.id !== user?.id).length > 0 &&
+                      filteredUsers
+                        .filter((u) => u.id !== user?.id)
+                        .every((u) => selectedUserIds.has(u.id))
+                    }
+                    onChange={() =>
+                      handleToggleSelectAllUsers(
+                        filteredUsers.filter((u) => u.id !== user?.id).map((u) => u.id)
+                      )
+                    }
+                    className="size-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span>Select All ({filteredUsers.filter((u) => u.id !== user?.id).length})</span>
+                </label>
+
+                {selectedUserIds.size > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-black text-orange-950 bg-orange-100/70 px-2 py-1 rounded-md">
+                      {selectedUserIds.size} Selected
+                    </span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={bulkUpdatingUsers}
+                      onClick={() => handleBulkUserStatus('active')}
+                      className="text-[11px] font-bold"
+                    >
+                      <CheckCircle2 size={12} className="text-emerald-600" /> Activate
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={bulkUpdatingUsers}
+                      onClick={() => handleBulkUserStatus('suspended')}
+                      className="text-[11px] font-bold text-rose-700"
+                    >
+                      <Ban size={12} className="text-rose-600" /> Suspend
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedUserIds(new Set())}
+                      className="text-[11px] font-medium text-slate-500 hover:text-slate-800 underline ml-1"
+                    >
+                      Deselect
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="mt-6 divide-y divide-slate-100">
               {filteredUsers.length ? (
                 filteredUsers.map((item) => {
@@ -1566,6 +1786,15 @@ export function AdminOperations() {
                   return (
                     <div key={item.id} className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center">
                       <div className="flex items-center gap-3">
+                        {!isSelf && (
+                          <input
+                            type="checkbox"
+                            checked={selectedUserIds.has(item.id)}
+                            onChange={() => handleToggleSelectUser(item.id)}
+                            className="size-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 shrink-0"
+                            aria-label={`Select ${item.full_name || item.email}`}
+                          />
+                        )}
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 font-bold text-slate-700">
                           {item.full_name?.charAt(0).toUpperCase() || item.email?.charAt(0).toUpperCase() || 'U'}
                         </div>
@@ -1718,8 +1947,21 @@ export function AdminOperations() {
                   loading={exportingCsv}
                   onClick={() => void handleExportCSV()}
                   className="text-xs font-bold"
+                  title="Export cohort enrollments as CSV"
                 >
                   <Download size={14} /> Export CSV
+                  <Download size={14} /> Export Enrollments
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={exportingSubmissionsCsv}
+                  onClick={() => void handleExportSubmissions()}
+                  className="text-xs font-bold"
+                  title="Export student submissions as CSV"
+                >
+                  <Download size={14} /> Export Submissions
                 </Button>
 
                 {canManageEnrollments && (

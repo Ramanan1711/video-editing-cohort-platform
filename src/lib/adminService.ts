@@ -772,6 +772,33 @@ export async function updateUserStatus(
   return data as UserProfile;
 }
 
+export async function bulkUpdateUserStatus(
+  userIds: string[],
+  status: 'active' | 'suspended',
+  actorId?: string
+): Promise<{ updatedCount: number; errors: string[] }> {
+  let updatedCount = 0;
+  const errors: string[] = [];
+
+  for (const userId of userIds) {
+    try {
+      await updateUserStatus(userId, status, actorId);
+      updatedCount++;
+    } catch (err) {
+      errors.push(`Failed for ${userId}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  void logAuditEvent(actorId || null, 'user.bulk_status_changed', 'user', null, {
+    target_count: userIds.length,
+    updated_count: updatedCount,
+    status,
+    errors_count: errors.length,
+  });
+
+  return { updatedCount, errors };
+}
+
 // ============================================================================
 // 4. Cohort Enrollment Management & Enterprise Operations
 // ============================================================================
@@ -989,6 +1016,79 @@ export async function exportAuditLogsCSV(actionFilter?: string): Promise<string>
     `"${(l.entity_id || '').replace(/"/g, '""')}"`,
     `"${JSON.stringify(l.metadata || {}).replace(/"/g, '""')}"`,
   ]);
+
+  return [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+}
+
+export async function exportUsersCSV(): Promise<string> {
+  const users = await listUsers();
+  const header = ['ID', 'Full Name', 'Email', 'Role', 'Admin Sub-Role', 'Status', 'Joined Date'];
+  const rows = users.map((u) => [
+    `"${u.id}"`,
+    `"${(u.full_name || '').replace(/"/g, '""')}"`,
+    `"${u.email.replace(/"/g, '""')}"`,
+    u.role,
+    u.admin_role || 'N/A',
+    u.status,
+    u.created_at ? `"${new Date(u.created_at).toLocaleDateString()}"` : '""',
+  ]);
+
+  return [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+}
+
+export async function exportSubmissionsCSV(cohortId?: string): Promise<string> {
+  const { data: rawSubs, error } = await supabase
+    .from('submissions')
+    .select('id, student_id, assignment_id, status, version, is_late, created_at, updated_at')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  if (!rawSubs || rawSubs.length === 0) {
+    return 'Student Name,Student Email,Cohort,Assignment,Status,Version,Is Late,Submitted At\n';
+  }
+
+  const studentIds = Array.from(new Set(rawSubs.map((s) => s.student_id)));
+  const assignmentIds = Array.from(new Set(rawSubs.map((s) => s.assignment_id)));
+
+  const [{ data: profiles }, { data: assignments }] = await Promise.all([
+    supabase.from('profiles').select('id, full_name, email').in('id', studentIds),
+    supabase.from('assignments').select('id, title, cohort_id, cohorts(title)').in('id', assignmentIds),
+  ]);
+
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const assignmentMap = new Map(
+    (assignments ?? []).map((a) => {
+      const cohortObj = a.cohorts as unknown as { title?: string } | null;
+      return [
+        a.id,
+        {
+          title: a.title,
+          cohort_id: a.cohort_id,
+          cohort_title: cohortObj?.title || 'Cohort',
+        },
+      ];
+    })
+  );
+
+  const filteredSubs = cohortId
+    ? rawSubs.filter((s) => assignmentMap.get(s.assignment_id)?.cohort_id === cohortId)
+    : rawSubs;
+
+  const header = ['Student Name', 'Student Email', 'Cohort', 'Assignment', 'Status', 'Version', 'Is Late', 'Submitted At'];
+  const rows = filteredSubs.map((s) => {
+    const student = profileMap.get(s.student_id);
+    const assign = assignmentMap.get(s.assignment_id);
+    return [
+      `"${(student?.full_name || 'Student').replace(/"/g, '""')}"`,
+      `"${(student?.email || '').replace(/"/g, '""')}"`,
+      `"${(assign?.cohort_title || 'Cohort').replace(/"/g, '""')}"`,
+      `"${(assign?.title || 'Assignment').replace(/"/g, '""')}"`,
+      s.status,
+      s.version ?? 1,
+      s.is_late ? 'Yes' : 'No',
+      s.created_at ? `"${new Date(s.created_at).toISOString()}"` : '""',
+    ];
+  });
 
   return [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
 }

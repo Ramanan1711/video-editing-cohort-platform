@@ -29,6 +29,7 @@ import {
   getMentorAssignedCohorts,
   listDetailedMentorSubmissions,
   submitDetailedReview,
+  RUBRIC_REVIEW_TEMPLATES,
   type DetailedMentorSubmission,
   type RubricScore,
   type TimestampedNote,
@@ -799,9 +800,24 @@ export function ReviewSubmissions() {
                             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                 <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-mono font-bold text-white">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const vid = videoRefs.current[submission.id];
+                                    if (vid) {
+                                      setActivePlaybackTime((prev) => ({
+                                        ...prev,
+                                        [submission.id]: vid.currentTime,
+                                      }));
+                                    }
+                                  }}
+                                  title="Click to capture current video playhead"
+                                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-mono font-bold text-white hover:bg-slate-800 transition"
+                                >
                                   <Clock size={12} className="text-orange-400" />
                                   {formatTimecode(activePlaybackTime[submission.id] || 0)}
                                 </span>
+                                </button>
 
                                 <select
                                   value={activeNoteCat[submission.id] || 'pacing'}
@@ -937,6 +953,54 @@ export function ReviewSubmissions() {
                               </span>
                             );
                           })()}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select
+                              defaultValue=""
+                              onChange={(e) => {
+                                const tplId = e.target.value;
+                                if (!tplId) return;
+                                const tpl = RUBRIC_REVIEW_TEMPLATES.find((t) => t.id === tplId);
+                                if (!tpl) return;
+                                setRubrics((prev) => ({
+                                  ...prev,
+                                  [submission.id]: { ...tpl.scores },
+                                }));
+                                setFeedbackNotes((prev) => {
+                                  const current = prev[submission.id]?.trim() || '';
+                                  if (!current) return { ...prev, [submission.id]: tpl.suggestedComments };
+                                  return { ...prev, [submission.id]: `${current}\n\n[${tpl.name}]: ${tpl.suggestedComments}` };
+                                });
+                                e.target.value = '';
+                              }}
+                              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-700 outline-none hover:border-orange-300 focus:border-orange-500"
+                            >
+                              <option value="">Apply Rubric Template...</option>
+                              {RUBRIC_REVIEW_TEMPLATES.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.name} ({t.stage})
+                                </option>
+                              ))}
+                            </select>
+
+                            {(() => {
+                              const avg = Math.round((rubricTotal / 5) * 10) / 10;
+                              let grade = 'Needs Revision';
+                              if (avg >= 4.8) grade = 'A+ (Exemplary)';
+                              else if (avg >= 4.3) grade = 'A (Excellent)';
+                              else if (avg >= 3.8) grade = 'B+ (Proficient)';
+                              else if (avg >= 3.3) grade = 'B (Competent)';
+                              else if (avg >= 2.5) grade = 'C (Developing)';
+                              return (
+                                <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2.5 py-1 text-xs font-black text-orange-700">
+                                  <span>Avg: {avg} / 5.0</span>
+                                  <span className="opacity-40">•</span>
+                                  <span>{grade}</span>
+                                  <span className="opacity-40">•</span>
+                                  <span className="text-[10px] font-bold text-orange-600">({rubricTotal}/25)</span>
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5 text-xs">
