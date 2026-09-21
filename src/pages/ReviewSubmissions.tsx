@@ -12,6 +12,7 @@ import {
   Flag,
   History,
   Image as ImageIcon,
+  Layers,
   Lock,
   RotateCcw,
   Search,
@@ -47,6 +48,7 @@ const REVIEW_TEMPLATES = [
 export function ReviewSubmissions() {
   const { user, profile } = useAuth();
   const [submissions, setSubmissions] = useState<DetailedMentorSubmission[]>([]);
+  const [assignedCohorts, setAssignedCohorts] = useState<{ id: string; name: string }[]>([]);
   const [statusTab, setStatusTab] = useState<StatusTab>('pending');
   const [selectedCohort, setSelectedCohort] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,9 +93,10 @@ export function ReviewSubmissions() {
       try {
         const cohorts = await getMentorAssignedCohorts(user!.id, profile?.role || 'mentor');
         if (!active) return;
+        setAssignedCohorts(cohorts);
 
         const cohortIds = cohorts.map((c) => c.id);
-        const data = await listDetailedMentorSubmissions(cohortIds.length ? cohortIds : undefined);
+        const data = await listDetailedMentorSubmissions(profile?.role === 'admin' ? undefined : cohortIds);
         if (!active) return;
         setSubmissions(data);
 
@@ -519,6 +522,21 @@ export function ReviewSubmissions() {
               <div key={item} className="h-64 animate-pulse rounded-2xl bg-white border border-slate-200 p-6" />
             ))}
           </div>
+        ) : profile?.role !== 'admin' && assignedCohorts.length === 0 ? (
+          <Card className="p-10 text-center max-w-lg mx-auto border border-amber-200 bg-amber-50/40">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 mb-4 shadow-2xs">
+              <Layers size={24} />
+            </div>
+            <h2 className="text-lg font-black text-slate-950">No Cohorts Assigned</h2>
+            <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+              Your mentor account is not currently assigned to any active cohort review rosters. Once a platform administrator assigns you to a cohort, student submissions will appear here for grading and feedback.
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <Link to="/mentor">
+                <Button variant="secondary" size="sm">Mentor Command Center →</Button>
+              </Link>
+            </div>
+          </Card>
         ) : filteredSubmissions.length ? (
           <div className="space-y-8">
             {filteredSubmissions.map((submission) => {
@@ -590,21 +608,34 @@ export function ReviewSubmissions() {
                           )}
 
                           {/* Waiting time SLA Indicator */}
-                          {submission.status === 'pending' && (
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                                submission.sla_status === 'overdue'
-                                  ? 'bg-red-100 text-red-700'
-                                  : submission.sla_status === 'warning'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-emerald-100 text-emerald-800'
-                              }`}
-                            >
-                              <Clock size={10} />
-                              {submission.waiting_time_hours}h in queue{' '}
-                              {submission.sla_status === 'overdue' ? '(Overdue SLA)' : ''}
-                            </span>
-                          )}
+                          {submission.status === 'pending' && (() => {
+                            const targetHours = submission.sla_target_hours || 24;
+                            const waiting = submission.waiting_time_hours || 0;
+                            const diff = targetHours - waiting;
+                            const isOverdue = diff <= 0;
+                            const absDiff = Math.abs(diff);
+                            const diffHours = Math.floor(absDiff);
+                            const diffMins = Math.round((absDiff - diffHours) * 60);
+                            const timeLabel = isOverdue
+                              ? `Overdue by ${diffHours}h ${diffMins}m`
+                              : `${diffHours}h ${diffMins}m remaining`;
+
+                            return (
+                              <span
+                                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-[10px] font-black ${
+                                  submission.sla_status === 'overdue'
+                                    ? 'bg-red-100 text-red-700 border border-red-200'
+                                    : submission.sla_status === 'warning'
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                }`}
+                              >
+                                <Clock size={11} className={submission.sla_status === 'overdue' ? 'animate-pulse text-red-600' : ''} />
+                                <span>{timeLabel}</span>
+                                <span className="font-normal opacity-75">({waiting}h in queue)</span>
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -855,48 +886,93 @@ export function ReviewSubmissions() {
 
                       {/* 5-Axis Rubric Matrix Scoring */}
                       <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
                           <div className="flex items-center gap-2">
                             <Sliders size={14} className="text-orange-600" />
                             <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
-                              Rubric Assessment
+                              Rubric Assessment (5-Point Standardized Matrix)
                             </h4>
                           </div>
-                          <span className="rounded-md bg-orange-50 px-2 py-0.5 text-xs font-black text-orange-700">
-                            Composite Score: {rubricTotal} / 25 ({Math.round((rubricTotal / 25) * 100)}%)
-                          </span>
+                          {(() => {
+                            const avg = Math.round((rubricTotal / 5) * 10) / 10;
+                            let grade = 'Needs Revision';
+                            if (avg >= 4.8) grade = 'A+ (Exemplary)';
+                            else if (avg >= 4.3) grade = 'A (Excellent)';
+                            else if (avg >= 3.8) grade = 'B+ (Proficient)';
+                            else if (avg >= 3.3) grade = 'B (Competent)';
+                            else if (avg >= 2.5) grade = 'C (Developing)';
+                            return (
+                              <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2.5 py-1 text-xs font-black text-orange-700">
+                                <span>Avg: {avg} / 5.0</span>
+                                <span className="opacity-40">•</span>
+                                <span>{grade}</span>
+                                <span className="opacity-40">•</span>
+                                <span className="text-[10px] font-bold text-orange-600">({rubricTotal}/25)</span>
+                              </span>
+                            );
+                          })()}
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5 text-xs">
                           {(
                             [
-                              { key: 'storytelling', label: 'Storytelling' },
+                              { key: 'storytelling', label: 'Storytelling & Arc' },
                               { key: 'pacing', label: 'Pacing & Rhythm' },
-                              { key: 'audio', label: 'Audio Mix' },
-                              { key: 'color', label: 'Color Grade' },
+                              { key: 'audio', label: 'Audio & Sound' },
+                              { key: 'color', label: 'Color & Tone' },
                               { key: 'technical', label: 'Technical Polish' },
                             ] as const
-                          ).map(({ key, label }) => (
-                            <div key={key} className="rounded-lg bg-slate-50 p-2.5">
-                              <p className="font-bold text-slate-700 text-[11px]">{label}</p>
-                              <div className="mt-1.5 flex items-center justify-between">
-                                {[1, 2, 3, 4, 5].map((score) => (
-                                  <button
-                                    key={score}
-                                    type="button"
-                                    onClick={() => handleUpdateRubric(submission.id, key, score)}
-                                    className={`size-6 rounded-md text-xs font-bold transition ${
-                                      currentRubric[key] >= score
-                                        ? 'bg-orange-500 text-white'
-                                        : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                                    }`}
-                                  >
-                                    {score}
-                                  </button>
-                                ))}
+                          ).map(({ key, label }) => {
+                            const scoreVal = currentRubric[key] || 1;
+                            const levelDesc =
+                              scoreVal === 1
+                                ? 'Rebuild'
+                                : scoreVal === 2
+                                ? 'Developing'
+                                : scoreVal === 3
+                                ? 'Competent'
+                                : scoreVal === 4
+                                ? 'Advanced'
+                                : 'Mastered';
+                            return (
+                              <div key={key} className="rounded-lg bg-slate-50 p-2.5 flex flex-col justify-between">
+                                <div>
+                                  <div className="flex items-center justify-between">
+                                    <p className="font-bold text-slate-700 text-[11px] truncate">{label}</p>
+                                    <span className="text-[10px] font-black text-orange-600">{scoreVal}/5</span>
+                                  </div>
+                                  <p className="text-[9px] text-slate-400 font-medium">{levelDesc}</p>
+                                </div>
+                                <div className="mt-2 flex items-center justify-between gap-1">
+                                  {[1, 2, 3, 4, 5].map((score) => (
+                                    <button
+                                      key={score}
+                                      type="button"
+                                      onClick={() => handleUpdateRubric(submission.id, key, score)}
+                                      title={`Set ${label} to ${score}/5 (${
+                                        score === 1
+                                          ? 'Needs Rebuild'
+                                          : score === 2
+                                          ? 'Developing'
+                                          : score === 3
+                                          ? 'Competent'
+                                          : score === 4
+                                          ? 'Advanced'
+                                          : 'Mastered'
+                                      })`}
+                                      className={`size-6 rounded-md text-xs font-bold transition ${
+                                        scoreVal >= score
+                                          ? 'bg-orange-500 text-white'
+                                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                                      }`}
+                                    >
+                                      {score}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
 

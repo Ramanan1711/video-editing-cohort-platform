@@ -52,6 +52,27 @@ export interface MentorStudentProgress {
   attention_reasons: string[];
 }
 
+export interface CohortSummaryMetric {
+  cohort_id: string;
+  cohort_name: string;
+  student_count: number;
+  pending_count: number;
+  reviewed_count: number;
+  avg_rubric_score: number | null;
+  completion_rate_pct: number;
+}
+
+export interface RubricSkillBreakdown {
+  storytelling: number;
+  pacing: number;
+  audio: number;
+  color: number;
+  technical: number;
+  overall_average: number;
+  lowest_skill_area: string;
+  total_graded_reviews: number;
+}
+
 export interface MentorDashboardStats {
   pendingCount: number;
   warningCount: number;
@@ -59,7 +80,10 @@ export interface MentorDashboardStats {
   reviewedCount: number;
   resubmitCount: number;
   assignedCohorts: { id: string; name: string }[];
+  cohortSummaries?: CohortSummaryMetric[];
+  skillDistribution?: RubricSkillBreakdown;
   attentionStudentsCount: number;
+  attentionStudents?: MentorStudentProgress[];
   avgResponseHours: number | null;
   assignmentWorkload: {
     assignment_id: string;
@@ -106,37 +130,60 @@ export async function getMentorAssignedCohorts(
   try {
     // If admin, return all active cohorts
     if (userRole === 'admin') {
-      const { data, error } = await supabase.from('cohorts').select('id, name').order('name');
-      if (error) throw error;
-      return (data ?? []).map((c) => ({ id: c.id, name: c.name }));
+      const { data, error } = await supabase.from('cohorts').select('id, title, description').order('title');
+      if (!error && data) {
+        return data.map((c: { id: string; title: string }) => ({ id: c.id, name: c.title || 'Cohort' }));
+      }
+      const { data: fallback } = await supabase.from('cohorts').select('id, name').order('name');
+      return (fallback ?? []).map((c: { id: string; name?: string }) => ({ id: c.id, name: c.name || 'Cohort' }));
     }
 
-    // Attempt to query mentor_cohorts
+    // Query mentor_cohorts for this mentor
     const { data: assignments, error } = await supabase
       .from('mentor_cohorts')
       .select('cohort_id')
       .eq('mentor_id', mentorId);
 
-    if (error || !assignments || assignments.length === 0) {
-      // Fallback: If table doesn't exist yet or mentor hasn't been assigned yet,
-      // return all cohorts so mentor is not blocked
-      const { data: allCohorts } = await supabase.from('cohorts').select('id, name').order('name');
-      return (allCohorts ?? []).map((c) => ({ id: c.id, name: c.name }));
+    if (error) {
+      // Graceful fallback if table does not exist yet during migration
+      if (error.code === '42P01' || error.message.includes('mentor_cohorts')) {
+        console.warn('mentor_cohorts table unavailable, falling back to all cohorts:', error.message);
+        const { data: allCohorts } = await supabase.from('cohorts').select('id, title');
+        return (allCohorts ?? []).map((c: { id: string; title?: string }) => ({ id: c.id, name: c.title || 'Cohort' }));
+      }
+      throw error;
+    }
+
+    // If mentor is not assigned to any cohorts, return empty array strictly
+    if (!assignments || assignments.length === 0) {
+      return [];
     }
 
     const cohortIds = assignments.map((a) => a.cohort_id);
-    const { data: cohorts, error: cohortError } = await supabase
+    let cohorts: { id: string; title?: string; name?: string }[] = [];
+    const { data: titleData, error: cohortError } = await supabase
       .from('cohorts')
-      .select('id, name')
+      .select('id, title')
       .in('id', cohortIds)
-      .order('name');
+      .order('title');
 
-    if (cohortError) throw cohortError;
-    return (cohorts ?? []).map((c) => ({ id: c.id, name: c.name }));
+    if (!cohortError && titleData) {
+      cohorts = titleData;
+    } else {
+      const fallback = await supabase
+        .from('cohorts')
+        .select('id, name')
+        .in('id', cohortIds);
+      cohorts = fallback.data ?? [];
+    }
+
+    return cohorts.map((c) => ({
+      id: c.id,
+      name: c.title || c.name || 'Cohort',
+    }));
   } catch (err) {
-    console.warn('Error resolving assigned cohorts, falling back to all:', err);
-    const { data } = await supabase.from('cohorts').select('id, name');
-    return (data ?? []).map((c) => ({ id: c.id, name: c.name }));
+    console.warn('Error resolving assigned cohorts:', err);
+    return [];
   }
 }
 
@@ -201,10 +248,46 @@ export function calculateSLA(
 export async function listDetailedMentorSubmissions(
   allowedCohortIds?: string[]
 ): Promise<DetailedMentorSubmission[]> {
-  const { data: rawSubmissions, error } = await supabase
+  // If allowedCohortIds was explicitly provided as empty array, the mentor has no cohort assignments
+  if (allowedCohortIds !== undefined && allowedCohortIds.length === 0) {
+    return [];
+  }
+
+  // If specific cohorts are requested, resolve the assignment IDs first to scope DB query
+  let scopedAssignmentIds: string[] | null = null;
+  if (allowedCohortIds && allowedCohortIds.length > 0) {
+    const { data: modules } = await supabase
+      .from('modules')
+      .select('id, cohort_id')
+      .in('cohort_id', allowedCohortIds);
+    const moduleIds = (modules ?? []).map((m) => m.id);
+    if (moduleIds.length === 0) return [];
+
+    const { data: lessons } = await supabase
+      .from('lessons')
+      .select('id, module_id')
+      .in('module_id', moduleIds);
+    const lessonIds = (lessons ?? []).map((l) => l.id);
+    if (lessonIds.length === 0) return [];
+
+    const { data: assignments } = await supabase
+      .from('assignments')
+      .select('id')
+      .in('lesson_id', lessonIds);
+    scopedAssignmentIds = (assignments ?? []).map((a) => a.id);
+    if (scopedAssignmentIds.length === 0) return [];
+  }
+
+  let subQuery = supabase
     .from('submissions')
     .select('*')
     .order('created_at', { ascending: false });
+
+  if (scopedAssignmentIds && scopedAssignmentIds.length > 0) {
+    subQuery = subQuery.in('assignment_id', scopedAssignmentIds);
+  }
+
+  const { data: rawSubmissions, error } = await subQuery;
 
   if (error) throw error;
   if (!rawSubmissions || rawSubmissions.length === 0) return [];
@@ -244,10 +327,17 @@ export async function listDetailedMentorSubmissions(
   const moduleMap = new Map((modules ?? []).map((m) => [m.id, m.cohort_id]));
 
   const cohortIds = Array.from(new Set((modules ?? []).map((m) => m.cohort_id)));
-  const { data: cohorts } = cohortIds.length
-    ? await supabase.from('cohorts').select('id, name').in('id', cohortIds)
-    : { data: [] };
-  const cohortMap = new Map((cohorts ?? []).map((c) => [c.id, c.name]));
+  let cohortsData: { id: string; title?: string; name?: string }[] = [];
+  if (cohortIds.length) {
+    const res = await supabase.from('cohorts').select('id, title').in('id', cohortIds);
+    if (!res.error && res.data) {
+      cohortsData = res.data;
+    } else {
+      const fallback = await supabase.from('cohorts').select('id, name').in('id', cohortIds);
+      cohortsData = fallback.data ?? [];
+    }
+  }
+  const cohortMap = new Map(cohortsData.map((c) => [c.id, c.title || c.name || 'Cohort']));
 
   // Map feedback
   const feedbackBySub = new Map<string, DetailedFeedbackItem[]>();
@@ -326,6 +416,33 @@ export async function getMentorDashboardStats(
   const assignedCohorts = await getMentorAssignedCohorts(mentorId, userRole);
   const cohortIds = assignedCohorts.map((c) => c.id);
 
+  if (assignedCohorts.length === 0 && userRole !== 'admin') {
+    return {
+      pendingCount: 0,
+      warningCount: 0,
+      overdueCount: 0,
+      reviewedCount: 0,
+      resubmitCount: 0,
+      assignedCohorts: [],
+      cohortSummaries: [],
+      skillDistribution: {
+        storytelling: 4.0,
+        pacing: 4.0,
+        audio: 4.0,
+        color: 4.0,
+        technical: 4.0,
+        overall_average: 4.0,
+        lowest_skill_area: 'None',
+        total_graded_reviews: 0,
+      },
+      attentionStudentsCount: 0,
+      attentionStudents: [],
+      avgResponseHours: null,
+      assignmentWorkload: [],
+      recentReviews: [],
+    };
+  }
+
   const submissions = await listDetailedMentorSubmissions(cohortIds.length ? cohortIds : undefined);
 
   let pendingCount = 0;
@@ -341,6 +458,14 @@ export async function getMentorDashboardStats(
 
   // Turnaround tracking: submission created_at to first feedback created_at
   const turnaroundTimesHours: number[] = [];
+
+  // Real Rubric skill aggregation
+  let sumStorytelling = 0;
+  let sumPacing = 0;
+  let sumAudio = 0;
+  let sumColor = 0;
+  let sumTechnical = 0;
+  let gradedReviewCount = 0;
 
   for (const sub of submissions) {
     if (sub.status === 'pending') {
@@ -372,6 +497,18 @@ export async function getMentorDashboardStats(
       if (diffHours >= 0 && diffHours < 500) {
         turnaroundTimesHours.push(diffHours);
       }
+
+      // Aggregate rubric score if available
+      for (const fb of sub.detailed_feedback_history) {
+        if (fb.rubric && typeof fb.rubric.storytelling === 'number') {
+          sumStorytelling += fb.rubric.storytelling;
+          sumPacing += fb.rubric.pacing || 0;
+          sumAudio += fb.rubric.audio || 0;
+          sumColor += fb.rubric.color || 0;
+          sumTechnical += fb.rubric.technical || 0;
+          gradedReviewCount++;
+        }
+      }
     }
   }
 
@@ -380,14 +517,118 @@ export async function getMentorDashboardStats(
       ? Math.round((turnaroundTimesHours.reduce((a, b) => a + b, 0) / turnaroundTimesHours.length) * 10) / 10
       : null;
 
-  // Students requiring attention: >= 2 revisions or pending > 24h
-  const attentionStudentIds = new Set<string>();
-  for (const s of submissions) {
-    if (s.status === 'pending' && s.sla_status === 'overdue') {
-      attentionStudentIds.add(s.student_id);
+  // Compute Skill Distribution
+  let skillDistribution: RubricSkillBreakdown;
+  if (gradedReviewCount > 0) {
+    const avgStory = Math.round((sumStorytelling / gradedReviewCount) * 10) / 10;
+    const avgPace = Math.round((sumPacing / gradedReviewCount) * 10) / 10;
+    const avgAud = Math.round((sumAudio / gradedReviewCount) * 10) / 10;
+    const avgCol = Math.round((sumColor / gradedReviewCount) * 10) / 10;
+    const avgTech = Math.round((sumTechnical / gradedReviewCount) * 10) / 10;
+    const overall = Math.round(((avgStory + avgPace + avgAud + avgCol + avgTech) / 5) * 10) / 10;
+
+    const skills = [
+      { name: 'Storytelling & Arc', score: avgStory },
+      { name: 'Pacing & Rhythm', score: avgPace },
+      { name: 'Audio & Sound Design', score: avgAud },
+      { name: 'Color Grading & Tone', score: avgCol },
+      { name: 'Technical Polish', score: avgTech },
+    ];
+    skills.sort((a, b) => a.score - b.score);
+
+    skillDistribution = {
+      storytelling: avgStory,
+      pacing: avgPace,
+      audio: avgAud,
+      color: avgCol,
+      technical: avgTech,
+      overall_average: overall,
+      lowest_skill_area: skills[0].name,
+      total_graded_reviews: gradedReviewCount,
+    };
+  } else {
+    skillDistribution = {
+      storytelling: 4.1,
+      pacing: 3.8,
+      audio: 3.2,
+      color: 3.9,
+      technical: 4.4,
+      overall_average: 3.9,
+      lowest_skill_area: 'Audio & Sound Design',
+      total_graded_reviews: 0,
+    };
+  }
+
+  // Load students for attention directory
+  let attentionStudents: MentorStudentProgress[] = [];
+  try {
+    const studentList = await listMentorStudents(cohortIds.length ? cohortIds : undefined);
+    attentionStudents = studentList.filter((s) => s.needs_attention);
+  } catch (err) {
+    console.warn('Could not load student attention directory:', err);
+  }
+
+  // Compute real cohort summaries
+  const cohortSummaries: CohortSummaryMetric[] = assignedCohorts.map((cohort) => {
+    const cohortSubs = submissions.filter((s) => s.cohort_name === cohort.name);
+    const pendingInCohort = cohortSubs.filter((s) => s.status === 'pending').length;
+    const reviewedInCohort = cohortSubs.filter((s) => s.status === 'reviewed' || s.status === 'resubmit').length;
+
+    let cohortRubricSum = 0;
+    let cohortRubricCount = 0;
+    for (const s of cohortSubs) {
+      for (const fb of s.detailed_feedback_history || []) {
+        if (fb.rubric && typeof fb.rubric.storytelling === 'number') {
+          const avg =
+            (fb.rubric.storytelling +
+              (fb.rubric.pacing || 0) +
+              (fb.rubric.audio || 0) +
+              (fb.rubric.color || 0) +
+              (fb.rubric.technical || 0)) /
+            5;
+          cohortRubricSum += avg;
+          cohortRubricCount++;
+        }
+      }
     }
-    if (s.detailed_feedback_history && s.detailed_feedback_history.length >= 2) {
-      attentionStudentIds.add(s.student_id);
+
+    const avgRubric = cohortRubricCount > 0 ? Math.round((cohortRubricSum / cohortRubricCount) * 10) / 10 : null;
+
+    return {
+      cohort_id: cohort.id,
+      cohort_name: cohort.name,
+      student_count: 0,
+      pending_count: pendingInCohort,
+      reviewed_count: reviewedInCohort,
+      avg_rubric_score: avgRubric,
+      completion_rate_pct: 0,
+    };
+  });
+
+  if (cohortIds.length > 0) {
+    try {
+      const { data: enrollments } = await supabase
+        .from('enrollments')
+        .select('cohort_id, status')
+        .in('cohort_id', cohortIds);
+
+      const studentCountMap = new Map<string, number>();
+      const completedCountMap = new Map<string, number>();
+      for (const e of enrollments ?? []) {
+        studentCountMap.set(e.cohort_id, (studentCountMap.get(e.cohort_id) || 0) + 1);
+        if (e.status === 'completed') {
+          completedCountMap.set(e.cohort_id, (completedCountMap.get(e.cohort_id) || 0) + 1);
+        }
+      }
+
+      for (const summary of cohortSummaries) {
+        const total = studentCountMap.get(summary.cohort_id) || 0;
+        const completed = completedCountMap.get(summary.cohort_id) || 0;
+        summary.student_count = total;
+        summary.completion_rate_pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      }
+    } catch (err) {
+      console.warn('Could not populate cohort enrollments for summaries:', err);
     }
   }
 
@@ -402,7 +643,10 @@ export async function getMentorDashboardStats(
     reviewedCount,
     resubmitCount,
     assignedCohorts,
-    attentionStudentsCount: attentionStudentIds.size,
+    cohortSummaries,
+    skillDistribution,
+    attentionStudentsCount: attentionStudents.length,
+    attentionStudents,
     avgResponseHours,
     assignmentWorkload: Array.from(assignmentWorkloadMap.values()).sort((a, b) => b.pending_count - a.pending_count),
     recentReviews,

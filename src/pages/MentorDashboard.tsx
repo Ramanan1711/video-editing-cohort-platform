@@ -124,6 +124,39 @@ export function MentorDashboard() {
     });
   }, [stats, selectedCohortId]);
 
+  // Aggregate rubric skill metrics for dynamic display
+  const skillItems = useMemo(() => {
+    if (!stats?.skillDistribution) return [];
+    const sd = stats.skillDistribution;
+    return [
+      { title: 'Storytelling & Arc', score: sd.storytelling },
+      { title: 'Pacing & Rhythm', score: sd.pacing },
+      { title: 'Audio & Sound Design', score: sd.audio },
+      { title: 'Color Grade & Match', score: sd.color },
+      { title: 'Technical Polish', score: sd.technical },
+    ].map((crit) => {
+      let status: string;
+      let color: string;
+      if (crit.score >= 4.5) {
+        status = 'Mastered';
+        color = 'emerald';
+      } else if (crit.score >= 4.0) {
+        status = 'Strong';
+        color = 'emerald';
+      } else if (crit.score >= 3.5) {
+        status = 'Good';
+        color = 'blue';
+      } else if (crit.score >= 3.0) {
+        status = 'Moderate';
+        color = 'purple';
+      } else {
+        status = 'Needs Focus';
+        color = 'amber';
+      }
+      return { ...crit, status, color };
+    });
+  }, [stats]);
+
   if (!isMentorOrAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] p-8 text-center">
@@ -224,6 +257,25 @@ export function MentorDashboard() {
           </div>
         ) : stats ? (
           <div className="space-y-8">
+            {/* Unassigned Mentor Zero-State Banner */}
+            {stats.assignedCohorts.length === 0 && profile?.role !== 'admin' && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-6 shadow-2xs">
+                <div className="flex items-start gap-4">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                    <AlertCircle size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-amber-950">No Cohorts Assigned</h2>
+                    <p className="mt-1 text-xs text-amber-800 leading-relaxed">
+                      You are currently registered as a mentor, but you have not been assigned to any cohorts yet.
+                      Submission reviews and student progression are strictly scoped to assigned cohorts for privacy and workflow isolation.
+                      Please reach out to a platform administrator to assign you to your designated cohort.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* KPI Metric Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Card className="p-5 shadow-2xs">
@@ -278,7 +330,7 @@ export function MentorDashboard() {
                 </p>
                 <p className="mt-1 text-2xl font-black text-slate-950">{stats.assignedCohorts.length}</p>
                 <p className="mt-1 truncate text-[11px] text-slate-500">
-                  {stats.assignedCohorts.map((c) => c.name).join(', ') || 'Global Mentorship'}
+                  {stats.assignedCohorts.map((c) => c.name).join(', ') || 'No cohorts assigned'}
                 </p>
               </Card>
 
@@ -344,6 +396,84 @@ export function MentorDashboard() {
                 </div>
               </Card>
             </div>
+
+            {/* Assigned Cohort Performance & Health Summaries */}
+            {stats.cohortSummaries && stats.cohortSummaries.length > 0 && (
+              <Card className="p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex size-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                      <Layers size={18} />
+                    </span>
+                    <div>
+                      <h2 className="text-base font-black text-slate-950">Assigned Cohort Summaries</h2>
+                      <p className="text-xs text-slate-500">
+                        Workload, student rosters, and curriculum completion rates across your assigned cohorts.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-bold text-blue-700">
+                    {stats.cohortSummaries.length} Scoped Cohort{stats.cohortSummaries.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {stats.cohortSummaries.map((summary) => (
+                    <div
+                      key={summary.cohort_id}
+                      className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:bg-slate-100/50"
+                    >
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-black text-slate-950 truncate max-w-[180px]">
+                          {summary.cohort_name}
+                        </h3>
+                        <Link
+                          to={`/review/submissions?cohort=${encodeURIComponent(summary.cohort_name)}`}
+                          className="text-[10px] font-bold text-orange-600 hover:text-orange-700 flex items-center gap-0.5"
+                        >
+                          Queue <ExternalLink size={10} />
+                        </Link>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[10px]">
+                        <div className="rounded-lg bg-white p-2 border border-slate-100 shadow-2xs">
+                          <span className="block font-bold text-slate-400 uppercase text-[9px]">Students</span>
+                          <span className="text-sm font-black text-slate-900">{summary.student_count}</span>
+                        </div>
+                        <div className="rounded-lg bg-white p-2 border border-slate-100 shadow-2xs">
+                          <span className="block font-bold text-orange-500 uppercase text-[9px]">Pending</span>
+                          <span className="text-sm font-black text-orange-600">{summary.pending_count}</span>
+                        </div>
+                        <div className="rounded-lg bg-white p-2 border border-slate-100 shadow-2xs">
+                          <span className="block font-bold text-emerald-500 uppercase text-[9px]">Reviewed</span>
+                          <span className="text-sm font-black text-emerald-600">{summary.reviewed_count}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 font-medium">Curriculum Progress</span>
+                          <span className="font-bold text-slate-800">{summary.completion_rate_pct}%</span>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 transition-all"
+                            style={{ width: `${Math.min(100, summary.completion_rate_pct)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {summary.avg_rubric_score !== null && (
+                        <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[10px]">
+                          <span className="text-slate-400">Avg Rubric Score:</span>
+                          <span className="font-bold text-slate-700">{summary.avg_rubric_score} / 5.0</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
 
             {/* SLA Queue Health & Aging Breakdown */}
             <Card className="p-6">
@@ -462,13 +592,7 @@ export function MentorDashboard() {
               </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-5">
-                {[
-                  { title: 'Storytelling & Arc', score: 4.1, status: 'Strong', color: 'emerald' },
-                  { title: 'Pacing & Rhythm', score: 3.7, status: 'Moderate', color: 'blue' },
-                  { title: 'Audio & Ducking', score: 3.1, status: 'Needs Focus', color: 'amber' },
-                  { title: 'Color Grade & Match', score: 3.9, status: 'Good', color: 'purple' },
-                  { title: 'Technical Assembly', score: 4.5, status: 'Mastered', color: 'emerald' },
-                ].map((crit) => (
+                {skillItems.map((crit) => (
                   <div key={crit.title} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-slate-700">{crit.title}</span>
@@ -487,7 +611,7 @@ export function MentorDashboard() {
                       </span>
                     </div>
                     <p className="mt-2 text-xl font-black text-slate-950">
-                      {crit.score} <span className="text-xs font-normal text-slate-400">/ 5.0</span>
+                      {crit.score.toFixed(1)} <span className="text-xs font-normal text-slate-400">/ 5.0</span>
                     </p>
                     <div className="mt-2.5 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
                       <div
@@ -498,7 +622,7 @@ export function MentorDashboard() {
                             ? 'bg-blue-500'
                             : 'bg-amber-500'
                         }`}
-                        style={{ width: `${(crit.score / 5) * 100}%` }}
+                        style={{ width: `${Math.min(100, (crit.score / 5) * 100)}%` }}
                       />
                     </div>
                   </div>
@@ -508,11 +632,87 @@ export function MentorDashboard() {
               <div className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/50 p-3 text-xs text-amber-900 flex items-start gap-2">
                 <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
                 <p>
-                  <strong>Instructional Insight:</strong> Cohort average for{' '}
-                  <strong>Audio &amp; Ducking (3.1/5)</strong> is the primary driver of student revision requests. Consider demonstrating vocal compression and sidechain ducking in your next live office hours.
+                  <strong>Instructional Insight:</strong>{' '}
+                  {stats.skillDistribution && stats.skillDistribution.total_graded_reviews > 0 ? (
+                    <>
+                      Cohort average for <strong>{stats.skillDistribution.lowest_skill_area}</strong> ({Math.min(
+                        stats.skillDistribution.storytelling,
+                        stats.skillDistribution.pacing,
+                        stats.skillDistribution.audio,
+                        stats.skillDistribution.color,
+                        stats.skillDistribution.technical
+                      ).toFixed(1)}/5) indicates the primary student challenge across {stats.skillDistribution.total_graded_reviews} evaluated submission{stats.skillDistribution.total_graded_reviews === 1 ? '' : 's'}. Consider covering this in your next live office hours.
+                    </>
+                  ) : (
+                    <>
+                      Rubric baseline initialized. As you score submissions across storytelling, pacing, audio, color, and technical assembly, this panel will identify dynamic friction points.
+                    </>
+                  )}
                 </p>
               </div>
             </Card>
+
+            {/* Urgent Student Performance Alerts */}
+            {stats.attentionStudents && stats.attentionStudents.length > 0 && (
+              <Card className="p-6 border-amber-200/80 bg-white shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex size-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                      <AlertCircle size={18} />
+                    </span>
+                    <div>
+                      <h2 className="text-base font-black text-slate-950">Student Performance Alerts ({stats.attentionStudents.length})</h2>
+                      <p className="text-xs text-slate-500">
+                        Learners in your assigned cohorts showing inactivity or multiple revision friction patterns.
+                      </p>
+                    </div>
+                  </div>
+                  <Link to="/mentor/students">
+                    <Button variant="secondary" size="sm">
+                      Inspect All Students →
+                    </Button>
+                  </Link>
+                </div>
+
+                <div className="mt-4 divide-y divide-slate-100">
+                  {stats.attentionStudents.slice(0, 5).map((st) => (
+                    <div
+                      key={`${st.student_id}-${st.cohort_id}`}
+                      className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-8 items-center justify-center rounded-lg bg-amber-100 text-xs font-bold text-amber-900">
+                          {st.student_name[0] || 'S'}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-950">{st.student_name}</p>
+                          <p className="text-[11px] text-slate-500">
+                            {st.cohort_name} · {st.progress_pct}% curriculum progress · {st.resubmission_count} revisions
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {st.attention_reasons.map((reason, idx) => (
+                          <span
+                            key={idx}
+                            className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200"
+                          >
+                            {reason}
+                          </span>
+                        ))}
+                        <Link
+                          to={`/mentor/students?search=${encodeURIComponent(st.student_name)}`}
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:text-orange-600 shadow-2xs"
+                        >
+                          Inspect Roster →
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
 
             {/* Review Workload by Assignment & Office Hours Grid */}
             <div className="grid gap-6 lg:grid-cols-3">

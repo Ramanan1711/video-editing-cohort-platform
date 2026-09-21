@@ -1123,8 +1123,16 @@ export async function listPendingSubmissions(): Promise<Submission[]> {
 
 export async function listMentorSubmissions(
   statusFilter: 'pending' | 'reviewed' | 'resubmit' | 'all' = 'all',
-  cohortId?: string
+  cohortId?: string,
+  allowedCohortIds?: string[]
 ): Promise<MentorSubmission[]> {
+  if (allowedCohortIds !== undefined && allowedCohortIds.length === 0) {
+    return [];
+  }
+  if (cohortId && allowedCohortIds && !allowedCohortIds.includes(cohortId)) {
+    return [];
+  }
+
   let query = supabase
     .from('submissions')
     .select('id, assignment_id, student_id, file_url, status, created_at, updated_at')
@@ -1232,6 +1240,9 @@ export async function listMentorSubmissions(
   for (const s of rawSubmissions) {
     const aCohortId = cohortIdByAssignment.get(s.assignment_id);
     if (cohortId && aCohortId && aCohortId !== cohortId) {
+      continue;
+    }
+    if (allowedCohortIds && allowedCohortIds.length > 0 && aCohortId && !allowedCohortIds.includes(aCohortId)) {
       continue;
     }
 

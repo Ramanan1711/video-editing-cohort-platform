@@ -1123,3 +1123,115 @@ export async function deleteCommunityComment(id: string, actorId?: string): Prom
 
   void logAuditEvent(actorId || null, 'community.comment_deleted', 'comment', id, {});
 }
+
+// ============================================================================
+// 12. Mentor Cohort Assignments Subsystem
+// ============================================================================
+
+export interface MentorCohortAssignment {
+  id: string;
+  mentor_id: string;
+  cohort_id: string;
+  assigned_at: string;
+  mentor?: {
+    full_name: string;
+    email: string;
+  };
+  cohort?: {
+    name: string;
+  };
+}
+
+export async function listMentorCohortAssignments(): Promise<MentorCohortAssignment[]> {
+  try {
+    const { data: assignments, error } = await supabase
+      .from('mentor_cohorts')
+      .select('id, mentor_id, cohort_id, assigned_at')
+      .order('assigned_at', { ascending: false });
+
+    if (error) {
+      console.warn('mentor_cohorts query error:', error);
+      return [];
+    }
+    if (!assignments || assignments.length === 0) return [];
+
+    const mentorIds = Array.from(new Set(assignments.map((a) => a.mentor_id)));
+    const cohortIds = Array.from(new Set(assignments.map((a) => a.cohort_id)));
+
+    const [{ data: profiles }, { data: cohorts }] = await Promise.all([
+      mentorIds.length ? supabase.from('profiles').select('id, full_name, email').in('id', mentorIds) : { data: [] },
+      cohortIds.length ? supabase.from('cohorts').select('id, title, description').in('id', cohortIds) : { data: [] },
+    ]);
+
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+    const cohortMap = new Map((cohorts ?? []).map((c) => [c.id, c.title || 'Cohort']));
+
+    return assignments.map((a) => {
+      const p = profileMap.get(a.mentor_id);
+      const cName = cohortMap.get(a.cohort_id);
+      return {
+        id: a.id,
+        mentor_id: a.mentor_id,
+        cohort_id: a.cohort_id,
+        assigned_at: a.assigned_at,
+        mentor: p ? { full_name: p.full_name || 'Mentor', email: p.email } : undefined,
+        cohort: cName ? { name: cName } : undefined,
+      };
+    });
+  } catch (err) {
+    console.warn('Unable to load mentor cohort assignments:', err);
+    return [];
+  }
+}
+
+export async function assignMentorToCohort(
+  mentorId: string,
+  cohortId: string,
+  actorId?: string | null
+): Promise<void> {
+  const { error } = await supabase.from('mentor_cohorts').upsert(
+    { mentor_id: mentorId, cohort_id: cohortId, assigned_at: new Date().toISOString() },
+    { onConflict: 'mentor_id,cohort_id' }
+  );
+  if (error) throw error;
+
+  void logAuditEvent({
+    actorId,
+    action: 'mentor.assigned_to_cohort',
+    entityType: 'cohort',
+    entityId: cohortId,
+    metadata: { mentor_id: mentorId },
+  });
+}
+
+export async function removeMentorFromCohort(
+  mentorId: string,
+  cohortId: string,
+  actorId?: string | null
+): Promise<void> {
+  const { error } = await supabase
+    .from('mentor_cohorts')
+    .delete()
+    .eq('mentor_id', mentorId)
+    .eq('cohort_id', cohortId);
+  if (error) throw error;
+
+  void logAuditEvent({
+    actorId,
+    action: 'mentor.removed_from_cohort',
+    entityType: 'cohort',
+    entityId: cohortId,
+    metadata: { mentor_id: mentorId },
+  });
+}
+
+export async function listMentors(): Promise<UserProfile[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, role, status, created_at, updated_at')
+    .in('role', ['mentor', 'admin'])
+    .order('full_name', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as UserProfile[];
+}

@@ -38,7 +38,6 @@ import {
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../context/useAuth';
-import { assignMentorToCohort } from '../lib/mentorService';
 import { AdminNotificationCenter } from '../components/AdminNotificationCenter';
 import {
   hasAdminPermission,
@@ -47,6 +46,7 @@ import {
   type AdminSubRole,
 } from '../lib/adminPermissions';
 import {
+  assignMentorToCohort,
   bulkEnrollStudents,
   createAnnouncement,
   createLiveSession,
@@ -64,8 +64,10 @@ import {
   listCohortEnrollments,
   listCommunityPostsWithAuthors,
   listLiveSessions,
+  listMentorCohortAssignments,
   listUsers,
   removeEnrollment,
+  removeMentorFromCohort,
   updateAdminSubRole,
   updateAnnouncement,
   updateEnrollmentStatus,
@@ -80,6 +82,7 @@ import {
   type AuditLog,
   type BulkEnrollmentResponse,
   type LiveSession,
+  type MentorCohortAssignment,
   type UserProfile,
 } from '../lib/adminService';
 import { listCohorts, type Cohort } from '../lib/courseService';
@@ -162,6 +165,9 @@ export function AdminOperations() {
   const [selectedAuditMeta, setSelectedAuditMeta] = useState<AuditLog | null>(null);
 
   // Mentor Assignment state
+  const [mentorAssignments, setMentorAssignments] = useState<MentorCohortAssignment[]>([]);
+  const [enrollmentView, setEnrollmentView] = useState<'students' | 'mentors'>('students');
+  const [removingMentorId, setRemovingMentorId] = useState<string | null>(null);
   const [showAssignMentorModal, setShowAssignMentorModal] = useState(false);
   const [assignMentorId, setAssignMentorId] = useState('');
   const [assignCohortId, setAssignCohortId] = useState('');
@@ -201,6 +207,7 @@ export function AdminOperations() {
       listCommunityPostsWithAuthors(),
       getAdminExecutiveMetrics(),
       listAuditLogs({ limit: 100 }),
+      listMentorCohortAssignments(),
     ])
       .then(([
         nextStats,
@@ -212,6 +219,7 @@ export function AdminOperations() {
         nextPosts,
         nextMetrics,
         nextLogs,
+        nextMentorAssignments,
       ]) => {
         if (!active) return;
         setStats(nextStats);
@@ -223,6 +231,7 @@ export function AdminOperations() {
         setPosts(nextPosts);
         setExecMetrics(nextMetrics);
         setAuditLogs(nextLogs);
+        setMentorAssignments(nextMentorAssignments);
       })
       .catch((reason: unknown) => {
         if (active) setError(reason instanceof Error ? reason.message : 'Unable to load administrative operations data.');
@@ -482,15 +491,40 @@ export function AdminOperations() {
     if (!assignMentorId || !assignCohortId) return;
     try {
       setAssigningMentor(true);
-      await assignMentorToCohort(assignMentorId, assignCohortId);
+      await assignMentorToCohort(assignMentorId, assignCohortId, user?.id);
       setSuccess('Mentor successfully assigned to cohort.');
       setShowAssignMentorModal(false);
       setAssignMentorId('');
       setAssignCohortId('');
+      const updated = await listMentorCohortAssignments();
+      setMentorAssignments(updated);
+      void listAuditLogs({ limit: 100 }).then(setAuditLogs);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to assign mentor to cohort.');
     } finally {
       setAssigningMentor(false);
+    }
+  };
+
+  const handleRemoveMentor = async (mentorId: string, cohortId: string, mentorName: string, cohortName: string) => {
+    if (
+      !window.confirm(
+        `Remove mentor ${mentorName} from ${cohortName}? They will immediately lose access to review submissions in this cohort.`
+      )
+    ) {
+      return;
+    }
+    try {
+      setRemovingMentorId(`${mentorId}-${cohortId}`);
+      await removeMentorFromCohort(mentorId, cohortId, user?.id);
+      setSuccess(`Removed ${mentorName} from ${cohortName}.`);
+      const updated = await listMentorCohortAssignments();
+      setMentorAssignments(updated);
+      void listAuditLogs({ limit: 100 }).then(setAuditLogs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove mentor from cohort.');
+    } finally {
+      setRemovingMentorId(null);
     }
   };
 
@@ -616,6 +650,12 @@ export function AdminOperations() {
     if (selectedCohortId === 'all') return enrollments;
     return enrollments.filter((e) => e.cohort_id === selectedCohortId);
   }, [enrollments, selectedCohortId]);
+
+  // Filtered Mentor Cohort Assignments
+  const filteredMentorAssignments = useMemo(() => {
+    if (selectedCohortId === 'all') return mentorAssignments;
+    return mentorAssignments.filter((m) => m.cohort_id === selectedCohortId);
+  }, [mentorAssignments, selectedCohortId]);
 
   // Filtered Audit Logs
   const filteredAuditLogs = useMemo(() => {
@@ -1720,78 +1760,212 @@ export function AdminOperations() {
               </div>
             </div>
 
-            <div className="mt-6 divide-y divide-slate-100">
-              {filteredEnrollments.length ? (
-                filteredEnrollments.map((item) => (
-                  <div
-                    key={`${item.user_id}-${item.cohort_id}`}
-                    className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <strong className="text-sm font-bold text-slate-950">{item.student_name}</strong>
-                        <span className="text-xs text-slate-400">({item.student_email})</span>
-                        <span className="rounded-md bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700">
-                          {item.cohort_name}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-400">
-                        Enrolled {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <select
-                        value={item.status}
-                        disabled={!canManageEnrollments}
-                        onChange={(e) =>
-                          void handleUpdateEnrollmentStatus(
-                            item.user_id,
-                            item.cohort_id,
-                            e.target.value as 'active' | 'completed' | 'dropped' | 'waitlisted'
-                          )
-                        }
-                        className={`rounded-lg border px-2.5 py-1 text-xs font-bold outline-none ${
-                          !canManageEnrollments ? 'cursor-not-allowed opacity-75 ' : ''
-                        }${
-                          item.status === 'active'
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                            : item.status === 'completed'
-                            ? 'border-purple-200 bg-purple-50 text-purple-800'
-                            : item.status === 'waitlisted'
-                            ? 'border-amber-200 bg-amber-50 text-amber-800'
-                            : 'border-slate-200 bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        <option value="active">Active</option>
-                        <option value="completed">Completed</option>
-                        <option value="dropped">Dropped</option>
-                        <option value="waitlisted">Waitlisted</option>
-                      </select>
-
-                      {canManageEnrollments && (
-                        <button
-                          onClick={() =>
-                            setRemovalWarningUser({
-                              userId: item.user_id,
-                              cohortId: item.cohort_id,
-                              studentName: item.student_name,
-                              cohortName: item.cohort_name,
-                            })
-                          }
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
-                          title="Remove from cohort"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="py-12 text-center text-xs text-slate-400">No student enrollments found for this filter.</p>
-              )}
+            {/* View Selector: Student Rosters vs Mentor Cohort Scoping */}
+            <div className="mt-5 flex gap-2 border-b border-slate-100 pb-3">
+              <button
+                type="button"
+                onClick={() => setEnrollmentView('students')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  enrollmentView === 'students'
+                    ? 'bg-orange-500 text-white shadow-2xs font-black'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Student Rosters ({filteredEnrollments.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setEnrollmentView('mentors')}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  enrollmentView === 'mentors'
+                    ? 'bg-orange-500 text-white shadow-2xs font-black'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Sparkles size={13} />
+                Mentor Scoping &amp; Staffing ({filteredMentorAssignments.length})
+              </button>
             </div>
+
+            {/* View 1: Student Enrollments */}
+            {enrollmentView === 'students' && (
+              <div className="mt-6 divide-y divide-slate-100">
+                {filteredEnrollments.length ? (
+                  filteredEnrollments.map((item) => (
+                    <div
+                      key={`${item.user_id}-${item.cohort_id}`}
+                      className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <strong className="text-sm font-bold text-slate-950">{item.student_name}</strong>
+                          <span className="text-xs text-slate-400">({item.student_email})</span>
+                          <span className="rounded-md bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700">
+                            {item.cohort_name}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400">
+                          Enrolled {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <select
+                          value={item.status}
+                          disabled={!canManageEnrollments}
+                          onChange={(e) =>
+                            void handleUpdateEnrollmentStatus(
+                              item.user_id,
+                              item.cohort_id,
+                              e.target.value as 'active' | 'completed' | 'dropped' | 'waitlisted'
+                            )
+                          }
+                          className={`rounded-lg border px-2.5 py-1 text-xs font-bold outline-none ${
+                            !canManageEnrollments ? 'cursor-not-allowed opacity-75 ' : ''
+                          }${
+                            item.status === 'active'
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                              : item.status === 'completed'
+                              ? 'border-purple-200 bg-purple-50 text-purple-800'
+                              : item.status === 'waitlisted'
+                              ? 'border-amber-200 bg-amber-50 text-amber-800'
+                              : 'border-slate-200 bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          <option value="active">Active</option>
+                          <option value="completed">Completed</option>
+                          <option value="dropped">Dropped</option>
+                          <option value="waitlisted">Waitlisted</option>
+                        </select>
+
+                        {canManageEnrollments && (
+                          <button
+                            onClick={() =>
+                              setRemovalWarningUser({
+                                userId: item.user_id,
+                                cohortId: item.cohort_id,
+                                studentName: item.student_name,
+                                cohortName: item.cohort_name,
+                              })
+                            }
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
+                            title="Remove from cohort"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="py-12 text-center text-xs text-slate-400">No student enrollments found for this filter.</p>
+                )}
+              </div>
+            )}
+
+            {/* View 2: Mentor Cohort Scoping */}
+            {enrollmentView === 'mentors' && (
+              <div className="mt-6">
+                <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-950">Mentor Cohort Scoping &amp; Staffing</h3>
+                    <p className="text-xs text-slate-500">
+                      Assigned mentors are strictly isolated to review submissions and student rosters within their designated cohorts.
+                    </p>
+                  </div>
+                  {canManageEnrollments && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => setShowAssignMentorModal(true)}
+                      className="text-xs font-bold shrink-0"
+                    >
+                      <Sparkles size={14} /> Assign Mentor to Cohort
+                    </Button>
+                  )}
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      <tr>
+                        <th className="py-2.5 px-3">Mentor</th>
+                        <th className="py-2.5 px-3">Assigned Cohort</th>
+                        <th className="py-2.5 px-3">Access Scope</th>
+                        <th className="py-2.5 px-3">Assigned Date</th>
+                        <th className="py-2.5 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {filteredMentorAssignments.length ? (
+                        filteredMentorAssignments.map((assignment) => (
+                          <tr key={`${assignment.mentor_id}-${assignment.cohort_id}`} className="hover:bg-slate-50/60 transition">
+                            <td className="py-3 px-3">
+                              <div className="flex items-center gap-2">
+                                <div className="flex size-7 items-center justify-center rounded-lg bg-orange-100 font-bold text-orange-700 text-xs">
+                                  {assignment.mentor?.full_name?.[0] || 'M'}
+                                </div>
+                                <div>
+                                  <strong className="text-slate-900 block font-bold">
+                                    {assignment.mentor?.full_name || 'Mentor'}
+                                  </strong>
+                                  <span className="text-[11px] text-slate-400">{assignment.mentor?.email}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="rounded-md bg-purple-50 px-2 py-0.5 text-[11px] font-bold text-purple-700 border border-purple-200/60">
+                                {assignment.cohort?.name || 'Cohort'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+                                <ShieldCheck size={11} className="text-emerald-600" /> RLS &amp; RPC Scoped
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-slate-500 text-[11px]">
+                              {assignment.assigned_at
+                                ? new Date(assignment.assigned_at).toLocaleDateString([], {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                  })
+                                : 'Active'}
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              {canManageEnrollments && (
+                                <button
+                                  type="button"
+                                  disabled={removingMentorId === `${assignment.mentor_id}-${assignment.cohort_id}`}
+                                  onClick={() =>
+                                    void handleRemoveMentor(
+                                      assignment.mentor_id,
+                                      assignment.cohort_id,
+                                      assignment.mentor?.full_name || 'Mentor',
+                                      assignment.cohort?.name || 'Cohort'
+                                    )
+                                  }
+                                  className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
+                                  title="Unassign mentor from cohort"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="py-10 text-center text-slate-400">
+                            No mentor cohort assignments found for this filter. Click &ldquo;Assign Mentor&rdquo; above.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Manual Enrollment Modal */}
             {showEnrollModal && (
