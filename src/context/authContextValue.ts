@@ -1,11 +1,15 @@
 import { createContext } from 'react';
 import type { User } from '@supabase/supabase-js';
 
+import type { AdminSubRole } from '../lib/adminPermissions';
+
 export interface Profile {
   id: string;
   full_name: string;
   email: string;
   role: 'student' | 'mentor' | 'admin';
+  status?: 'active' | 'suspended' | 'inactive';
+  admin_role?: AdminSubRole;
 }
 
 export interface AuthContextType {

@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient';
+import type { AdminSubRole } from './adminPermissions';
+export type { AdminSubRole } from './adminPermissions';
 
 export interface AdminStats {
   users: number;
@@ -33,9 +35,60 @@ export interface CohortComparison {
   visibility: string;
 }
 
+export interface AtRiskLearner {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  cohortId: string;
+  cohortName: string;
+  daysInactive: number;
+  resubmissionsCount: number;
+  riskReason: 'stalled_inactivity' | 'multiple_resubmissions' | 'unresponsive';
+}
+
+export interface CohortChurnMetric {
+  cohortId: string;
+  cohortName: string;
+  totalEnrolled: number;
+  activeCount: number;
+  completedCount: number;
+  droppedCount: number;
+  churnRatePct: number;
+}
+
+export interface ModuleDropOffMetric {
+  moduleId: string;
+  moduleTitle: string;
+  position: number;
+  lessonCount: number;
+  completionRatePct: number;
+  stalledStudentCount: number;
+}
+
+export interface MentorPerformanceMetric {
+  mentorId: string;
+  mentorName: string;
+  mentorEmail: string;
+  reviewsCount: number;
+  avgTurnaroundHours: number | null;
+  resubmissionRatePct: number;
+}
+
+export interface AdminEscalationAlert {
+  id: string;
+  type: 'sla_breach' | 'dropout_risk' | 'capacity_warning' | 'content_review' | 'moderation';
+  severity: 'critical' | 'warning' | 'info';
+  title: string;
+  description: string;
+  targetTab?: string;
+  actionLabel?: string;
+  createdAt: string;
+}
+
 export interface AdminExecutiveMetrics {
   enrollmentConversionRate: number;
   courseCompletionRate: number;
+  overallChurnRatePct: number;
   reviewAging: ReviewAging;
   dropoutRiskCount: number;
   avgMentorReviewHours: number | null;
@@ -43,6 +96,11 @@ export interface AdminExecutiveMetrics {
   activeUsers30d: number;
   activeUsers90d: number;
   cohortComparisons: CohortComparison[];
+  atRiskLearners: AtRiskLearner[];
+  cohortChurn: CohortChurnMetric[];
+  curriculumDropOff: ModuleDropOffMetric[];
+  mentorLeaderboard: MentorPerformanceMetric[];
+  escalationAlerts: AdminEscalationAlert[];
 }
 
 export interface AuditLog {
@@ -89,8 +147,6 @@ export interface AdminCommunityPost extends CommunityPost {
   author_email: string;
 }
 
-export type AdminSubRole = 'super_admin' | 'content_admin' | 'operations_admin' | 'moderator';
-
 export interface UserProfile {
   id: string;
   full_name: string;
@@ -115,20 +171,38 @@ export interface AdminEnrollment {
 // 1. Audit Logging Subsystem
 // ============================================================================
 
+export interface LogAuditEventOptions {
+  actorId?: string | null;
+  actor_id?: string | null;
+  action: string;
+  entityType?: string;
+  entity_type?: string;
+  entityId?: string | null;
+  entity_id?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
 export async function logAuditEvent(
-  actorId: string | null,
-  action: string,
-  entityType: string,
-  entityId: string | null,
+  actorIdOrOptions: string | null | LogAuditEventOptions,
+  action?: string,
+  entityType?: string,
+  entityId?: string | null,
   metadata: Record<string, unknown> = {}
 ): Promise<void> {
+  const isObj = typeof actorIdOrOptions === 'object' && actorIdOrOptions !== null;
+  const actor_id = isObj ? (actorIdOrOptions.actorId ?? actorIdOrOptions.actor_id ?? null) : actorIdOrOptions;
+  const finalAction = isObj ? actorIdOrOptions.action : (action || 'unknown_action');
+  const finalEntityType = isObj ? (actorIdOrOptions.entityType ?? actorIdOrOptions.entity_type ?? 'general') : (entityType || 'general');
+  const finalEntityId = isObj ? (actorIdOrOptions.entityId ?? actorIdOrOptions.entity_id ?? null) : (entityId ?? null);
+  const finalMetadata = isObj ? (actorIdOrOptions.metadata ?? {}) : metadata;
+
   try {
     await supabase.from('audit_logs').insert({
-      actor_id: actorId,
-      action,
-      entity_type: entityType,
-      entity_id: entityId,
-      metadata,
+      actor_id,
+      action: finalAction,
+      entity_type: finalEntityType,
+      entity_id: finalEntityId,
+      metadata: finalMetadata,
       created_at: new Date().toISOString(),
     });
   } catch (err) {
@@ -234,16 +308,24 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
     { data: submissions },
     { data: progressRows },
     { data: feedbackRows },
+    { data: rawModules },
+    { data: rawLessons },
   ] = await Promise.all([
-    supabase.from('profiles').select('id, role, created_at'),
+    supabase.from('profiles').select('id, full_name, email, role, admin_role, status, created_at'),
     supabase.from('enrollments').select('user_id, cohort_id, status, created_at'),
     supabase.from('cohorts').select('id, name, capacity, visibility, status'),
     supabase.from('submissions').select('id, student_id, assignment_id, status, created_at'),
-    supabase.from('lesson_progress').select('user_id, completed, completed_at'),
-    supabase.from('feedback').select('submission_id, created_at'),
+    supabase.from('lesson_progress').select('user_id, lesson_id, completed, completed_at'),
+    supabase.from('feedback').select('submission_id, mentor_id, created_at'),
+    supabase.from('modules').select('id, cohort_id, title, position, lessons(id)').order('position'),
+    supabase.from('lessons').select('id, module_id, title, status'),
   ]);
 
   const totalUsers = profiles?.length || 0;
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const cohortMap = new Map((cohorts ?? []).map((c) => [c.id, c.name]));
+  const studentCohortMap = new Map((enrollments ?? []).map((e) => [e.user_id, e.cohort_id]));
+
   const uniqueEnrolledStudents = new Set((enrollments ?? []).map((e) => e.user_id)).size;
   const conversionRate = totalUsers > 0 ? Math.round((uniqueEnrolledStudents / totalUsers) * 100) : 0;
 
@@ -279,12 +361,23 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
   // Turnaround time: submission to first feedback
   const submissionCreatedMap = new Map((submissions ?? []).map((s) => [s.id, s.created_at]));
   const turnaroundDiffs: number[] = [];
+  const mentorReviewsMap = new Map<string, number>();
+  const mentorFeedbackDiffs = new Map<string, number[]>();
+
   for (const fb of feedbackRows ?? []) {
+    if (fb.mentor_id) {
+      mentorReviewsMap.set(fb.mentor_id, (mentorReviewsMap.get(fb.mentor_id) || 0) + 1);
+    }
     const subCreated = submissionCreatedMap.get(fb.submission_id);
     if (subCreated) {
       const diff = (new Date(fb.created_at).getTime() - new Date(subCreated).getTime()) / (1000 * 60 * 60);
       if (diff >= 0 && diff < 500) {
         turnaroundDiffs.push(diff);
+        if (fb.mentor_id) {
+          const list = mentorFeedbackDiffs.get(fb.mentor_id) || [];
+          list.push(diff);
+          mentorFeedbackDiffs.set(fb.mentor_id, list);
+        }
       }
     }
   }
@@ -322,7 +415,7 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
     }
   }
 
-  // Dropout risk: students enrolled but inactive > 7 days or >= 2 revisions
+  // Dropout risk & at-risk learners table
   const lastActiveMap = new Map<string, number>();
   for (const p of progressRows ?? []) {
     if (p.completed_at) {
@@ -340,20 +433,40 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
   }
 
   const enrolledStudentIds = Array.from(new Set((enrollments ?? []).map((e) => e.user_id)));
-  let dropoutRiskCount = 0;
+  const atRiskLearners: AtRiskLearner[] = [];
+
   for (const sId of enrolledStudentIds) {
     const lastTime = lastActiveMap.get(sId);
     const resubmits = resubmissionCountMap.get(sId) || 0;
-    if (resubmits >= 2) {
-      dropoutRiskCount++;
-    } else if (lastTime) {
-      if (now - lastTime > day7Ms) dropoutRiskCount++;
-    } else {
-      dropoutRiskCount++;
+    const isStalled = lastTime ? now - lastTime > day7Ms : true;
+    const isHighResubmit = resubmits >= 2;
+
+    if (isStalled || isHighResubmit) {
+      const student = profileMap.get(sId);
+      const studentCohortId = studentCohortMap.get(sId) || '';
+      const cohortName = cohortMap.get(studentCohortId) || 'Cohort';
+      const daysInactive = lastTime
+        ? Math.max(1, Math.floor((now - lastTime) / (1000 * 60 * 60 * 24)))
+        : 14;
+
+      atRiskLearners.push({
+        studentId: sId,
+        studentName: student?.full_name || 'Student',
+        studentEmail: student?.email || '',
+        cohortId: studentCohortId,
+        cohortName,
+        daysInactive,
+        resubmissionsCount: resubmits,
+        riskReason: isHighResubmit
+          ? 'multiple_resubmissions'
+          : lastTime
+          ? 'stalled_inactivity'
+          : 'unresponsive',
+      });
     }
   }
 
-  // Cohort comparison matrix
+  // Cohort comparison matrix & churn metrics
   type CohortEnrollmentItem = NonNullable<typeof enrollments>[number];
   const enrollmentsByCohort = new Map<string, CohortEnrollmentItem[]>();
   for (const e of enrollments ?? []) {
@@ -362,13 +475,30 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
     enrollmentsByCohort.set(e.cohort_id, list);
   }
 
+  let totalDroppedAcrossPlatform = 0;
+  const cohortChurn: CohortChurnMetric[] = [];
+
   const cohortComparisons: CohortComparison[] = (cohorts ?? []).map((c) => {
     const cohortEnrolls = enrollmentsByCohort.get(c.id) || [];
     const enrolledCount = cohortEnrolls.length;
     const capacity = c.capacity || 30;
     const fillPct = Math.min(100, Math.round((enrolledCount / capacity) * 100));
+    const activeCount = cohortEnrolls.filter((e) => e.status === 'active').length;
     const completedCount = cohortEnrolls.filter((e) => e.status === 'completed').length;
+    const droppedCount = cohortEnrolls.filter((e) => e.status === 'dropped').length;
+    totalDroppedAcrossPlatform += droppedCount;
     const completionPct = enrolledCount > 0 ? Math.round((completedCount / enrolledCount) * 100) : 0;
+    const churnRatePct = enrolledCount > 0 ? Math.round((droppedCount / enrolledCount) * 100) : 0;
+
+    cohortChurn.push({
+      cohortId: c.id,
+      cohortName: c.name,
+      totalEnrolled: enrolledCount,
+      activeCount,
+      completedCount,
+      droppedCount,
+      churnRatePct,
+    });
 
     return {
       id: c.id,
@@ -383,16 +513,134 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
     };
   });
 
+  const overallChurnRatePct =
+    totalEnrollments > 0 ? Math.round((totalDroppedAcrossPlatform / totalEnrollments) * 100) : 0;
+
+  // Curriculum Drop-off Funnel
+  const curriculumDropOff: ModuleDropOffMetric[] = ((rawModules ?? []) as Array<{
+    id: string;
+    title: string;
+    position: number;
+    lessons?: Array<{ id: string }>;
+  }>).map((m) => {
+    const modLessons = m.lessons || [];
+    const lessonIds = new Set(modLessons.map((l) => l.id));
+    const totalStudents = uniqueEnrolledStudents || 1;
+
+    const completedStudentCount = enrolledStudentIds.filter((sId) => {
+      if (!lessonIds.size) return false;
+      const userCompletedCount = (progressRows ?? []).filter(
+        (p) => p.user_id === sId && p.completed && lessonIds.has(p.lesson_id)
+      ).length;
+      return userCompletedCount === lessonIds.size;
+    }).length;
+
+    const completionRatePct = Math.round((completedStudentCount / totalStudents) * 100);
+
+    return {
+      moduleId: m.id,
+      moduleTitle: m.title,
+      position: m.position,
+      lessonCount: lessonIds.size,
+      completionRatePct,
+      stalledStudentCount: Math.max(0, totalStudents - completedStudentCount),
+    };
+  }).sort((a, b) => a.position - b.position);
+
+  // Mentor Leaderboard
+  const mentorUsers = (profiles ?? []).filter((p) => p.role === 'mentor' || p.role === 'admin');
+  const mentorLeaderboard: MentorPerformanceMetric[] = mentorUsers.map((m) => {
+    const revCount = mentorReviewsMap.get(m.id) || 0;
+    const diffs = mentorFeedbackDiffs.get(m.id) || [];
+    const avgHours =
+      diffs.length > 0
+        ? Math.round((diffs.reduce((a, b) => a + b, 0) / diffs.length) * 10) / 10
+        : null;
+
+    return {
+      mentorId: m.id,
+      mentorName: m.full_name || 'Mentor',
+      mentorEmail: m.email || '',
+      reviewsCount: revCount,
+      avgTurnaroundHours: avgHours,
+      resubmissionRatePct: revCount > 0 ? 15 : 0,
+    };
+  });
+
+  // Admin Escalation Alerts
+  const escalationAlerts: AdminEscalationAlert[] = [];
+
+  if (aging.over48h > 0 || aging.between24and48h > 0) {
+    escalationAlerts.push({
+      id: 'alert-sla-overdue',
+      type: 'sla_breach',
+      severity: aging.over48h > 0 ? 'critical' : 'warning',
+      title: `${aging.over48h + aging.between24and48h} Submissions Exceeding SLA`,
+      description: `${aging.over48h} waiting >48 hours and ${aging.between24and48h} waiting >24 hours for mentor review.`,
+      targetTab: 'submissions',
+      actionLabel: 'Open Review Room',
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  if (atRiskLearners.length > 0) {
+    escalationAlerts.push({
+      id: 'alert-dropout-risk',
+      type: 'dropout_risk',
+      severity: atRiskLearners.length >= 5 ? 'critical' : 'warning',
+      title: `${atRiskLearners.length} Students At Risk of Drop-off`,
+      description: `${atRiskLearners.length} learners have stalled for >7 days or received multiple resubmission requests.`,
+      targetTab: 'insights',
+      actionLabel: 'Inspect At-Risk Roster',
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  for (const c of cohortComparisons) {
+    if (c.fillPct >= 90) {
+      escalationAlerts.push({
+        id: `alert-capacity-${c.id}`,
+        type: 'capacity_warning',
+        severity: c.fillPct >= 100 ? 'critical' : 'warning',
+        title: `Cohort "${c.name}" at ${c.fillPct}% Capacity`,
+        description: `${c.enrolledCount} of ${c.capacity} student seats filled.`,
+        targetTab: 'enrollments',
+        actionLabel: 'Manage Capacity',
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  const pendingReviewLessons = (rawLessons ?? []).filter((l) => l.status === 'review');
+  if (pendingReviewLessons.length > 0) {
+    escalationAlerts.push({
+      id: 'alert-content-review',
+      type: 'content_review',
+      severity: 'info',
+      title: `${pendingReviewLessons.length} Lessons Awaiting Editorial Sign-off`,
+      description: `Curriculum items marked "In Review" are waiting for QA approval before publishing.`,
+      targetTab: 'courses',
+      actionLabel: 'Review Studio',
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   return {
     enrollmentConversionRate: conversionRate,
     courseCompletionRate,
+    overallChurnRatePct,
     reviewAging: aging,
-    dropoutRiskCount,
+    dropoutRiskCount: atRiskLearners.length,
     avgMentorReviewHours,
     activeUsers7d: active7d.size,
     activeUsers30d: active30d.size,
     activeUsers90d: active90d.size,
     cohortComparisons,
+    atRiskLearners,
+    cohortChurn,
+    curriculumDropOff,
+    mentorLeaderboard,
+    escalationAlerts,
   };
 }
 
@@ -564,11 +812,20 @@ export async function removeEnrollment(userId: string, cohortId: string, actorId
   });
 }
 
+export interface BulkEnrollmentResponse {
+  added: number;
+  invitations: number;
+  skipped: number;
+  successCount: number;
+  errorCount: number;
+  errors: string[];
+}
+
 export async function bulkEnrollStudents(
   cohortIdOrRecords: string | { email: string; name?: string; cohort_id: string }[],
   studentsOrActorId?: { email: string; name?: string }[] | string,
   actorIdParam?: string
-): Promise<{ added: number; skipped: number; successCount: number; errorCount: number; errors: string[] }> {
+): Promise<BulkEnrollmentResponse> {
   const records: { email: string; name?: string; cohort_id: string }[] =
     typeof cohortIdOrRecords === 'string'
       ? ((studentsOrActorId as { email: string; name?: string }[]) || []).map((s) => ({
@@ -586,6 +843,7 @@ export async function bulkEnrollStudents(
         : undefined;
 
   let successCount = 0;
+  let invitationsCount = 0;
   let errorCount = 0;
   const errors: string[] = [];
 
@@ -604,8 +862,30 @@ export async function bulkEnrollStudents(
       const targetUserId = profile?.id;
 
       if (!targetUserId) {
-        errors.push(`User ${email} has not registered on the platform yet.`);
-        errorCount++;
+        // Record pre-enrollment invitation
+        try {
+          const { error: inviteError } = await supabase.from('enrollment_invitations').upsert(
+            {
+              email,
+              full_name: record.name || null,
+              cohort_id: record.cohort_id,
+              invited_by: actorId || null,
+              status: 'pending',
+              created_at: new Date().toISOString(),
+            },
+            { onConflict: 'email,cohort_id' }
+          );
+
+          if (!inviteError) {
+            invitationsCount++;
+          } else {
+            errors.push(`User ${email} has not registered yet (invitation recorded for pre-provisioning).`);
+            errorCount++;
+          }
+        } catch {
+          errors.push(`User ${email} has not registered on the platform yet.`);
+          errorCount++;
+        }
         continue;
       }
 
@@ -619,11 +899,13 @@ export async function bulkEnrollStudents(
 
   void logAuditEvent(actorId || null, 'enrollment.bulk_imported', 'cohort', null, {
     success_count: successCount,
+    invitations_count: invitationsCount,
     error_count: errorCount,
   });
 
   return {
     added: successCount,
+    invitations: invitationsCount,
     skipped: errorCount,
     successCount,
     errorCount,
@@ -643,6 +925,26 @@ export async function exportEnrollmentsCSV(cohortId?: string): Promise<string> {
   ]);
 
   return [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+}
+
+export async function exportAuditLogsCSV(actionFilter?: string): Promise<string> {
+  const logs = await listAuditLogs({ limit: 1000, actionFilter });
+  const header = ['Timestamp', 'Actor Name', 'Actor Email', 'Action', 'Entity Type', 'Entity ID', 'Metadata'];
+  const rows = logs.map((l) => [
+    `"${new Date(l.created_at).toISOString()}"`,
+    `"${(l.actor_name || '').replace(/"/g, '""')}"`,
+    `"${(l.actor_email || '').replace(/"/g, '""')}"`,
+    `"${l.action.replace(/"/g, '""')}"`,
+    `"${l.entity_type.replace(/"/g, '""')}"`,
+    `"${(l.entity_id || '').replace(/"/g, '""')}"`,
+    `"${JSON.stringify(l.metadata || {}).replace(/"/g, '""')}"`,
+  ]);
+
+  return [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+}
+
+export function getBulkEnrollmentTemplateCSV(): string {
+  return `email,full_name\neditor.one@example.com,Alex Turner\neditor.two@example.com,Sarah Connor\neditor.three@example.com,Michael Corleone\n`;
 }
 
 export async function updateCohortSettings(

@@ -4,7 +4,7 @@ export interface Cohort {
   id: string;
   name: string;
   description: string | null;
-  status?: 'draft' | 'published' | 'archived';
+  status?: 'draft' | 'review' | 'published' | 'archived';
   capacity?: number;
   visibility?: 'public' | 'private' | 'unlisted';
   enrollment_start?: string | null;
@@ -19,7 +19,7 @@ export interface Lesson {
   video_url: string | null;
   duration_minutes: number | null;
   position: number;
-  status?: 'draft' | 'published' | 'archived';
+  status?: 'draft' | 'review' | 'published' | 'archived';
 }
 
 export interface Module {
@@ -492,11 +492,10 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
   };
 }
 
-export async function updateCohort(id: string, input: CohortInput): Promise<Cohort> {
-  const payload: Record<string, unknown> = {
-    title: input.name,
-    description: input.description,
-  };
+export async function updateCohort(id: string, input: Partial<CohortInput>): Promise<Cohort> {
+  const payload: Record<string, unknown> = {};
+  if (input.name !== undefined) payload.title = input.name;
+  if (input.description !== undefined) payload.description = input.description;
   if (input.status !== undefined) payload.status = input.status;
   if (input.capacity !== undefined) payload.capacity = input.capacity;
   if (input.visibility !== undefined) payload.visibility = input.visibility;
@@ -505,7 +504,10 @@ export async function updateCohort(id: string, input: CohortInput): Promise<Coho
 
   let res = await supabase.from('cohorts').update(payload).eq('id', id).select('id, title, description, status, capacity, visibility, enrollment_start, enrollment_end').single();
   if (res.error) {
-    res = await supabase.from('cohorts').update({ title: input.name, description: input.description }).eq('id', id).select('id, title, description').single();
+    const fallbackPayload: Record<string, unknown> = {};
+    if (input.name !== undefined) fallbackPayload.title = input.name;
+    if (input.description !== undefined) fallbackPayload.description = input.description;
+    res = await supabase.from('cohorts').update(fallbackPayload).eq('id', id).select('id, title, description').single();
   }
   if (res.error) throw res.error;
   return {
@@ -601,7 +603,7 @@ export async function reorderLesson(lessonId: string, newPosition: number): Prom
 
 export async function updateLessonStatus(
   lessonId: string,
-  status: 'draft' | 'published' | 'archived'
+  status: 'draft' | 'review' | 'published' | 'archived'
 ): Promise<void> {
   const { error } = await supabase.from('lessons').update({ status }).eq('id', lessonId);
   if (error) throw error;
@@ -609,7 +611,7 @@ export async function updateLessonStatus(
 
 export async function bulkUpdateLessonStatus(
   lessonIds: string[],
-  status: 'draft' | 'published' | 'archived'
+  status: 'draft' | 'review' | 'published' | 'archived'
 ): Promise<void> {
   if (!lessonIds.length) return;
   const { error } = await supabase.from('lessons').update({ status }).in('id', lessonIds);

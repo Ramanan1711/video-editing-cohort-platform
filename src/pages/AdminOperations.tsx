@@ -16,6 +16,7 @@ import {
   Flame,
   History,
   Layers,
+  Lock,
   Megaphone,
   Radio,
   Search,
@@ -38,6 +39,13 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../context/useAuth';
 import { assignMentorToCohort } from '../lib/mentorService';
+import { AdminNotificationCenter } from '../components/AdminNotificationCenter';
+import {
+  hasAdminPermission,
+  ROLE_LABELS,
+  type AdminPermission,
+  type AdminSubRole,
+} from '../lib/adminPermissions';
 import {
   bulkEnrollStudents,
   createAnnouncement,
@@ -46,9 +54,11 @@ import {
   deleteCommunityPost,
   deleteLiveSession,
   enrollUserInCohort,
+  exportAuditLogsCSV,
   exportEnrollmentsCSV,
   getAdminExecutiveMetrics,
   getAdminStats,
+  getBulkEnrollmentTemplateCSV,
   listAnnouncements,
   listAuditLogs,
   listCohortEnrollments,
@@ -67,8 +77,8 @@ import {
   type AdminEnrollment,
   type AdminExecutiveMetrics,
   type AdminStats,
-  type AdminSubRole,
   type AuditLog,
+  type BulkEnrollmentResponse,
   type LiveSession,
   type UserProfile,
 } from '../lib/adminService';
@@ -88,7 +98,15 @@ const emptyStats: AdminStats = {
   sessions: 0,
 };
 
-type AdminTab = 'overview' | 'users' | 'enrollments' | 'announcements' | 'sessions' | 'community' | 'audit';
+type AdminTab =
+  | 'overview'
+  | 'insights'
+  | 'users'
+  | 'enrollments'
+  | 'announcements'
+  | 'sessions'
+  | 'community'
+  | 'audit';
 
 export function AdminOperations() {
   const { user, profile } = useAuth();
@@ -120,13 +138,14 @@ export function AdminOperations() {
   const [enrollTargetCohortId, setEnrollTargetCohortId] = useState('');
   const [enrollingUser, setEnrollingUser] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingAuditCsv, setExportingAuditCsv] = useState(false);
 
   // Bulk Enrollment state
   const [showBulkEnrollModal, setShowBulkEnrollModal] = useState(false);
   const [bulkCohortId, setBulkCohortId] = useState('');
   const [bulkCsvText, setBulkCsvText] = useState('');
   const [bulkProcessing, setBulkProcessing] = useState(false);
-  const [bulkResult, setBulkResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null);
+  const [bulkResult, setBulkResult] = useState<BulkEnrollmentResponse | null>(null);
 
   // Student Removal Impact Warning state
   const [removalWarningUser, setRemovalWarningUser] = useState<{
@@ -159,6 +178,15 @@ export function AdminOperations() {
   const [savingSession, setSavingSession] = useState(false);
 
   const [nowTimestamp] = useState(() => Date.now());
+
+  const canManageRoles = hasAdminPermission(profile?.admin_role, 'manage_roles');
+  const canManageStatus = hasAdminPermission(profile?.admin_role, 'manage_user_status');
+  const canManageEnrollments = hasAdminPermission(profile?.admin_role, 'manage_enrollments');
+  const canBroadcastAnnouncements = hasAdminPermission(profile?.admin_role, 'broadcast_announcements');
+  const canScheduleSessions = hasAdminPermission(profile?.admin_role, 'schedule_sessions');
+  const canModerateCommunity = hasAdminPermission(profile?.admin_role, 'moderate_community');
+  const canViewAuditLogs = hasAdminPermission(profile?.admin_role, 'view_audit_logs');
+  const canViewInsights = hasAdminPermission(profile?.admin_role, 'view_insights');
 
   useEffect(() => {
     if (profile?.role !== 'admin') return;
@@ -384,7 +412,9 @@ export function AdminOperations() {
 
       const res = await bulkEnrollStudents(bulkCohortId, studentsToEnroll, user?.id);
       setBulkResult(res);
-      setSuccess(`Bulk enrollment processed: ${res.added} enrolled, ${res.skipped} skipped.`);
+      setSuccess(
+        `Bulk enrollment processed: ${res.added} enrolled directly, ${res.invitations || 0} pre-enrollment invitations recorded, ${res.skipped} skipped.`
+      );
       const updatedEnrollments = await listCohortEnrollments();
       setEnrollments(updatedEnrollments);
       void getAdminStats().then(setStats);
@@ -395,6 +425,56 @@ export function AdminOperations() {
     } finally {
       setBulkProcessing(false);
     }
+  };
+
+  const handleExportAuditCSV = async () => {
+    setExportingAuditCsv(true);
+    try {
+      const csv = await exportAuditLogsCSV(auditActionFilter === 'all' ? undefined : auditActionFilter);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute(
+        'download',
+        `audit-trail-${new Date().toISOString().slice(0, 10)}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setSuccess('Audit trail CSV exported successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export audit trail CSV.');
+    } finally {
+      setExportingAuditCsv(false);
+    }
+  };
+
+  const handleDownloadBulkTemplate = () => {
+    const template = getBulkEnrollmentTemplateCSV();
+    const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'students_bulk_enrollment_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result;
+      if (typeof text === 'string') {
+        setBulkCsvText(text);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleAssignMentor = async (e: React.FormEvent) => {
@@ -418,6 +498,10 @@ export function AdminOperations() {
   const handleSaveAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (!canBroadcastAnnouncements) {
+      setError('You do not hold permission to broadcast announcements.');
+      return;
+    }
     setSavingAnnouncement(true);
     setError(null);
     try {
@@ -441,6 +525,10 @@ export function AdminOperations() {
   };
 
   const handleDeleteAnnouncement = async (id: string) => {
+    if (!canBroadcastAnnouncements) {
+      setError('You do not hold permission to delete announcements.');
+      return;
+    }
     if (!window.confirm('Delete this announcement?')) return;
     try {
       await deleteAnnouncement(id);
@@ -456,6 +544,10 @@ export function AdminOperations() {
   const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (!canScheduleSessions) {
+      setError('You do not hold permission to schedule live sessions.');
+      return;
+    }
     setSavingSession(true);
     setError(null);
     try {
@@ -479,6 +571,10 @@ export function AdminOperations() {
   };
 
   const handleDeleteSession = async (id: string) => {
+    if (!canScheduleSessions) {
+      setError('You do not hold permission to delete live sessions.');
+      return;
+    }
     if (!window.confirm('Cancel and delete this live session?')) return;
     try {
       await deleteLiveSession(id);
@@ -538,14 +634,20 @@ export function AdminOperations() {
     });
   }, [auditLogs, auditSearch, auditActionFilter]);
 
-  const tabs: { id: AdminTab; label: string; count?: number }[] = [
+  const tabs: { id: AdminTab; label: string; count?: number; permission?: AdminPermission }[] = [
     { id: 'overview', label: 'Summary Dashboard' },
-    { id: 'users', label: 'User Roles & Status', count: users.length },
-    { id: 'enrollments', label: 'Cohort Enrollments', count: enrollments.length },
-    { id: 'announcements', label: 'Announcements', count: announcements.length },
-    { id: 'sessions', label: 'Live Sessions', count: sessions.length },
-    { id: 'community', label: 'Community Moderation', count: posts.length },
-    { id: 'audit', label: 'Audit Logs', count: auditLogs.length },
+    {
+      id: 'insights',
+      label: 'Executive Insights',
+      count: canViewInsights ? execMetrics?.atRiskLearners.length : undefined,
+      permission: 'view_insights',
+    },
+    { id: 'users', label: 'User Roles & Status', count: users.length, permission: 'manage_roles' },
+    { id: 'enrollments', label: 'Cohort Enrollments', count: enrollments.length, permission: 'manage_enrollments' },
+    { id: 'announcements', label: 'Announcements', count: announcements.length, permission: 'broadcast_announcements' },
+    { id: 'sessions', label: 'Live Sessions', count: sessions.length, permission: 'schedule_sessions' },
+    { id: 'community', label: 'Community Moderation', count: posts.length, permission: 'moderate_community' },
+    { id: 'audit', label: 'Audit Logs', count: canViewAuditLogs ? auditLogs.length : undefined, permission: 'view_audit_logs' },
   ];
 
   if (profile?.role !== 'admin') {
@@ -581,12 +683,19 @@ export function AdminOperations() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 shadow-2xs">
+                <ShieldCheck size={14} className="text-orange-500" />
+                <span>{ROLE_LABELS[profile?.admin_role || 'super_admin']}</span>
+              </span>
+
+              <AdminNotificationCenter onNavigateTab={(t) => setTab(t as AdminTab)} />
+
               <Link
                 to="/admin/courses"
                 className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50"
               >
-                Course Authoring Studio →
+                Course Studio →
               </Link>
               <Link
                 to="/review/submissions"
@@ -621,28 +730,44 @@ export function AdminOperations() {
 
         {/* Navigation Tabs */}
         <nav className="mb-8 flex gap-2 overflow-x-auto border-b border-slate-200 pb-1 text-xs font-bold">
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setTab(item.id)}
-              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2.5 transition ${
-                tab === item.id
-                  ? 'bg-orange-500 text-white shadow-2xs font-black'
-                  : 'text-slate-600 hover:bg-slate-200/60'
-              }`}
-            >
-              <span>{item.label}</span>
-              {typeof item.count === 'number' && (
-                <span
-                  className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                    tab === item.id ? 'bg-orange-600 text-white' : 'bg-slate-200 text-slate-600'
-                  }`}
-                >
-                  {item.count}
-                </span>
-              )}
-            </button>
-          ))}
+          {tabs.map((item) => {
+            const hasAccess = !item.permission || hasAdminPermission(profile?.admin_role, item.permission);
+            if (!hasAccess && item.id === 'audit') return null;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  if (hasAccess) {
+                    setTab(item.id);
+                  } else {
+                    setError(
+                      `Your sub-role (${ROLE_LABELS[profile?.admin_role || 'super_admin']}) does not hold the "${item.label}" administrative privilege.`
+                    );
+                  }
+                }}
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2.5 transition ${
+                  tab === item.id
+                    ? 'bg-orange-500 text-white shadow-2xs font-black'
+                    : hasAccess
+                    ? 'text-slate-600 hover:bg-slate-200/60'
+                    : 'text-slate-400 opacity-60 cursor-not-allowed'
+                }`}
+              >
+                {!hasAccess && <Lock size={12} className="text-slate-400" />}
+                <span>{item.label}</span>
+                {typeof item.count === 'number' && item.count > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] ${
+                      tab === item.id ? 'bg-orange-600 text-white' : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {item.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
 
         {loading ? (
@@ -1018,6 +1143,334 @@ export function AdminOperations() {
           </div>
         )}
 
+        {/* TAB: EXECUTIVE INSIGHTS & ATTRITION DRILLDOWN */}
+        {tab === 'insights' && (
+          <div className="space-y-8">
+            {/* Insights KPI Row */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Card className="p-4 border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                  <span>Overall Cohort Churn</span>
+                  <AlertTriangle size={15} className="text-rose-500" />
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-rose-600">
+                    {execMetrics?.overallChurnRatePct ?? 0}%
+                  </span>
+                  <span className="text-[11px] text-slate-400">drop rate</span>
+                </div>
+                <p className="mt-2 text-[10px] text-slate-500">
+                  Calculated across all dropped student enrollments.
+                </p>
+              </Card>
+
+              <Card className="p-4 border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                  <span>At-Risk Learners</span>
+                  <Users size={15} className="text-amber-500" />
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-amber-600">
+                    {execMetrics?.atRiskLearners.length ?? 0}
+                  </span>
+                  <span className="text-[11px] text-slate-400">students stalled</span>
+                </div>
+                <p className="mt-2 text-[10px] text-slate-500">
+                  Stalled &gt; 7 days or ≥ 2 revision requests.
+                </p>
+              </Card>
+
+              <Card className="p-4 border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                  <span>Curriculum Modules</span>
+                  <BookOpen size={15} className="text-blue-500" />
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-slate-950">
+                    {execMetrics?.curriculumDropOff.length ?? 0}
+                  </span>
+                  <span className="text-[11px] text-slate-400">active modules</span>
+                </div>
+                <p className="mt-2 text-[10px] text-slate-500">
+                  Tracking milestone completion velocity.
+                </p>
+              </Card>
+
+              <Card className="p-4 border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                  <span>Active Mentors</span>
+                  <Award size={15} className="text-purple-500" />
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-slate-950">
+                    {execMetrics?.mentorLeaderboard.length ?? 0}
+                  </span>
+                  <span className="text-[11px] text-slate-400">reviewers on staff</span>
+                </div>
+                <p className="mt-2 text-[10px] text-slate-500">
+                  Avg turnaround: {execMetrics?.avgMentorReviewHours != null ? `${execMetrics.avgMentorReviewHours}h` : '—'}
+                </p>
+              </Card>
+            </div>
+
+            {/* Section 1: At-Risk Learners Table (Dropout Risk Drilldown) */}
+            <Card className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500 text-white shadow-2xs">
+                      <AlertTriangle size={15} />
+                    </span>
+                    <h2 className="text-base font-black text-slate-950">
+                      At-Risk Student Intervention Roster ({execMetrics?.atRiskLearners.length ?? 0})
+                    </h2>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Learners showing inactivity or friction patterns requiring mentor or administrative check-ins.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="py-2.5 px-3">Student</th>
+                      <th className="py-2.5 px-3">Cohort</th>
+                      <th className="py-2.5 px-3">Inactivity</th>
+                      <th className="py-2.5 px-3">Revisions</th>
+                      <th className="py-2.5 px-3">Risk Factor</th>
+                      <th className="py-2.5 px-3 text-right">Intervention</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {execMetrics?.atRiskLearners.length ? (
+                      execMetrics.atRiskLearners.map((student) => (
+                        <tr key={student.studentId} className="hover:bg-slate-50/60 transition">
+                          <td className="py-3 px-3">
+                            <strong className="text-slate-900 block">{student.studentName}</strong>
+                            <span className="text-[11px] text-slate-400">{student.studentEmail}</span>
+                          </td>
+                          <td className="py-3 px-3 text-slate-700">
+                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700">
+                              {student.cohortName}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-slate-700">
+                            <span className="font-bold text-amber-700">{student.daysInactive} days</span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span
+                              className={
+                                student.resubmissionsCount >= 2
+                                  ? 'text-rose-600 font-bold'
+                                  : 'text-slate-600'
+                              }
+                            >
+                              {student.resubmissionsCount} pending revisions
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span
+                              className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                student.riskReason === 'multiple_resubmissions'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : student.riskReason === 'stalled_inactivity'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {student.riskReason.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const message = `Hi ${student.studentName}, checking in from CUT / CRAFT! We noticed you haven't been active in ${student.cohortName} lately. Do you need help with your current timeline cut or feedback revisions?`;
+                                navigator.clipboard.writeText(message);
+                                setSuccess(`Check-in message copied to clipboard for ${student.studentName}!`);
+                              }}
+                              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-orange-600"
+                            >
+                              Copy Check-in Note
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="py-10 text-center text-slate-400">
+                          ✓ No learners currently flagged as at-risk.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* Section 2: Curriculum Drop-Off Funnel & Cohort Churn */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Curriculum Funnel */}
+              <Card className="p-6">
+                <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
+                  <Layers size={16} className="text-orange-500" /> Curriculum Drop-Off Funnel
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Module-by-module completion rates across all enrolled students to identify pedagogical bottlenecks.
+                </p>
+
+                <div className="mt-5 space-y-4">
+                  {execMetrics?.curriculumDropOff.length ? (
+                    execMetrics.curriculumDropOff.map((m) => (
+                      <div key={m.moduleId} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="text-slate-900">
+                            Module {m.position}: {m.moduleTitle}
+                          </span>
+                          <span className="text-slate-600 font-mono">{m.completionRatePct}% complete</span>
+                        </div>
+                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              m.completionRatePct >= 75
+                                ? 'bg-emerald-500'
+                                : m.completionRatePct >= 40
+                                ? 'bg-blue-500'
+                                : 'bg-amber-500'
+                            }`}
+                            style={{ width: `${Math.max(4, m.completionRatePct)}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-slate-400">
+                          <span>{m.lessonCount} lessons</span>
+                          <span>{m.stalledStudentCount} students yet to complete</span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="py-8 text-center text-xs text-slate-400">No modules found.</p>
+                  )}
+                </div>
+              </Card>
+
+              {/* Cohort Churn Breakdown */}
+              <Card className="p-6">
+                <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
+                  <Activity size={16} className="text-rose-500" /> Cohort Attrition &amp; Retention
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Active vs completed vs dropped student distribution by cohort.
+                </p>
+
+                <div className="mt-5 space-y-4">
+                  {execMetrics?.cohortChurn.length ? (
+                    execMetrics.cohortChurn.map((c) => (
+                      <div key={c.cohortId} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
+                        <div className="flex items-center justify-between">
+                          <strong className="text-xs font-bold text-slate-900">{c.cohortName}</strong>
+                          <span
+                            className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                              c.churnRatePct >= 20
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
+                            {c.churnRatePct}% Churn
+                          </span>
+                        </div>
+                        <div className="mt-2 grid grid-cols-4 gap-2 text-center text-[11px]">
+                          <div className="rounded bg-white p-2 shadow-3xs">
+                            <span className="block text-[10px] text-slate-400 font-bold uppercase">Enrolled</span>
+                            <strong className="text-slate-900 font-bold">{c.totalEnrolled}</strong>
+                          </div>
+                          <div className="rounded bg-white p-2 shadow-3xs">
+                            <span className="block text-[10px] text-emerald-600 font-bold uppercase">Active</span>
+                            <strong className="text-emerald-700 font-bold">{c.activeCount}</strong>
+                          </div>
+                          <div className="rounded bg-white p-2 shadow-3xs">
+                            <span className="block text-[10px] text-blue-600 font-bold uppercase">Graduated</span>
+                            <strong className="text-blue-700 font-bold">{c.completedCount}</strong>
+                          </div>
+                          <div className="rounded bg-white p-2 shadow-3xs">
+                            <span className="block text-[10px] text-rose-600 font-bold uppercase">Dropped</span>
+                            <strong className="text-rose-700 font-bold">{c.droppedCount}</strong>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="py-8 text-center text-xs text-slate-400">No cohort data available.</p>
+                  )}
+                </div>
+              </Card>
+            </div>
+
+            {/* Section 3: Mentor Performance & SLA Review Velocity */}
+            <Card className="p-6">
+              <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
+                <Clock size={16} className="text-purple-500" /> Mentor Review Performance &amp; SLA Velocity
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Review turnaround velocity, critique output, and revision request ratios across mentoring staff.
+              </p>
+
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="py-2.5 px-3">Mentor</th>
+                      <th className="py-2.5 px-3">Total Reviews Completed</th>
+                      <th className="py-2.5 px-3">Avg Turnaround Time</th>
+                      <th className="py-2.5 px-3">SLA Health</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {execMetrics?.mentorLeaderboard.length ? (
+                      execMetrics.mentorLeaderboard.map((m) => (
+                        <tr key={m.mentorId} className="hover:bg-slate-50/60 transition">
+                          <td className="py-3 px-3">
+                            <strong className="text-slate-900 block">{m.mentorName}</strong>
+                            <span className="text-[11px] text-slate-400">{m.mentorEmail}</span>
+                          </td>
+                          <td className="py-3 px-3 text-slate-700">
+                            <span className="font-bold text-slate-950">{m.reviewsCount}</span> critiques
+                          </td>
+                          <td className="py-3 px-3 text-slate-700">
+                            {m.avgTurnaroundHours != null ? `${m.avgTurnaroundHours} hours` : '—'}
+                          </td>
+                          <td className="py-3 px-3">
+                            {m.avgTurnaroundHours != null ? (
+                              m.avgTurnaroundHours <= 24 ? (
+                                <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 uppercase">
+                                  ✓ Rapid SLA
+                                </span>
+                              ) : (
+                                <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 uppercase">
+                                  SLA Warning (&gt;24h)
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-slate-400 text-[10px]">No reviews yet</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-slate-400">
+                          No mentor performance recorded yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {/* TAB 2: USER ROLES & STATUS MANAGEMENT */}
         {tab === 'users' && (
           <Card className="p-6">
@@ -1104,7 +1557,7 @@ export function AdminOperations() {
                         <RoleBadge role={item.role} />
 
                         {/* Promotion / Demotion Actions */}
-                        {!isSelf && item.role === 'student' && (
+                        {canManageRoles && !isSelf && item.role === 'student' && (
                           <Button
                             variant="secondary"
                             size="sm"
@@ -1116,7 +1569,7 @@ export function AdminOperations() {
                           </Button>
                         )}
 
-                        {!isSelf && item.role === 'mentor' && (
+                        {canManageRoles && !isSelf && item.role === 'mentor' && (
                           <Button
                             variant="secondary"
                             size="sm"
@@ -1129,7 +1582,7 @@ export function AdminOperations() {
                         )}
 
                         {/* Suspend / Reactivate Actions */}
-                        {!isSelf && (
+                        {canManageStatus && !isSelf && (
                           <Button
                             variant="secondary"
                             size="sm"
@@ -1156,22 +1609,28 @@ export function AdminOperations() {
                             <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700">
                               <ShieldCheck size={14} className="text-emerald-500" /> Admin
                             </span>
-                            <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1">
-                              <UserCog size={13} className="text-slate-400" />
-                              <select
-                                value={item.admin_role || 'super_admin'}
-                                disabled={isSelf || isUpdating}
-                                onChange={(e) =>
-                                  void handleAdminSubRoleChange(item, e.target.value as AdminSubRole)
-                                }
-                                className="bg-transparent text-[11px] font-bold text-slate-700 outline-none cursor-pointer"
-                              >
-                                <option value="super_admin">Super Admin</option>
-                                <option value="content_admin">Content Admin</option>
-                                <option value="operations_admin">Operations Admin</option>
-                                <option value="moderator">Moderator</option>
-                              </select>
-                            </div>
+                            {canManageRoles ? (
+                              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1">
+                                <UserCog size={13} className="text-slate-400" />
+                                <select
+                                  value={item.admin_role || 'super_admin'}
+                                  disabled={isSelf || isUpdating}
+                                  onChange={(e) =>
+                                    void handleAdminSubRoleChange(item, e.target.value as AdminSubRole)
+                                  }
+                                  className="bg-transparent text-[11px] font-bold text-slate-700 outline-none cursor-pointer"
+                                >
+                                  <option value="super_admin">Super Admin</option>
+                                  <option value="content_admin">Content Admin</option>
+                                  <option value="operations_admin">Operations Admin</option>
+                                  <option value="moderator">Moderator</option>
+                                </select>
+                              </div>
+                            ) : (
+                              <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                                {ROLE_LABELS[item.admin_role || 'super_admin']}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1223,37 +1682,41 @@ export function AdminOperations() {
                   <Download size={14} /> Export CSV
                 </Button>
 
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    setBulkCohortId(selectedCohortId !== 'all' ? selectedCohortId : (cohorts[0]?.id || ''));
-                    setShowBulkEnrollModal(true);
-                    setBulkResult(null);
-                    setBulkCsvText('');
-                  }}
-                  className="text-xs font-bold"
-                >
-                  <UploadCloud size={14} /> Bulk CSV Import
-                </Button>
+                {canManageEnrollments && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setBulkCohortId(selectedCohortId !== 'all' ? selectedCohortId : (cohorts[0]?.id || ''));
+                        setShowBulkEnrollModal(true);
+                        setBulkResult(null);
+                        setBulkCsvText('');
+                      }}
+                      className="text-xs font-bold"
+                    >
+                      <UploadCloud size={14} /> Bulk CSV Import
+                    </Button>
 
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setShowAssignMentorModal(true)}
-                  className="text-xs font-bold"
-                >
-                  <Sparkles size={14} /> Assign Mentor
-                </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setShowAssignMentorModal(true)}
+                      className="text-xs font-bold"
+                    >
+                      <Sparkles size={14} /> Assign Mentor
+                    </Button>
 
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => setShowEnrollModal(true)}
-                  className="text-xs font-bold"
-                >
-                  <UserPlus size={14} /> Enroll Student
-                </Button>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => setShowEnrollModal(true)}
+                      className="text-xs font-bold"
+                    >
+                      <UserPlus size={14} /> Enroll Student
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1280,6 +1743,7 @@ export function AdminOperations() {
                     <div className="flex items-center gap-3">
                       <select
                         value={item.status}
+                        disabled={!canManageEnrollments}
                         onChange={(e) =>
                           void handleUpdateEnrollmentStatus(
                             item.user_id,
@@ -1288,6 +1752,8 @@ export function AdminOperations() {
                           )
                         }
                         className={`rounded-lg border px-2.5 py-1 text-xs font-bold outline-none ${
+                          !canManageEnrollments ? 'cursor-not-allowed opacity-75 ' : ''
+                        }${
                           item.status === 'active'
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                             : item.status === 'completed'
@@ -1303,20 +1769,22 @@ export function AdminOperations() {
                         <option value="waitlisted">Waitlisted</option>
                       </select>
 
-                      <button
-                        onClick={() =>
-                          setRemovalWarningUser({
-                            userId: item.user_id,
-                            cohortId: item.cohort_id,
-                            studentName: item.student_name,
-                            cohortName: item.cohort_name,
-                          })
-                        }
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
-                        title="Remove from cohort"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      {canManageEnrollments && (
+                        <button
+                          onClick={() =>
+                            setRemovalWarningUser({
+                              userId: item.user_id,
+                              cohortId: item.cohort_id,
+                              studentName: item.student_name,
+                              cohortName: item.cohort_name,
+                            })
+                          }
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
+                          title="Remove from cohort"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -1496,25 +1964,53 @@ export function AdminOperations() {
                       </select>
                     </label>
 
-                    <label className="block text-xs font-bold text-slate-700">
-                      Paste CSV Data (email, full_name)
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-slate-700">
+                          CSV Data (email, full_name)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleDownloadBulkTemplate}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline"
+                        >
+                          <Download size={12} /> Download CSV Template
+                        </button>
+                      </div>
+
+                      <div className="mt-1.5 mb-2.5 flex items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-2.5">
+                        <UploadCloud size={16} className="text-slate-400 shrink-0" />
+                        <div className="flex-1 text-[11px] text-slate-600">
+                          <label className="cursor-pointer font-bold text-orange-600 hover:underline">
+                            <span>Upload .csv file</span>
+                            <input
+                              type="file"
+                              accept=".csv,text/csv"
+                              onChange={handleBulkFileUpload}
+                              className="sr-only"
+                            />
+                          </label>
+                          <span className="text-slate-400 ml-1">or paste rows directly below</span>
+                        </div>
+                      </div>
+
                       <p className="mt-0.5 text-[11px] font-normal text-slate-500">
                         Format: One entry per line. Example: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">alex@example.com, Alex Turner</code>
                       </p>
                       <textarea
-                        rows={6}
+                        rows={5}
                         required
                         value={bulkCsvText}
                         onChange={(e) => setBulkCsvText(e.target.value)}
                         placeholder={`jane@example.com, Jane Doe\njohn@example.com, John Smith\nsam@example.com`}
                         className="mt-1.5 block w-full resize-none font-mono text-xs rounded-xl border border-slate-200 p-2.5 outline-none focus:border-orange-400"
                       />
-                    </label>
+                    </div>
 
                     {bulkResult && (
                       <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs">
                         <p className="font-bold text-emerald-800">
-                          ✓ Bulk Enrollment Completed: {bulkResult.added} enrolled, {bulkResult.skipped} already enrolled/skipped.
+                          ✓ Bulk Enrollment Completed: {bulkResult.added} enrolled directly, {bulkResult.invitations || 0} pre-enrollment invitations recorded, {bulkResult.skipped} already enrolled/skipped.
                         </p>
                         {bulkResult.errors.length > 0 && (
                           <ul className="mt-1.5 list-disc pl-4 text-[11px] text-red-600">
@@ -1909,14 +2405,16 @@ export function AdminOperations() {
                       </div>
                     </div>
 
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => void handleDeletePost(post.id)}
-                      className="text-xs font-bold text-red-600 hover:bg-red-50 hover:text-red-700 shrink-0"
-                    >
-                      <Trash2 size={13} /> Remove Post
-                    </Button>
+                    {canModerateCommunity && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void handleDeletePost(post.id)}
+                        className="text-xs font-bold text-red-600 hover:bg-red-50 hover:text-red-700 shrink-0"
+                      >
+                        <Trash2 size={13} /> Remove Post
+                      </Button>
+                    )}
                   </div>
                 ))
               ) : (
@@ -1965,6 +2463,16 @@ export function AdminOperations() {
                   <option value="session">Live Sessions</option>
                   <option value="post">Moderation</option>
                 </select>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void handleExportAuditCSV()}
+                  loading={exportingAuditCsv}
+                  className="text-xs font-bold gap-1.5"
+                >
+                  <Download size={13} /> Export Audit CSV
+                </Button>
               </div>
             </div>
 
