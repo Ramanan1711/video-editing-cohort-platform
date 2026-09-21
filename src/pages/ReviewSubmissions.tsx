@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { detectResourceType } from '../lib/courseService';
+import { detectResourceType, getSecureSubmissionUrl } from '../lib/courseService';
 import { useAuth } from '../context/useAuth';
 import {
   escalateSubmissionToAdmin,
@@ -83,15 +83,40 @@ export function ReviewSubmissions() {
   const [escalationDetail, setEscalationDetail] = useState('');
   const [submittingEscalation, setSubmittingEscalation] = useState(false);
 
+  // Secure signed URLs for private submissions storage
+  const [secureUrls, setSecureUrls] = useState<Record<string, string>>({});
+
   const isAuthorized = profile?.role === 'mentor' || profile?.role === 'admin';
+
+  // Resolve time-limited signed URLs for submission media
+  useEffect(() => {
+    if (!submissions.length) return;
+    let active = true;
+
+    Promise.all(
+      submissions.map(async (s) => {
+        const url = await getSecureSubmissionUrl(s.file_url);
+        return [s.id, url] as const;
+      })
+    ).then((pairs) => {
+      if (active) {
+        setSecureUrls(Object.fromEntries(pairs));
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [submissions]);
 
   useEffect(() => {
     if (!isAuthorized || !user) return;
+    const userId = user.id;
     let active = true;
 
     async function loadQueue() {
       try {
-        const cohorts = await getMentorAssignedCohorts(user!.id, profile?.role || 'mentor');
+        const cohorts = await getMentorAssignedCohorts(userId, profile?.role || 'mentor');
         if (!active) return;
         setAssignedCohorts(cohorts);
 
@@ -541,6 +566,7 @@ export function ReviewSubmissions() {
           <div className="space-y-8">
             {filteredSubmissions.map((submission) => {
               const fileType = detectResourceType(submission.file_url);
+              const resolvedUrl = secureUrls[submission.id] || submission.file_url;
               const isResubmission = Boolean(
                 submission.detailed_feedback_history?.length && submission.detailed_feedback_history.length > 1
               );
@@ -701,7 +727,7 @@ export function ReviewSubmissions() {
                       {submission.detailed_feedback_history?.map((hist, idx) => (
                         <div key={hist.id || idx} className="rounded-lg bg-white p-3.5 text-xs shadow-2xs">
                           <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
-                            <span className="font-bold text-purple-700">Round #{submission.detailed_feedback_history!.length - idx}</span>
+                            <span className="font-bold text-purple-700">Round #{(submission.detailed_feedback_history?.length ?? 0) - idx}</span>
                             <span>{new Date(hist.created_at).toLocaleString()}</span>
                           </div>
                           <p className="whitespace-pre-wrap text-slate-800">{hist.comments}</p>
@@ -737,7 +763,7 @@ export function ReviewSubmissions() {
                           </span>
 
                           <a
-                            href={submission.file_url}
+                            href={resolvedUrl}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-50 transition"
@@ -757,7 +783,7 @@ export function ReviewSubmissions() {
                                   videoRefs.current[submission.id] = el;
                                 }}
                                 controls
-                                src={submission.file_url}
+                                src={resolvedUrl}
                                 onTimeUpdate={(e) => {
                                   setActivePlaybackTime((prev) => ({
                                     ...prev,
@@ -854,7 +880,7 @@ export function ReviewSubmissions() {
                         ) : fileType === 'image' ? (
                           <div className="flex justify-center overflow-hidden rounded-xl bg-slate-900 p-2">
                             <img
-                              src={submission.file_url}
+                              src={resolvedUrl}
                               alt="Student timeline submission"
                               className="max-h-80 object-contain rounded-lg"
                             />
@@ -868,12 +894,12 @@ export function ReviewSubmissions() {
                               <div>
                                 <p className="text-xs font-bold text-slate-900">Project Archive / Timeline Rushes</p>
                                 <p className="text-[11px] text-slate-500">
-                                  Download to inspect in Premiere Pro, DaVinci Resolve, or FCPX
+                                   Download to inspect in Premiere Pro, DaVinci Resolve, or FCPX
                                 </p>
                               </div>
                             </div>
                             <a
-                              href={submission.file_url}
+                              href={resolvedUrl}
                               target="_blank"
                               rel="noreferrer"
                               className="rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-orange-600 transition"

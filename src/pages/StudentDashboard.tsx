@@ -103,6 +103,7 @@ export function StudentDashboard() {
   const [collapsedModuleIds, setCollapsedModuleIds] = useState<Set<string>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
   const [engagementAlert, setEngagementAlert] = useState<{ title: string; message: string } | null>(null);
+  const [failedSections, setFailedSections] = useState<string[]>([]);
   const [nowTimestamp] = useState(() => Date.now());
   const [isOnline, setIsOnline] = useState<boolean>(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -124,31 +125,64 @@ export function StudentDashboard() {
   // Fetch course, submissions, live sessions, announcements, assignments
   useEffect(() => {
     if (!user) return;
+    const userId = user.id;
     let active = true;
 
     async function loadDashboardData() {
       try {
         setLoading(true);
-        const [courseData, submissionsData, sessionsData, announcementsData, assignmentsData] = await Promise.all([
-          getStudentCourseData(user!.id, selectedCohortId ?? undefined),
-          listMySubmissions(user!.id).catch(() => []),
-          listStudentLiveSessions().catch(() => []),
-          listStudentAnnouncements().catch(() => []),
-          listAssignments(selectedCohortId ?? undefined).catch(() => []),
+        const [courseRes, submissionsRes, sessionsRes, announcementsRes, assignmentsRes] = await Promise.allSettled([
+          getStudentCourseData(userId, selectedCohortId ?? undefined),
+          listMySubmissions(userId),
+          listStudentLiveSessions(),
+          listStudentAnnouncements(),
+          listAssignments(selectedCohortId ?? undefined),
         ]);
 
         if (!active) return;
-        setCourse(courseData);
-        setMySubmissions(submissionsData);
-        setLiveSessions(sessionsData);
-        setAnnouncements(announcementsData);
-        setCohortAssignments(assignmentsData);
+
+        if (courseRes.status === 'rejected') {
+          throw courseRes.reason;
+        }
+
+        const partialErrors: string[] = [];
+
+        setCourse(courseRes.value);
+
+        if (submissionsRes.status === 'fulfilled') {
+          setMySubmissions(submissionsRes.value);
+        } else {
+          console.warn('Submissions load failure:', submissionsRes.reason);
+          partialErrors.push('submissions');
+        }
+
+        if (sessionsRes.status === 'fulfilled') {
+          setLiveSessions(sessionsRes.value);
+        } else {
+          console.warn('Live sessions load failure:', sessionsRes.reason);
+          partialErrors.push('live sessions');
+        }
+
+        if (announcementsRes.status === 'fulfilled') {
+          setAnnouncements(announcementsRes.value);
+        } else {
+          console.warn('Announcements load failure:', announcementsRes.reason);
+        }
+
+        if (assignmentsRes.status === 'fulfilled') {
+          setCohortAssignments(assignmentsRes.value);
+        } else {
+          console.warn('Cohort assignments load failure:', assignmentsRes.reason);
+          partialErrors.push('assignments');
+        }
+
+        setFailedSections(partialErrors);
 
         // Auto select first lesson if no lesson selected or cohort changed
-        const firstLessonId = courseData.modules[0]?.lessons[0]?.id ?? null;
+        const firstLessonId = courseRes.value.modules[0]?.lessons[0]?.id ?? null;
         setSelectedLessonId((prev) => {
           if (!prev) return firstLessonId;
-          const exists = courseData.modules.some((m) => m.lessons.some((l) => l.id === prev));
+          const exists = courseRes.value.modules.some((m) => m.lessons.some((l) => l.id === prev));
           return exists ? prev : firstLessonId;
         });
       } catch (fetchError: unknown) {
@@ -481,6 +515,25 @@ export function StudentDashboard() {
           <span>
             You are currently offline. Lessons and downloaded media remain accessible; submissions and watch milestones will sync when reconnected.
           </span>
+        </div>
+      )}
+
+      {/* Partial Data Load Warning Banner */}
+      {failedSections.length > 0 && (
+        <div className="sticky top-[73px] z-30 flex items-center justify-between gap-3 border-b border-orange-200 bg-orange-50 px-4 py-2 text-xs font-semibold text-orange-950 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={15} className="text-orange-600 shrink-0" />
+            <span>
+              Some platform data could not be refreshed ({failedSections.join(', ')}). Your current work is safe.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRefreshKey((k) => k + 1)}
+            className="inline-flex items-center gap-1 rounded-md bg-orange-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-orange-700 transition shrink-0"
+          >
+            <RefreshCw size={11} /> Retry
+          </button>
         </div>
       )}
 

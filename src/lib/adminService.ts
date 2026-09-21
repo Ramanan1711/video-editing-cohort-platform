@@ -248,9 +248,14 @@ export async function listAuditLogs(
         actor_email: actor?.email || '',
       };
     });
-  } catch (err) {
-    console.warn('audit_logs table query failed:', err);
-    return [];
+  } catch (err: unknown) {
+    const errorObj = err as { code?: string; message?: string } | undefined;
+    if (errorObj?.code === '42P01' || errorObj?.message?.includes('audit_logs')) {
+      console.warn('audit_logs table not yet migrated, returning empty logs:', errorObj.message);
+      return [];
+    }
+    console.error('audit_logs query failed:', err);
+    throw err;
   }
 }
 
@@ -1150,8 +1155,12 @@ export async function listMentorCohortAssignments(): Promise<MentorCohortAssignm
       .order('assigned_at', { ascending: false });
 
     if (error) {
-      console.warn('mentor_cohorts query error:', error);
-      return [];
+      if (error.code === '42P01' || error.message.includes('mentor_cohorts')) {
+        console.warn('mentor_cohorts table not yet migrated, returning empty assignments:', error.message);
+        return [];
+      }
+      console.error('mentor_cohorts query failed:', error);
+      throw error;
     }
     if (!assignments || assignments.length === 0) return [];
 
@@ -1178,9 +1187,14 @@ export async function listMentorCohortAssignments(): Promise<MentorCohortAssignm
         cohort: cName ? { name: cName } : undefined,
       };
     });
-  } catch (err) {
-    console.warn('Unable to load mentor cohort assignments:', err);
-    return [];
+  } catch (err: unknown) {
+    const errorObj = err as { code?: string; message?: string } | undefined;
+    if (errorObj?.code === '42P01' || errorObj?.message?.includes('mentor_cohorts')) {
+      console.warn('mentor_cohorts table not yet migrated:', errorObj.message);
+      return [];
+    }
+    console.error('Unable to load mentor cohort assignments:', err);
+    throw err;
   }
 }
 

@@ -19,8 +19,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
 
       if (!data) {
-        // Self-healing recovery: If public.profiles row is missing, create it automatically
-        const fallbackRole = (currentUser.user_metadata?.role as 'student' | 'mentor' | 'admin') || 'student';
+        // Self-healing recovery: If public.profiles row is missing, create it automatically.
+        // SECURITY: Under no circumstances should client-controlled user_metadata be trusted
+        // for role authority. Newly self-healed profiles must always be least-privileged ('student').
         const fallbackName =
           currentUser.user_metadata?.full_name ||
           currentUser.email?.split('@')[0] ||
@@ -32,7 +33,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: currentUser.id,
             email: currentUser.email ?? '',
             full_name: fallbackName,
-            role: fallbackRole,
+            role: 'student',
+            status: 'active',
           })
           .select('*')
           .single();
@@ -42,32 +44,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // In-memory fallback if insert fails
+        // In-memory fallback if insert fails: strictly least privilege
         setProfile({
           id: currentUser.id,
           email: currentUser.email ?? '',
           full_name: fallbackName,
-          role: fallbackRole,
+          role: 'student',
+          status: 'active',
         });
         return;
       }
 
       setProfile(data);
     } catch (error) {
-      console.error('Error fetching user profile:', error);
-      // Resilient fallback using metadata to prevent locking users out
+      console.error('Error fetching authoritative user profile from database:', error);
+      // Degraded fallback in case of transient network disruption:
+      // SECURITY: Default strictly to 'student' role. NEVER escalate to 'mentor' or 'admin' from metadata.
       if (currentUser) {
-        setProfile({
-          id: currentUser.id,
-          email: currentUser.email ?? '',
-          full_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Editor',
-          role: (currentUser.user_metadata?.role as 'student' | 'mentor' | 'admin') || 'student',
+        setProfile((prev) => {
+          // If we already had a valid verified profile, retain it
+          if (prev && prev.id === currentUser.id) return prev;
+          return {
+            id: currentUser.id,
+            email: currentUser.email ?? '',
+            full_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Editor',
+            role: 'student',
+            status: 'active',
+          };
         });
       } else {
         setProfile(null);
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        setProfile(data);
+      }
+    } catch (err) {
+      console.warn('Silent profile revalidation failure:', err);
     }
   };
 
@@ -103,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

@@ -85,15 +85,25 @@ export function CommunityBoard({
     };
   }, [cohortId, lessonId, searchQuery, refreshKey]);
 
-  // Real-time subscription to cohort community events
+  // Real-time subscription to cohort community events (posts, comments, reactions)
   useEffect(() => {
     const unsubscribe = subscribeToCohortCommunity(cohortId, () => {
       setRefreshKey((k) => k + 1);
+      if (expandedCommentsPostId) {
+        listCommunityComments(expandedCommentsPostId)
+          .then((latestComments) => {
+            setCommentsByPost((prev) => ({
+              ...prev,
+              [expandedCommentsPostId]: latestComments,
+            }));
+          })
+          .catch((err) => console.warn('Failed to live-refresh comments:', err));
+      }
     });
     return () => {
       unsubscribe();
     };
-  }, [cohortId]);
+  }, [cohortId, expandedCommentsPostId]);
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();

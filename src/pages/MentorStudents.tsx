@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { getSecureSubmissionUrl } from '../lib/courseService';
 import { useAuth } from '../context/useAuth';
 import {
   getMentorAssignedCohorts,
@@ -36,26 +37,33 @@ export function MentorStudents() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Student Dossier Modal state
+  // Selected student detail slide-over
   const [selectedStudent, setSelectedStudent] = useState<MentorStudentProgress | null>(null);
   const [studentSubmissions, setStudentSubmissions] = useState<DetailedMentorSubmission[]>([]);
   const [loadingDossier, setLoadingDossier] = useState(false);
 
-  // Direct Message Modal state
+  // Message modal
   const [messageStudent, setMessageStudent] = useState<MentorStudentProgress | null>(null);
   const [messageBody, setMessageBody] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
 
   const isMentorOrAdmin = profile?.role === 'mentor' || profile?.role === 'admin';
 
+  const handleOpenAsset = async (e: React.MouseEvent, rawUrl: string) => {
+    e.preventDefault();
+    const secureUrl = await getSecureSubmissionUrl(rawUrl);
+    window.open(secureUrl, '_blank', 'noopener,noreferrer');
+  };
+
   useEffect(() => {
     if (!user || !isMentorOrAdmin) return;
+    const userId = user.id;
     let active = true;
 
     async function loadData() {
       try {
         setLoading(true);
-        const assignedCohorts = await getMentorAssignedCohorts(user!.id, profile?.role || 'mentor');
+        const assignedCohorts = await getMentorAssignedCohorts(userId, profile?.role || 'mentor');
         if (!active) return;
         setCohorts(assignedCohorts);
 
@@ -480,6 +488,7 @@ export function MentorStudents() {
                           href={sub.file_url}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => void handleOpenAsset(e, sub.file_url)}
                           className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700"
                         >
                           View submitted asset <ExternalLink size={11} />

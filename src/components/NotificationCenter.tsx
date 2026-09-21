@@ -44,16 +44,16 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
         if (active) setLoading(false);
       });
 
-    // Realtime notification sync
+    // Realtime notification sync on authoritative 'notifications' table
     const channel = supabase
-      .channel(`student-notifications-${userId}`)
+      .channel(`notifications-live-${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'student_notifications',
-          filter: `student_id=eq.${userId}`,
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           const newNotif = payload.new as StudentNotification;
@@ -61,6 +61,21 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
             if (prev.some((item) => item.id === newNotif.id)) return prev;
             return [newNotif, ...prev];
           });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const updated = payload.new as StudentNotification;
+          setNotifications((prev) =>
+            prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item))
+          );
         }
       )
       .subscribe();

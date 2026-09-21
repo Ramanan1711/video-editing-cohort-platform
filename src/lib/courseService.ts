@@ -1013,6 +1013,51 @@ export async function uploadSubmissionFile(userId: string, file: File): Promise<
   return data.publicUrl;
 }
 
+/**
+ * Resolves a secure, time-limited signed URL for private student submission files.
+ * External submission links (YouTube, Vimeo, Frame.io, Google Drive) are preserved as-is.
+ */
+export async function getSecureSubmissionUrl(fileUrl: string, expiresIn = 3600): Promise<string> {
+  if (!fileUrl) return '';
+
+  // Preserve external third-party streaming/sharing links
+  const isSupabaseStorage =
+    fileUrl.includes('/storage/v1/object/') ||
+    fileUrl.startsWith('submissions/') ||
+    (fileUrl.includes('supabase.co') && fileUrl.includes('submissions'));
+
+  if (!isSupabaseStorage && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
+    return fileUrl;
+  }
+
+  // Extract object path within the 'submissions' bucket
+  let objectPath = fileUrl;
+  if (fileUrl.includes('/submissions/')) {
+    objectPath = fileUrl.split('/submissions/')[1];
+  } else if (fileUrl.startsWith('submissions/')) {
+    objectPath = fileUrl.slice('submissions/'.length);
+  }
+
+  // Strip query parameters or URL hashes
+  objectPath = objectPath.split('?')[0].split('#')[0];
+  objectPath = decodeURIComponent(objectPath);
+
+  try {
+    const { data, error } = await supabase.storage
+      .from('submissions')
+      .createSignedUrl(objectPath, expiresIn);
+
+    if (!error && data?.signedUrl) {
+      return data.signedUrl;
+    }
+  } catch (err) {
+    console.warn('Could not create signed URL for submission:', err);
+  }
+
+  // Fallback to original URL during migration or offline mode
+  return fileUrl;
+}
+
 // Student Submissions & Resubmissions
 export async function listMySubmissions(userId: string): Promise<Submission[]> {
   let { data, error } = await supabase
@@ -1445,16 +1490,17 @@ export async function markFeedbackRead(feedbackId: string): Promise<void> {
     });
     if (!rpcError) return;
   } catch {
-    // fallback
+    // fallback to direct table update
   }
 
-  try {
-    await supabase
-      .from('feedback')
-      .update({ student_read_at: new Date().toISOString() })
-      .eq('id', feedbackId);
-  } catch (err) {
-    console.warn('markFeedbackRead error:', err);
+  const { error } = await supabase
+    .from('feedback')
+    .update({ student_read_at: new Date().toISOString() })
+    .eq('id', feedbackId);
+
+  if (error) {
+    console.warn('markFeedbackRead error:', error);
+    throw error;
   }
 }
 

@@ -23,8 +23,8 @@ values ('course-assets', 'course-assets', true)
 on conflict (id) do update set public = true;
 
 insert into storage.buckets (id, name, public)
-values ('submissions', 'submissions', true)
-on conflict (id) do update set public = true;
+values ('submissions', 'submissions', false)
+on conflict (id) do update set public = false;
 
 -- 5. Storage policies for course-assets
 drop policy if exists "Admins can upload course assets" on storage.objects;
@@ -74,7 +74,20 @@ using (
 );
 
 drop policy if exists "Authenticated users can read submissions" on storage.objects;
-create policy "Authenticated users can read submissions"
+-- Strict read policy for submissions: only owner, assigned mentor, or admin (see security_and_storage_hardening.sql)
+drop policy if exists "Strict submission access control" on storage.objects;
+create policy "Strict submission access control"
 on storage.objects for select to authenticated
-using (bucket_id = 'submissions');
+using (
+  bucket_id = 'submissions'
+  and exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+    and coalesce(p.status, 'active') = 'active'
+    and (
+      (storage.foldername(name))[1] = auth.uid()::text
+      or p.role in ('mentor', 'admin')
+    )
+  )
+);
 

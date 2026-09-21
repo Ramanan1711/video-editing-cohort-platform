@@ -37,7 +37,14 @@ import {
   type Submission,
   type SubmissionVersion,
   uploadSubmissionFile,
+  getSecureSubmissionUrl,
 } from '../lib/courseService';
+
+const handleOpenSecureSubmissionFile = async (e: React.MouseEvent, rawUrl: string) => {
+  e.preventDefault();
+  const secureUrl = await getSecureSubmissionUrl(rawUrl);
+  window.open(secureUrl, '_blank', 'noopener,noreferrer');
+};
 
 export function EnrollmentPanel({ userId, onEnrolled }: { userId: string; onEnrolled: () => void }) {
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
@@ -751,6 +758,7 @@ export function AssignmentPanel({
                       href={viewingVersionSubmission.file_url}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={(e) => void handleOpenSecureSubmissionFile(e, viewingVersionSubmission.file_url)}
                       className="inline-flex items-center gap-1 font-bold text-orange-600 underline"
                     >
                       View Active File <ExternalLink size={11} />
@@ -781,6 +789,7 @@ export function AssignmentPanel({
                           href={ver.file_url}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={(e) => void handleOpenSecureSubmissionFile(e, ver.file_url)}
                           className="inline-flex items-center gap-1 font-semibold text-slate-700 underline hover:text-orange-600"
                         >
                           Archived File <ExternalLink size={11} />
@@ -857,6 +866,7 @@ export function AssignmentPanel({
                                   href={selectedVer.file_url}
                                   target="_blank"
                                   rel="noreferrer"
+                                  onClick={(e) => void handleOpenSecureSubmissionFile(e, selectedVer.file_url)}
                                   className="inline-flex items-center gap-1 font-semibold text-slate-600 underline hover:text-orange-600"
                                 >
                                   Open Archived Media <ExternalLink size={10} />
@@ -897,6 +907,7 @@ export function AssignmentPanel({
                                   href={viewingVersionSubmission.file_url}
                                   target="_blank"
                                   rel="noreferrer"
+                                  onClick={(e) => void handleOpenSecureSubmissionFile(e, viewingVersionSubmission.file_url)}
                                   className="inline-flex items-center gap-1 font-bold text-orange-700 underline hover:text-orange-900"
                                 >
                                   Open Latest Revision <ExternalLink size={10} />
@@ -1066,6 +1077,7 @@ function AssignmentCard({
                 href={submission.file_url}
                 target="_blank"
                 rel="noreferrer"
+                onClick={(e) => void handleOpenSecureSubmissionFile(e, submission.file_url)}
                 className="inline-flex items-center gap-1 font-semibold underline hover:text-orange-600"
               >
                 View submitted file <ExternalLink size={11} />
@@ -1197,7 +1209,7 @@ function AssignmentCard({
                     {/* Feedback Replies */}
                     {(item.replies || []).length > 0 && (
                       <div className="mt-2.5 space-y-1.5 border-t border-slate-100 pt-2">
-                        {item.replies!.map((reply) => (
+                        {(item.replies || []).map((reply) => (
                           <div key={reply.id} className="rounded-md bg-slate-50 p-2 text-[11px]">
                             <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
                               <span className="font-bold text-slate-700">{reply.author_name}</span>
