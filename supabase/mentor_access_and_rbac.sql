@@ -146,12 +146,21 @@ alter table public.submissions add constraint submissions_status_check
   check (status in ('pending', 'reviewed', 'resubmit'));
 
 drop policy if exists "Students can read own submissions and staff can read all" on public.submissions;
-create policy "Students can read own submissions and staff can read all"
+drop policy if exists "Submissions select policy" on public.submissions;
+create policy "Submissions select policy"
   on public.submissions for select
   to authenticated
   using (
-    student_id = auth.uid()
-    or public.is_mentor_or_admin()
+    (student_id = auth.uid() and exists (select 1 from public.profiles p where p.id = auth.uid() and coalesce(p.status, 'active') = 'active'))
+    or public.is_admin()
+    or exists (
+      select 1 from public.enrollments e
+      where e.user_id = submissions.student_id
+      and (
+        exists (select 1 from public.mentor_cohorts mc where mc.cohort_id = e.cohort_id and mc.mentor_id = auth.uid())
+        or not exists (select 1 from public.mentor_cohorts where mentor_id = auth.uid())
+      )
+    )
   );
 
 drop policy if exists "Students can create own submissions" on public.submissions;
@@ -160,19 +169,21 @@ create policy "Students can create own submissions"
   to authenticated
   with check (
     student_id = auth.uid()
+    and status in ('draft', 'pending')
   );
 
 drop policy if exists "Students and staff can update submissions" on public.submissions;
-create policy "Students and staff can update submissions"
+drop policy if exists "Students can update draft or pending submissions" on public.submissions;
+create policy "Students can update draft or pending submissions"
   on public.submissions for update
   to authenticated
   using (
     student_id = auth.uid()
-    or public.is_mentor_or_admin()
+    and status in ('draft', 'pending', 'resubmit')
   )
   with check (
     student_id = auth.uid()
-    or public.is_mentor_or_admin()
+    and status in ('draft', 'pending')
   );
 
 -- ==============================================================================

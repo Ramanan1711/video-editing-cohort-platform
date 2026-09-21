@@ -1058,6 +1058,47 @@ export async function getSecureSubmissionUrl(fileUrl: string, expiresIn = 3600):
   return fileUrl;
 }
 
+/**
+ * Resolves a secure, time-limited signed URL for private course assets or lesson downloads.
+ * External URLs are returned as-is.
+ */
+export async function getSecureAssetUrl(fileUrl: string, expiresIn = 3600): Promise<string> {
+  if (!fileUrl) return '';
+
+  const isSupabaseStorage =
+    fileUrl.includes('/storage/v1/object/') ||
+    fileUrl.startsWith('course-assets/') ||
+    fileUrl.includes('course-assets');
+
+  if (!isSupabaseStorage && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
+    return fileUrl;
+  }
+
+  let objectPath = fileUrl;
+  if (fileUrl.includes('/course-assets/')) {
+    objectPath = fileUrl.split('/course-assets/')[1];
+  } else if (fileUrl.startsWith('course-assets/')) {
+    objectPath = fileUrl.slice('course-assets/'.length);
+  }
+
+  objectPath = objectPath.split('?')[0].split('#')[0];
+  objectPath = decodeURIComponent(objectPath);
+
+  try {
+    const { data, error } = await supabase.storage
+      .from('course-assets')
+      .createSignedUrl(objectPath, expiresIn);
+
+    if (!error && data?.signedUrl) {
+      return data.signedUrl;
+    }
+  } catch (err) {
+    console.warn('Could not create signed URL for course asset:', err);
+  }
+
+  return fileUrl;
+}
+
 // Student Submissions & Resubmissions
 export async function listMySubmissions(userId: string): Promise<Submission[]> {
   let { data, error } = await supabase
@@ -1088,6 +1129,46 @@ export async function submitOrReplaceAssignment(
   isDraft: boolean = false,
   notes?: string
 ): Promise<Submission> {
+  // 1. Primary: Execute server-side definer RPC to guarantee status & ownership integrity
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('submit_student_assignment', {
+      p_assignment_id: assignmentId,
+      p_file_url: fileUrl,
+      p_is_draft: isDraft,
+      p_notes: notes || null,
+    });
+
+    if (!rpcError && rpcData) {
+      const parsed = rpcData as Record<string, unknown>;
+      return {
+        id: parsed.id as string,
+        assignment_id: parsed.assignment_id as string,
+        student_id: parsed.student_id as string,
+        file_url: parsed.file_url as string,
+        status: parsed.status as SubmissionStatus,
+        is_late: Boolean(parsed.is_late),
+        version_number: (parsed.version_number as number) || 1,
+        created_at: parsed.created_at as string,
+        updated_at: (parsed.updated_at as string) || (parsed.created_at as string),
+        feedback: null,
+      };
+    }
+
+    if (rpcError && !rpcError.message.includes('function') && !rpcError.message.includes('does not exist')) {
+      throw new Error(rpcError.message);
+    }
+  } catch (rpcErr) {
+    if (rpcErr instanceof Error && (
+      rpcErr.message.includes('suspended') ||
+      rpcErr.message.includes('enrolled') ||
+      rpcErr.message.includes('Authentication')
+    )) {
+      throw rpcErr;
+    }
+    console.warn('submit_student_assignment RPC fallback to direct query:', rpcErr);
+  }
+
+  // 2. Fallback: Direct table operations (if RPC migration is pending)
   // Check if submission is late based on assignment deadline
   let isLate = false;
   try {
