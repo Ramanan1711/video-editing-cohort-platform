@@ -310,10 +310,6 @@ export async function listDetailedMentorSubmissions(
     const { data: modules } = await supabase
       .from('modules')
       .select('id, cohort_id')
-    // Optimized direct cohort query
-    const { data: cohortAssignments, error: directErr } = await supabase
-      .from('assignments')
-      .select('id')
       .in('cohort_id', allowedCohortIds);
     const moduleIds = (modules ?? []).map((m) => m.id);
     if (moduleIds.length === 0) return [];
@@ -331,31 +327,6 @@ export async function listDetailedMentorSubmissions(
       .in('lesson_id', lessonIds);
     scopedAssignmentIds = (assignments ?? []).map((a) => a.id);
     if (scopedAssignmentIds.length === 0) return [];
-    if (!directErr && cohortAssignments && cohortAssignments.length > 0) {
-      scopedAssignmentIds = cohortAssignments.map((a) => a.id);
-    } else {
-      // Graceful fallback in case of legacy assignments linked only via module/lesson
-      const { data: modules } = await supabase
-        .from('modules')
-        .select('id')
-        .in('cohort_id', allowedCohortIds);
-      const moduleIds = (modules ?? []).map((m) => m.id);
-      if (moduleIds.length > 0) {
-        const { data: lessons } = await supabase
-          .from('lessons')
-          .select('id')
-          .in('module_id', moduleIds);
-        const lessonIds = (lessons ?? []).map((l) => l.id);
-        if (lessonIds.length > 0) {
-          const { data: legacyAssignments } = await supabase
-            .from('assignments')
-            .select('id')
-            .in('lesson_id', lessonIds);
-          scopedAssignmentIds = (legacyAssignments ?? []).map((a) => a.id);
-        }
-      }
-    }
-    if (!scopedAssignmentIds || scopedAssignmentIds.length === 0) return [];
   }
 
   let subQuery = supabase

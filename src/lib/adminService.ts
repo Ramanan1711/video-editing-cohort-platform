@@ -1052,19 +1052,38 @@ export async function exportSubmissionsCSV(cohortId?: string): Promise<string> {
 
   const [{ data: profiles }, { data: assignments }] = await Promise.all([
     supabase.from('profiles').select('id, full_name, email').in('id', studentIds),
-    supabase.from('assignments').select('id, title, cohort_id, cohorts(title)').in('id', assignmentIds),
+    supabase.from('assignments').select('id, title, lesson_id').in('id', assignmentIds),
   ]);
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+  // Resolve lessons -> modules -> cohorts
+  const lessonIds = Array.from(new Set((assignments ?? []).map((a) => a.lesson_id).filter(Boolean)));
+  const { data: lessons } = lessonIds.length
+    ? await supabase.from('lessons').select('id, module_id').in('id', lessonIds)
+    : { data: [] };
+  const moduleIds = Array.from(new Set((lessons ?? []).map((l) => l.module_id).filter(Boolean)));
+  const { data: modules } = moduleIds.length
+    ? await supabase.from('modules').select('id, cohort_id').in('id', moduleIds)
+    : { data: [] };
+  const cohortIds = Array.from(new Set((modules ?? []).map((m) => m.cohort_id).filter(Boolean)));
+  const { data: cohorts } = cohortIds.length
+    ? await supabase.from('cohorts').select('id, title').in('id', cohortIds)
+    : { data: [] };
+
+  const cohortTitleMap = new Map((cohorts ?? []).map((c) => [c.id, c.title]));
+  const moduleCohortMap = new Map((modules ?? []).map((m) => [m.id, { cohortId: m.cohort_id, title: cohortTitleMap.get(m.cohort_id) || 'Cohort' }]));
+  const lessonCohortMap = new Map((lessons ?? []).map((l) => [l.id, moduleCohortMap.get(l.module_id)]));
+
   const assignmentMap = new Map(
     (assignments ?? []).map((a) => {
-      const cohortObj = a.cohorts as unknown as { title?: string } | null;
+      const cInfo = a.lesson_id ? lessonCohortMap.get(a.lesson_id) : undefined;
       return [
         a.id,
         {
           title: a.title,
-          cohort_id: a.cohort_id,
-          cohort_title: cohortObj?.title || 'Cohort',
+          cohort_id: cInfo?.cohortId,
+          cohort_title: cInfo?.title || 'Cohort',
         },
       ];
     })
