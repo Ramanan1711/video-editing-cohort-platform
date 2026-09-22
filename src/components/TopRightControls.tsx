@@ -19,11 +19,11 @@ export function TopRightControls({
       {/* Theme Toggle */}
       <button
         onClick={toggleTheme}
-        className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-100 hover:text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white transition"
         title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        aria-label="Toggle color theme"
+        aria-label="Toggle dark mode"
+        className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition"
       >
-        {isDarkMode ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} />}
+        {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
       </button>
 
       {/* Sign Out Button */}

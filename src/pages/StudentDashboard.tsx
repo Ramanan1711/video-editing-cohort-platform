@@ -630,9 +630,9 @@ export function StudentDashboard() {
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition"
               title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              aria-label="Toggle color theme"
+              aria-label="Toggle dark mode"
+              className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition"
             >
               {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
             </button>
@@ -877,11 +877,11 @@ export function StudentDashboard() {
           <div className="border-t border-slate-100 p-4 dark:border-slate-800/80 lg:hidden flex items-center justify-between">
             <button
               onClick={toggleTheme}
-              className="flex items-center gap-2 rounded-lg p-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition"
               title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              aria-label="Toggle color theme"
+              aria-label="Toggle dark mode"
+              className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition flex items-center gap-2 text-xs font-semibold"
             >
-              {isDarkMode ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} />}
+              {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
               <span>{isDarkMode ? 'Light' : 'Dark'} Mode</span>
             </button>
 

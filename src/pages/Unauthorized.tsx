@@ -74,9 +74,11 @@ export function Unauthorized() {
           <div className="flex items-center gap-3">
             <button
               onClick={toggleTheme}
-              className="inline-flex items-center gap-1 font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              aria-label="Toggle dark mode"
+              className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition inline-flex items-center gap-1.5 text-xs font-semibold"
             >
-              {isDarkMode ? <Sun size={13} className="text-amber-400" /> : <Moon size={13} />}
+              {isDarkMode ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} />}
               <span>{isDarkMode ? 'Light' : 'Dark'} mode</span>
             </button>
             <button
