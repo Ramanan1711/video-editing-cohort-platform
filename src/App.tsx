@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { SidebarProvider } from './context/SidebarContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initErrorTracking } from './lib/observability/errorTracking';
@@ -29,8 +30,9 @@ export function App() {
       <ThemeProvider>
         <AuthProvider>
           <ToastProvider>
-            <BrowserRouter>
-            <Routes>
+            <SidebarProvider>
+              <BrowserRouter>
+              <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -117,6 +119,7 @@ export function App() {
             <Route path="*" element={<div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] p-8 text-center"><div><p className="text-sm font-black uppercase tracking-[0.16em] text-orange-500">404</p><h1 className="mt-3 text-4xl font-black text-slate-950">That frame is missing.</h1><a href="/" className="mt-6 inline-block text-sm font-bold text-orange-600">Back to home</a></div></div>} />
           </Routes>
         </BrowserRouter>
+        </SidebarProvider>
       </ToastProvider>
     </AuthProvider>
     </ThemeProvider>

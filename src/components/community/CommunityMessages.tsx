@@ -103,7 +103,7 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
   );
 
   return (
-    <div className="flex flex-1 h-[calc(100vh-4rem)] overflow-hidden bg-white dark:bg-slate-950">
+    <div className="flex flex-1 h-[calc(100vh-73px)] overflow-hidden bg-white dark:bg-slate-950">
       {/* Left Chat Sidebar (Channels & Direct Messages) */}
       <div className="w-80 border-r border-slate-200/80 flex flex-col dark:border-slate-800 dark:bg-slate-900/50">
         {/* Search Bar */}

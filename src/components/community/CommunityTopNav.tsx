@@ -125,7 +125,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="flex h-[73px] w-full items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Left: Navigation Menu (Three minus symbols: ☰) & CUT / CRAFT Brand Logo */}
         <div className="flex items-center gap-3">
           <button

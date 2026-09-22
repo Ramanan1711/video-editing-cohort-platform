@@ -15,11 +15,12 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
+import { useSidebar } from '../context/useSidebar';
 
 export function WorkspaceSidebar() {
   const { profile } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, toggleCollapsed } = useSidebar();
 
   useEffect(() => {
     if (mobileOpen) {
@@ -103,7 +104,7 @@ export function WorkspaceSidebar() {
       <aside
         className={`${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white p-5 shadow-xl transition-transform dark:border-slate-800 dark:bg-slate-950 lg:translate-x-0 lg:shadow-none ${
+        } fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white p-5 shadow-xl transition-all duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-950 lg:translate-x-0 lg:shadow-none ${
           collapsed ? 'lg:w-20' : 'lg:w-64'
         }`}
       >
@@ -137,8 +138,8 @@ export function WorkspaceSidebar() {
         {/* Footer controls: Collapse */}
         <div className={`absolute bottom-5 inset-x-4 border-t border-slate-100 pt-3 dark:border-slate-800/80 hidden lg:flex ${collapsed ? 'justify-center' : 'justify-end'}`}>
           <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+            onClick={toggleCollapsed}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition-colors"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
