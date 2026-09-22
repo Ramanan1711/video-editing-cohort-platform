@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, NavLink } from 'react-router-dom';
 import {
   Users,
@@ -47,6 +48,17 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   const { isDarkMode, toggleTheme } = useTheme();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (navDrawerOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [navDrawerOpen]);
 
   const isAdmin = profile?.role === 'admin';
   const isMentor = profile?.role === 'mentor';
@@ -270,90 +282,93 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
         </div>
       </div>
 
-      {/* Slide-out Workspace Navigation Drawer */}
-      {navDrawerOpen && (
-        <div className="fixed inset-0 z-50">
-          <div
-            className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity animate-in fade-in"
-            onClick={() => setNavDrawerOpen(false)}
-            aria-label="Close navigation"
-          />
+      {/* Slide-out Workspace Navigation Drawer (Portaled to document.body to prevent stacking context or containing block overlap) */}
+      {navDrawerOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[100]">
+            <div
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity animate-in fade-in z-[100]"
+              onClick={() => setNavDrawerOpen(false)}
+              aria-label="Close navigation"
+            />
 
-          <aside className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between border-r border-slate-200 bg-white p-5 shadow-2xl transition-transform animate-in slide-in-from-left duration-200 dark:border-slate-800 dark:bg-slate-950">
-            <div>
-              <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white dark:bg-orange-500">
-                    <CalendarDays size={18} />
-                  </span>
-                  <div>
-                    <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
-                      CUT / CRAFT
-                    </p>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      Workspace
-                    </p>
+            <aside className="fixed inset-y-0 left-0 z-[101] flex w-72 flex-col justify-between border-r border-slate-200 bg-white p-5 shadow-2xl transition-transform animate-in slide-in-from-left duration-200 dark:border-slate-800 dark:bg-slate-950">
+              <div>
+                <div className="mb-6 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white dark:bg-orange-500">
+                      <CalendarDays size={18} />
+                    </span>
+                    <div>
+                      <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
+                        CUT / CRAFT
+                      </p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                        Workspace
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => setNavDrawerOpen(false)}
+                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-900 dark:hover:text-slate-200"
+                    aria-label="Close navigation"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setNavDrawerOpen(false)}
-                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-900 dark:hover:text-slate-200"
-                  aria-label="Close navigation"
-                >
-                  <X size={18} />
-                </button>
+
+                <p className="mb-3 px-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                  Navigate
+                </p>
+
+                <nav className="space-y-1">
+                  {workspaceLinks.map(({ to, label, icon: Icon, end }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={end}
+                      onClick={() => setNavDrawerOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold transition ${
+                          isActive
+                            ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400'
+                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'
+                        }`
+                      }
+                    >
+                      <Icon size={19} className="shrink-0" />
+                      <span>{label}</span>
+                    </NavLink>
+                  ))}
+                </nav>
               </div>
 
-              <p className="mb-3 px-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-                Navigate
-              </p>
+              {/* Drawer Footer: Theme Toggle & Sign out */}
+              <div className="border-t border-slate-100 pt-3 dark:border-slate-800/80 space-y-2">
+                <button
+                  onClick={toggleTheme}
+                  className="flex w-full items-center gap-2 rounded-lg p-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition"
+                >
+                  {isDarkMode ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} />}
+                  <span>{isDarkMode ? 'Light' : 'Dark'} Mode</span>
+                </button>
 
-              <nav className="space-y-1">
-                {workspaceLinks.map(({ to, label, icon: Icon, end }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={end}
-                    onClick={() => setNavDrawerOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold transition ${
-                        isActive
-                          ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400'
-                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'
-                      }`
-                    }
-                  >
-                    <Icon size={19} className="shrink-0" />
-                    <span>{label}</span>
-                  </NavLink>
-                ))}
-              </nav>
-            </div>
-
-            {/* Drawer Footer: Theme Toggle & Sign out */}
-            <div className="border-t border-slate-100 pt-3 dark:border-slate-800/80 space-y-2">
-              <button
-                onClick={toggleTheme}
-                className="flex w-full items-center gap-2 rounded-lg p-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition"
-              >
-                {isDarkMode ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} />}
-                <span>{isDarkMode ? 'Light' : 'Dark'} Mode</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setNavDrawerOpen(false);
-                  void signOut();
-                }}
-                className="flex w-full items-center gap-2 rounded-lg p-2 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
-              >
-                <LogOut size={16} />
-                <span>Sign out</span>
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
+                <button
+                  onClick={() => {
+                    setNavDrawerOpen(false);
+                    void signOut();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg p-2 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
+                >
+                  <LogOut size={16} />
+                  <span>Sign out</span>
+                </button>
+              </div>
+            </aside>
+          </div>,
+          document.body
+        )}
     </header>
   );
 };
