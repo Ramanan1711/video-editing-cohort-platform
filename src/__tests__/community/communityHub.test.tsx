@@ -57,7 +57,7 @@ describe('CommunityHub & Components', () => {
     localStorage.clear();
   });
 
-  it('renders top navigation bar with brand CUT / CRAFT, smooth navigation buttons, center tabs, and utility controls', () => {
+  it('renders top navigation bar with brand CUT / CRAFT, workspace menu button, center tabs, and utility controls', () => {
     render(
       <MemoryRouter initialEntries={['/community']}>
         <CommunityHub />
@@ -68,9 +68,20 @@ describe('CommunityHub & Components', () => {
     expect(screen.getAllByText('CUT / CRAFT').length).toBeGreaterThan(0);
     expect(screen.getByText('Community Hub')).toBeInTheDocument();
 
-    // Previous and Next Navigation buttons
-    expect(screen.getByRole('button', { name: /previous page/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /next page/i })).toBeInTheDocument();
+    // Workspace Navigation Menu Button (Hamburger icon: three minus symbols one below one: ☰)
+    const menuBtn = screen.getByRole('button', { name: /open workspace navigation/i });
+    expect(menuBtn).toBeInTheDocument();
+
+    // Opening workspace navigation drawer
+    fireEvent.click(menuBtn);
+    expect(screen.getByText('Admin overview')).toBeInTheDocument();
+    expect(screen.getByText('Course studio')).toBeInTheDocument();
+    expect(screen.getByText('Student view')).toBeInTheDocument();
+
+    // Closing workspace navigation drawer
+    const closeBtn = screen.getByRole('button', { name: /close navigation/i });
+    fireEvent.click(closeBtn);
+    expect(screen.queryByText('Course studio')).not.toBeInTheDocument();
 
     // Center Tabs & Controls
     expect(screen.getAllByText('Community').length).toBeGreaterThan(0);

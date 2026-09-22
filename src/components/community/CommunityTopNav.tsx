@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, NavLink } from 'react-router-dom';
 import {
   Users,
   MessageSquare,
@@ -13,8 +13,13 @@ import {
   Sparkles,
   LogOut,
   User,
-  ChevronLeft,
-  ChevronRight,
+  Menu,
+  X,
+  BarChart3,
+  CalendarDays,
+  FileCheck2,
+  GraduationCap,
+  Home,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
@@ -40,8 +45,34 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
 }) => {
   const { profile, user, signOut } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
-  const navigate = useNavigate();
-  const [showProfileMenu, setShowProfileMenu] = React.useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+
+  const isAdmin = profile?.role === 'admin';
+  const isMentor = profile?.role === 'mentor';
+
+  const workspaceLinks = isAdmin
+    ? [
+        { to: '/admin', label: 'Admin overview', icon: BarChart3, end: true },
+        { to: '/admin/courses', label: 'Course studio', icon: BookOpen, end: false },
+        { to: '/community', label: 'Community hub', icon: Users, end: false },
+        { to: '/mentor', label: 'Mentor workspace', icon: Sparkles, end: true },
+        { to: '/review/submissions', label: 'Review queue', icon: FileCheck2, end: false },
+        { to: '/mentor/students', label: 'Student progress', icon: GraduationCap, end: false },
+        { to: '/student/dashboard', label: 'Student view', icon: Home, end: false },
+      ]
+    : isMentor
+    ? [
+        { to: '/mentor', label: 'Mentor dashboard', icon: Sparkles, end: true },
+        { to: '/community', label: 'Community hub', icon: Users, end: false },
+        { to: '/review/submissions', label: 'Review queue', icon: FileCheck2, end: false },
+        { to: '/mentor/students', label: 'Student progress', icon: GraduationCap, end: false },
+        { to: '/student/dashboard', label: 'Student view', icon: Home, end: false },
+      ]
+    : [
+        { to: '/student/dashboard', label: 'Student view', icon: Home, end: false },
+        { to: '/community', label: 'Community hub', icon: Users, end: false },
+      ];
 
   const navItems: {
     id: TopNavTab;
@@ -83,29 +114,16 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Left: Navigation Buttons & CUT / CRAFT Brand Logo */}
+        {/* Left: Navigation Menu (Three minus symbols: ☰) & CUT / CRAFT Brand Logo */}
         <div className="flex items-center gap-3">
-          {/* Smooth Back/Next Navigation Controls */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => navigate(-1)}
-              title="Go back"
-              aria-label="Previous page"
-              className="flex size-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-100 hover:text-slate-900 active:scale-95 transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              onClick={() => navigate(1)}
-              title="Go forward"
-              aria-label="Next page"
-              className="flex size-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-100 hover:text-slate-900 active:scale-95 transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-
-          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800" />
+          <button
+            onClick={() => setNavDrawerOpen(true)}
+            aria-label="Open workspace navigation"
+            title="Workspace Navigation"
+            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-2xs hover:bg-slate-100 hover:text-slate-950 active:scale-95 transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+          >
+            <Menu size={20} />
+          </button>
 
           {/* CUT / CRAFT Brand Logo */}
           <Link
@@ -251,6 +269,91 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Slide-out Workspace Navigation Drawer */}
+      {navDrawerOpen && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity animate-in fade-in"
+            onClick={() => setNavDrawerOpen(false)}
+            aria-label="Close navigation"
+          />
+
+          <aside className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between border-r border-slate-200 bg-white p-5 shadow-2xl transition-transform animate-in slide-in-from-left duration-200 dark:border-slate-800 dark:bg-slate-950">
+            <div>
+              <div className="mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white dark:bg-orange-500">
+                    <CalendarDays size={18} />
+                  </span>
+                  <div>
+                    <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
+                      CUT / CRAFT
+                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      Workspace
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setNavDrawerOpen(false)}
+                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-900 dark:hover:text-slate-200"
+                  aria-label="Close navigation"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <p className="mb-3 px-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                Navigate
+              </p>
+
+              <nav className="space-y-1">
+                {workspaceLinks.map(({ to, label, icon: Icon, end }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={end}
+                    onClick={() => setNavDrawerOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold transition ${
+                        isActive
+                          ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'
+                      }`
+                    }
+                  >
+                    <Icon size={19} className="shrink-0" />
+                    <span>{label}</span>
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+
+            {/* Drawer Footer: Theme Toggle & Sign out */}
+            <div className="border-t border-slate-100 pt-3 dark:border-slate-800/80 space-y-2">
+              <button
+                onClick={toggleTheme}
+                className="flex w-full items-center gap-2 rounded-lg p-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition"
+              >
+                {isDarkMode ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} />}
+                <span>{isDarkMode ? 'Light' : 'Dark'} Mode</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setNavDrawerOpen(false);
+                  void signOut();
+                }}
+                className="flex w-full items-center gap-2 rounded-lg p-2 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
+              >
+                <LogOut size={16} />
+                <span>Sign out</span>
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
     </header>
   );
 };
