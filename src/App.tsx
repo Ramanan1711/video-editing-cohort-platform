@@ -15,6 +15,7 @@ import { ReviewSubmissions } from './pages/ReviewSubmissions';
 import { MentorDashboard } from './pages/MentorDashboard';
 import { MentorStudents } from './pages/MentorStudents';
 import { AdminOperations } from './pages/AdminOperations';
+import { CommunityHub } from './pages/CommunityHub';
 import { WorkspaceShell } from './components/WorkspaceShell';
 import { Unauthorized } from './pages/Unauthorized';
 
@@ -44,6 +45,22 @@ export function App() {
                   <StudentDashboard />
                 </ProtectedRoute>
               } 
+            />
+            <Route
+              path="/community"
+              element={
+                <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+                  <CommunityHub />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/messages"
+              element={
+                <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+                  <CommunityHub />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/admin/courses"

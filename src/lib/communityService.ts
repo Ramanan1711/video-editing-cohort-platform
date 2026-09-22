@@ -195,9 +195,10 @@ export async function listCohortPostsPaged(
 export async function createCommunityPost(
   authorId: string,
   body: string,
-  cohortId?: string,
-  lessonId?: string,
-  title?: string
+  cohortId?: string | null,
+  lessonId?: string | null,
+  title?: string | null,
+  isPinned?: boolean
 ): Promise<CommunityPost> {
   const payload: Record<string, unknown> = {
     author_id: authorId,
@@ -206,6 +207,7 @@ export async function createCommunityPost(
   if (cohortId) payload.cohort_id = cohortId;
   if (lessonId) payload.lesson_id = lessonId;
   if (title?.trim()) payload.title = title.trim();
+  if (typeof isPinned === 'boolean') payload.is_pinned = isPinned;
 
   const res = await supabase.from('community_posts').insert(payload).select().single();
   let data = res.data;

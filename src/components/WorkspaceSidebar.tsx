@@ -11,6 +11,7 @@ import {
   Home,
   Menu,
   Sparkles,
+  Users,
   X,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
@@ -38,6 +39,7 @@ export function WorkspaceSidebar() {
     ? [
         { to: '/admin', label: 'Admin overview', icon: BarChart3, end: true },
         { to: '/admin/courses', label: 'Course studio', icon: BookOpen, end: false },
+        { to: '/community', label: 'Community hub', icon: Users, end: false },
         { to: '/mentor', label: 'Mentor workspace', icon: Sparkles, end: true },
         { to: '/review/submissions', label: 'Review queue', icon: FileCheck2, end: false },
         { to: '/mentor/students', label: 'Student progress', icon: GraduationCap, end: false },
@@ -46,11 +48,15 @@ export function WorkspaceSidebar() {
     : isMentor
     ? [
         { to: '/mentor', label: 'Mentor dashboard', icon: Sparkles, end: true },
+        { to: '/community', label: 'Community hub', icon: Users, end: false },
         { to: '/review/submissions', label: 'Review queue', icon: FileCheck2, end: false },
         { to: '/mentor/students', label: 'Student progress', icon: GraduationCap, end: false },
         { to: '/student/dashboard', label: 'Student view', icon: Home, end: false },
       ]
-    : [{ to: '/student/dashboard', label: 'Student view', icon: Home, end: false }];
+    : [
+        { to: '/student/dashboard', label: 'Student view', icon: Home, end: false },
+        { to: '/community', label: 'Community hub', icon: Users, end: false },
+      ];
 
   const navigation = (
     <nav className="space-y-1">
