@@ -36,6 +36,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { CurriculumSkeleton } from '../components/ui/Skeletons';
 import { StateFallback } from '../components/ui/StateFallback';
+import { TopRightControls } from '../components/TopRightControls';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/useToast';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
@@ -892,6 +893,7 @@ export function AdminCourses() {
                 <Plus size={17} /> New Cohort
               </Button>
             )}
+            <TopRightControls />
           </div>
         </div>
       </header>

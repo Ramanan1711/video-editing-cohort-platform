@@ -24,6 +24,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ReviewQueueSkeleton } from '../components/ui/Skeletons';
 import { StateFallback } from '../components/ui/StateFallback';
+import { TopRightControls } from '../components/TopRightControls';
 import { Pagination } from '../components/ui/Pagination';
 import { detectResourceType, getSecureSubmissionUrl } from '../lib/courseService';
 import { useAuth } from '../context/useAuth';
@@ -462,6 +463,7 @@ export function ReviewSubmissions() {
                   Student Progress
                 </Button>
               </Link>
+              <TopRightControls />
             </div>
           </div>
         </div>

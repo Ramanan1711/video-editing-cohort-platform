@@ -16,6 +16,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { TableSkeleton } from '../components/ui/Skeletons';
 import { StateFallback } from '../components/ui/StateFallback';
+import { TopRightControls } from '../components/TopRightControls';
 import { getSecureSubmissionUrl } from '../lib/courseService';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/useToast';
@@ -215,6 +216,7 @@ export function MentorStudents() {
                   <Video size={14} /> Review Queue
                 </Button>
               </Link>
+              <TopRightControls />
             </div>
           </div>
         </div>

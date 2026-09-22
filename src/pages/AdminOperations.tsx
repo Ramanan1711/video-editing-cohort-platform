@@ -49,6 +49,7 @@ import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/useToast';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import { AdminNotificationCenter } from '../components/AdminNotificationCenter';
+import { TopRightControls } from '../components/TopRightControls';
 import {
   hasAdminPermission,
   ROLE_LABELS,
@@ -1048,6 +1049,8 @@ export function AdminOperations() {
               >
                 Review Room →
               </Link>
+
+              <TopRightControls />
             </div>
           </div>
         </div>

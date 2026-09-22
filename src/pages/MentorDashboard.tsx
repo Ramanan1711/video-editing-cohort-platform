@@ -21,6 +21,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { DashboardSkeleton } from '../components/ui/Skeletons';
 import { StateFallback } from '../components/ui/StateFallback';
+import { TopRightControls } from '../components/TopRightControls';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/useToast';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
@@ -247,6 +248,8 @@ export function MentorDashboard() {
                   <Video size={14} /> Review Queue ({stats?.pendingCount ?? 0})
                 </Button>
               </Link>
+
+              <TopRightControls />
             </div>
           </div>
         </div>

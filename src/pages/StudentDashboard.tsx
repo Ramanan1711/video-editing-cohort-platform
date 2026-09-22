@@ -78,6 +78,7 @@ import { CertificateModal } from '../components/CertificateModal';
 import { StudentCalendar } from '../components/StudentCalendar';
 import { CommunityBoard } from '../components/CommunityBoard';
 import { Button } from '../components/ui/Button';
+import { TopRightControls } from '../components/TopRightControls';
 import { StateFallback } from '../components/ui/StateFallback';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 
@@ -623,21 +624,7 @@ export function StudentDashboard() {
               </Link>
             )}
 
-            {/* User Profile Badge */}
-            <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 sm:flex">
-              <div className="flex size-7 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">
-                {profile?.full_name?.charAt(0) ?? 'S'}
-              </div>
-              <span className="max-w-28 truncate text-xs font-bold text-slate-800">{profile?.full_name ?? 'Student'}</span>
-            </div>
-
-            <button
-              onClick={signOut}
-              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
-              aria-label="Sign out"
-            >
-              <LogOut size={18} />
-            </button>
+            <TopRightControls />
           </div>
         </div>
       </header>
