@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { initErrorTracking } from './lib/observability/errorTracking';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -16,11 +18,15 @@ import { AdminOperations } from './pages/AdminOperations';
 import { WorkspaceShell } from './components/WorkspaceShell';
 import { Unauthorized } from './pages/Unauthorized';
 
+// Initialize production observability & error tracking
+initErrorTracking();
+
 export function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <BrowserRouter>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ToastProvider>
+          <BrowserRouter>
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
@@ -86,6 +92,7 @@ export function App() {
         </BrowserRouter>
       </ToastProvider>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

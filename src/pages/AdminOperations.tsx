@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Award,
   Ban,
+  Bell,
   BookOpen,
   Calendar,
   CalendarDays,
@@ -15,12 +16,15 @@ import {
   Edit2,
   ExternalLink,
   Flame,
+  HardDrive,
   History,
   Layers,
   Lock,
   Megaphone,
   Radio,
+  RefreshCw,
   Search,
+  Server,
   Shield,
   ShieldAlert,
   ShieldCheck,
@@ -95,6 +99,10 @@ import {
   type UserProfile,
 } from '../lib/adminService';
 import { listCohorts, type Cohort } from '../lib/courseService';
+import { runSystemHealthCheck, type SystemHealthReport } from '../lib/observability/healthCheck';
+import { alertManager, type OperationalAlert } from '../lib/observability/alerts';
+import { getPlatformAnalytics, type PlatformAnalytics } from '../lib/observability/analytics';
+import { runDeploymentCheck, type DeploymentReport, type DeploymentCheckItem } from '../lib/observability/deploymentCheck';
 
 const emptyStats: AdminStats = {
   users: 0,
@@ -118,7 +126,8 @@ type AdminTab =
   | 'announcements'
   | 'sessions'
   | 'community'
-  | 'audit';
+  | 'audit'
+  | 'operations';
 
 export function AdminOperations() {
   const { user, profile } = useAuth();
@@ -215,6 +224,14 @@ export function AdminOperations() {
   const [auditPage, setAuditPage] = useState(1);
   const [auditPageSize, setAuditPageSize] = useState(25);
 
+  // Observability & Operations state
+  const [healthReport, setHealthReport] = useState<SystemHealthReport | null>(null);
+  const [healthChecking, setHealthChecking] = useState(false);
+  const [alerts, setAlerts] = useState<OperationalAlert[]>([]);
+  const [platformAnalytics, setPlatformAnalytics] = useState<PlatformAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [deploymentReport, setDeploymentReport] = useState<DeploymentReport | null>(null);
+
   const canManageRoles = hasAdminPermission(profile?.admin_role, 'manage_roles');
   const canManageStatus = hasAdminPermission(profile?.admin_role, 'manage_user_status');
   const canManageEnrollments = hasAdminPermission(profile?.admin_role, 'manage_enrollments');
@@ -287,6 +304,74 @@ export function AdminOperations() {
     setRetrying(true);
     setReloadTrigger((prev) => prev + 1);
   };
+
+  // --- OBSERVABILITY & OPERATIONS LIFECYCLE ---
+  useEffect(() => {
+    const unsubscribe = alertManager.subscribe((activeAlerts) => {
+      setAlerts(activeAlerts);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLoadOperationsData = async () => {
+    setHealthChecking(true);
+    setAnalyticsLoading(true);
+    try {
+      const [health, analytics, deployment] = await Promise.all([
+        runSystemHealthCheck(),
+        getPlatformAnalytics(),
+        Promise.resolve(runDeploymentCheck()),
+      ]);
+      setHealthReport(health);
+      setPlatformAnalytics(analytics);
+      setDeploymentReport(deployment);
+    } catch (err) {
+      const parsed = parseDatabaseError(err);
+      toast.error(parsed.message, 'Failed to refresh operations data');
+    } finally {
+      setHealthChecking(false);
+      setAnalyticsLoading(false);
+    }
+  };
+
+  const handleRunHealthCheck = async () => {
+    setHealthChecking(true);
+    try {
+      const report = await runSystemHealthCheck();
+      setHealthReport(report);
+      toast.success(`Health diagnostic completed: status is ${report.status.toUpperCase()}`);
+    } catch {
+      toast.error('Failed to run system health check');
+    } finally {
+      setHealthChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tab !== 'operations') return;
+    let active = true;
+
+    Promise.all([
+      runSystemHealthCheck(),
+      getPlatformAnalytics(),
+      Promise.resolve(runDeploymentCheck()),
+    ])
+      .then(([health, analytics, deployment]) => {
+        if (!active) return;
+        setHealthReport(health);
+        setPlatformAnalytics(analytics);
+        setDeploymentReport(deployment);
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        const parsed = parseDatabaseError(err);
+        toast.error(parsed.message, 'Failed to refresh operations data');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [tab, toast]);
 
   // --- USER ACTIONS ---
   const handleRoleChange = async (targetUser: UserProfile, newRole: 'student' | 'mentor') => {
@@ -883,6 +968,7 @@ export function AdminOperations() {
     { id: 'sessions', label: 'Live Sessions', count: sessions.length, permission: 'schedule_sessions' },
     { id: 'community', label: 'Community Moderation', count: posts.length, permission: 'moderate_community' },
     { id: 'audit', label: 'Audit Logs', count: canViewAuditLogs ? auditLogs.length : undefined, permission: 'view_audit_logs' },
+    { id: 'operations', label: 'Operations & Health', count: alerts.length > 0 ? alerts.length : undefined },
   ];
 
   if (profile?.role !== 'admin') {
@@ -3120,6 +3206,418 @@ export function AdminOperations() {
               </div>
             )}
           </Card>
+        )}
+
+        {/* Operations & Observability Tab */}
+        {tab === 'operations' && (
+          <div className="space-y-6 animate-in fade-in duration-150">
+            {/* Control Bar */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-black text-slate-950 flex items-center gap-2">
+                  <Activity className="text-orange-500" size={22} /> System Operations &amp; Observability
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Real-time health probes, active operational alerts, application SaaS analytics, and deployment preflight validation.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void handleRunHealthCheck()}
+                  disabled={healthChecking}
+                  className="gap-2"
+                >
+                  <RefreshCw size={14} className={healthChecking ? 'animate-spin' : ''} />
+                  {healthChecking ? 'Probing Services...' : 'Run Diagnostics'}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => void handleLoadOperationsData()}
+                  disabled={healthChecking || analyticsLoading}
+                  className="gap-2"
+                >
+                  <RefreshCw size={14} className={analyticsLoading ? 'animate-spin' : ''} />
+                  Refresh All
+                </Button>
+              </div>
+            </div>
+
+            {/* Health Probes Banner */}
+            <Card className="p-5 border-slate-200">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-500">Overall System Health</span>
+                    {healthReport ? (
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                          healthReport.status === 'healthy'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : healthReport.status === 'degraded'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {healthReport.status === 'healthy' ? (
+                          <CheckCircle2 size={12} />
+                        ) : (
+                          <AlertTriangle size={12} />
+                        )}
+                        {healthReport.status.toUpperCase()}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">Evaluating...</span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Checked at: {healthReport ? new Date(healthReport.timestamp).toLocaleTimeString() : '—'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Database Probe */}
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                        <Server size={14} className="text-slate-500" />
+                        <span>Database</span>
+                      </div>
+                      <span
+                        className={`inline-block size-2 rounded-full ${
+                          healthReport?.services.database.status === 'healthy'
+                            ? 'bg-emerald-500'
+                            : healthReport?.services.database.status === 'degraded'
+                            ? 'bg-amber-500'
+                            : 'bg-red-500'
+                        }`}
+                      />
+                    </div>
+                    <div className="mt-2 flex items-baseline justify-between text-xs">
+                      <span className="font-mono font-bold text-slate-900">
+                        {healthReport?.services.database.latencyMs != null
+                          ? `${healthReport.services.database.latencyMs}ms`
+                          : '—'}
+                      </span>
+                      <span className="capitalize text-[11px] text-slate-500">
+                        {healthReport?.services.database.status || 'unknown'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Storage Probe */}
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                        <HardDrive size={14} className="text-slate-500" />
+                        <span>Storage</span>
+                      </div>
+                      <span
+                        className={`inline-block size-2 rounded-full ${
+                          healthReport?.services.storage.status === 'healthy'
+                            ? 'bg-emerald-500'
+                            : healthReport?.services.storage.status === 'degraded'
+                            ? 'bg-amber-500'
+                            : 'bg-red-500'
+                        }`}
+                      />
+                    </div>
+                    <div className="mt-2 flex items-baseline justify-between text-xs">
+                      <span className="font-mono font-bold text-slate-900">
+                        {healthReport?.services.storage.latencyMs != null
+                          ? `${healthReport.services.storage.latencyMs}ms`
+                          : '—'}
+                      </span>
+                      <span className="capitalize text-[11px] text-slate-500">
+                        {healthReport?.services.storage.status || 'unknown'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Auth Probe */}
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                        <Lock size={14} className="text-slate-500" />
+                        <span>Auth Engine</span>
+                      </div>
+                      <span
+                        className={`inline-block size-2 rounded-full ${
+                          healthReport?.services.auth.status === 'healthy'
+                            ? 'bg-emerald-500'
+                            : healthReport?.services.auth.status === 'degraded'
+                            ? 'bg-amber-500'
+                            : 'bg-red-500'
+                        }`}
+                      />
+                    </div>
+                    <div className="mt-2 flex items-baseline justify-between text-xs">
+                      <span className="font-mono font-bold text-slate-900">
+                        {healthReport?.services.auth.latencyMs != null
+                          ? `${healthReport.services.auth.latencyMs}ms`
+                          : '—'}
+                      </span>
+                      <span className="capitalize text-[11px] text-slate-500">
+                        {healthReport?.services.auth.status || 'unknown'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Active Operational Alerts Feed */}
+            <Card className="p-5 border-slate-200">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Bell size={16} className="text-orange-500" />
+                  <h3 className="text-sm font-black text-slate-950">Active Operational Alerts</h3>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
+                    {alerts.length}
+                  </span>
+                </div>
+                {alerts.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      alertManager.clearAlerts();
+                      toast.info('All alerts dismissed');
+                    }}
+                    className="text-xs text-slate-500 hover:text-slate-700"
+                  >
+                    Clear All
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-4 space-y-2.5">
+                {alerts.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-slate-400">
+                    <CheckCircle2 className="mx-auto mb-2 text-emerald-500" size={24} />
+                    All operational metrics and error thresholds are nominal. No active incident alerts.
+                  </div>
+                ) : (
+                  alerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className={`flex items-start justify-between rounded-xl border p-3.5 transition-colors ${
+                        alert.severity === 'critical'
+                          ? 'border-red-200 bg-red-50/50'
+                          : alert.severity === 'warning'
+                          ? 'border-amber-200 bg-amber-50/50'
+                          : 'border-blue-200 bg-blue-50/50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span
+                          className={`mt-0.5 inline-flex rounded-full p-1 ${
+                            alert.severity === 'critical'
+                              ? 'bg-red-100 text-red-600'
+                              : alert.severity === 'warning'
+                              ? 'bg-amber-100 text-amber-600'
+                              : 'bg-blue-100 text-blue-600'
+                          }`}
+                        >
+                          <AlertTriangle size={14} />
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-slate-900">{alert.title}</h4>
+                            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">
+                              {alert.type}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-xs text-slate-600">{alert.message}</p>
+                          <span className="mt-1 block text-[10px] text-slate-400">
+                            {new Date(alert.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => alertManager.dismissAlert(alert.id)}
+                        className="rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                        title="Dismiss Alert"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+
+            {/* Application SaaS Telemetry Analytics */}
+            <div>
+              <div className="mb-3">
+                <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                  <TrendingUp size={16} className="text-orange-500" /> SaaS Telemetry &amp; Learning Analytics
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Calculated metrics covering user activation, completion velocities, assignment SLA, and cohort retention.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {/* Active Users */}
+                <Card className="p-4 border-slate-200">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                    <span>Active Users &amp; Roles</span>
+                    <Users size={15} className="text-blue-500" />
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-slate-950">
+                      {platformAnalytics?.activeUsers.total ?? 0}
+                    </span>
+                    <span className="text-[11px] text-slate-400">total accounts</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+                    <span>Students: <strong className="text-slate-800">{platformAnalytics?.activeUsers.students ?? 0}</strong></span>
+                    <span>Mentors: <strong className="text-slate-800">{platformAnalytics?.activeUsers.mentors ?? 0}</strong></span>
+                    <span>Admins: <strong className="text-slate-800">{platformAnalytics?.activeUsers.admins ?? 0}</strong></span>
+                  </div>
+                </Card>
+
+                {/* Lesson Completion Rate */}
+                <Card className="p-4 border-slate-200">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                    <span>Curriculum Completion</span>
+                    <CheckCircle2 size={15} className="text-emerald-500" />
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-slate-950">
+                      {platformAnalytics ? `${platformAnalytics.lessonCompletion.completionRatePct}%` : '—'}
+                    </span>
+                    <span className="text-[11px] text-slate-400">completion rate</span>
+                  </div>
+                  <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                      style={{ width: `${Math.min(100, platformAnalytics?.lessonCompletion.completionRatePct ?? 0)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[10px] text-slate-500">
+                    {platformAnalytics?.lessonCompletion.completedLessons ?? 0} completed across {platformAnalytics?.lessonCompletion.totalEnrollments ?? 0} enrollments ({platformAnalytics?.lessonCompletion.avgWatchPercentage ?? 0}% avg watch)
+                  </p>
+                </Card>
+
+                {/* Assignment Timeliness */}
+                <Card className="p-4 border-slate-200">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                    <span>Submission Timeliness</span>
+                    <Clock size={15} className="text-purple-500" />
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-slate-950">
+                      {platformAnalytics ? `${platformAnalytics.assignmentSubmissions.onTimeRatePct}%` : '—'}
+                    </span>
+                    <span className="text-[11px] text-slate-400">on-time rate</span>
+                  </div>
+                  <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-purple-500 transition-all duration-500"
+                      style={{ width: `${Math.min(100, platformAnalytics?.assignmentSubmissions.onTimeRatePct ?? 0)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[10px] text-slate-500">
+                    {platformAnalytics?.assignmentSubmissions.onTimeSubmissions ?? 0} on-time · {platformAnalytics?.assignmentSubmissions.lateSubmissions ?? 0} late · {platformAnalytics?.assignmentSubmissions.totalSubmissions ?? 0} total
+                  </p>
+                </Card>
+
+                {/* Review SLA Compliance */}
+                <Card className="p-4 border-slate-200">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                    <span>Mentor Review Turnaround</span>
+                    <ShieldCheck size={15} className="text-orange-500" />
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-slate-950">
+                      {platformAnalytics?.reviewTurnaround.avgTurnaroundHours != null
+                        ? `${platformAnalytics.reviewTurnaround.avgTurnaroundHours}h`
+                        : '—'}
+                    </span>
+                    <span className="text-[11px] text-slate-400">avg turnaround</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+                    <span>SLA &lt;24h: <strong className="text-slate-800">{platformAnalytics ? `${platformAnalytics.reviewTurnaround.slaComplianceRatePct}%` : '—'}</strong></span>
+                    <span>Graded: <strong className="text-slate-800">{platformAnalytics?.reviewTurnaround.totalGraded ?? 0}</strong></span>
+                    <span>Queue: <strong className="text-slate-800">{platformAnalytics?.reviewTurnaround.pendingQueue ?? 0}</strong></span>
+                  </div>
+                </Card>
+              </div>
+            </div>
+
+            {/* Deployment & Environment Preflight Audit */}
+            <Card className="p-5 border-slate-200">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-sm font-black text-slate-950 flex items-center gap-1.5">
+                    <Shield size={16} className="text-blue-500" /> Deployment Preflight &amp; Security Validation
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Verifies client configuration, environment integrity, and browser crypto capability.
+                  </p>
+                </div>
+                {deploymentReport && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                      deploymentReport.status === 'pass'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : deploymentReport.status === 'warn'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {deploymentReport.status.toUpperCase()}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-4 divide-y divide-slate-100">
+                {deploymentReport?.items.map((check: DeploymentCheckItem, idx: number) => (
+                  <div key={idx} className="py-2.5 flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-2.5">
+                      <span
+                        className={`mt-0.5 inline-flex rounded-full p-1 ${
+                          check.status === 'pass'
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : check.status === 'warn'
+                            ? 'bg-amber-50 text-amber-600'
+                            : 'bg-red-50 text-red-600'
+                        }`}
+                      >
+                        {check.status === 'pass' ? (
+                          <Check size={12} />
+                        ) : (
+                          <AlertTriangle size={12} />
+                        )}
+                      </span>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">{check.name}</p>
+                        <p className="text-xs text-slate-600">{check.message}</p>
+                        {check.details && (
+                          <p className="text-[11px] font-mono text-slate-400 mt-0.5">{check.details}</p>
+                        )}
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                        check.status === 'pass'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : check.status === 'warn'
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-red-50 text-red-700'
+                      }`}
+                    >
+                      {check.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
         )}
 
         {/* JSON Metadata Inspector Modal */}
