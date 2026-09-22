@@ -330,3 +330,4 @@ export function subscribeToChatChannel(
     window.removeEventListener('storage', handleStorageEvent);
   };
 }
+

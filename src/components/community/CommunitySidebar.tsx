@@ -285,3 +285,4 @@ export const CommunitySidebar: React.FC<CommunitySidebarProps> = ({
     </aside>
   );
 };
+

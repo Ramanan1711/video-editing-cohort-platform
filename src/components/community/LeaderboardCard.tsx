@@ -118,3 +118,4 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
     </div>
   );
 };
+
