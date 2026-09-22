@@ -405,7 +405,7 @@ export function StudentDashboard() {
       <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 px-6 py-4 backdrop-blur">
           <div className="mx-auto flex h-[41px] max-w-[1440px] items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pl-12 lg:pl-0">
               <div className="size-9 rounded-xl bg-orange-500/20 animate-pulse" />
               <div className="h-4 w-28 rounded-lg bg-slate-200 animate-pulse" />
             </div>
@@ -435,7 +435,7 @@ export function StudentDashboard() {
       <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 px-6 py-4 backdrop-blur">
           <div className="mx-auto flex h-[41px] max-w-[1440px] items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pl-12 lg:pl-0">
               <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white font-black text-xs">
                 C
               </span>
@@ -469,7 +469,7 @@ export function StudentDashboard() {
       <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 px-6 py-4 backdrop-blur">
           <div className="mx-auto flex h-[41px] max-w-[1440px] items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pl-12 lg:pl-0">
               <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white font-black text-xs">
                 C
               </span>
@@ -514,7 +514,7 @@ export function StudentDashboard() {
       {/* Top Application Bar */}
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-[73px] max-w-[1440px] items-center justify-between px-5 lg:px-8">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pl-12 lg:pl-0">
             <button
               onClick={() => setSidebarOpen(true)}
               className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden"

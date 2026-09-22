@@ -46,7 +46,7 @@ export function App() {
               path="/student/dashboard" 
               element={
                 <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
-                  <StudentDashboard />
+                  <WorkspaceShell><StudentDashboard /></WorkspaceShell>
                 </ProtectedRoute>
               } 
             />
