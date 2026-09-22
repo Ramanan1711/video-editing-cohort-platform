@@ -15,3 +15,4 @@ export const ThemeContext = createContext<ThemeContextType>({
   toggleTheme: () => {},
   setTheme: () => {},
 });
+

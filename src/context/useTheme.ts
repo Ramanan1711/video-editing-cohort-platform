@@ -5,3 +5,4 @@ export function useTheme() {
   const context = useContext(ThemeContext);
   return context;
 }
+
