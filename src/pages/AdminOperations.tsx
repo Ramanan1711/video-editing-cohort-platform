@@ -103,6 +103,7 @@ import { runSystemHealthCheck, type SystemHealthReport } from '../lib/observabil
 import { alertManager, type OperationalAlert } from '../lib/observability/alerts';
 import { getPlatformAnalytics, type PlatformAnalytics } from '../lib/observability/analytics';
 import { runDeploymentCheck, type DeploymentReport, type DeploymentCheckItem } from '../lib/observability/deploymentCheck';
+import { evaluateLaunchReadinessGate, type LaunchGateReport } from '../lib/observability/launchReadinessGate';
 
 const emptyStats: AdminStats = {
   users: 0,
@@ -231,6 +232,8 @@ export function AdminOperations() {
   const [platformAnalytics, setPlatformAnalytics] = useState<PlatformAnalytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [deploymentReport, setDeploymentReport] = useState<DeploymentReport | null>(null);
+  const [launchGateReport, setLaunchGateReport] = useState<LaunchGateReport | null>(null);
+  const [auditingGate, setAuditingGate] = useState(false);
 
   const canManageRoles = hasAdminPermission(profile?.admin_role, 'manage_roles');
   const canManageStatus = hasAdminPermission(profile?.admin_role, 'manage_user_status');
@@ -317,14 +320,16 @@ export function AdminOperations() {
     setHealthChecking(true);
     setAnalyticsLoading(true);
     try {
-      const [health, analytics, deployment] = await Promise.all([
+      const [health, analytics, deployment, gate] = await Promise.all([
         runSystemHealthCheck(),
         getPlatformAnalytics(),
         Promise.resolve(runDeploymentCheck()),
+        evaluateLaunchReadinessGate(),
       ]);
       setHealthReport(health);
       setPlatformAnalytics(analytics);
       setDeploymentReport(deployment);
+      setLaunchGateReport(gate);
     } catch (err) {
       const parsed = parseDatabaseError(err);
       toast.error(parsed.message, 'Failed to refresh operations data');
@@ -347,6 +352,23 @@ export function AdminOperations() {
     }
   };
 
+  const handleRunLaunchGateAudit = async () => {
+    setAuditingGate(true);
+    try {
+      const report = await evaluateLaunchReadinessGate();
+      setLaunchGateReport(report);
+      if (report.overallStatus === 'READY_FOR_LAUNCH') {
+        toast.success(`Launch Readiness Gate: 100% Passed (${report.passedCriteria}/${report.totalCriteria} criteria certified)`);
+      } else {
+        toast.warning(`Launch Readiness Gate: Action required (${report.failedCriteria} criteria failed)`);
+      }
+    } catch {
+      toast.error('Failed to evaluate launch readiness gate');
+    } finally {
+      setAuditingGate(false);
+    }
+  };
+
   useEffect(() => {
     if (tab !== 'operations') return;
     let active = true;
@@ -355,12 +377,14 @@ export function AdminOperations() {
       runSystemHealthCheck(),
       getPlatformAnalytics(),
       Promise.resolve(runDeploymentCheck()),
+      evaluateLaunchReadinessGate(),
     ])
-      .then(([health, analytics, deployment]) => {
+      .then(([health, analytics, deployment, gate]) => {
         if (!active) return;
         setHealthReport(health);
         setPlatformAnalytics(analytics);
         setDeploymentReport(deployment);
+        setLaunchGateReport(gate);
       })
       .catch((err: unknown) => {
         if (!active) return;
@@ -3244,6 +3268,96 @@ export function AdminOperations() {
                 </Button>
               </div>
             </div>
+
+            {/* Launch Readiness Gate Certification Card */}
+            <Card className="p-6 border-slate-800 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white shadow-xl">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-800 pb-5">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-orange-500/20 text-orange-400">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-white flex items-center gap-2">
+                        Checklist 8: Launch Readiness Gate
+                        {launchGateReport && (
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                              launchGateReport.overallStatus === 'READY_FOR_LAUNCH'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            }`}
+                          >
+                            {launchGateReport.overallStatus === 'READY_FOR_LAUNCH'
+                              ? 'READY FOR LAUNCH (100%)'
+                              : 'ACTION REQUIRED'}
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Mandatory security-first pre-launch gate certifying database RLS, upload privacy, route locks, data isolation, error resilience, automated QA, monitoring, and controlled RBAC.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-[11px] uppercase tracking-wider font-mono text-slate-400">Passed Gates</p>
+                    <p className="text-lg font-black text-emerald-400">
+                      {launchGateReport ? `${launchGateReport.passedCriteria} / ${launchGateReport.totalCriteria}` : '—'}
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => void handleRunLaunchGateAudit()}
+                    disabled={auditingGate}
+                    className="gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold"
+                  >
+                    <RefreshCw size={14} className={auditingGate ? 'animate-spin' : ''} />
+                    {auditingGate ? 'Evaluating Gates...' : 'Audit Launch Readiness'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* 8 Gate Criteria Grid */}
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {launchGateReport?.criteria.map((gate) => (
+                  <div
+                    key={gate.id}
+                    className={`rounded-xl border p-3.5 transition-all ${
+                      gate.status === 'PASSED'
+                        ? 'border-emerald-500/30 bg-slate-900/80 hover:border-emerald-500/50'
+                        : 'border-red-500/40 bg-red-950/30'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-black text-slate-400">
+                        GATE 0{gate.number}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          gate.status === 'PASSED'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : 'bg-red-500/20 text-red-300'
+                        }`}
+                      >
+                        {gate.status === 'PASSED' ? <Check size={10} /> : <AlertTriangle size={10} />}
+                        {gate.status}
+                      </span>
+                    </div>
+                    <h4 className="mt-2 text-xs font-bold text-white line-clamp-1">{gate.title}</h4>
+                    <p className="mt-1 text-[11px] text-slate-400 leading-snug line-clamp-2">
+                      {gate.requirement}
+                    </p>
+                    <p className="mt-2 text-[10px] font-mono text-emerald-400/90 border-t border-slate-800/80 pt-2 truncate">
+                      ✓ {gate.evidence}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
 
             {/* Health Probes Banner */}
             <Card className="p-5 border-slate-200">
