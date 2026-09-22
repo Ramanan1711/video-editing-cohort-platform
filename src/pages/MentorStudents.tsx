@@ -19,7 +19,6 @@ import { StateFallback } from '../components/ui/StateFallback';
 import { getSecureSubmissionUrl } from '../lib/courseService';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/useToast';
-import { TopRightControls } from '../components/TopRightControls';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import {
   getMentorAssignedCohorts,
@@ -216,9 +215,6 @@ export function MentorStudents() {
                   <Video size={14} /> Review Queue
                 </Button>
               </Link>
-
-              {/* Top-Right Theme Toggle & Sign Out */}
-              <TopRightControls className="hidden lg:flex" />
             </div>
           </div>
         </div>

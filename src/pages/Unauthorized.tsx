@@ -1,29 +1,15 @@
-import { ShieldAlert, LogOut, ArrowLeft, Home, FileCheck2, Settings, Moon, Sun } from 'lucide-react';
+import { ShieldAlert, LogOut, ArrowLeft, Home, FileCheck2, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
-import { useTheme } from '../context/useTheme';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { TopRightControls } from '../components/TopRightControls';
 
 export function Unauthorized() {
   const { profile, signOut } = useAuth();
-  const { isDarkMode, toggleTheme } = useTheme();
   const role = profile?.role ?? 'student';
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[#f6f7f9] p-5 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <div className="absolute top-5 right-5">
-        <button
-          onClick={toggleTheme}
-          className="flex size-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition"
-          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          aria-label="Toggle color theme"
-        >
-          {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
-        </button>
-        <TopRightControls />
-      </div>
+    <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] p-5 text-slate-900">
       <Card className="w-full max-w-lg p-8 text-center shadow-xl">
         <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
           <ShieldAlert size={28} />
@@ -67,27 +53,16 @@ export function Unauthorized() {
           </Link>
         </div>
 
-        <div className="mt-6 border-t border-slate-100 pt-4 flex items-center justify-between text-xs text-slate-400 dark:border-slate-800">
-          <Link to="/" className="inline-flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-200">
+        <div className="mt-6 border-t border-slate-100 pt-4 flex items-center justify-between text-xs text-slate-400">
+          <Link to="/" className="inline-flex items-center gap-1 hover:text-slate-700">
             <ArrowLeft size={13} /> Back to homepage
           </Link>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={toggleTheme}
-              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              aria-label="Toggle dark mode"
-              className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition inline-flex items-center gap-1.5 text-xs font-semibold"
-            >
-              {isDarkMode ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} />}
-              <span>{isDarkMode ? 'Light' : 'Dark'} mode</span>
-            </button>
-            <button
-              onClick={signOut}
-              className="inline-flex items-center gap-1 font-bold text-red-600 hover:underline"
-            >
-              <LogOut size={13} /> Sign out
-            </button>
-          </div>
+          <button
+            onClick={signOut}
+            className="inline-flex items-center gap-1 font-bold text-red-600 hover:underline"
+          >
+            <LogOut size={13} /> Sign out
+          </button>
         </div>
       </Card>
     </div>

@@ -41,7 +41,6 @@ import { useToast } from '../context/useToast';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import { logAuditEvent } from '../lib/adminService';
 import { hasAdminPermission, ROLE_LABELS } from '../lib/adminPermissions';
-import { TopRightControls } from '../components/TopRightControls';
 import {
   bulkUpdateLessonStatus,
   createAssignment,
@@ -893,9 +892,6 @@ export function AdminCourses() {
                 <Plus size={17} /> New Cohort
               </Button>
             )}
-
-            {/* Top-Right Theme Toggle & Sign Out */}
-            <TopRightControls className="hidden lg:flex" />
           </div>
         </div>
       </header>

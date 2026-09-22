@@ -40,7 +40,6 @@ import {
   type RubricScore,
   type TimestampedNote,
 } from '../lib/mentorService';
-import { TopRightControls } from '../components/TopRightControls';
 
 type StatusTab = 'pending' | 'resubmit' | 'reviewed' | 'all';
 type SortOption = 'urgency' | 'newest' | 'oldest';
@@ -463,9 +462,6 @@ export function ReviewSubmissions() {
                   Student Progress
                 </Button>
               </Link>
-
-              {/* Top-Right Theme Toggle & Sign Out */}
-              <TopRightControls className="hidden lg:flex" />
             </div>
           </div>
         </div>

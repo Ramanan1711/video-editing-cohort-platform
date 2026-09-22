@@ -32,7 +32,6 @@ import {
   type MentorDashboardStats,
   type MentorOfficeHour,
 } from '../lib/mentorService';
-import { TopRightControls } from '../components/TopRightControls';
 
 export function MentorDashboard() {
   const { user, profile } = useAuth();
@@ -248,9 +247,6 @@ export function MentorDashboard() {
                   <Video size={14} /> Review Queue ({stats?.pendingCount ?? 0})
                 </Button>
               </Link>
-
-              {/* Top-Right Theme Toggle & Sign Out */}
-              <TopRightControls className="hidden lg:flex" />
             </div>
           </div>
         </div>

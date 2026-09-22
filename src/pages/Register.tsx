@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Moon, Sun } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/FormField';
-import { useTheme } from '../context/useTheme';
 
 export const Register: React.FC = () => {
-  const { isDarkMode, toggleTheme } = useTheme();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,26 +39,15 @@ export const Register: React.FC = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[#f6f7f9] px-5 py-12 dark:bg-slate-950">
-      <div className="absolute top-5 right-5">
-        <button
-          onClick={toggleTheme}
-          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          aria-label="Toggle dark mode"
-          className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition"
-        >
-          {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
-        </button>
-      </div>
-
+    <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] px-5 py-12">
       <div className="w-full max-w-md">
-        <Link to="/" className="mx-auto mb-8 block w-fit text-sm font-black tracking-tight text-slate-950 dark:text-white">
+        <Link to="/" className="mx-auto mb-8 block w-fit text-sm font-black tracking-tight text-slate-950">
           CUT / CRAFT
         </Link>
-        <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900 sm:p-9">
+        <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-900/5 sm:p-9">
           <p className="eyebrow">Join the next cohort</p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Make room for better work.</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">Create your student account and start your editing journey.</p>
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950">Make room for better work.</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Create your student account and start your editing journey.</p>
           {error && <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
           <form onSubmit={handleRegister} className="mt-7 space-y-5">
             <FormField

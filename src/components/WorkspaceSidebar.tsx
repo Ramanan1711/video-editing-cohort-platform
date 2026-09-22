@@ -9,7 +9,6 @@ import {
   FileCheck2,
   GraduationCap,
   Home,
-  LogOut,
   Menu,
   Moon,
   Sparkles,
@@ -19,10 +18,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { useTheme } from '../context/useTheme';
-import { TopRightControls } from './TopRightControls';
 
 export function WorkspaceSidebar() {
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -98,11 +96,6 @@ export function WorkspaceSidebar() {
         <Menu size={19} />
       </button>
 
-      {/* Mobile Top-Right: Theme Toggle & Sign Out */}
-      <div className="fixed right-4 top-4 z-40 lg:hidden">
-        <TopRightControls showSignOutLabel={false} />
-      </div>
-
       {mobileOpen && (
         <button
           className="fixed inset-0 z-40 bg-slate-950/30 lg:hidden"
@@ -143,73 +136,28 @@ export function WorkspaceSidebar() {
           <p className="mb-3 px-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Navigate</p>
         )}
 
-        <div className="overflow-y-auto pb-28 max-h-[calc(100vh-180px)]">
-          {navigation}
-        </div>
+        {navigation}
 
-        {/* Footer controls: Dark mode, Sign out & Collapse */}
-        <div className="absolute bottom-4 inset-x-3 border-t border-slate-100 pt-3 dark:border-slate-800/80 space-y-1">
-          {collapsed ? (
-            <div className="flex flex-col items-center gap-1.5">
-              <button
-                onClick={toggleTheme}
-                title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                aria-label="Toggle dark mode"
-                className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition"
-              >
-                {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
-              </button>
-              <button
-                onClick={() => void signOut()}
-                className="flex items-center justify-center rounded-lg p-2 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 transition"
-                title="Sign out"
-                aria-label="Sign out"
-              >
-                <LogOut size={17} />
-              </button>
-              <button
-                onClick={() => setCollapsed(false)}
-                className="hidden items-center justify-center rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100 lg:flex"
-                aria-label="Expand sidebar"
-                title="Expand sidebar"
-              >
-                <ChevronRight size={17} />
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={toggleTheme}
-                  title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                  aria-label="Toggle dark mode"
-                  className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition flex items-center gap-2 text-xs font-semibold"
-                >
-                  {isDarkMode ? <Sun size={18} className="text-amber-400 shrink-0" /> : <Moon size={18} className="shrink-0" />}
-                  <span>{isDarkMode ? 'Light' : 'Dark'} Mode</span>
-                </button>
+        {/* Footer controls: Dark mode & Collapse */}
+        <div className="absolute bottom-5 inset-x-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800/80">
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-2 rounded-lg p-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition"
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle color theme"
+          >
+            {isDarkMode ? <Sun size={17} className="text-amber-400 shrink-0" /> : <Moon size={17} className="shrink-0" />}
+            {!collapsed && <span>{isDarkMode ? 'Light' : 'Dark'} Mode</span>}
+          </button>
 
-                <button
-                  onClick={() => setCollapsed(true)}
-                  className="hidden rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100 lg:block"
-                  aria-label="Collapse sidebar"
-                  title="Collapse sidebar"
-                >
-                  <ChevronLeft size={17} />
-                </button>
-              </div>
-
-              <button
-                onClick={() => void signOut()}
-                className="flex w-full items-center gap-2 rounded-lg p-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 transition"
-                title="Sign out"
-                aria-label="Sign out"
-              >
-                <LogOut size={17} className="shrink-0" />
-                <span>Sign out</span>
-              </button>
-            </>
-          )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="hidden rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100 lg:block"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+          </button>
         </div>
       </aside>
     </>
