@@ -61,7 +61,7 @@ export function Pagination({
   }
 
   return (
-    <div
+    <nav
       className={`flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 ${className}`}
       aria-label="Pagination Navigation"
     >
@@ -121,29 +121,37 @@ export function Pagination({
           <ChevronLeft size={14} />
         </Button>
 
-        {/* Page pills */}
+        {/* Page Number Pills */}
         <div className="hidden sm:flex items-center gap-1">
-          {pageNumbers.map((p, idx) =>
-            p === 'ellipsis' ? (
-              <span key={`ellipsis-${idx}`} className="px-1.5 text-slate-300 select-none">
-                …
-              </span>
-            ) : (
+          {pageNumbers.map((page, idx) => {
+            if (page === 'ellipsis') {
+              return (
+                <span
+                  key={`ellipsis-${idx}`}
+                  className="px-1.5 text-slate-400 text-xs font-bold select-none"
+                >
+                  ...
+                </span>
+              );
+            }
+
+            const isActive = page === safePage;
+            return (
               <button
-                key={p}
+                key={page}
                 type="button"
-                onClick={() => onPageChange(p)}
+                onClick={() => onPageChange(page)}
+                aria-current={isActive ? 'page' : undefined}
                 className={`h-8 min-w-8 rounded-lg px-2 text-xs font-bold transition ${
-                  p === safePage
+                  isActive
                     ? 'bg-orange-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
-                aria-current={p === safePage ? 'page' : undefined}
               >
-                {p}
+                {page}
               </button>
-            )
-          )}
+            );
+          })}
         </div>
 
         {/* Mobile current indicator */}
@@ -175,6 +183,6 @@ export function Pagination({
           <ChevronsRight size={14} />
         </Button>
       </div>
-    </div>
+    </nav>
   );
 }

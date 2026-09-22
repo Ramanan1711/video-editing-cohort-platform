@@ -940,7 +940,7 @@ export async function submitDetailedReview(
     const { error: v2Error } = await supabase.rpc('review_submission_v2', {
       p_submission_id: submissionId,
       p_status: status,
-      p_comments: comments.trim() || null,
+      p_comments: comments?.trim() || null,
       p_rubric: rubric || {},
       p_timestamped_notes: timestampedNotes || [],
       p_private_notes: privateNotes?.trim() || null,
