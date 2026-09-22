@@ -10,18 +10,14 @@ import {
   GraduationCap,
   Home,
   Menu,
-  Moon,
   Sparkles,
-  Sun,
   Users,
   X,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
-import { useTheme } from '../context/useTheme';
 
 export function WorkspaceSidebar() {
   const { profile } = useAuth();
-  const { isDarkMode, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -138,21 +134,11 @@ export function WorkspaceSidebar() {
 
         {navigation}
 
-        {/* Footer controls: Dark mode & Collapse */}
-        <div className="absolute bottom-5 inset-x-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800/80">
-          <button
-            onClick={toggleTheme}
-            className="flex items-center gap-2 rounded-lg p-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition"
-            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label="Toggle color theme"
-          >
-            {isDarkMode ? <Sun size={17} className="text-amber-400 shrink-0" /> : <Moon size={17} className="shrink-0" />}
-            {!collapsed && <span>{isDarkMode ? 'Light' : 'Dark'} Mode</span>}
-          </button>
-
+        {/* Footer controls: Collapse */}
+        <div className={`absolute bottom-5 inset-x-4 border-t border-slate-100 pt-3 dark:border-slate-800/80 hidden lg:flex ${collapsed ? 'justify-center' : 'justify-end'}`}>
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100 lg:block"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
