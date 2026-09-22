@@ -869,7 +869,7 @@ export function AdminCourses() {
       {/* Header */}
       <header className="border-b border-slate-200/80 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8">
-          <div>
+          <div className="pl-12 sm:pl-14 lg:pl-0">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-500">Admin studio</p>
             <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Course Authoring</h1>
             <p className="mt-1 text-xs text-slate-500">

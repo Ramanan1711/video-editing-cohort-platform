@@ -188,7 +188,7 @@ export function MentorStudents() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-            <div>
+            <div className="pl-12 sm:pl-14 lg:pl-0">
               <div className="flex items-center gap-2">
                 <Link
                   to="/mentor"
