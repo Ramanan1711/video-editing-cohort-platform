@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Users,
   MessageSquare,
@@ -13,8 +13,11 @@ import {
   Sparkles,
   LogOut,
   User,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
+import { useTheme } from '../../context/useTheme';
 
 export type TopNavTab = 'community' | 'messages' | 'levelup' | 'workshops' | 'courses';
 
@@ -36,13 +39,9 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   onOpenWorkshopsModal,
 }) => {
   const { profile, user, signOut } = useAuth();
-  const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const { isDarkMode, toggleTheme } = useTheme();
+  const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = React.useState(false);
-
-  const toggleDarkMode = () => {
-    setIsDarkMode((prev) => !prev);
-    document.documentElement.classList.toggle('dark');
-  };
 
   const navItems: {
     id: TopNavTab;
@@ -82,20 +81,47 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90">
+    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Left: Brand Logo */}
-        <div className="flex items-center gap-4">
-          <Link to="/" className="flex items-center gap-2 group">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white font-black text-base shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
-              PRO
+        {/* Left: Navigation Buttons & CUT / CRAFT Brand Logo */}
+        <div className="flex items-center gap-3">
+          {/* Smooth Back/Next Navigation Controls */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => navigate(-1)}
+              title="Go back"
+              aria-label="Previous page"
+              className="flex size-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-100 hover:text-slate-900 active:scale-95 transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => navigate(1)}
+              title="Go forward"
+              aria-label="Next page"
+              className="flex size-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-100 hover:text-slate-900 active:scale-95 transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800" />
+
+          {/* CUT / CRAFT Brand Logo */}
+          <Link
+            to={profile?.role === 'admin' ? '/admin' : '/student/dashboard'}
+            className="flex items-center gap-2.5 group"
+            title="CUT / CRAFT Workspace"
+          >
+            <span className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white font-black text-sm shadow-md group-hover:scale-105 transition-transform dark:bg-orange-500">
+              <Sparkles size={18} className="text-orange-500 dark:text-white" />
             </span>
             <div className="hidden sm:flex flex-col">
-              <span className="text-xs font-black tracking-widest text-slate-900 uppercase dark:text-white">
-                Pro Editors Club
+              <span className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
+                CUT / CRAFT
               </span>
               <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
-                Cohort Workspace
+                Community Hub
               </span>
             </div>
           </Link>
@@ -147,11 +173,12 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
         <div className="flex items-center gap-3">
           {/* Dark Mode Toggle */}
           <button
-            onClick={toggleDarkMode}
-            title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
+            onClick={toggleTheme}
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle dark mode"
             className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition"
           >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
           </button>
 
           {/* Notifications Bell */}

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initErrorTracking } from './lib/observability/errorTracking';
@@ -25,10 +26,11 @@ initErrorTracking();
 export function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <ToastProvider>
-          <BrowserRouter>
-          <Routes>
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <BrowserRouter>
+            <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -50,7 +52,7 @@ export function App() {
               path="/community"
               element={
                 <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
-                  <CommunityHub />
+                  <WorkspaceShell><CommunityHub /></WorkspaceShell>
                 </ProtectedRoute>
               }
             />
@@ -58,7 +60,7 @@ export function App() {
               path="/messages"
               element={
                 <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
-                  <CommunityHub />
+                  <WorkspaceShell><CommunityHub /></WorkspaceShell>
                 </ProtectedRoute>
               }
             />
@@ -117,6 +119,7 @@ export function App() {
         </BrowserRouter>
       </ToastProvider>
     </AuthProvider>
+    </ThemeProvider>
     </ErrorBoundary>
   );
 }

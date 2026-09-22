@@ -107,8 +107,8 @@ const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
     {
       id: 'msg-1',
       channel_id: 'batch-15-community',
-      sender_id: 'system-pro-club',
-      sender_name: 'Pro Editors Club',
+      sender_id: 'system-cut-craft',
+      sender_name: 'CUT / CRAFT',
       sender_role: 'creator',
       content: 'Welcome to Batch 15! Share your intro and current editing workstation below 🚀',
       created_at: new Date(Date.now() - 86400000 * 2).toISOString(),

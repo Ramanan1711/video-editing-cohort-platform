@@ -17,13 +17,13 @@ interface LeaderboardCardProps {
 }
 
 const DEFAULT_LEADERBOARD: LeaderboardEntry[] = [
-  { rank: 1, name: 'Shibin', points: '1.2K PRO', badgeType: 'diamond' },
-  { rank: 2, name: 'Thilak', points: '1K PRO', badgeType: 'diamond' },
-  { rank: 3, name: 'Meshak', points: '767 PRO', badgeType: 'shield' },
+  { rank: 1, name: 'Shibin', points: '1.2K CRAFT', badgeType: 'diamond' },
+  { rank: 2, name: 'Thilak', points: '1K CRAFT', badgeType: 'diamond' },
+  { rank: 3, name: 'Meshak', points: '767 CRAFT', badgeType: 'shield' },
 ];
 
 export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
-  title = 'TOP 3 PRO LEADERBOARD',
+  title = 'TOP 3 LEADERBOARD',
   entries = DEFAULT_LEADERBOARD,
   className = '',
 }) => {
@@ -37,17 +37,17 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
 
       {/* Floating Graphic Coins (SVG / CSS) */}
       <div className="pointer-events-none absolute top-4 left-6 flex size-14 items-center justify-center rounded-full border border-amber-400/40 bg-gradient-to-tr from-amber-600/30 to-yellow-400/20 shadow-lg shadow-amber-500/10 -rotate-12 backdrop-blur-xs">
-        <span className="text-xs font-black tracking-widest text-amber-300">PRO</span>
+        <span className="text-xs font-black tracking-widest text-amber-300">CUT</span>
       </div>
       <div className="pointer-events-none absolute bottom-4 left-10 flex size-11 items-center justify-center rounded-full border border-amber-400/30 bg-gradient-to-tr from-amber-700/20 to-yellow-500/15 shadow-md rotate-12 backdrop-blur-xs">
-        <span className="text-[10px] font-black text-amber-200">PRO</span>
+        <span className="text-[10px] font-black text-amber-200">CRAFT</span>
       </div>
 
       {/* Center Header */}
       <div className="relative z-10 flex flex-col items-center text-center">
         <div className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-950/40 px-3 py-1 text-[11px] font-black tracking-wider uppercase text-amber-400">
           <Sparkles size={12} className="text-amber-400" />
-          <span>PRO EDITORS CLUB</span>
+          <span>CUT / CRAFT</span>
         </div>
 
         <div className="mt-3 flex items-center justify-center gap-2">

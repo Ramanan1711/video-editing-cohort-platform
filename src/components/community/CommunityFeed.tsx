@@ -187,14 +187,14 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-tr from-slate-950 to-slate-900 text-white font-black text-xs shadow-xs">
-                    PRO
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-tr from-slate-950 to-slate-900 text-white font-black text-xs shadow-xs dark:from-orange-600 dark:to-amber-500">
+                    C/C
                   </div>
 
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-black text-slate-950 dark:text-white">
-                        Pro Editors Club
+                        CUT / CRAFT
                       </span>
                       <span className="rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-black tracking-wide uppercase text-white">
                         CREATOR

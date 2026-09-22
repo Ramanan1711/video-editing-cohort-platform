@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { CommunityHub } from '../../pages/CommunityHub';
+import { ThemeProvider } from '../../context/ThemeContext';
 
 // Mock useAuth
 vi.mock('../../context/useAuth', () => ({
@@ -56,14 +57,22 @@ describe('CommunityHub & Components', () => {
     localStorage.clear();
   });
 
-  it('renders top navigation bar with brand PRO, center tabs, and utility controls', () => {
+  it('renders top navigation bar with brand CUT / CRAFT, smooth navigation buttons, center tabs, and utility controls', () => {
     render(
       <MemoryRouter initialEntries={['/community']}>
         <CommunityHub />
       </MemoryRouter>
     );
 
-    expect(screen.getAllByText('PRO').length).toBeGreaterThan(0);
+    // CUT / CRAFT Brand Identity
+    expect(screen.getAllByText('CUT / CRAFT').length).toBeGreaterThan(0);
+    expect(screen.getByText('Community Hub')).toBeInTheDocument();
+
+    // Previous and Next Navigation buttons
+    expect(screen.getByRole('button', { name: /previous page/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next page/i })).toBeInTheDocument();
+
+    // Center Tabs & Controls
     expect(screen.getAllByText('Community').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Messages').length).toBeGreaterThan(0);
     expect(screen.getByText('Level Up')).toBeInTheDocument();
@@ -85,7 +94,7 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByText('B15 Blue Squad')).toBeInTheDocument();
   });
 
-  it('renders pinned post with CREATOR badge and TOP 3 PRO LEADERBOARD', () => {
+  it('renders pinned post with CREATOR badge and TOP 3 LEADERBOARD with CUT / CRAFT branding', () => {
     render(
       <MemoryRouter initialEntries={['/community']}>
         <CommunityHub />
@@ -93,13 +102,13 @@ describe('CommunityHub & Components', () => {
     );
 
     expect(screen.getByText('Pinned')).toBeInTheDocument();
-    expect(screen.getAllByText('Pro Editors Club').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('CUT / CRAFT').length).toBeGreaterThan(0);
     expect(screen.getByText('CREATOR')).toBeInTheDocument();
-    expect(screen.getByText(/TOP 3 PRO LEADERBOARD/i)).toBeInTheDocument();
+    expect(screen.getByText(/TOP 3 LEADERBOARD/i)).toBeInTheDocument();
     expect(screen.getByText('Shibin')).toBeInTheDocument();
     expect(screen.getByText('Thilak')).toBeInTheDocument();
     expect(screen.getByText('Meshak')).toBeInTheDocument();
-    expect(screen.getByText('1.2K PRO')).toBeInTheDocument();
+    expect(screen.getByText('1.2K CRAFT')).toBeInTheDocument();
   });
 
   it('toggles like counter on the pinned post', () => {
@@ -215,5 +224,28 @@ describe('CommunityHub & Components', () => {
     const urlTab = screen.getByRole('button', { name: /url/i });
     fireEvent.click(urlTab);
     expect(screen.getByPlaceholderText(/https:\/\/youtube\.com/i)).toBeInTheDocument();
+  });
+
+  it('toggles dark and light mode seamlessly via ThemeContext', () => {
+    render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/community']}>
+          <CommunityHub />
+        </MemoryRouter>
+      </ThemeProvider>
+    );
+
+    const themeToggleBtn = screen.getByRole('button', { name: /toggle dark mode/i });
+    expect(themeToggleBtn).toBeInTheDocument();
+
+    // Toggle to dark mode
+    fireEvent.click(themeToggleBtn);
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(localStorage.getItem('cutcraft_theme')).toBe('dark');
+
+    // Toggle back to light mode
+    fireEvent.click(themeToggleBtn);
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(localStorage.getItem('cutcraft_theme')).toBe('light');
   });
 });

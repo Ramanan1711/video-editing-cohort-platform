@@ -10,14 +10,18 @@ import {
   GraduationCap,
   Home,
   Menu,
+  Moon,
   Sparkles,
+  Sun,
   Users,
   X,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
+import { useTheme } from '../context/useTheme';
 
 export function WorkspaceSidebar() {
   const { profile } = useAuth();
+  const { isDarkMode, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -69,8 +73,8 @@ export function WorkspaceSidebar() {
           className={({ isActive }) =>
             `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold transition ${
               isActive
-                ? 'bg-orange-50 text-orange-700'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950'
+                ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'
             } ${collapsed ? 'justify-center' : ''}`
           }
           title={collapsed ? label : undefined}
@@ -86,7 +90,7 @@ export function WorkspaceSidebar() {
     <>
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-4 z-40 rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm lg:hidden"
+        className="fixed left-4 top-4 z-40 rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 lg:hidden"
         aria-label="Open workspace navigation"
       >
         <Menu size={19} />
@@ -103,25 +107,25 @@ export function WorkspaceSidebar() {
       <aside
         className={`${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white p-5 shadow-xl transition-transform lg:translate-x-0 lg:shadow-none ${
+        } fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white p-5 shadow-xl transition-transform dark:border-slate-800 dark:bg-slate-950 lg:translate-x-0 lg:shadow-none ${
           collapsed ? 'lg:w-20' : 'lg:w-64'
         }`}
       >
         <div className={`mb-8 flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white dark:bg-orange-500">
               <CalendarDays size={18} />
             </span>
             {!collapsed && (
               <div>
-                <p className="text-sm font-black tracking-tight text-slate-950">CUT / CRAFT</p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Workspace</p>
+                <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">CUT / CRAFT</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Workspace</p>
               </div>
             )}
           </div>
           <button
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-2 text-slate-400 lg:hidden"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-900 dark:hover:text-slate-200 lg:hidden"
             aria-label="Close navigation"
           >
             <X size={18} />
@@ -129,18 +133,32 @@ export function WorkspaceSidebar() {
         </div>
 
         {!collapsed && (
-          <p className="mb-3 px-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Navigate</p>
+          <p className="mb-3 px-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Navigate</p>
         )}
 
         {navigation}
 
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="absolute bottom-5 right-4 hidden rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-950 lg:block"
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
-        </button>
+        {/* Footer controls: Dark mode & Collapse */}
+        <div className="absolute bottom-5 inset-x-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800/80">
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-2 rounded-lg p-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition"
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle color theme"
+          >
+            {isDarkMode ? <Sun size={17} className="text-amber-400 shrink-0" /> : <Moon size={17} className="shrink-0" />}
+            {!collapsed && <span>{isDarkMode ? 'Light' : 'Dark'} Mode</span>}
+          </button>
+
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="hidden rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-slate-900 dark:hover:text-slate-100 lg:block"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+          </button>
+        </div>
       </aside>
     </>
   );
