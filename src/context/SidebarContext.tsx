@@ -11,6 +11,8 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   });
 
+  const [mobileOpen, setMobileOpenState] = useState<boolean>(false);
+
   useEffect(() => {
     try {
       localStorage.setItem('cutcraft_sidebar_collapsed', String(collapsed));
@@ -27,16 +29,26 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCollapsedState(val);
   };
 
+  const toggleMobileOpen = () => {
+    setMobileOpenState((prev) => !prev);
+  };
+
+  const setMobileOpen = (val: boolean) => {
+    setMobileOpenState(val);
+  };
+
   return (
     <SidebarContext.Provider
       value={{
         collapsed,
         toggleCollapsed,
         setCollapsed,
+        mobileOpen,
+        setMobileOpen,
+        toggleMobileOpen,
       }}
     >
       {children}
     </SidebarContext.Provider>
   );
 };
-

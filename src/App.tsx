@@ -54,7 +54,7 @@ export function App() {
               path="/community"
               element={
                 <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
-                  <CommunityHub />
+                  <WorkspaceShell><CommunityHub /></WorkspaceShell>
                 </ProtectedRoute>
               }
             />
@@ -62,7 +62,7 @@ export function App() {
               path="/messages"
               element={
                 <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
-                  <CommunityHub />
+                  <WorkspaceShell><CommunityHub /></WorkspaceShell>
                 </ProtectedRoute>
               }
             />

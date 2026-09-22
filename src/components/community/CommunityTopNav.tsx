@@ -132,7 +132,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
             onClick={() => setNavDrawerOpen(true)}
             aria-label="Open workspace navigation"
             title="Workspace Navigation"
-            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-2xs hover:bg-slate-100 hover:text-slate-950 active:scale-95 transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-2xs hover:bg-slate-100 hover:text-slate-950 active:scale-95 transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white lg:hidden"
           >
             <Menu size={20} />
           </button>

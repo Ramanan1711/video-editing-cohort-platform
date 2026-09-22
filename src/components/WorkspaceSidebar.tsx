@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   BarChart3,
@@ -19,8 +19,7 @@ import { useSidebar } from '../context/useSidebar';
 
 export function WorkspaceSidebar() {
   const { profile } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const { collapsed, toggleCollapsed } = useSidebar();
+  const { collapsed, toggleCollapsed, mobileOpen, setMobileOpen } = useSidebar();
 
   useEffect(() => {
     if (mobileOpen) {
