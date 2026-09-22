@@ -24,12 +24,14 @@ import {
   Megaphone,
   Menu,
   MessagesSquare,
+  Moon,
   Play,
   Radio,
   RefreshCw,
   Search,
   Shield,
   Sparkles,
+  Sun,
   Trophy,
   Video,
   WifiOff,
@@ -37,6 +39,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
+import { useTheme } from '../context/useTheme';
 import {
   calculateLearningTime,
   calculateStreak,
@@ -86,6 +89,7 @@ const emptyCourse: StudentCourseData = { cohort: null, modules: [], progress: []
 export function StudentDashboard() {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
+  const { isDarkMode, toggleTheme } = useTheme();
   const [course, setCourse] = useState<StudentCourseData>(emptyCourse);
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
@@ -623,17 +627,28 @@ export function StudentDashboard() {
               </Link>
             )}
 
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition"
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              aria-label="Toggle color theme"
+            >
+              {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
+            </button>
+
             {/* User Profile Badge */}
-            <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 sm:flex">
-              <div className="flex size-7 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">
+            <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-900 sm:flex">
+              <div className="flex size-7 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700 dark:bg-orange-950/60 dark:text-orange-400">
                 {profile?.full_name?.charAt(0) ?? 'S'}
               </div>
-              <span className="max-w-28 truncate text-xs font-bold text-slate-800">{profile?.full_name ?? 'Student'}</span>
+              <span className="max-w-28 truncate text-xs font-bold text-slate-800 dark:text-slate-200">{profile?.full_name ?? 'Student'}</span>
             </div>
 
             <button
               onClick={signOut}
-              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
+              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition"
+              title="Sign out"
               aria-label="Sign out"
             >
               <LogOut size={18} />
@@ -676,7 +691,7 @@ export function StudentDashboard() {
         <aside
           className={`${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } fixed inset-y-0 left-0 z-40 w-84 border-r border-slate-200 bg-white transition-transform lg:sticky lg:top-[73px] lg:block lg:h-[calc(100vh-73px)] lg:translate-x-0`}
+          } fixed inset-y-0 left-0 z-40 w-84 border-r border-slate-200 bg-white transition-transform flex flex-col lg:sticky lg:top-[73px] lg:h-[calc(100vh-73px)] lg:translate-x-0 dark:border-slate-800 dark:bg-slate-950`}
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
@@ -742,7 +757,7 @@ export function StudentDashboard() {
           </div>
 
           {/* Modules & Lessons List */}
-          <nav className="max-h-[calc(100vh-270px)] overflow-y-auto p-4 space-y-3">
+          <nav className="flex-1 overflow-y-auto p-4 space-y-3">
             {loading ? (
               <SidebarSkeleton />
             ) : filteredModules.length ? (
@@ -857,6 +872,29 @@ export function StudentDashboard() {
               <EmptyState label="Your lessons will appear here once you are enrolled in a cohort." />
             )}
           </nav>
+
+          {/* Mobile Footer: Theme Toggle & Sign out */}
+          <div className="border-t border-slate-100 p-4 dark:border-slate-800/80 lg:hidden flex items-center justify-between">
+            <button
+              onClick={toggleTheme}
+              className="flex items-center gap-2 rounded-lg p-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition"
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              aria-label="Toggle color theme"
+            >
+              {isDarkMode ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} />}
+              <span>{isDarkMode ? 'Light' : 'Dark'} Mode</span>
+            </button>
+
+            <button
+              onClick={() => void signOut()}
+              className="flex items-center gap-2 rounded-lg p-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 transition"
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              <LogOut size={17} />
+              <span>Sign out</span>
+            </button>
+          </div>
         </aside>
 
         {/* Backdrop for Mobile Sidebar */}

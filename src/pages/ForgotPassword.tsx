@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Mail } from 'lucide-react';
+import { ArrowLeft, Mail, Moon, Sun } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/FormField';
+import { useTheme } from '../context/useTheme';
 
 export const ForgotPassword: React.FC = () => {
+  const { isDarkMode, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,13 +41,24 @@ export const ForgotPassword: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] px-5 py-12">
+    <div className="relative flex min-h-screen items-center justify-center bg-[#f6f7f9] px-5 py-12 dark:bg-slate-950">
+      <div className="absolute top-5 right-5">
+        <button
+          onClick={toggleTheme}
+          className="flex size-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition"
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          aria-label="Toggle color theme"
+        >
+          {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
+        </button>
+      </div>
+
       <div className="w-full max-w-md">
-        <Link to="/" className="mx-auto mb-8 block w-fit text-sm font-black tracking-tight text-slate-950">
+        <Link to="/" className="mx-auto mb-8 block w-fit text-sm font-black tracking-tight text-slate-950 dark:text-white">
           CUT / CRAFT
         </Link>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-900/5 sm:p-9">
+        <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900 sm:p-9">
           {submitted ? (
             <div className="text-center">
               <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
