@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { useTheme } from '../context/useTheme';
+import { TopRightControls } from './TopRightControls';
 
 export function WorkspaceSidebar() {
   const { profile, signOut } = useAuth();
@@ -96,6 +97,11 @@ export function WorkspaceSidebar() {
       >
         <Menu size={19} />
       </button>
+
+      {/* Mobile Top-Right: Theme Toggle & Sign Out */}
+      <div className="fixed right-4 top-4 z-40 lg:hidden">
+        <TopRightControls showSignOutLabel={false} />
+      </div>
 
       {mobileOpen && (
         <button

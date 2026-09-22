@@ -235,6 +235,16 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
               </div>
             </button>
 
+            {/* Direct Sign Out Button in Top-Right Corner */}
+            <button
+              onClick={() => void signOut()}
+              title="Sign out"
+              aria-label="Sign out"
+              className="hidden sm:flex size-9 items-center justify-center rounded-xl text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 transition"
+            >
+              <LogOut size={18} />
+            </button>
+
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-50">
                 <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">

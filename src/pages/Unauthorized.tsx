@@ -4,6 +4,7 @@ import { useAuth } from '../context/useAuth';
 import { useTheme } from '../context/useTheme';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { TopRightControls } from '../components/TopRightControls';
 
 export function Unauthorized() {
   const { profile, signOut } = useAuth();
@@ -21,6 +22,7 @@ export function Unauthorized() {
         >
           {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
         </button>
+        <TopRightControls />
       </div>
       <Card className="w-full max-w-lg p-8 text-center shadow-xl">
         <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">

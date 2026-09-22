@@ -104,6 +104,7 @@ import { alertManager, type OperationalAlert } from '../lib/observability/alerts
 import { getPlatformAnalytics, type PlatformAnalytics } from '../lib/observability/analytics';
 import { runDeploymentCheck, type DeploymentReport, type DeploymentCheckItem } from '../lib/observability/deploymentCheck';
 import { evaluateLaunchReadinessGate, type LaunchGateReport } from '../lib/observability/launchReadinessGate';
+import { TopRightControls } from '../components/TopRightControls';
 
 const emptyStats: AdminStats = {
   users: 0,
@@ -1044,10 +1045,13 @@ export function AdminOperations() {
               </Link>
               <Link
                 to="/review/submissions"
-                className="rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-slate-800"
+                className="hidden md:inline-flex rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-slate-800"
               >
                 Review Room →
               </Link>
+
+              {/* Top-Right Theme Toggle & Sign Out */}
+              <TopRightControls className="hidden lg:flex" />
             </div>
           </div>
         </div>
