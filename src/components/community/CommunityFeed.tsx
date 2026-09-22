@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { LeaderboardCard } from './LeaderboardCard';
+import { PostMediaRenderer } from './PostMediaRenderer';
 import { useAuth } from '../../context/useAuth';
 import {
   listCohortPosts,
@@ -20,10 +21,12 @@ import {
 interface CommunityFeedProps {
   onOpenCreateModal: () => void;
   selectedChannelId?: string;
+  refreshKey?: number;
 }
 
 export const CommunityFeed: React.FC<CommunityFeedProps> = ({
   selectedChannelId,
+  refreshKey = 0,
 }) => {
   const { profile } = useAuth();
   const [filterType, setFilterType] = useState<'all' | 'pinned' | 'qa' | 'squad'>('all');
@@ -81,7 +84,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
     return () => {
       active = false;
     };
-  }, [selectedChannelId]);
+  }, [selectedChannelId, refreshKey]);
 
   const handlePinnedLike = () => {
     if (isPinnedLiked) {
@@ -367,6 +370,15 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
           <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
             {post.body}
           </p>
+
+          {post.media_url && (
+            <PostMediaRenderer
+              mediaUrl={post.media_url}
+              mediaType={post.media_type}
+              fileName={post.file_name}
+              className="mt-3"
+            />
+          )}
         </article>
       ))}
     </div>

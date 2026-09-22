@@ -15,6 +15,66 @@ export interface CommunityPost {
   comment_count?: number;
   reactions?: Record<string, number>;
   user_reactions?: string[];
+  media_url?: string | null;
+  media_type?: 'video' | 'image' | 'file' | null;
+  file_name?: string | null;
+}
+
+export function detectMediaType(urlOrFilename: string): 'video' | 'image' | 'file' {
+  const lower = urlOrFilename.toLowerCase();
+  if (
+    lower.includes('youtube.com') ||
+    lower.includes('youtu.be') ||
+    lower.includes('vimeo.com') ||
+    lower.includes('loom.com') ||
+    lower.endsWith('.mp4') ||
+    lower.endsWith('.mov') ||
+    lower.endsWith('.webm') ||
+    lower.endsWith('.m4v') ||
+    lower.includes('video')
+  ) {
+    return 'video';
+  }
+  if (
+    lower.endsWith('.jpg') ||
+    lower.endsWith('.jpeg') ||
+    lower.endsWith('.png') ||
+    lower.endsWith('.webp') ||
+    lower.endsWith('.gif') ||
+    lower.endsWith('.svg') ||
+    lower.includes('image')
+  ) {
+    return 'image';
+  }
+  return 'file';
+}
+
+export function parsePostMediaEnvelope(rawBody: string): {
+  body: string;
+  mediaUrl?: string | null;
+  mediaType?: 'video' | 'image' | 'file' | null;
+  fileName?: string | null;
+} {
+  const match = rawBody.match(/^\[attachment:(.*?)\]\n([\s\S]*)$/);
+  if (match) {
+    try {
+      const meta = JSON.parse(match[1]);
+      return {
+        body: match[2],
+        mediaUrl: meta.url,
+        mediaType: meta.type || (meta.url ? detectMediaType(meta.url) : null),
+        fileName: meta.name || null,
+      };
+    } catch {
+      // fallback
+    }
+  }
+  return {
+    body: rawBody,
+    mediaUrl: null,
+    mediaType: null,
+    fileName: null,
+  };
 }
 
 export interface CommunityComment {
@@ -151,8 +211,14 @@ export async function listCohortPosts(
 
     return filtered.map((p) => {
       const author = profileMap.get(p.author_id);
+      const parsed = parsePostMediaEnvelope(p.body);
+
       return {
         ...p,
+        body: parsed.body,
+        media_url: p.media_url || parsed.mediaUrl,
+        media_type: p.media_type || parsed.mediaType,
+        file_name: p.file_name || parsed.fileName,
         author_name: author?.full_name || 'Community Member',
         author_role: author?.role || 'student',
         comment_count: commentCountMap.get(p.id) || 0,
@@ -198,26 +264,39 @@ export async function createCommunityPost(
   cohortId?: string | null,
   lessonId?: string | null,
   title?: string | null,
-  isPinned?: boolean
+  isPinned?: boolean,
+  mediaUrl?: string | null,
+  mediaType?: 'video' | 'image' | 'file' | null,
+  fileName?: string | null
 ): Promise<CommunityPost> {
+  const detectedType = mediaType || (mediaUrl ? detectMediaType(mediaUrl) : null);
+  const envelopeBody = mediaUrl
+    ? `[attachment:${JSON.stringify({ url: mediaUrl, type: detectedType, name: fileName || 'Attachment' })}]\n${body.trim()}`
+    : body.trim();
+
   const payload: Record<string, unknown> = {
     author_id: authorId,
-    body: body.trim(),
+    body: envelopeBody,
   };
   if (cohortId) payload.cohort_id = cohortId;
   if (lessonId) payload.lesson_id = lessonId;
   if (title?.trim()) payload.title = title.trim();
   if (typeof isPinned === 'boolean') payload.is_pinned = isPinned;
+  if (mediaUrl) {
+    payload.media_url = mediaUrl;
+    payload.media_type = detectedType;
+    payload.file_name = fileName;
+  }
 
   const res = await supabase.from('community_posts').insert(payload).select().single();
   let data = res.data;
   const error = res.error;
 
-  if (error && (error.message.includes('cohort_id') || error.message.includes('title'))) {
-    // Fallback for unmigrated schema
+  if (error && (error.message.includes('cohort_id') || error.message.includes('title') || error.message.includes('media'))) {
+    // Fallback for unmigrated schema: store with envelope body
     const fallback = await supabase
       .from('community_posts')
-      .insert({ author_id: authorId, body: body.trim() })
+      .insert({ author_id: authorId, body: envelopeBody })
       .select()
       .single();
     if (fallback.error) throw fallback.error;
@@ -228,10 +307,40 @@ export async function createCommunityPost(
 
   return {
     ...(data as CommunityPost),
+    body: body.trim(),
+    media_url: mediaUrl,
+    media_type: detectedType,
+    file_name: fileName,
     comment_count: 0,
     reactions: {},
     user_reactions: [],
   };
+}
+
+export async function uploadCommunityMedia(file: File): Promise<{
+  url: string;
+  type: 'video' | 'image' | 'file';
+  name: string;
+}> {
+  const type = detectMediaType(file.name);
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const path = `community/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeName}`;
+
+  try {
+    const { error } = await supabase.storage.from('course-assets').upload(path, file, {
+      upsert: false,
+      contentType: file.type || undefined,
+    });
+    if (!error) {
+      const publicUrl = supabase.storage.from('course-assets').getPublicUrl(path).data.publicUrl;
+      return { url: publicUrl, type, name: file.name };
+    }
+  } catch {
+    // Handled by local preview fallback
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  return { url: objectUrl, type, name: file.name };
 }
 
 export async function deleteCommunityPost(postId: string): Promise<void> {

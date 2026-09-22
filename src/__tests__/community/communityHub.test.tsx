@@ -36,6 +36,12 @@ vi.mock('../../lib/communityService', () => ({
     title: 'New discussion',
     body: 'Some text',
   }),
+  uploadCommunityMedia: vi.fn().mockResolvedValue({
+    url: 'https://example.com/demo.mp4',
+    type: 'video',
+    name: 'demo.mp4',
+  }),
+  detectMediaType: vi.fn((url: string) => (url.includes('video') || url.includes('.mp4') ? 'video' : 'image')),
   addCommunityComment: vi.fn().mockResolvedValue({
     id: 'comm-new',
     body: 'Nice pacing!',
@@ -176,5 +182,38 @@ describe('CommunityHub & Components', () => {
     const workshopsBtn = screen.getByText('Workshops');
     fireEvent.click(workshopsBtn);
     expect(screen.getByText('Cohort Workshops')).toBeInTheDocument();
+  });
+
+  it('supports selecting Video, Photo, and Project attachment options in CreatePostModal', () => {
+    render(
+      <MemoryRouter initialEntries={['/community']}>
+        <CommunityHub />
+      </MemoryRouter>
+    );
+
+    const createBtn = screen.getByText('Create');
+    fireEvent.click(createBtn);
+
+    expect(screen.getByText('Attach Media (Video, Photo, Etc.)')).toBeInTheDocument();
+
+    // Click Video tab
+    const videoTab = screen.getByRole('button', { name: /video/i });
+    fireEvent.click(videoTab);
+    expect(screen.getByText(/Upload Video/i)).toBeInTheDocument();
+
+    // Click Photo tab
+    const photoTab = screen.getByRole('button', { name: /photo/i });
+    fireEvent.click(photoTab);
+    expect(screen.getByText(/Upload Photo/i)).toBeInTheDocument();
+
+    // Click Project tab
+    const projectTab = screen.getByRole('button', { name: /project/i });
+    fireEvent.click(projectTab);
+    expect(screen.getByText(/Upload Project/i)).toBeInTheDocument();
+
+    // Click URL tab
+    const urlTab = screen.getByRole('button', { name: /url/i });
+    fireEvent.click(urlTab);
+    expect(screen.getByPlaceholderText(/https:\/\/youtube\.com/i)).toBeInTheDocument();
   });
 });

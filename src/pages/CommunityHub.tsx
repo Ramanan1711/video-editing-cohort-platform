@@ -26,6 +26,7 @@ export const CommunityHub: React.FC = () => {
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [showWorkshopsModal, setShowWorkshopsModal] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [feedRefreshKey, setFeedRefreshKey] = useState(0);
 
   // Sync state changes with URL search params
   const handleSelectView = (view: CommunityActiveView) => {
@@ -92,6 +93,7 @@ export const CommunityHub: React.FC = () => {
             <CommunityFeed
               selectedChannelId={selectedChannelId}
               onOpenCreateModal={() => setShowCreateModal(true)}
+              refreshKey={feedRefreshKey}
             />
           ) : (
             <CommunityMessages initialChannelId={selectedChannelId} />
@@ -104,7 +106,7 @@ export const CommunityHub: React.FC = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onPostCreated={() => {
-          // Trigger feed refresh if needed
+          setFeedRefreshKey((k) => k + 1);
         }}
       />
 
