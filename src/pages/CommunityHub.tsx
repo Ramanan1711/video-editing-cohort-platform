@@ -6,6 +6,7 @@ import { CommunityFeed } from '../components/community/CommunityFeed';
 import { CommunityMessages } from '../components/community/CommunityMessages';
 import { CreatePostModal } from '../components/community/CreatePostModal';
 import { LevelUpModal } from '../components/community/LevelUpModal';
+import { LevelUpView } from '../components/community/LevelUpView';
 import { WorkshopsModal } from '../components/community/WorkshopsModal';
 import { useAuth } from '../context/useAuth';
 
@@ -18,7 +19,7 @@ export const CommunityHub: React.FC = () => {
   const tabParam = searchParams.get('tab');
   const channelParam = searchParams.get('channel');
 
-  const activeView: CommunityActiveView = tabParam === 'messages' ? 'messages' : 'feed';
+  const activeView: CommunityActiveView = tabParam === 'messages' ? 'messages' : tabParam === 'levelup' ? 'levelup' : 'feed';
   const selectedChannelId: string = channelParam || 'batch-15-community';
 
   // Modals state
@@ -32,7 +33,7 @@ export const CommunityHub: React.FC = () => {
   const handleSelectView = (view: CommunityActiveView) => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('tab', view);
-    if (view === 'feed') {
+    if (view === 'feed' || view === 'levelup') {
       newParams.delete('channel');
     }
     setSearchParams(newParams);
@@ -51,6 +52,8 @@ export const CommunityHub: React.FC = () => {
       handleSelectView('feed');
     } else if (tab === 'messages') {
       handleSelectView('messages');
+    } else if (tab === 'levelup') {
+      handleSelectView('levelup');
     } else if (tab === 'courses') {
       if (profile?.role === 'admin') {
         navigate('/admin/courses');
@@ -64,7 +67,7 @@ export const CommunityHub: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-slate-100/70 dark:bg-slate-950 font-sans">
       {/* 1. Top Navigation Bar matching reference image */}
       <CommunityTopNav
-        activeTab={activeView === 'feed' ? 'community' : 'messages'}
+        activeTab={activeView === 'feed' ? 'community' : activeView === 'messages' ? 'messages' : 'levelup'}
         onTabChange={handleTopNavTabChange}
         unreadMessagesCount={2}
         unreadNotificationsCount={10}
@@ -87,7 +90,7 @@ export const CommunityHub: React.FC = () => {
           qaUnreadCount={16}
         />
 
-        {/* Center Main View Area: Feed vs Messages */}
+        {/* Center Main View Area: Feed vs Messages vs Level Up Tab */}
         <main className="flex flex-1 overflow-hidden">
           {activeView === 'feed' ? (
             <CommunityFeed
@@ -95,8 +98,10 @@ export const CommunityHub: React.FC = () => {
               onOpenCreateModal={() => setShowCreateModal(true)}
               refreshKey={feedRefreshKey}
             />
-          ) : (
+          ) : activeView === 'messages' ? (
             <CommunityMessages initialChannelId={selectedChannelId} />
+          ) : (
+            <LevelUpView onClose={() => handleSelectView('feed')} />
           )}
         </main>
       </div>

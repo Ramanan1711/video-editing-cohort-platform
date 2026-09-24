@@ -11,7 +11,7 @@ import {
   PanelLeftOpen,
 } from 'lucide-react';
 
-export type CommunityActiveView = 'feed' | 'messages';
+export type CommunityActiveView = 'feed' | 'messages' | 'levelup';
 
 interface CommunitySidebarProps {
   activeView: CommunityActiveView;

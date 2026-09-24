@@ -41,7 +41,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   onTabChange,
   unreadMessagesCount = 2,
   unreadNotificationsCount = 10,
-  onOpenLevelUpModal,
+  onOpenLevelUpModal: _onOpenLevelUpModal,
   onOpenWorkshopsModal,
 }) => {
   const { profile, signOut } = useAuth();
@@ -107,7 +107,6 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
       id: 'levelup',
       label: 'Level Up',
       icon: Package,
-      onClick: onOpenLevelUpModal,
     },
     {
       id: 'workshops',

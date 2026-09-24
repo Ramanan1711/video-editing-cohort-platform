@@ -259,4 +259,39 @@ describe('CommunityHub & Components', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(false);
     expect(localStorage.getItem('cutcraft_theme')).toBe('light');
   });
+
+  it('renders Level Up as a dedicated tab with 3-column stats, leaderboard, and habits when navigated via ?tab=levelup', () => {
+    render(
+      <MemoryRouter initialEntries={['/community?tab=levelup']}>
+        <CommunityHub />
+      </MemoryRouter>
+    );
+
+    // Verify header and PRO leaderboard badge
+    expect(screen.getByText('Level Up & Mastery')).toBeInTheDocument();
+    expect(screen.getByText('PRO LEADERBOARD')).toBeInTheDocument();
+
+    // Verify Habit performance stats
+    expect(screen.getByText(/Your avg completion rate/i)).toBeInTheDocument();
+    expect(screen.getByText('92.86%')).toBeInTheDocument();
+    expect(screen.getByText(/Community avg completion rate/i)).toBeInTheDocument();
+    expect(screen.getByText('3.13%')).toBeInTheDocument();
+
+    // Verify Podium members
+    expect(screen.getByText('Bala murugan')).toBeInTheDocument();
+    expect(screen.getByText('36,190 PRO')).toBeInTheDocument();
+    expect(screen.getByText('Kamalesh K')).toBeInTheDocument();
+    expect(screen.getByText('Prasanth R')).toBeInTheDocument();
+
+    // Verify Pinned user rank card
+    expect(screen.getByText('YOU')).toBeInTheDocument();
+
+    // Verify Daily Habits list
+    expect(screen.getByText('EDIT for 20 minutes')).toBeInTheDocument();
+
+    // Click Back to Feed button
+    const backBtn = screen.getByRole('button', { name: /back to feed/i });
+    fireEvent.click(backBtn);
+    expect(screen.queryByText('PRO LEADERBOARD')).not.toBeInTheDocument();
+  });
 });
