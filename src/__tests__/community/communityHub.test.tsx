@@ -319,15 +319,22 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByText('EDIT For 20 Minutes')).toBeInTheDocument();
     expect(screen.getByText('10 PRO')).toBeInTheDocument();
 
-    // Verify calendar cells contain interactive habit checkboxes
-    const habitCheckboxes = screen.getAllByRole('checkbox');
+    // Verify calendar cells contain habit checkboxes (past/future disabled, today active)
+    const habitCheckboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
     expect(habitCheckboxes.length).toBeGreaterThan(0);
 
-    // Toggle one of the checkboxes
-    const firstCheckbox = habitCheckboxes[0];
-    const initialChecked = (firstCheckbox as HTMLInputElement).checked;
-    fireEvent.click(firstCheckbox);
-    expect((firstCheckbox as HTMLInputElement).checked).toBe(!initialChecked);
+    // Past or future checkboxes are disabled
+    const disabledCheckboxes = habitCheckboxes.filter((cb) => cb.disabled);
+    expect(disabledCheckboxes.length).toBeGreaterThan(0);
+
+    // Today's checkbox is enabled and toggleable
+    const todayCheckbox = habitCheckboxes.find((cb) => !cb.disabled);
+    expect(todayCheckbox).toBeDefined();
+    if (todayCheckbox) {
+      const initialChecked = todayCheckbox.checked;
+      fireEvent.click(todayCheckbox);
+      expect(todayCheckbox.checked).toBe(!initialChecked);
+    }
 
     // Test month navigation controls
     const nextMonthBtn = screen.getByRole('button', { name: /next month/i });

@@ -701,7 +701,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                               ? `Past day (${cell.dateKey}) — Locked at 12:00 AM (${cell.isCompleted ? 'Completed' : 'Missed'})`
                               : `Today (${cell.dateKey}) — Click to toggle habit (+10 PRO Points)`
                           }
-                          className={`min-h-[74px] sm:min-h-[84px] rounded-xl border p-1.5 sm:p-2 flex flex-col justify-between transition-all ${
+                          className={`min-h-[74px] sm:min-h-[84px] rounded-xl border p-1.5 sm:p-2 flex flex-col justify-between transition-all min-w-0 overflow-hidden ${
                             cell.isToday
                               ? 'border-amber-400 bg-amber-50/50 dark:border-amber-500/80 dark:bg-amber-950/25 shadow-xs ring-2 ring-amber-400/30 cursor-pointer hover:shadow-sm'
                               : isUpcoming
@@ -712,48 +712,59 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                           }`}
                         >
                           {/* Date Number Header */}
-                          <div className="flex items-center justify-between">
-                            {cell.isToday ? (
-                              <span className="rounded-full bg-amber-500 px-1.5 py-0.2 text-[8px] font-black text-slate-950 shadow-2xs">
-                                TODAY
-                              </span>
-                            ) : isUpcoming ? (
-                              <span className="flex items-center gap-0.5 text-[9px] font-bold text-slate-400 dark:text-slate-500">
-                                <Lock size={10} />
-                                <span className="hidden sm:inline text-[8px]">12 AM</span>
-                              </span>
-                            ) : cell.isCompleted ? (
-                              <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.2 text-[8px] font-bold text-emerald-600 dark:text-emerald-400">
-                                ✓ Done
-                              </span>
-                            ) : (
-                              <span className="text-[8px] font-bold text-slate-400 dark:text-slate-600">
-                                Closed
-                              </span>
-                            )}
+                          <div className="flex items-start justify-between gap-1 min-w-0">
+                            {/* Left Badge Indicator (Moved up to align with top of date number) */}
+                            <div className="min-w-0 flex items-center">
+                              {cell.isToday ? (
+                                <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[8px] font-black text-slate-950 shadow-2xs shrink-0 inline-flex items-center leading-none">
+                                  TODAY
+                                </span>
+                              ) : isUpcoming ? (
+                                <span className="flex items-center gap-0.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 shrink-0">
+                                  <Lock size={10} />
+                                  <span className="hidden sm:inline text-[8px]">12 AM</span>
+                                </span>
+                              ) : cell.isCompleted ? (
+                                <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[8px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0 inline-flex items-center leading-none">
+                                  ✓ Done
+                                </span>
+                              ) : (
+                                <span className="text-[8px] font-bold text-slate-400 dark:text-slate-600 shrink-0 inline-block leading-none">
+                                  Closed
+                                </span>
+                              )}
+                            </div>
 
-                            <span
-                              className={`ml-auto text-xs font-bold ${
-                                cell.isToday
-                                  ? 'text-amber-600 dark:text-amber-400 font-black'
-                                  : cell.isCurrentMonth
-                                  ? 'text-slate-700 dark:text-slate-300'
-                                  : 'text-slate-400 dark:text-slate-600'
-                              }`}
-                            >
-                              {cell.dateNum}
-                            </span>
+                            {/* Right Column: Date number (e.g. 24) on top, with +10 PRO placed below it */}
+                            <div className="flex flex-col items-end shrink-0 leading-none">
+                              <span
+                                className={`text-xs font-bold leading-none ${
+                                  cell.isToday
+                                    ? 'text-amber-600 dark:text-amber-400 font-black'
+                                    : cell.isCurrentMonth
+                                    ? 'text-slate-700 dark:text-slate-300'
+                                    : 'text-slate-400 dark:text-slate-600'
+                                }`}
+                              >
+                                {cell.dateNum}
+                              </span>
+                              {cell.isToday && (
+                                <span className="mt-1 rounded-xs bg-amber-500/20 px-1 py-0.5 text-[7.5px] sm:text-[8px] font-black text-amber-800 dark:text-amber-300 leading-none">
+                                  +10 PRO
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           {/* Interactive Habit Badge with Checkbox */}
-                          <div
+                          <label
                             onClick={(e) => {
+                              e.stopPropagation();
                               if (!isEditable) {
-                                e.stopPropagation();
                                 handleToggleHabitDate(cell.dateKey);
                               }
                             }}
-                            className={`rounded-md border p-1 sm:p-1.5 text-[9px] sm:text-[10px] font-extrabold flex items-center gap-1.5 border-l-[3px] sm:border-l-4 select-none transition-all ${
+                            className={`rounded-md border p-1 sm:p-1.5 text-[9px] sm:text-[10px] font-extrabold flex items-center gap-1.5 border-l-[3px] sm:border-l-4 select-none transition-all w-full min-w-0 overflow-hidden ${
                               cell.isToday
                                 ? cell.isCompleted
                                   ? 'border-l-amber-500 border-amber-300 dark:border-amber-700/60 bg-amber-100/60 dark:bg-amber-900/40 text-amber-950 dark:text-amber-200 cursor-pointer shadow-2xs'
@@ -792,13 +803,8 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                                 <Lock size={8} className="text-slate-400" />
                               ) : null}
                             </span>
-                            <span className="truncate leading-tight flex-1">{cell.habitTitle}</span>
-                            {cell.isToday && (
-                              <span className="hidden sm:inline-block rounded-xs bg-amber-500/20 px-1 py-0.2 text-[8px] font-black text-amber-800 dark:text-amber-300 shrink-0">
-                                +10 PRO
-                              </span>
-                            )}
-                          </div>
+                            <span className="truncate leading-tight flex-1 min-w-0">{cell.habitTitle}</span>
+                          </label>
                         </div>
                       );
                     })}
