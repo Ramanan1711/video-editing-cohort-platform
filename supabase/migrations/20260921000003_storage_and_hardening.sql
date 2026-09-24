@@ -147,6 +147,20 @@ using (
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 
+-- D2. Students can delete their own uploads, admins can delete any submission
+drop policy if exists "Users or admins can delete submissions" on storage.objects;
+create policy "Users or admins can delete submissions"
+on storage.objects for delete
+to authenticated
+using (
+  bucket_id = 'submissions'
+  and public.is_active_user()
+  and (
+    (storage.foldername(name))[1] = auth.uid()::text
+    or public.is_admin()
+  )
+);
+
 -- E. Course assets storage policies
 drop policy if exists "Authenticated users can read course assets" on storage.objects;
 create policy "Authenticated users can read course assets"

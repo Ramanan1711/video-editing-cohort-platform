@@ -1156,7 +1156,14 @@ export async function uploadSubmissionFile(userId: string, file: File): Promise<
     upsert: false,
     contentType,
   });
-  if (uploadError) throw uploadError;
+  if (uploadError) {
+    if (uploadError.message?.includes('Bucket not found') || (uploadError as { statusCode?: string }).statusCode === '404') {
+      throw new Error(
+        'Storage bucket "submissions" not found in Supabase. Please create the private "submissions" bucket in Supabase Dashboard (Storage -> New Bucket) or execute migration 20260921000003_storage_and_hardening.sql.'
+      );
+    }
+    throw uploadError;
+  }
 
   // The 'submissions' bucket is strictly private. Generate a signed expiring URL for immediate access
   // or return the storage path identifier to prevent public URL exposure.
