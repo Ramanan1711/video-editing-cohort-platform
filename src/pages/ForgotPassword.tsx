@@ -58,6 +58,13 @@ export const ForgotPassword: React.FC = () => {
                 password.
               </p>
 
+              <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500 text-left">
+                <p className="font-semibold text-slate-700">Important tip:</p>
+                <p className="mt-0.5">
+                  Recovery links expire quickly and can only be used once. Please open the link promptly in this browser.
+                </p>
+              </div>
+
               <div className="mt-6 flex flex-col gap-3">
                 <Button
                   variant="secondary"
