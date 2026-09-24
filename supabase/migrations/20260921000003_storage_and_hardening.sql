@@ -20,6 +20,17 @@ alter table public.submissions
   add column if not exists version integer default 1,
   add column if not exists updated_at timestamptz not null default now();
 
+-- Ensure assignments table has cohort_id column if missing, and backfill from lessons->modules
+alter table public.assignments
+  add column if not exists cohort_id uuid references public.cohorts(id) on delete cascade;
+
+update public.assignments a
+set cohort_id = m.cohort_id
+from public.lessons l
+join public.modules m on m.id = l.module_id
+where a.lesson_id = l.id
+  and a.cohort_id is null;
+
 -- Ensure lesson_resources has all metadata and visibility columns
 alter table public.lesson_resources
   add column if not exists name text,
@@ -106,12 +117,10 @@ using (
     (storage.foldername(name))[1] = auth.uid()::text
     -- Platform Admin
     or public.is_admin()
-    -- Assigned mentor for student's cohort
-    or exists (
-      select 1 from public.submissions s
-      join public.assignments a on a.id = s.assignment_id
-      where s.student_id = ((storage.foldername(name))[1])::uuid
-        and public.is_mentor_for_cohort(a.cohort_id)
+    -- Assigned mentor for student
+    or (
+      (storage.foldername(name))[1] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      and public.is_mentor_for_student(((storage.foldername(name))[1])::uuid)
     )
   )
 );
@@ -594,24 +603,16 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- Resolve cohort and deadline
-  select a.cohort_id, a.deadline
+  -- Resolve cohort and deadline via lesson and module hierarchy
+  select m.cohort_id, a.deadline
   into v_cohort_id, v_deadline
   from public.assignments a
+  left join public.lessons l on l.id = a.lesson_id
+  left join public.modules m on m.id = l.module_id
   where a.id = p_assignment_id;
 
   if v_cohort_id is null then
-    -- Fallback: resolve via module
-    select m.cohort_id, a.deadline
-    into v_cohort_id, v_deadline
-    from public.assignments a
-    left join public.lessons l on l.id = a.lesson_id
-    left join public.modules m on m.id = coalesce(a.module_id, l.module_id)
-    where a.id = p_assignment_id;
-  end if;
-
-  if v_cohort_id is null then
-    raise exception 'Assignment % not found.', p_assignment_id
+    raise exception 'Assignment % not found or invalid hierarchy.', p_assignment_id
       using errcode = 'P0002';
   end if;
 

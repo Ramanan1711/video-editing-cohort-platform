@@ -456,7 +456,9 @@ begin
   into v_submission_count
   from public.submissions s
   join public.assignments a on s.assignment_id = a.id
-  where a.cohort_id = p_cohort_id;
+  left join public.lessons l on l.id = a.lesson_id
+  left join public.modules m on m.id = l.module_id
+  where m.cohort_id = p_cohort_id;
 
   -- 5. Safety check: If active enrollments or submissions exist and force is not specified
   if (v_active_enrollments > 0 or v_submission_count > 0) and not p_force then
