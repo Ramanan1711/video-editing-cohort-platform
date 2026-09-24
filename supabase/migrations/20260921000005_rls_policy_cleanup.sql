@@ -6,6 +6,26 @@
 -- ==============================================================================
 
 -- ==============================================================================
+-- 0. STORAGE: Bucket Creation and Bucket-Level Access Policy
+-- Resolves "NoSuchBucket" (400/404) by creating the private bucket and
+-- granting authenticated users SELECT permissions on storage.buckets so
+-- health checks and getBucket API calls can read bucket metadata.
+-- ==============================================================================
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('submissions', 'submissions', false, 524288000, null)
+on conflict (id) do update set public = false;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('course-assets', 'course-assets', true, 524288000, null)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Allow authenticated users to view buckets" on storage.buckets;
+create policy "Allow authenticated users to view buckets"
+on storage.buckets for select
+to authenticated
+using (true);
+
+-- ==============================================================================
 -- 1. PROFILES: Eliminate privilege escalation loopholes
 -- Vulnerability fixed: "Users can update their own profile" allowed users
 -- to update their own 'role' to 'admin' or reset their 'status' from 'suspended'.

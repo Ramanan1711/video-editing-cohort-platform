@@ -103,6 +103,13 @@ insert into storage.buckets (id, name, public)
 values ('course-assets', 'course-assets', true)
 on conflict (id) do update set public = true;
 
+-- Allow authenticated users to view bucket metadata (required for supabase.storage.getBucket)
+drop policy if exists "Allow authenticated users to view buckets" on storage.buckets;
+create policy "Allow authenticated users to view buckets"
+on storage.buckets for select
+to authenticated
+using (true);
+
 -- B. Strict read policy: only submission owner, assigned cohort mentor, or admin
 drop policy if exists "Strict submission access control" on storage.objects;
 drop policy if exists "Authenticated users can read submissions" on storage.objects;
