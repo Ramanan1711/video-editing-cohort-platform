@@ -184,23 +184,23 @@ export function MentorStudents() {
   const attentionCount = students.filter((s) => s.needs_attention).length;
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9] text-slate-900 pb-16">
+    <div className="min-h-screen bg-[#f6f7f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-16">
       {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div className="pl-12 sm:pl-14 lg:pl-0">
               <div className="flex items-center gap-2">
                 <Link
                   to="/mentor"
-                  className="flex size-7 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  className="flex size-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 >
                   <ArrowLeft size={14} />
                 </Link>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-600">Student Intelligence</p>
               </div>
-              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Student Progress Directory</h1>
-              <p className="mt-1 text-xs sm:text-sm text-slate-500">
+              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Student Progress Directory</h1>
+              <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                 Track lesson completions, review submission history, inspect resubmission rates, and reach out directly.
               </p>
             </div>

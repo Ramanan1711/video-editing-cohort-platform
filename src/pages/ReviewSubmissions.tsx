@@ -434,9 +434,9 @@ export function ReviewSubmissions() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9] text-slate-900 pb-16">
+    <div className="min-h-screen bg-[#f6f7f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-16">
       {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div className="pl-12 sm:pl-14 lg:pl-0">
@@ -446,8 +446,8 @@ export function ReviewSubmissions() {
                 </span>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-500">Evaluation Suite</p>
               </div>
-              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Mentor Review Queue</h1>
-              <p className="mt-1 text-xs sm:text-sm text-slate-500">
+              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Mentor Review Queue</h1>
+              <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                 Inspect timeline cuts, leave timecoded feedback, rate rubric dimensions, and ensure review SLA targets.
               </p>
             </div>

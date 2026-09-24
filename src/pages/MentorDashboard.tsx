@@ -199,9 +199,9 @@ export function MentorDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9] text-slate-900 pb-16">
+    <div className="min-h-screen bg-[#f6f7f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-16">
       {/* Top Header */}
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
             <div className="pl-12 sm:pl-14 lg:pl-0 max-w-xl">
@@ -211,10 +211,10 @@ export function MentorDashboard() {
                 </span>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-600">Mentor Command Center</p>
               </div>
-              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">
+              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">
                 Welcome back, {profile?.full_name || 'Mentor'}
               </h1>
-              <p className="mt-1 text-xs sm:text-sm text-slate-500">
+              <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                 Monitor student submissions, maintain review SLAs, and track editing progression across your cohorts.
               </p>
             </div>
@@ -224,7 +224,7 @@ export function MentorDashboard() {
                 <select
                   value={selectedCohortId}
                   onChange={(e) => setSelectedCohortId(e.target.value)}
-                  className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs outline-none focus:border-orange-400 whitespace-nowrap"
+                  className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs outline-none focus:border-orange-400 whitespace-nowrap dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                 >
                   <option value="all">All Assigned Cohorts</option>
                   {stats.assignedCohorts.map((c) => (

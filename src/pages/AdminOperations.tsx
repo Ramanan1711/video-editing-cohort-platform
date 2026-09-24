@@ -1011,9 +1011,9 @@ export function AdminOperations() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9] text-slate-900 pb-16">
+    <div className="min-h-screen bg-[#f6f7f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-16">
       {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
             <div className="pl-12 sm:pl-14 lg:pl-0 max-w-xl">
@@ -1023,14 +1023,14 @@ export function AdminOperations() {
                 </span>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-500">Administration Control Room</p>
               </div>
-              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Operations &amp; Governance</h1>
-              <p className="mt-1 text-xs sm:text-sm text-slate-500">
+              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Operations &amp; Governance</h1>
+              <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                 User roles, cohort enrollments, broadcast communications, live mentorship sessions, and moderation.
               </p>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 flex-nowrap">
-              <span className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-800 shadow-2xs whitespace-nowrap">
+              <span className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-800 shadow-2xs whitespace-nowrap dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200">
                 <ShieldCheck size={14} className="text-orange-500" />
                 <span>{ROLE_LABELS[profile?.admin_role || 'super_admin']}</span>
               </span>
@@ -1039,13 +1039,13 @@ export function AdminOperations() {
 
               <Link
                 to="/admin/courses"
-                className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 whitespace-nowrap"
+                className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 whitespace-nowrap dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 Course Studio →
               </Link>
               <Link
                 to="/review/submissions"
-                className="inline-flex h-9 items-center rounded-xl bg-slate-950 px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-slate-800 whitespace-nowrap"
+                className="inline-flex h-9 items-center rounded-xl bg-slate-950 px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-slate-800 whitespace-nowrap dark:bg-slate-800 dark:hover:bg-slate-700"
               >
                 Review Room →
               </Link>

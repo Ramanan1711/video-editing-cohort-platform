@@ -93,11 +93,11 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50"
+        className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
         title="Operations & Escalation Alerts"
         aria-label="Admin Alerts"
       >
-        <Bell size={16} className={criticalCount > 0 ? 'text-red-600' : 'text-slate-600'} />
+        <Bell size={16} className={criticalCount > 0 ? 'text-red-600' : 'text-slate-600 dark:text-slate-300'} />
       </button>
 
       {totalCount > 0 && (
@@ -112,19 +112,19 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 z-50 w-88 sm:w-96 rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+        <div className="absolute right-0 mt-2 z-50 w-88 sm:w-96 rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150 overflow-hidden dark:border-slate-800 dark:bg-slate-900">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 p-4 bg-slate-50/70">
+          <div className="flex items-center justify-between border-b border-slate-100 p-4 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-800/70">
             <div>
               <div className="flex items-center gap-2">
                 <span className="flex size-6 items-center justify-center rounded-lg bg-slate-950 text-white shadow-2xs">
                   <Bell size={13} />
                 </span>
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-950">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-950 dark:text-white">
                   Operations &amp; Governance Alerts
                 </h3>
               </div>
-              <p className="mt-0.5 text-[11px] text-slate-500">
+              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                 {totalCount} active alert{totalCount === 1 ? '' : 's'} across cohorts, reviews, and content
               </p>
             </div>

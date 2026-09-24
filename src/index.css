@@ -16,6 +16,64 @@
   background: #020617;
 }
 
+html.dark,
+.dark body {
+  background-color: #020617;
+  color: #f8fafc;
+}
+
+.dark #root {
+  background-color: #020617;
+}
+
+/* Global Dark Mode Support for Pages, Headers, Cards, and Inputs */
+.dark .bg-\[\#f6f7f9\] {
+  background-color: #030712 !important;
+  color: #f8fafc;
+}
+
+.dark header.bg-white,
+.dark header.bg-white\/95,
+.dark header.border-b {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+.dark .border-slate-200,
+.dark .border-slate-200\/80 {
+  border-color: #1e293b;
+}
+
+.dark .border-slate-100 {
+  border-color: #1e293b;
+}
+
+.dark .text-slate-950 {
+  color: #f8fafc;
+}
+
+.dark .text-slate-900 {
+  color: #f1f5f9;
+}
+
+.dark .text-slate-800 {
+  color: #e2e8f0;
+}
+
+.dark .text-slate-700 {
+  color: #cbd5e1;
+}
+
+.dark .text-slate-500 {
+  color: #94a3b8;
+}
+
+.dark select {
+  background-color: #0f172a;
+  color: #f8fafc;
+  border-color: #1e293b;
+}
+
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; }
 #root { min-height: 100svh; }

@@ -511,14 +511,14 @@ export function StudentDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
+    <div className="min-h-screen bg-[#f6f7f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       {/* Top Application Bar */}
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
         <div className="mx-auto flex h-[73px] max-w-[1440px] items-center justify-between px-5 lg:px-8">
           <div className="flex items-center gap-3 pl-12 lg:pl-0">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
+              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 lg:hidden"
               aria-label="Open course navigation"
             >
               <Menu size={21} />
@@ -527,8 +527,8 @@ export function StudentDashboard() {
               <Sparkles size={18} />
             </div>
             <div>
-              <p className="text-sm font-black tracking-tight text-slate-950">CUT / CRAFT</p>
-              <p className="hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:block">
+              <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">CUT / CRAFT</p>
+              <p className="hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500 sm:block">
                 Student Studio
               </p>
             </div>
