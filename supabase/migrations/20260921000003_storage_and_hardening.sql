@@ -298,6 +298,8 @@ drop policy if exists "Submissions select policy" on public.submissions;
 drop policy if exists "Users can view submissions" on public.submissions;
 drop policy if exists "Students can read own submissions and staff can read all" on public.submissions;
 drop policy if exists "Mentors and Admins can view all submissions" on public.submissions;
+drop policy if exists "Students can view their submissions" on public.submissions;
+drop policy if exists "Submissions readable by student owner, assigned mentors, and ad" on public.submissions;
 create policy "Submissions select policy"
 on public.submissions for select
 to authenticated
@@ -310,6 +312,8 @@ using (
 -- Submissions Insert: Owner only with draft or pending status
 drop policy if exists "Students can insert own submissions" on public.submissions;
 drop policy if exists "Students can create own submissions" on public.submissions;
+drop policy if exists "Students can create their submissions" on public.submissions;
+drop policy if exists "Active students can submit assignments" on public.submissions;
 create policy "Students can insert own submissions"
 on public.submissions for insert
 to authenticated
@@ -322,7 +326,9 @@ with check (
 -- Submissions Update: Student can only update their own draft/pending/resubmit
 drop policy if exists "Students can update draft or pending submissions" on public.submissions;
 drop policy if exists "Students can update own submissions" on public.submissions;
+drop policy if exists "Students can update their submissions" on public.submissions;
 drop policy if exists "Students and staff can update submissions" on public.submissions;
+drop policy if exists "Submissions updatable by student owner, assigned mentors, and a" on public.submissions;
 create policy "Students can update draft or pending submissions"
 on public.submissions for update
 to authenticated
@@ -438,6 +444,9 @@ with check (public.is_admin());
 -- A. Profiles
 alter table public.profiles enable row level security;
 
+drop policy if exists "Users can update their own profile" on public.profiles;
+drop policy if exists "Admins can update profiles" on public.profiles;
+drop policy if exists "Users can view their own profile" on public.profiles;
 drop policy if exists "Authenticated users can read profiles" on public.profiles;
 create policy "Authenticated users can read profiles"
   on public.profiles for select
@@ -475,6 +484,9 @@ create policy "Admins can update user profiles"
 -- B. Enrollments
 alter table public.enrollments enable row level security;
 
+drop policy if exists "Admins can manage enrollments" on public.enrollments;
+drop policy if exists "Students can enroll themselves" on public.enrollments;
+drop policy if exists "Users can view their enrollments" on public.enrollments;
 drop policy if exists "Enrollments select policy" on public.enrollments;
 drop policy if exists "Users can view their own enrollments" on public.enrollments;
 create policy "Enrollments select policy"
@@ -506,6 +518,9 @@ create policy "Admins have full management on enrollments"
 -- C. Feedback
 alter table public.feedback enable row level security;
 
+drop policy if exists "Assigned mentors and admins can insert feedback" on public.feedback;
+drop policy if exists "Feedback readable by submission owner, assigned mentors, and ad" on public.feedback;
+drop policy if exists "Students can view feedback" on public.feedback;
 drop policy if exists "Feedback select policy" on public.feedback;
 drop policy if exists "Students can view feedback for own submissions" on public.feedback;
 drop policy if exists "Feedback readable by submission owner, mentors, and admins" on public.feedback;
@@ -524,6 +539,7 @@ create policy "Feedback select policy"
     )
   );
 
+drop policy if exists "Mentors can create feedback" on public.feedback;
 drop policy if exists "Mentors and Admins can insert feedback" on public.feedback;
 create policy "Mentors and Admins can insert feedback"
   on public.feedback for insert
@@ -540,6 +556,7 @@ create policy "Mentors and Admins can insert feedback"
     )
   );
 
+drop policy if exists "Mentors can update feedback" on public.feedback;
 drop policy if exists "Mentors and Admins can update feedback" on public.feedback;
 create policy "Mentors and Admins can update feedback"
   on public.feedback for update
