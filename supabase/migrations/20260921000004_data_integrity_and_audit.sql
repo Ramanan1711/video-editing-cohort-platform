@@ -715,8 +715,14 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_rubric jsonb;
+  v_record_json jsonb;
 begin
   if (TG_OP = 'INSERT') then
+    v_record_json := to_jsonb(new);
+    v_rubric := coalesce(v_record_json->'rubric', v_record_json->'rubric_scores', '{}'::jsonb);
+
     insert into public.audit_logs (
       actor_id,
       action,
@@ -733,7 +739,7 @@ begin
       jsonb_build_object(
         'submission_id', new.submission_id,
         'mentor_id', new.mentor_id,
-        'rubric_scores', new.rubric_scores
+        'rubric', v_rubric
       ),
       now()
     );

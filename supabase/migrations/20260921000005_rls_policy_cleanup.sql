@@ -518,3 +518,54 @@ $$;
 
 grant execute on function public.submit_student_assignment(uuid, text, boolean, text) to authenticated;
 
+-- ==============================================================================
+-- 10. Feedback Column Harmonization & Audit Trigger Fix
+-- Fixes: record "new" has no field "rubric_scores" when review_submission_v2 is called
+-- ==============================================================================
+alter table public.feedback
+  add column if not exists rubric jsonb default '{}'::jsonb,
+  add column if not exists rubric_scores jsonb default '{}'::jsonb;
+
+update public.feedback
+set rubric_scores = rubric
+where (rubric_scores is null or rubric_scores = '{}'::jsonb) and rubric is not null;
+
+create or replace function public.fn_audit_feedback_trigger()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rubric jsonb;
+  v_record_json jsonb;
+begin
+  if (TG_OP = 'INSERT') then
+    v_record_json := to_jsonb(new);
+    v_rubric := coalesce(v_record_json->'rubric', v_record_json->'rubric_scores', '{}'::jsonb);
+
+    insert into public.audit_logs (
+      actor_id,
+      action,
+      entity_type,
+      entity_id,
+      metadata,
+      created_at
+    )
+    values (
+      coalesce(new.mentor_id, auth.uid()),
+      'submission.reviewed',
+      'feedback',
+      new.id::text,
+      jsonb_build_object(
+        'submission_id', new.submission_id,
+        'mentor_id', new.mentor_id,
+        'rubric', v_rubric
+      ),
+      now()
+    );
+  end if;
+  return new;
+end;
+$$;
+
