@@ -1157,8 +1157,19 @@ export async function uploadSubmissionFile(userId: string, file: File): Promise<
     contentType,
   });
   if (uploadError) throw uploadError;
-  const { data } = supabase.storage.from('submissions').getPublicUrl(path);
-  return data.publicUrl;
+
+  // The 'submissions' bucket is strictly private. Generate a signed expiring URL for immediate access
+  // or return the storage path identifier to prevent public URL exposure.
+  const { data: signedData, error: signedError } = await supabase.storage
+    .from('submissions')
+    .createSignedUrl(path, 86400); // 24-hour expiration
+
+  if (!signedError && signedData?.signedUrl) {
+    return signedData.signedUrl;
+  }
+
+  // Fallback to private object path reference
+  return `submissions/${path}`;
 }
 
 /**

@@ -36,7 +36,7 @@ export const Login: React.FC = () => {
           .eq('id', data.user.id)
           .maybeSingle();
 
-        const userRole = profile?.role || data.user.user_metadata?.role || 'student';
+        const userRole = profile?.role || 'student';
 
         if (userRole === 'admin') {
           navigate('/admin');
