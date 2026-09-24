@@ -203,8 +203,8 @@ export function MentorDashboard() {
       {/* Top Header */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8">
-          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-            <div className="pl-12 sm:pl-14 lg:pl-0">
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+            <div className="pl-12 sm:pl-14 lg:pl-0 max-w-xl">
               <div className="flex items-center gap-2">
                 <span className="flex size-7 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs">
                   <Sparkles size={16} />
@@ -219,12 +219,12 @@ export function MentorDashboard() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-nowrap">
               {stats && stats.assignedCohorts.length > 1 && (
                 <select
                   value={selectedCohortId}
                   onChange={(e) => setSelectedCohortId(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs outline-none focus:border-orange-400"
+                  className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs outline-none focus:border-orange-400 whitespace-nowrap"
                 >
                   <option value="all">All Assigned Cohorts</option>
                   {stats.assignedCohorts.map((c) => (
@@ -238,13 +238,14 @@ export function MentorDashboard() {
               <Button
                 variant="secondary"
                 size="sm"
+                className="h-9 whitespace-nowrap"
                 onClick={() => setShowOfficeHourModal(true)}
               >
                 <Plus size={14} /> Schedule Office Hours
               </Button>
 
               <Link to="/review/submissions">
-                <Button size="sm">
+                <Button size="sm" className="h-9 whitespace-nowrap">
                   <Video size={14} /> Review Queue ({stats?.pendingCount ?? 0})
                 </Button>
               </Link>
