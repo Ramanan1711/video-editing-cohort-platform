@@ -136,22 +136,22 @@ export const StateFallback: React.FC<StateFallbackProps> = ({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center border border-slate-200/80 bg-white text-center shadow-sm ${
+      className={`flex flex-col items-center justify-center border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-center shadow-sm ${
         compact ? 'rounded-2xl p-6 sm:p-8' : 'rounded-3xl p-8 sm:p-12'
       } ${className}`}
     >
       <div className={compact ? 'mb-2.5 scale-90' : 'mb-4'}>{renderIcon()}</div>
 
-      <h3 className={`${compact ? 'text-base font-black' : 'text-lg sm:text-xl font-black'} tracking-tight text-slate-950`}>
+      <h3 className={`${compact ? 'text-base font-black' : 'text-lg sm:text-xl font-black'} tracking-tight text-slate-950 dark:text-white`}>
         {resolvedTitle}
       </h3>
 
-      <p className={`mt-2 max-w-md ${compact ? 'text-xs' : 'text-xs sm:text-sm'} text-slate-600 leading-relaxed`}>
+      <p className={`mt-2 max-w-md ${compact ? 'text-xs' : 'text-xs sm:text-sm'} text-slate-600 dark:text-slate-400 leading-relaxed`}>
         {resolvedDescription}
       </p>
 
       {appError?.actionHint && (
-        <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200/60 px-3.5 py-2 text-[11px] text-slate-500 font-medium">
+        <div className="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 px-3.5 py-2 text-[11px] text-slate-500 dark:text-slate-300 font-medium">
           💡 {appError.actionHint}
         </div>
       )}
@@ -226,7 +226,7 @@ export const StateFallback: React.FC<StateFallbackProps> = ({
           <button
             type="button"
             onClick={onSecondaryAction}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
           >
             {secondaryActionText}
           </button>

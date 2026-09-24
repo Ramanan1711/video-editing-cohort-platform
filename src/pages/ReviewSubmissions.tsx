@@ -518,8 +518,8 @@ export function ReviewSubmissions() {
               onClick={() => setStatusTab('pending')}
               className={`rounded-xl px-3.5 py-2 transition ${
                 statusTab === 'pending'
-                  ? 'bg-slate-950 text-white shadow-2xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  ? 'bg-slate-950 text-white shadow-2xs dark:bg-orange-500 dark:text-white'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800'
               }`}
             >
               Needs Review ({counts.pending})
@@ -528,8 +528,8 @@ export function ReviewSubmissions() {
               onClick={() => setStatusTab('resubmit')}
               className={`rounded-xl px-3.5 py-2 transition ${
                 statusTab === 'resubmit'
-                  ? 'bg-slate-950 text-white shadow-2xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  ? 'bg-slate-950 text-white shadow-2xs dark:bg-orange-500 dark:text-white'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800'
               }`}
             >
               Revision Requested ({counts.resubmit})
@@ -538,8 +538,8 @@ export function ReviewSubmissions() {
               onClick={() => setStatusTab('reviewed')}
               className={`rounded-xl px-3.5 py-2 transition ${
                 statusTab === 'reviewed'
-                  ? 'bg-slate-950 text-white shadow-2xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  ? 'bg-slate-950 text-white shadow-2xs dark:bg-orange-500 dark:text-white'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800'
               }`}
             >
               Reviewed &amp; Passed ({counts.reviewed})
@@ -548,8 +548,8 @@ export function ReviewSubmissions() {
               onClick={() => setStatusTab('all')}
               className={`rounded-xl px-3.5 py-2 transition ${
                 statusTab === 'all'
-                  ? 'bg-slate-950 text-white shadow-2xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  ? 'bg-slate-950 text-white shadow-2xs dark:bg-orange-500 dark:text-white'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800'
               }`}
             >
               All Submissions ({counts.all})

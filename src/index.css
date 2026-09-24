@@ -26,10 +26,16 @@ html.dark,
   background-color: #020617;
 }
 
-/* Global Dark Mode Support for Pages, Headers, Cards, and Inputs */
-.dark .bg-\[\#f6f7f9\] {
-  background-color: #030712 !important;
+/* Global Dark Mode Support for Pages, Surfaces, Cards, and Inputs */
+.dark .bg-\[\#f6f7f9\],
+.dark .bg-\[\#f6f7f9\]\/80 {
+  background-color: #020617 !important;
   color: #f8fafc;
+}
+
+/* White surfaces invert to dark slate card background */
+.dark .bg-white:not([class*="dark:bg-"]):not([class*="bg-white/"]) {
+  background-color: #0f172a !important;
 }
 
 .dark header.bg-white,
@@ -39,39 +45,211 @@ html.dark,
   border-color: #1e293b !important;
 }
 
-.dark .border-slate-200,
-.dark .border-slate-200\/80 {
-  border-color: #1e293b;
+/* Invert light slate backgrounds so text inside content blocks does not wash out */
+.dark .bg-slate-50:not([class*="dark:bg-"]),
+.dark [class*="bg-slate-50/"]:not([class*="dark:bg-"]) {
+  background-color: #1e293b !important;
 }
 
-.dark .border-slate-100 {
-  border-color: #1e293b;
+.dark .bg-slate-100:not([class*="dark:bg-"]),
+.dark [class*="bg-slate-100/"]:not([class*="dark:bg-"]) {
+  background-color: #1e293b !important;
 }
 
-.dark .text-slate-950 {
-  color: #f8fafc;
+.dark .bg-slate-200:not([class*="dark:bg-"]),
+.dark [class*="bg-slate-200/"]:not([class*="dark:bg-"]) {
+  background-color: #334155 !important;
 }
 
-.dark .text-slate-900 {
-  color: #f1f5f9;
+.dark .bg-slate-300:not([class*="dark:bg-"]) {
+  background-color: #475569 !important;
 }
 
-.dark .text-slate-800 {
-  color: #e2e8f0;
+/* Subtle dark hover states instead of glaring light grey */
+.dark .hover\:bg-slate-50:hover:not([class*="dark:hover:bg-"]),
+.dark [class*="hover:bg-slate-50"]:hover:not([class*="dark:hover:bg-"]) {
+  background-color: #1e293b !important;
 }
 
-.dark .text-slate-700 {
-  color: #cbd5e1;
+.dark .hover\:bg-slate-100:hover:not([class*="dark:hover:bg-"]),
+.dark [class*="hover:bg-slate-100"]:hover:not([class*="dark:hover:bg-"]) {
+  background-color: #334155 !important;
 }
 
-.dark .text-slate-500 {
-  color: #94a3b8;
+.dark .hover\:bg-slate-200:hover:not([class*="dark:hover:bg-"]),
+.dark [class*="hover:bg-slate-200"]:hover:not([class*="dark:hover:bg-"]) {
+  background-color: #334155 !important;
 }
 
+.dark .hover\:bg-white:hover:not([class*="dark:hover:bg-"]) {
+  background-color: #1e293b !important;
+}
+
+/* Dark mode border hierarchy */
+.dark .border-slate-100:not([class*="dark:border-"]) {
+  border-color: #1e293b !important;
+}
+
+.dark .border-slate-200:not([class*="dark:border-"]),
+.dark .border-slate-200\/80:not([class*="dark:border-"]),
+.dark [class*="border-slate-200"]:not([class*="dark:border-"]) {
+  border-color: #1e293b !important;
+}
+
+.dark .border-slate-300:not([class*="dark:border-"]) {
+  border-color: #334155 !important;
+}
+
+/* High contrast text hierarchy in dark mode */
+.dark .text-slate-950:not([class*="dark:text-"]),
+.dark .text-slate-900:not([class*="dark:text-"]) {
+  color: #ffffff !important;
+}
+
+.dark .text-slate-800:not([class*="dark:text-"]) {
+  color: #f8fafc !important;
+}
+
+.dark .text-slate-700:not([class*="dark:text-"]) {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-slate-600:not([class*="dark:text-"]) {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-slate-500:not([class*="dark:text-"]) {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-400:not([class*="dark:text-"]) {
+  color: #94a3b8 !important;
+}
+
+.dark .text-slate-300:not([class*="dark:text-"]) {
+  color: #cbd5e1 !important;
+}
+
+/* High contrast status pills and alerts */
+.dark .bg-emerald-50,
+.dark [class*="bg-emerald-50"] {
+  background-color: rgba(6, 78, 59, 0.4) !important;
+  color: #6ee7b7 !important;
+}
+
+.dark .bg-red-50,
+.dark [class*="bg-red-50"] {
+  background-color: rgba(127, 29, 29, 0.4) !important;
+  color: #fca5a5 !important;
+}
+
+.dark .bg-amber-50,
+.dark [class*="bg-amber-50"] {
+  background-color: rgba(120, 53, 15, 0.4) !important;
+  color: #fcd34d !important;
+}
+
+.dark .bg-orange-50,
+.dark [class*="bg-orange-50"] {
+  background-color: rgba(124, 45, 18, 0.4) !important;
+  color: #fdba74 !important;
+}
+
+.dark .bg-blue-50,
+.dark [class*="bg-blue-50"] {
+  background-color: rgba(30, 58, 138, 0.4) !important;
+  color: #93c5fd !important;
+}
+
+.dark .bg-purple-50,
+.dark [class*="bg-purple-50"] {
+  background-color: rgba(88, 28, 135, 0.4) !important;
+  color: #d8b4fe !important;
+}
+
+.dark .text-emerald-700,
+.dark .text-emerald-800 {
+  color: #6ee7b7 !important;
+}
+
+.dark .text-red-700,
+.dark .text-red-800 {
+  color: #fca5a5 !important;
+}
+
+.dark .text-amber-700,
+.dark .text-amber-800,
+.dark .text-amber-900 {
+  color: #fcd34d !important;
+}
+
+.dark .text-orange-700,
+.dark .text-orange-800 {
+  color: #fdba74 !important;
+}
+
+.dark .text-blue-700,
+.dark .text-blue-800 {
+  color: #93c5fd !important;
+}
+
+.dark .text-purple-700,
+.dark .text-purple-800 {
+  color: #d8b4fe !important;
+}
+
+/* Inputs, textareas, selects */
 .dark select {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #1e293b !important;
+}
+
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark textarea {
   background-color: #0f172a;
   color: #f8fafc;
   border-color: #1e293b;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder,
+.dark .placeholder\:text-slate-400::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Buttons and active controls */
+.dark button.bg-slate-950:not([class*="dark:bg-"]) {
+  background-color: #ea580c !important;
+  color: #ffffff !important;
+}
+
+/* Card, panel, and table adaptations */
+.dark .rounded-2xl.border-slate-200,
+.dark .rounded-xl.border-slate-200,
+.dark .rounded-3xl.border-slate-200 {
+  background-color: #0f172a;
+  border-color: #1e293b;
+}
+
+.dark table {
+  color: #f1f5f9;
+}
+
+.dark th {
+  background-color: #1e293b;
+  color: #cbd5e1;
+  border-color: #334155;
+}
+
+.dark td {
+  border-color: #1e293b;
+}
+
+.dark [role="dialog"] > div {
+  background-color: #0f172a;
+  border-color: #1e293b;
+  color: #f8fafc;
 }
 
 html { scroll-behavior: smooth; }

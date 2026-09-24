@@ -62,27 +62,27 @@ export function Pagination({
 
   return (
     <nav
-      className={`flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 ${className}`}
+      className={`flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800 px-4 py-3 text-xs text-slate-500 dark:text-slate-400 ${className}`}
       aria-label="Pagination Navigation"
     >
       {/* Summary and Page Size Select */}
       <div className="flex flex-wrap items-center gap-3">
         <span>
-          Showing <strong className="font-bold text-slate-900">{startItem}</strong> to{' '}
-          <strong className="font-bold text-slate-900">{endItem}</strong> of{' '}
-          <strong className="font-bold text-slate-900">{totalItems}</strong> {itemLabel}
+          Showing <strong className="font-bold text-slate-900 dark:text-slate-200">{startItem}</strong> to{' '}
+          <strong className="font-bold text-slate-900 dark:text-slate-200">{endItem}</strong> of{' '}
+          <strong className="font-bold text-slate-900 dark:text-slate-200">{totalItems}</strong> {itemLabel}
         </span>
 
         {onPageSizeChange && (
-          <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
-            <span className="text-[11px] text-slate-400">Rows:</span>
+          <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 dark:border-slate-800">
+            <span className="text-[11px] text-slate-400 dark:text-slate-500">Rows:</span>
             <select
               value={pageSize}
               onChange={(e) => {
                 onPageSizeChange(Number(e.target.value));
                 onPageChange(1);
               }}
-              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700 outline-none focus:border-orange-400"
+              className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-orange-400"
               aria-label="Items per page"
             >
               {pageSizeOptions.map((opt) => (
@@ -128,7 +128,7 @@ export function Pagination({
               return (
                 <span
                   key={`ellipsis-${idx}`}
-                  className="px-1.5 text-slate-400 text-xs font-bold select-none"
+                  className="px-1.5 text-slate-400 dark:text-slate-600 text-xs font-bold select-none"
                 >
                   ...
                 </span>
@@ -145,7 +145,7 @@ export function Pagination({
                 className={`h-8 min-w-8 rounded-lg px-2 text-xs font-bold transition ${
                   isActive
                     ? 'bg-orange-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
               >
                 {page}
@@ -155,7 +155,7 @@ export function Pagination({
         </div>
 
         {/* Mobile current indicator */}
-        <span className="sm:hidden px-2 text-[11px] font-bold text-slate-700">
+        <span className="sm:hidden px-2 text-[11px] font-bold text-slate-700 dark:text-slate-300">
           {safePage} / {totalPages}
         </span>
 

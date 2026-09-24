@@ -194,13 +194,13 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
 
       {/* Notifications Drawer / Popover */}
       {isOpen && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-4 py-3.5">
             <div className="flex items-center gap-2">
-              <span className="font-black text-sm text-slate-950">Notifications</span>
+              <span className="font-black text-sm text-slate-950 dark:text-white">Notifications</span>
               {unreadCount > 0 && (
-                <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-bold text-orange-700">
+                <span className="rounded-full bg-orange-100 dark:bg-orange-950/60 px-2 py-0.5 text-[11px] font-bold text-orange-700 dark:text-orange-400">
                   {unreadCount} unread
                 </span>
               )}
@@ -210,7 +210,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
                 <button
                   onClick={() => void handleMarkAllRead()}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-500 hover:bg-slate-100 hover:text-orange-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-orange-600 dark:hover:text-orange-400 disabled:opacity-50"
                   title="Mark all as read"
                 >
                   <CheckCheck size={14} />
@@ -219,7 +219,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
               )}
               <button
                 onClick={() => setIsOpen(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
               >
                 <X size={16} />
               </button>
@@ -227,7 +227,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex overflow-x-auto border-b border-slate-100 px-3 pt-2 text-[11px] font-bold gap-1 scrollbar-none">
+          <div className="flex overflow-x-auto border-b border-slate-100 dark:border-slate-800 px-3 pt-2 text-[11px] font-bold gap-1 scrollbar-none">
             {[
               { id: 'all' as const, label: 'All', count: notifications.length },
               {
@@ -252,8 +252,8 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
                 onClick={() => setFilter(tab.id)}
                 className={`pb-2 px-2 border-b-2 whitespace-nowrap transition ${
                   filter === tab.id
-                    ? 'border-orange-500 text-orange-600'
-                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                    : 'border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 {tab.label} {tab.count > 0 && `(${tab.count})`}
@@ -262,7 +262,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
           </div>
 
           {/* List */}
-          <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
+          <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
             {loading && notifications.length === 0 ? (
               <div className="flex items-center justify-center p-8 text-slate-400">
                 <LoaderCircle size={20} className="animate-spin text-orange-500" />
@@ -282,7 +282,9 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
                   <div
                     key={notification.id}
                     className={`flex items-start justify-between gap-3 p-4 transition ${
-                      isRead ? 'bg-white hover:bg-slate-50/80' : 'bg-orange-50/40 hover:bg-orange-50/70'
+                      isRead
+                        ? 'bg-white dark:bg-slate-900 hover:bg-slate-50/80 dark:hover:bg-slate-800/80'
+                        : 'bg-orange-50/40 dark:bg-orange-950/20 hover:bg-orange-50/70 dark:hover:bg-orange-950/40'
                     }`}
                   >
                     <div className="flex-1 min-w-0">
@@ -293,12 +295,12 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
                         <span
                           className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
                             category === 'review'
-                              ? 'bg-emerald-100 text-emerald-800'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                               : category === 'community'
-                              ? 'bg-violet-100 text-violet-800'
+                              ? 'bg-violet-100 text-violet-800 dark:bg-violet-950/60 dark:text-violet-300'
                               : category === 'deadline'
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-slate-100 text-slate-700'
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                              : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                           }`}
                         >
                           {category === 'review'
@@ -309,11 +311,11 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
                             ? 'Deadline'
                             : 'Notification'}
                         </span>
-                        <h4 className={`text-xs leading-tight truncate ${isRead ? 'font-bold text-slate-800' : 'font-black text-slate-950'}`}>
+                        <h4 className={`text-xs leading-tight truncate ${isRead ? 'font-bold text-slate-800 dark:text-slate-200' : 'font-black text-slate-950 dark:text-white'}`}>
                           {notification.title}
                         </h4>
                       </div>
-                      <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                         {notification.body}
                       </p>
 
