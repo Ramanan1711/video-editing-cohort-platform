@@ -350,12 +350,27 @@ describe('CommunityHub & Components', () => {
       </MemoryRouter>
     );
 
-    // Click on the project challenge card
+    // Click on the project challenge card (which is yet to be joined)
     const projectCardTitle = screen.getByText('B15 W3 Project - 3 Remix the emotion');
     fireEvent.click(projectCardTitle);
 
-    // Verify Challenge Detail view
+    // Verify Yet to Join Page (media_1790247422003.png)
     expect(screen.getByRole('button', { name: /back to challenges list/i })).toBeInTheDocument();
+    expect(screen.getByText('1 Checkins')).toBeInTheDocument();
+    expect(screen.getByText('Description')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /join now/i })).toBeInTheDocument();
+
+    // Click Join Now to unlock workspace and check-ins
+    const joinNowBtn = screen.getByRole('button', { name: /join now/i });
+    fireEvent.click(joinNowBtn);
+
+    // Close check-in modal if opened
+    const closeBtn = screen.queryByRole('button', { name: /close modal/i });
+    if (closeBtn) {
+      fireEvent.click(closeBtn);
+    }
+
+    // Verify Challenge Detail Workspace
     expect(screen.getByText('Creative Challenge Objectives')).toBeInTheDocument();
     expect(screen.getByText(/Grading Rubric \(50 Pts\)/i)).toBeInTheDocument();
 

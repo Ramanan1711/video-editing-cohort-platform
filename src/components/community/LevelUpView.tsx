@@ -27,6 +27,7 @@ import {
   Send,
   Flag,
   Flame,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 
@@ -184,17 +185,46 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
   const [submittedChallengeIds, setSubmittedChallengeIds] = useState<string[]>(['ch-w3-task']);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Joined challenges state (tracks whether current user has joined the challenge)
+  const [joinedChallengeIds, setJoinedChallengeIds] = useState<string[]>(() =>
+    INITIAL_CHALLENGES.filter((c) => c.isJoined).map((c) => c.id)
+  );
+
   // Checkin Modal state (Matching user's reference image for Task check-in)
-  const [showCheckinModal, setShowCheckinModal] = useState<boolean>(() => Boolean(queryChallengeId));
+  const [showCheckinModal, setShowCheckinModal] = useState<boolean>(() => {
+    if (queryChallengeId) {
+      const initialCh = INITIAL_CHALLENGES.find((c) => c.id === queryChallengeId);
+      return Boolean(initialCh?.isJoined);
+    }
+    return false;
+  });
   const [checkinScreenshotUrl, setCheckinScreenshotUrl] = useState('');
   const [checkinNotes, setCheckinNotes] = useState('');
   const [showCheckinSubmitForm, setShowCheckinSubmitForm] = useState(false);
   const [submittedCheckinIds, setSubmittedCheckinIds] = useState<string[]>([]);
 
+  const handleJoinChallenge = (challengeId: string) => {
+    setJoinedChallengeIds((prev) => (prev.includes(challengeId) ? prev : [...prev, challengeId]));
+    setChallenges((prev) =>
+      prev.map((c) => (c.id === challengeId ? { ...c, isJoined: true, participantsJoined: c.participantsJoined + 1 } : c))
+    );
+    setSelectedChallenge((prev) =>
+      prev && prev.id === challengeId ? { ...prev, isJoined: true, participantsJoined: prev.participantsJoined + 1 } : prev
+    );
+    setShowCheckinModal(true);
+    setToastMessage('🎉 Successfully joined challenge! Check-ins are now unlocked.');
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
   const handleSelectChallenge = (challenge: ChallengeItem | null) => {
     setSelectedChallenge(challenge);
     if (challenge) {
-      setShowCheckinModal(true);
+      const isJoined = joinedChallengeIds.includes(challenge.id);
+      if (isJoined) {
+        setShowCheckinModal(true);
+      } else {
+        setShowCheckinModal(false);
+      }
     }
     const newParams = new URLSearchParams(searchParams);
     if (challenge) {
@@ -204,6 +234,10 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
     }
     setSearchParams(newParams);
   };
+
+  const isSelectedChallengeJoined = selectedChallenge
+    ? joinedChallengeIds.includes(selectedChallenge.id)
+    : false;
 
   // User's current rank data
   const userRank = 296;
@@ -288,16 +322,6 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
       setToastMessage('+10 PRO Points Earned!');
       setTimeout(() => setToastMessage(null), 3000);
     }
-  };
-
-  const handleJoinChallenge = (challengeId: string) => {
-    setChallenges((prev) =>
-      prev.map((c) =>
-        c.id === challengeId ? { ...c, isJoined: true, participantsJoined: c.participantsJoined + 1 } : c
-      )
-    );
-    setToastMessage('🎉 Joined Challenge! Complete it to earn PRO points');
-    setTimeout(() => setToastMessage(null), 3000);
   };
 
   // Filtered challenges list
@@ -650,10 +674,182 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
           {activeSubTab === 'challenges' && (
             <div className="space-y-5">
               {selectedChallenge ? (
-                /* ================================================================= */
-                /* Challenge Detail / Workspace Page ("Next page in the Challenges") */
-                /* ================================================================= */
-                <div className="space-y-5 animate-in fade-in slide-in-from-right-3 duration-200">
+                !isSelectedChallengeJoined ? (
+                  /* =============================================================== */
+                  /* PAGE FOR PERSON WHO IS YET TO JOIN (media_1790247422003.png)    */
+                  /* =============================================================== */
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-3 duration-200">
+                    {/* Back Navigation Link */}
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => handleSelectChallenge(null)}
+                        aria-label="Back to challenges list"
+                        className="inline-flex items-center gap-1.5 text-xs font-black text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white transition group"
+                      >
+                        <ChevronLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
+                        <span>Back to challenges</span>
+                      </button>
+                    </div>
+
+                    {/* Dark Hero Card Banner (Exact match to media_1790247422003.png) */}
+                    <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-[#0c0d12] text-white p-6 sm:p-8 space-y-6 shadow-xl relative overflow-hidden">
+                      <div className="flex flex-col md:flex-row items-center gap-8">
+                        {/* Left Badge: 3D Laptop with Glowing Amber Border & PROJECT WEEK 3 */}
+                        <div className="relative shrink-0 flex flex-col items-center justify-center rounded-2xl bg-black/60 border border-amber-500/40 p-6 sm:p-7 shadow-[0_0_35px_rgba(245,158,11,0.18)] min-w-[210px]">
+                          {/* Glowing Laptop SVG */}
+                          <svg width="84" height="60" viewBox="0 0 84 60" fill="none" className="text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">
+                            <rect x="14" y="6" width="56" height="38" rx="4" stroke="currentColor" strokeWidth="2.5" />
+                            <rect x="22" y="12" width="22" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                            <polygon points="30,17 38,20 30,23" fill="currentColor" />
+                            <line x1="48" y1="14" x2="62" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            <line x1="48" y1="20" x2="58" y2="20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            <line x1="48" y1="26" x2="62" y2="26" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            <line x1="22" y1="36" x2="62" y2="36" stroke="currentColor" strokeWidth="1.5" />
+                            <line x1="26" y1="33" x2="26" y2="39" stroke="currentColor" strokeWidth="1.5" />
+                            <line x1="34" y1="33" x2="34" y2="39" stroke="currentColor" strokeWidth="1.5" />
+                            <line x1="42" y1="33" x2="42" y2="39" stroke="currentColor" strokeWidth="1.5" />
+                            <line x1="50" y1="33" x2="50" y2="39" stroke="currentColor" strokeWidth="1.5" />
+                            <line x1="58" y1="33" x2="58" y2="39" stroke="currentColor" strokeWidth="1.5" />
+                            <path d="M4 46H80C81.1 46 82 46.9 82 48V49C82 50.1 81.1 51 80 51H4C2.9 51 2 50.1 2 49V48C2 46.9 2.9 46 4 46Z" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeWidth="2" />
+                            <rect x="36" y="46" width="12" height="3" rx="1.5" fill="currentColor" />
+                          </svg>
+
+                          {/* Typography */}
+                          <div className="mt-3 text-center">
+                            <div className="text-xl sm:text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-400 to-amber-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] uppercase">
+                              {selectedChallenge.type}
+                            </div>
+                            <div className="text-sm sm:text-base font-black tracking-wider text-amber-300 uppercase">
+                              {selectedChallenge.week}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right Details: Title, Dates, Participant Avatars */}
+                        <div className="space-y-3 flex-1 text-center md:text-left">
+                          <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">
+                            {selectedChallenge.title}
+                          </h2>
+                          <p className="text-xs sm:text-sm text-slate-400 font-medium">
+                            {selectedChallenge.startDate} - {selectedChallenge.endDate} • {selectedChallenge.durationLabel}
+                          </p>
+
+                          {/* Overlapping Participant Avatars */}
+                          <div className="flex items-center justify-center md:justify-start -space-x-2 pt-1">
+                            <img
+                              src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&h=80&q=80"
+                              alt="Participant 1"
+                              className="size-8 rounded-full object-cover ring-2 ring-slate-900 shadow-xs"
+                            />
+                            <img
+                              src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=80&h=80&q=80"
+                              alt="Participant 2"
+                              className="size-8 rounded-full object-cover ring-2 ring-slate-900 shadow-xs"
+                            />
+                            <img
+                              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&h=80&q=80"
+                              alt="Participant 3"
+                              className="size-8 rounded-full object-cover ring-2 ring-slate-900 shadow-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Bar: Happening Now / Day 1 / Join CTA */}
+                      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 rounded-2xl bg-black/50 border border-white/10 p-3 sm:p-4 backdrop-blur-md">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white shrink-0">
+                            <Clock size={18} />
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div>
+                              <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Happening Now</span>
+                              <span className="text-sm font-black text-white">Day 1</span>
+                            </div>
+                            <span className="rounded-full bg-rose-500/20 border border-rose-500/30 px-2.5 py-0.5 text-xs font-black text-rose-400">
+                              Ends in 4d 10h 15m
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between md:justify-end gap-3">
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                            <span>Join &amp; stand a chance to earn</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/30 px-2.5 py-0.5 text-xs font-black text-amber-300">
+                              🪙 {selectedChallenge.proReward} PRO
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleJoinChallenge(selectedChallenge.id)}
+                            className="rounded-xl bg-gradient-to-r from-amber-700 via-amber-600 to-amber-500 hover:from-amber-600 hover:to-amber-400 px-6 py-2.5 text-xs font-black text-white shadow-lg shadow-amber-900/40 hover:scale-[1.02] active:scale-[0.98] transition cursor-pointer"
+                          >
+                            Join Now
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Content Card below Hero: 1 Checkins & Description */}
+                    <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-xs space-y-8">
+                      {/* Row 1: 1 Checkins */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 pb-6 border-b border-slate-100 dark:border-slate-800/80">
+                        <div className="sm:w-36 shrink-0">
+                          <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                            1 Checkins
+                          </h3>
+                        </div>
+
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 p-4">
+                            <div className="flex size-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 shrink-0">
+                              <Lock size={16} />
+                            </div>
+                            <div>
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                                {selectedChallenge.title.replace(/^B\d+\s+W\d+\s+/, '')}
+                              </h4>
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                Sep 07, 08:59 pm - Sep 13, 08:58 am
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row 2: Description */}
+                      <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
+                        <div className="sm:w-36 shrink-0">
+                          <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                            Description
+                          </h3>
+                        </div>
+
+                        <div className="flex-1 space-y-4 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                          <p>
+                            In this project challenge, remix the provided emotional documentary sequence using advanced pacing, sound design, and color grading techniques. Once you click <strong className="text-amber-600 dark:text-amber-400 font-bold">Join Now</strong>, the check-in details, raw footage pack, and timeline upload workspace will unlock immediately.
+                          </p>
+
+                          <div className="rounded-2xl bg-amber-500/5 border border-amber-500/20 p-4 flex items-start gap-3">
+                            <span className="text-lg">🔒</span>
+                            <div>
+                              <p className="font-bold text-slate-900 dark:text-white text-xs">
+                                Check-ins are locked for non-participants
+                              </p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                Join the challenge to submit your timeline screenshots, earn up to 🪙 {selectedChallenge.proReward} PRO Points, and get constructive mentor critique.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* =============================================================== */
+                  /* Challenge Detail / Workspace Page (Joined Participants)         */
+                  /* =============================================================== */
+                  <div className="space-y-5 animate-in fade-in slide-in-from-right-3 duration-200">
                   {/* Back Navigation Bar */}
                   <div className="flex items-center justify-between">
                     <button
@@ -1049,6 +1245,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
                     </div>
                   )}
                 </div>
+                )
               ) : (
                 /* ================================================================= */
                 /* Challenges 2.0 List Grid (Matching User Reference Image Exactly) */
