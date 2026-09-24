@@ -25,6 +25,8 @@ import {
   Play,
   FileText,
   Send,
+  Flag,
+  Flame,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 
@@ -106,7 +108,7 @@ const INITIAL_CHALLENGES: ChallengeItem[] = [
     durationLabel: '4 days',
     status: 'active',
     participantsJoined: 3,
-    proReward: 25,
+    proReward: 50,
     isJoined: true,
   },
   {
@@ -182,8 +184,18 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
   const [submittedChallengeIds, setSubmittedChallengeIds] = useState<string[]>(['ch-w3-task']);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Checkin Modal state (Matching user's reference image for Task check-in)
+  const [showCheckinModal, setShowCheckinModal] = useState<boolean>(() => Boolean(queryChallengeId));
+  const [checkinScreenshotUrl, setCheckinScreenshotUrl] = useState('');
+  const [checkinNotes, setCheckinNotes] = useState('');
+  const [showCheckinSubmitForm, setShowCheckinSubmitForm] = useState(false);
+  const [submittedCheckinIds, setSubmittedCheckinIds] = useState<string[]>([]);
+
   const handleSelectChallenge = (challenge: ChallengeItem | null) => {
     setSelectedChallenge(challenge);
+    if (challenge) {
+      setShowCheckinModal(true);
+    }
     const newParams = new URLSearchParams(searchParams);
     if (challenge) {
       newParams.set('challenge', challenge.id);
@@ -643,14 +655,14 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
                 /* ================================================================= */
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-3 duration-200">
                   {/* Back Navigation Bar */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs">
+                  <div className="flex items-center justify-between">
                     <button
                       onClick={() => handleSelectChallenge(null)}
                       aria-label="Back to challenges list"
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 px-3.5 py-2 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-100 hover:text-slate-950 transition"
+                      className="inline-flex items-center gap-1.5 text-xs font-black text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white transition group"
                     >
-                      <ArrowLeft size={16} />
-                      <span>Back to Challenges</span>
+                      <ChevronLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
+                      <span>Back to challenges</span>
                     </button>
 
                     <div className="flex items-center gap-2">
@@ -663,44 +675,108 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
                     </div>
                   </div>
 
-                  {/* Hero Card Banner */}
-                  <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
-                    <div className="relative bg-[#13161c] p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 border-b border-slate-800">
-                      <div className="space-y-3 max-w-xl text-center md:text-left">
-                        <div className="inline-flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-1 text-xs font-bold text-amber-300">
-                          <Clock size={13} />
-                          <span>{selectedChallenge.startDate} - {selectedChallenge.endDate} • {selectedChallenge.durationLabel}</span>
-                        </div>
-                        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
-                          {selectedChallenge.title}
-                        </h2>
-                        <p className="text-xs sm:text-sm text-slate-400">
-                          Cut / Craft Cohort Creative Challenge • Master documentary pacing, emotional audio layers, and storytelling impact
-                        </p>
-                      </div>
-
-                      {/* Stylized Vector Badge */}
-                      <div className="shrink-0 flex flex-col items-center justify-center p-5 rounded-2xl bg-slate-900/80 border border-amber-500/30 shadow-lg">
-                        {selectedChallenge.type === 'PROJECT' ? (
-                          <svg width="60" height="42" viewBox="0 0 68 48" fill="none" className="text-amber-400">
-                            <rect x="8" y="4" width="52" height="32" rx="3" stroke="currentColor" strokeWidth="2.5" />
-                            <path d="M4 36H64C65.1046 36 66 36.8954 66 38V40H2V38C2 36.8954 2.89543 36 4 36Z" fill="currentColor" fillOpacity="0.3" stroke="currentColor" strokeWidth="2" />
-                            <polygon points="30,16 40,20 30,24" fill="currentColor" />
-                          </svg>
-                        ) : (
-                          <svg width="50" height="42" viewBox="0 0 56 48" fill="none" className="text-amber-400">
-                            <rect x="10" y="4" width="34" height="40" rx="4" stroke="currentColor" strokeWidth="2.5" />
-                            <line x1="16" y1="14" x2="30" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            <line x1="16" y1="20" x2="36" y2="20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                          </svg>
-                        )}
-                        <span className="mt-1 font-black text-xs uppercase tracking-widest text-amber-400">
+                  {/* Dark Hero Card Banner (Matching Reference Image) */}
+                  <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-[#13161c] text-white p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-md overflow-hidden relative">
+                    <div className="space-y-3 max-w-xl">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="rounded-md bg-amber-500/20 border border-amber-500/30 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-amber-400">
                           {selectedChallenge.type} {selectedChallenge.week}
                         </span>
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                          <Clock size={12} />
+                          <span>{selectedChallenge.startDate} - {selectedChallenge.endDate} • {selectedChallenge.durationLabel}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-400">
+                          Ends in: 2d 0h 17m
+                        </span>
                       </div>
+                      <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
+                        {selectedChallenge.title}
+                      </h2>
+                      <p className="text-xs sm:text-sm text-slate-400">
+                        Cut / Craft Cohort Creative Challenge • Master documentary pacing, emotional audio layers, and storytelling impact
+                      </p>
                     </div>
 
-                    {/* Navigation Sub-Tabs */}
+                    {/* Action Button: 🪙 50 PRO */}
+                    <div className="shrink-0 flex flex-col sm:items-end gap-1.5 w-full md:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => setShowCheckinModal(true)}
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-600 px-6 py-3.5 text-sm font-black text-slate-950 shadow-lg shadow-amber-500/25 hover:scale-[1.02] active:scale-[0.98] transition cursor-pointer"
+                      >
+                        <span>🪙</span>
+                        <span>{selectedChallenge.proReward} PRO</span>
+                      </button>
+                      <span className="text-[11px] text-slate-400 self-center sm:self-end">Click to view checkin details</span>
+                    </div>
+                  </div>
+
+                  {/* Submissions & Leaderboard Card (Flame 🔥 Icon) */}
+                  <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="flex size-7 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500">
+                          <Flame size={18} />
+                        </span>
+                        <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                          Submissions
+                        </h3>
+                      </div>
+                      <span className="text-xs font-bold text-slate-400">
+                        {submittedCheckinIds.includes(selectedChallenge.id) ? '2 submissions' : '1 submission'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {/* Leaderboard Item #1 matching reference image */}
+                      <div className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 p-3 hover:bg-slate-100/70 transition">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-black text-slate-400 w-5 text-center">#1</span>
+                          <img
+                            src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80"
+                            alt="Bala murugan"
+                            className="size-8 rounded-full object-cover ring-2 ring-amber-400/40"
+                          />
+                          <div>
+                            <p className="text-xs font-black text-slate-900 dark:text-white">Bala murugan</p>
+                            <p className="text-[10px] text-slate-400">Checked in 3 hours ago</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-xs font-black text-amber-600 dark:text-amber-400">
+                            🪙 50 PRO
+                          </span>
+                          <span className="text-base" title="1st Place">🥇</span>
+                        </div>
+                      </div>
+
+                      {/* User submission if submitted */}
+                      {submittedCheckinIds.includes(selectedChallenge.id) && (
+                        <div className="flex items-center justify-between rounded-xl border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/60 dark:bg-emerald-950/30 p-3 transition animate-in fade-in">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 w-5 text-center">#2</span>
+                            <div className="flex size-8 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-black text-xs ring-2 ring-emerald-400/40">
+                              {userInitials}
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-slate-900 dark:text-white">{userDisplayName} (You)</p>
+                              <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Checked in just now</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-xs font-black text-emerald-600 dark:text-emerald-400">
+                              🪙 50 PRO
+                            </span>
+                            <span className="text-base" title="Check-in Complete">✅</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Navigation Sub-Tabs & Detailed Workspace */}
+                  <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
                     <div className="flex border-b border-slate-200 dark:border-slate-800 px-6 overflow-x-auto gap-4">
                       {[
                         { id: 'brief', label: 'Brief & Instructions', icon: FileText },
@@ -1621,6 +1697,229 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
                 >
                   Done
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* CHECKIN DETAILS MODAL (Matching User Reference Image Exactly)             */}
+        {/* ========================================================================= */}
+        {showCheckinModal && selectedChallenge && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
+            onClick={() => setShowCheckinModal(false)}
+          >
+            <div
+              className="relative w-full max-w-4xl rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden my-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Top Bar */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-4">
+                <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                  Checkin details for {selectedChallenge.title.replace(/^B\d+\s+W\d+\s+/, '')}
+                </h3>
+                <button
+                  onClick={() => setShowCheckinModal(false)}
+                  aria-label="Close modal"
+                  className="flex size-8 items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Modal Body: 2 Columns */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6">
+                {/* Left Column (8 Cols): Instructions */}
+                <div className="lg:col-span-8 space-y-5">
+                  {/* Card Header with Peach Flag */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 shrink-0">
+                      <Flag size={18} />
+                    </div>
+                    <h4 className="text-base font-black text-slate-900 dark:text-white">
+                      {selectedChallenge.title.replace(/^B\d+\s+W\d+\s+/, '')}
+                    </h4>
+                  </div>
+
+                  {/* Stat Card: Points assigned + Ends in */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Points assigned:</span>
+                      <span className="text-xs font-black text-amber-600 dark:text-amber-400">🪙 {selectedChallenge.proReward} PRO</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Ends in:</span>
+                      <span className="text-xs font-black text-rose-500">2d 0h 17m</span>
+                    </div>
+                  </div>
+
+                  {/* 5 Step-by-Step Instructions */}
+                  <div className="space-y-3.5 text-xs">
+                    <div className="flex items-start gap-2.5">
+                      <span className="font-black text-slate-900 dark:text-white shrink-0">Step 1 :</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Complete watching both Lessons</span>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="font-black text-slate-900 dark:text-white shrink-0">Step 2 :</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        Select any one from the given footage. Download the footage :{' '}
+                        <a
+                          href="#download-footage"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setToastMessage('Footage download link clicked');
+                            setTimeout(() => setToastMessage(null), 3000);
+                          }}
+                          className="font-bold text-blue-600 hover:text-blue-500 dark:text-blue-400 underline decoration-blue-400/50"
+                        >
+                          Here
+                        </a>
+                      </span>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="font-black text-slate-900 dark:text-white shrink-0">Step 3 :</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Plan the sounds using notes in resolve</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-start gap-2.5">
+                        <span className="font-black text-slate-900 dark:text-white shrink-0">Step 4 :</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          Subscribe to Epidemic Sounds
+                        </span>
+                      </div>
+                      <div className="pl-14 space-y-1">
+                        <a
+                          href="https://share.epidemicsound.com/cxdvph"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-bold text-blue-600 hover:text-blue-500 dark:text-blue-400 underline decoration-blue-400/50 break-all"
+                        >
+                          https://share.epidemicsound.com/cxdvph
+                        </a>
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
+                          ( ⚠️ Just subscribe to the Monthly Creator Plan )
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="font-black text-slate-900 dark:text-white shrink-0">Step 5 :</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Collect Music &amp; SFX</span>
+                    </div>
+                  </div>
+
+                  {/* Bottom Submission Link Notice */}
+                  <div className="rounded-2xl border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 p-4">
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <span className="font-black">Submission :</span> Upload the Screenshot of your Planned Timeline{' '}
+                      <a
+                        href="#upload-timeline"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowCheckinSubmitForm(true);
+                        }}
+                        className="font-black text-blue-600 hover:text-blue-500 dark:text-blue-400 underline decoration-blue-400/50"
+                      >
+                        Here
+                      </a>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right Column (4 Cols): Submissions Action Card */}
+                <div className="lg:col-span-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 p-6 flex flex-col justify-between space-y-5">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                        Submissions
+                      </h4>
+                      <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-xs font-black text-amber-600 dark:text-amber-400">
+                        🪙 + {selectedChallenge.proReward} PRO
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                      Submit your check-in to complete today's challenge.
+                    </p>
+
+                    {/* Check-in submission form / completed state */}
+                    {submittedCheckinIds.includes(selectedChallenge.id) ? (
+                      <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4 text-center space-y-2">
+                        <span className="flex size-9 items-center justify-center rounded-full bg-emerald-500 text-white mx-auto shadow-xs">
+                          <Check size={18} />
+                        </span>
+                        <p className="text-xs font-black text-emerald-900 dark:text-emerald-300">
+                          Check-in Completed!
+                        </p>
+                        <p className="text-[10px] text-emerald-700 dark:text-emerald-400">
+                          You earned +{selectedChallenge.proReward} PRO Points today
+                        </p>
+                      </div>
+                    ) : showCheckinSubmitForm ? (
+                      <div className="space-y-3 pt-2">
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                            Screenshot Proof URL *
+                          </label>
+                          <input
+                            type="url"
+                            value={checkinScreenshotUrl}
+                            onChange={(e) => setCheckinScreenshotUrl(e.target.value)}
+                            placeholder="https://drive.google.com/..."
+                            className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:outline-hidden"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                            Notes (optional)
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={checkinNotes}
+                            onChange={(e) => setCheckinNotes(e.target.value)}
+                            placeholder="Sound design markers placed..."
+                            className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:outline-hidden"
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    {!submittedCheckinIds.includes(selectedChallenge.id) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!showCheckinSubmitForm) {
+                            setShowCheckinSubmitForm(true);
+                          } else {
+                            // Complete checkin
+                            setSubmittedCheckinIds((prev) => [...prev, selectedChallenge.id]);
+                            setToastMessage(`🎉 Check-in Completed! +${selectedChallenge.proReward} PRO Points Claimed!`);
+                            setShowCheckinSubmitForm(false);
+                            setTimeout(() => setToastMessage(null), 4000);
+                          }
+                        }}
+                        className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 py-3 text-xs font-black text-white shadow-md shadow-amber-500/20 transition cursor-pointer"
+                      >
+                        Submit
+                      </button>
+                    )}
+                    {submittedCheckinIds.includes(selectedChallenge.id) && (
+                      <button
+                        type="button"
+                        onClick={() => setShowCheckinModal(false)}
+                        className="w-full rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-2.5 text-xs font-black transition cursor-pointer"
+                      >
+                        Done
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

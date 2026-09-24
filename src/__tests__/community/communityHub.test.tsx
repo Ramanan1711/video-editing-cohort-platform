@@ -374,4 +374,64 @@ describe('CommunityHub & Components', () => {
     fireEvent.click(backBtn);
     expect(screen.getByRole('heading', { level: 2, name: 'Challenges' })).toBeInTheDocument();
   });
+
+  it('renders Checkin details modal with 5 steps, Epidemic sound link, points assigned, and submission action matching reference image', () => {
+    render(
+      <MemoryRouter initialEntries={['/community?tab=levelup&sub=challenges']}>
+        <CommunityHub />
+      </MemoryRouter>
+    );
+
+    // Click on Task 3 card to open details & trigger check-in modal
+    const taskCardTitle = screen.getByText('B15 W3 Task 3 - Design sounds for the video');
+    fireEvent.click(taskCardTitle);
+
+    // Verify modal header
+    expect(screen.getByText('Checkin details for Task 3 - Design sounds for the video')).toBeInTheDocument();
+
+    // Verify left column stat box
+    expect(screen.getByText(/Points assigned:/i)).toBeInTheDocument();
+    expect(screen.getByText('Ends in:')).toBeInTheDocument();
+    expect(screen.getByText('2d 0h 17m')).toBeInTheDocument();
+
+    // Verify 5 instruction steps
+    expect(screen.getByText('Complete watching both Lessons')).toBeInTheDocument();
+    expect(screen.getByText(/Select any one from the given footage/i)).toBeInTheDocument();
+    expect(screen.getByText('Plan the sounds using notes in resolve')).toBeInTheDocument();
+    expect(screen.getByText('Subscribe to Epidemic Sounds')).toBeInTheDocument();
+    expect(screen.getByText('https://share.epidemicsound.com/cxdvph')).toBeInTheDocument();
+    expect(screen.getByText(/Just subscribe to the Monthly Creator Plan/i)).toBeInTheDocument();
+    expect(screen.getByText('Collect Music & SFX')).toBeInTheDocument();
+
+    // Verify submission link notice
+    expect(screen.getByText(/Upload the Screenshot of your Planned Timeline/i)).toBeInTheDocument();
+
+    // Verify right column submission action
+    expect(screen.getByText('Submit your check-in to complete today\'s challenge.')).toBeInTheDocument();
+    const submitBtn = screen.getByRole('button', { name: 'Submit' });
+    expect(submitBtn).toBeInTheDocument();
+
+    // Click Submit to open proof input form
+    fireEvent.click(submitBtn);
+    expect(screen.getByPlaceholderText(/https:\/\/drive\.google\.com/i)).toBeInTheDocument();
+
+    // Click Submit again to complete check-in
+    fireEvent.click(submitBtn);
+    expect(screen.getByText('Check-in Completed!')).toBeInTheDocument();
+
+    // Close the modal
+    const closeModalBtn = screen.getByRole('button', { name: /close modal/i });
+    fireEvent.click(closeModalBtn);
+
+    // Verify background workspace is visible with hero card and submissions leaderboard
+    expect(screen.queryByText('Checkin details for Task 3 - Design sounds for the video')).not.toBeInTheDocument();
+    expect(screen.getByText('Bala murugan')).toBeInTheDocument();
+    expect(screen.getByText('Submissions')).toBeInTheDocument();
+
+    // Reopen modal via hero button
+    const heroCheckinBtn = screen.getByRole('button', { name: /50 PRO/i });
+    fireEvent.click(heroCheckinBtn);
+    expect(screen.getByText('Checkin details for Task 3 - Design sounds for the video')).toBeInTheDocument();
+  });
 });
+
