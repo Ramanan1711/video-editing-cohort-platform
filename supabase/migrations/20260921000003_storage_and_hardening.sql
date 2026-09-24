@@ -14,11 +14,17 @@
 -- 1. Schema Hardening & Column Compatibility
 -- ==============================================================================
 
--- Ensure submissions table has both version and version_number columns
+-- Ensure submissions table has notes, version, and version_number columns
 alter table public.submissions
+  add column if not exists notes text,
   add column if not exists version_number integer default 1,
   add column if not exists version integer default 1,
   add column if not exists updated_at timestamptz not null default now();
+
+-- Ensure submission_versions has version and submitted_at columns
+alter table public.submission_versions
+  add column if not exists version integer default 1,
+  add column if not exists submitted_at timestamptz not null default now();
 
 -- Ensure assignments table has cohort_id column if missing, and backfill from lessons->modules
 alter table public.assignments

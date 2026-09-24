@@ -25,6 +25,17 @@ on storage.buckets for select
 to authenticated
 using (true);
 
+-- Ensure notes and versioning columns exist on submissions & submission_versions
+alter table public.submissions
+  add column if not exists notes text,
+  add column if not exists version_number integer default 1,
+  add column if not exists version integer default 1,
+  add column if not exists updated_at timestamptz not null default now();
+
+alter table public.submission_versions
+  add column if not exists version integer default 1,
+  add column if not exists submitted_at timestamptz not null default now();
+
 -- ==============================================================================
 -- 1. PROFILES: Eliminate privilege escalation loopholes
 -- Vulnerability fixed: "Users can update their own profile" allowed users
@@ -363,4 +374,147 @@ create policy "Active users can insert comments"
     author_id = auth.uid()
     and public.is_active_user()
   );
+
+-- ==============================================================================
+-- 9. Server-Side Submission RPC (submit_student_assignment)
+-- ==============================================================================
+create or replace function public.submit_student_assignment(
+  p_assignment_id uuid,
+  p_file_url text,
+  p_is_draft boolean default false,
+  p_notes text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_student_id uuid;
+  v_cohort_id uuid;
+  v_deadline timestamptz;
+  v_new_status text;
+  v_is_late boolean := false;
+  v_existing record;
+  v_new_version integer := 1;
+  v_result record;
+begin
+  v_student_id := auth.uid();
+  if v_student_id is null then
+    raise exception 'Authentication required to submit assignment.'
+      using errcode = '42501';
+  end if;
+
+  if not public.is_active_user() then
+    raise exception 'Account is not active. Submissions are disabled.'
+      using errcode = 'P0001';
+  end if;
+
+  -- Resolve cohort and deadline via lesson and module hierarchy
+  select m.cohort_id, a.deadline
+  into v_cohort_id, v_deadline
+  from public.assignments a
+  left join public.lessons l on l.id = a.lesson_id
+  left join public.modules m on m.id = l.module_id
+  where a.id = p_assignment_id;
+
+  if v_cohort_id is null then
+    raise exception 'Assignment % not found or invalid hierarchy.', p_assignment_id
+      using errcode = 'P0002';
+  end if;
+
+  -- Ensure student is actively enrolled
+  if not exists (
+    select 1 from public.enrollments
+    where cohort_id = v_cohort_id
+      and user_id = v_student_id
+      and status in ('enrolled', 'active')
+  ) and not public.is_admin() then
+    raise exception 'You must be actively enrolled in this cohort to submit assignments.'
+      using errcode = '42501';
+  end if;
+
+  if v_deadline is not null and now() > v_deadline then
+    v_is_late := true;
+  end if;
+
+  if p_is_draft then
+    v_new_status := 'draft';
+  else
+    v_new_status := 'pending';
+  end if;
+
+  select id, coalesce(version_number, version, 1) as ver, file_url, notes, status
+  into v_existing
+  from public.submissions
+  where assignment_id = p_assignment_id and student_id = v_student_id;
+
+  if found then
+    v_new_version := coalesce(v_existing.ver, 1) + 1;
+
+    insert into public.submission_versions (
+      submission_id,
+      version_number,
+      version,
+      file_url,
+      notes,
+      status,
+      created_at,
+      submitted_at
+    )
+    values (
+      v_existing.id,
+      coalesce(v_existing.ver, 1),
+      coalesce(v_existing.ver, 1),
+      v_existing.file_url,
+      v_existing.notes,
+      v_existing.status,
+      now(),
+      now()
+    );
+
+    update public.submissions
+    set
+      file_url = p_file_url,
+      status = v_new_status,
+      notes = p_notes,
+      is_late = v_is_late,
+      version_number = v_new_version,
+      version = v_new_version,
+      updated_at = now()
+    where id = v_existing.id
+    returning * into v_result;
+  else
+    insert into public.submissions (
+      assignment_id,
+      student_id,
+      file_url,
+      status,
+      notes,
+      is_late,
+      version_number,
+      version,
+      created_at,
+      updated_at
+    )
+    values (
+      p_assignment_id,
+      v_student_id,
+      p_file_url,
+      v_new_status,
+      p_notes,
+      v_is_late,
+      1,
+      1,
+      now(),
+      now()
+    )
+    returning * into v_result;
+  end if;
+
+  return to_jsonb(v_result);
+end;
+$$;
+
+grant execute on function public.submit_student_assignment(uuid, text, boolean, text) to authenticated;
 
