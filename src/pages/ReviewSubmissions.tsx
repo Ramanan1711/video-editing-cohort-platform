@@ -308,9 +308,13 @@ export function ReviewSubmissions() {
   // Seek video to timestamp
   const seekVideo = (submissionId: string, seconds: number) => {
     const vid = videoRefs.current[submissionId];
-    if (vid) {
-      vid.currentTime = seconds;
-      vid.play().catch(() => {});
+    if (vid && typeof vid.currentTime === 'number') {
+      try {
+        vid.currentTime = seconds;
+        void vid.play().catch(() => {});
+      } catch {
+        // Safe fallback for unmounted video
+      }
     }
   };
 
@@ -846,10 +850,13 @@ export function ReviewSubmissions() {
                                 controls
                                 src={resolvedUrl}
                                 onTimeUpdate={(e) => {
-                                  setActivePlaybackTime((prev) => ({
-                                    ...prev,
-                                    [submission.id]: e.currentTarget.currentTime,
-                                  }));
+                                  const time = e.currentTarget?.currentTime;
+                                  if (typeof time === 'number' && !isNaN(time)) {
+                                    setActivePlaybackTime((prev) => ({
+                                      ...prev,
+                                      [submission.id]: time,
+                                    }));
+                                  }
                                 }}
                                 className="aspect-video w-full max-h-96 object-contain"
                                 preload="metadata"
@@ -863,10 +870,11 @@ export function ReviewSubmissions() {
                                   type="button"
                                   onClick={() => {
                                     const vid = videoRefs.current[submission.id];
-                                    if (vid) {
+                                    if (vid && typeof vid.currentTime === 'number' && !isNaN(vid.currentTime)) {
+                                      const time = vid.currentTime;
                                       setActivePlaybackTime((prev) => ({
                                         ...prev,
-                                        [submission.id]: vid.currentTime,
+                                        [submission.id]: time,
                                       }));
                                     }
                                   }}
