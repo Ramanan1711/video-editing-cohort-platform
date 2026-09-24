@@ -59,7 +59,7 @@ export async function getPlatformAnalytics(forceRefresh: boolean = false): Promi
           cohortsRes,
         ] = await Promise.allSettled([
           supabase.from('profiles').select('id, role, status'),
-          supabase.from('cohort_enrollments').select('id, user_id, cohort_id, status'),
+          supabase.from('enrollments').select('user_id, cohort_id, status'),
           supabase.from('lesson_progress').select('user_id, lesson_id, completed, watch_percentage'),
           supabase.from('submissions').select('id, status, is_late, created_at, updated_at'),
           supabase.from('cohorts').select('id, status'),

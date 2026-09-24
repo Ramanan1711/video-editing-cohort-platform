@@ -31,12 +31,12 @@ describe('Platform Telemetry & Analytics Aggregator', () => {
           }),
         } as unknown as ReturnType<typeof supabase.from>;
       }
-      if (table === 'cohort_enrollments') {
+      if (table === 'enrollments') {
         return {
           select: vi.fn().mockResolvedValue({
             data: [
-              { id: 'e1', user_id: '1', cohort_id: 'c1', status: 'enrolled' },
-              { id: 'e2', user_id: '2', cohort_id: 'c1', status: 'completed' },
+              { user_id: '1', cohort_id: 'c1', status: 'enrolled' },
+              { user_id: '2', cohort_id: 'c1', status: 'completed' },
             ],
             error: null,
           }),
