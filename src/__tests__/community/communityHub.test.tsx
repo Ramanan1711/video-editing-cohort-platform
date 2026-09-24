@@ -342,4 +342,36 @@ describe('CommunityHub & Components', () => {
     // Verify PRO reward
     expect(screen.getByText(/50 PRO/i)).toBeInTheDocument();
   });
+
+  it('opens Challenge Detail page with creative brief, assets, and submission form when clicking a challenge card', () => {
+    render(
+      <MemoryRouter initialEntries={['/community?tab=levelup&sub=challenges']}>
+        <CommunityHub />
+      </MemoryRouter>
+    );
+
+    // Click on the project challenge card
+    const projectCardTitle = screen.getByText('B15 W3 Project - 3 Remix the emotion');
+    fireEvent.click(projectCardTitle);
+
+    // Verify Challenge Detail view
+    expect(screen.getByRole('button', { name: /back to challenges list/i })).toBeInTheDocument();
+    expect(screen.getByText('Creative Challenge Objectives')).toBeInTheDocument();
+    expect(screen.getByText(/Grading Rubric \(50 Pts\)/i)).toBeInTheDocument();
+
+    // Check Sub-tabs within Challenge Detail
+    expect(screen.getByText('Brief & Instructions')).toBeInTheDocument();
+    expect(screen.getByText('Assets & Footage')).toBeInTheDocument();
+    expect(screen.getByText('Submit Entry')).toBeInTheDocument();
+
+    // Switch to Assets tab
+    const assetsTab = screen.getByText('Assets & Footage');
+    fireEvent.click(assetsTab);
+    expect(screen.getByText('Documentary Footage Pack')).toBeInTheDocument();
+
+    // Return back to Challenges list
+    const backBtn = screen.getByRole('button', { name: /back to challenges list/i });
+    fireEvent.click(backBtn);
+    expect(screen.getByRole('heading', { level: 2, name: 'Challenges' })).toBeInTheDocument();
+  });
 });
