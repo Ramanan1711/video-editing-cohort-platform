@@ -93,21 +93,22 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50"
+        className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-50"
         title="Operations & Escalation Alerts"
         aria-label="Admin Alerts"
       >
         <Bell size={16} className={criticalCount > 0 ? 'text-red-600' : 'text-slate-600'} />
-        {totalCount > 0 && (
-          <span
-            className={`absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full text-[10px] font-black text-white shadow-xs ${
-              criticalCount > 0 ? 'bg-red-500 animate-pulse' : 'bg-orange-500'
-            }`}
-          >
-            {totalCount > 9 ? '9+' : totalCount}
-          </span>
-        )}
       </button>
+
+      {totalCount > 0 && (
+        <span
+          className={`pointer-events-none absolute -top-1.5 -right-1.5 z-10 flex size-5 items-center justify-center rounded-full text-[10px] font-black text-white shadow-xs ${
+            criticalCount > 0 ? 'bg-red-500 animate-pulse' : 'bg-orange-500'
+          }`}
+        >
+          {totalCount > 9 ? '9+' : totalCount}
+        </span>
+      )}
 
       {/* Popover Dropdown */}
       {isOpen && (

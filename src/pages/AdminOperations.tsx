@@ -1015,8 +1015,8 @@ export function AdminOperations() {
       {/* Header */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-            <div className="pl-12 sm:pl-14 lg:pl-0">
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+            <div className="pl-12 sm:pl-14 lg:pl-0 max-w-xl">
               <div className="flex items-center gap-2">
                 <span className="flex size-7 items-center justify-center rounded-lg bg-slate-950 text-white shadow-2xs">
                   <Shield size={16} />
@@ -1029,8 +1029,8 @@ export function AdminOperations() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 shadow-2xs">
+            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 flex-nowrap">
+              <span className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-800 shadow-2xs whitespace-nowrap">
                 <ShieldCheck size={14} className="text-orange-500" />
                 <span>{ROLE_LABELS[profile?.admin_role || 'super_admin']}</span>
               </span>
@@ -1039,13 +1039,13 @@ export function AdminOperations() {
 
               <Link
                 to="/admin/courses"
-                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50"
+                className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 whitespace-nowrap"
               >
                 Course Studio →
               </Link>
               <Link
                 to="/review/submissions"
-                className="rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-slate-800"
+                className="inline-flex h-9 items-center rounded-xl bg-slate-950 px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-slate-800 whitespace-nowrap"
               >
                 Review Room →
               </Link>
