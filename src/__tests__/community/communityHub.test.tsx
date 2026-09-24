@@ -294,4 +294,52 @@ describe('CommunityHub & Components', () => {
     fireEvent.click(backBtn);
     expect(screen.queryByText('PRO LEADERBOARD')).not.toBeInTheDocument();
   });
+
+  it('renders Habits calendar grid and Complete today habits card when switching to habits sub-tab', () => {
+    render(
+      <MemoryRouter initialEntries={['/community?tab=levelup']}>
+        <CommunityHub />
+      </MemoryRouter>
+    );
+
+    // Switch to Habits sub-tab
+    const habitsSubTabBtn = screen.getByRole('button', { name: /switch to habits view/i });
+    fireEvent.click(habitsSubTabBtn);
+
+    // Verify Habits section header and calendar month
+    expect(screen.getByRole('heading', { level: 2, name: 'Habits' })).toBeInTheDocument();
+    expect(screen.getByText('September 2026')).toBeInTheDocument();
+    expect(screen.getByText('Sun')).toBeInTheDocument();
+    expect(screen.getByText('Mon')).toBeInTheDocument();
+    expect(screen.getByText('Tue')).toBeInTheDocument();
+
+    // Verify Right Column: Complete today's Habits (1)
+    expect(screen.getByText(/Complete today's Habits \(1\)/i)).toBeInTheDocument();
+    expect(screen.getByText('EDIT For 20 Minutes')).toBeInTheDocument();
+    expect(screen.getByText('10 PRO')).toBeInTheDocument();
+  });
+
+  it('renders Challenges 2.0 with Project/Task cards and filter when switching to challenges sub-tab', () => {
+    render(
+      <MemoryRouter initialEntries={['/community?tab=levelup']}>
+        <CommunityHub />
+      </MemoryRouter>
+    );
+
+    // Switch to Challenges sub-tab
+    const challengesSubTabBtn = screen.getByRole('button', { name: /switch to challenges view/i });
+    fireEvent.click(challengesSubTabBtn);
+
+    // Verify Challenges section heading
+    expect(screen.getByRole('heading', { level: 2, name: 'Challenges' })).toBeInTheDocument();
+
+    // Verify Challenge cards from reference image
+    expect(screen.getByText('B15 W3 Project - 3 Remix the emotion')).toBeInTheDocument();
+    expect(screen.getByText('B15 W3 Task 3 - Design sounds for the video')).toBeInTheDocument();
+    expect(screen.getByText('7 Sep - 13 Sep 2026 • 7 days')).toBeInTheDocument();
+    expect(screen.getByText('7 Sep - 10 Sep 2026 • 4 days')).toBeInTheDocument();
+
+    // Verify PRO reward
+    expect(screen.getByText(/50 PRO/i)).toBeInTheDocument();
+  });
 });

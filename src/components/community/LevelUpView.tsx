@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   X,
   Zap,
@@ -7,15 +8,26 @@ import {
   Check,
   ChevronDown,
   Search,
-  Sparkles,
   History,
   Award,
   ArrowLeft,
+  Calendar,
+  LayoutGrid,
+  Filter,
+  CheckCircle2,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Trophy,
+  ChevronsRight,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 
+export type LevelUpSubTab = 'dashboard' | 'habits' | 'challenges';
+
 interface LevelUpViewProps {
   onClose?: () => void;
+  initialSubTab?: LevelUpSubTab;
 }
 
 interface LeaderboardMember {
@@ -51,13 +63,107 @@ const PRO_HISTORY_TRANSACTIONS = [
   { id: 'tx-6', title: '7-Day Editing Streak Shield Claimed', date: 'Sep 15, 2026', points: '+94 PRO', type: 'streak' },
 ];
 
-export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose }) => {
+interface ChallengeItem {
+  id: string;
+  type: 'PROJECT' | 'TASK';
+  week: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  durationLabel: string;
+  status: 'active' | 'upcoming' | 'completed';
+  participantsJoined: number;
+  proReward: number;
+  isJoined?: boolean;
+}
+
+const INITIAL_CHALLENGES: ChallengeItem[] = [
+  {
+    id: 'ch-w3-proj',
+    type: 'PROJECT',
+    week: 'WEEK 3',
+    title: 'B15 W3 Project - 3 Remix the emotion',
+    startDate: '7 Sep',
+    endDate: '13 Sep 2026',
+    durationLabel: '7 days',
+    status: 'active',
+    participantsJoined: 4,
+    proReward: 50,
+    isJoined: false,
+  },
+  {
+    id: 'ch-w3-task',
+    type: 'TASK',
+    week: 'WEEK 3',
+    title: 'B15 W3 Task 3 - Design sounds for the video',
+    startDate: '7 Sep',
+    endDate: '10 Sep 2026',
+    durationLabel: '4 days',
+    status: 'active',
+    participantsJoined: 3,
+    proReward: 25,
+    isJoined: true,
+  },
+  {
+    id: 'ch-w2-proj',
+    type: 'PROJECT',
+    week: 'WEEK 2',
+    title: 'B15 W2 Project - Color Grading & Polish',
+    startDate: '31 Aug',
+    endDate: '6 Sep 2026',
+    durationLabel: '7 days',
+    status: 'completed',
+    participantsJoined: 38,
+    proReward: 100,
+    isJoined: true,
+  },
+  {
+    id: 'ch-w4-proj',
+    type: 'PROJECT',
+    week: 'WEEK 4',
+    title: 'B15 W4 Project - Final Narrative Capstone',
+    startDate: '14 Sep',
+    endDate: '21 Sep 2026',
+    durationLabel: '7 days',
+    status: 'upcoming',
+    participantsJoined: 24,
+    proReward: 150,
+    isJoined: false,
+  },
+];
+
+export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab = 'dashboard' }) => {
   const { profile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Sub-tab state
+  const querySub = searchParams.get('sub') as LevelUpSubTab | null;
+  const [activeSubTab, setActiveSubTab] = useState<LevelUpSubTab>(querySub || initialSubTab);
+
+  const handleSubTabChange = (tab: LevelUpSubTab) => {
+    setActiveSubTab(tab);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('sub', tab);
+    setSearchParams(newParams);
+  };
+
+  // Dashboard state
   const [showHabits, setShowHabits] = useState(true);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterView, setFilterView] = useState<'all' | 'top10'>('all');
   const [hoveredDay, setHoveredDay] = useState<{ day: string; userRate: number; commRate: number } | null>(null);
+
+  // Habits Calendar state
+  const [currentMonthName, setCurrentMonthName] = useState('September 2026');
+  const [todayHabitCompleted, setTodayHabitCompleted] = useState(true);
+  const [todayHabitDismissed, setTodayHabitDismissed] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Challenges state
+  const [challenges, setChallenges] = useState<ChallengeItem[]>(INITIAL_CHALLENGES);
+  const [challengeFilter, setChallengeFilter] = useState<'active' | 'all' | 'completed' | 'upcoming'>('active');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
   // User's current rank data
   const userRank = 296;
@@ -81,7 +187,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose }) => {
     { day: 'Tue', userRate: 52.0, commRate: 3.13 },
   ];
 
-  // Filter leaderboard based on query and tabs
+  // Filter leaderboard
   const filteredMembers = useMemo(() => {
     let list = DEFAULT_LEADERBOARD_MEMBERS;
     if (filterView === 'top10') {
@@ -94,667 +200,1061 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose }) => {
     return list;
   }, [filterView, searchQuery]);
 
+  // Calendar cells generation for September 2026
+  const calendarCells = useMemo(() => {
+    const days: {
+      dateNum: number;
+      isCurrentMonth: boolean;
+      isToday: boolean;
+      isCompleted: boolean;
+      habitTitle: string;
+    }[] = [];
+
+    // Aug 30, Aug 31
+    days.push({ dateNum: 30, isCurrentMonth: false, isToday: false, isCompleted: true, habitTitle: 'EDIT for 20 minutes' });
+    days.push({ dateNum: 31, isCurrentMonth: false, isToday: false, isCompleted: true, habitTitle: 'EDIT for 20 minutes' });
+
+    // Sep 1 to Sep 30
+    for (let i = 1; i <= 30; i++) {
+      const isToday = i === 8;
+      const isCompleted = i <= 8; // Past and today are completed
+      days.push({
+        dateNum: i,
+        isCurrentMonth: true,
+        isToday,
+        isCompleted,
+        habitTitle: 'EDIT for 20 minutes',
+      });
+    }
+
+    // Oct 1 to Oct 10
+    for (let i = 1; i <= 10; i++) {
+      days.push({
+        dateNum: i,
+        isCurrentMonth: false,
+        isToday: false,
+        isCompleted: false,
+        habitTitle: 'EDIT for 20 minutes',
+      });
+    }
+
+    return days;
+  }, []);
+
+  const handleToggleTodayHabit = () => {
+    const nextState = !todayHabitCompleted;
+    setTodayHabitCompleted(nextState);
+    if (nextState) {
+      setToastMessage('+10 PRO Points Earned!');
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  const handleJoinChallenge = (challengeId: string) => {
+    setChallenges((prev) =>
+      prev.map((c) =>
+        c.id === challengeId ? { ...c, isJoined: true, participantsJoined: c.participantsJoined + 1 } : c
+      )
+    );
+    setToastMessage('🎉 Joined Challenge! Complete it to earn PRO points');
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Filtered challenges list
+  const filteredChallenges = useMemo(() => {
+    if (challengeFilter === 'all') return challenges;
+    return challenges.filter((c) => c.status === challengeFilter);
+  }, [challenges, challengeFilter]);
+
   return (
-    <div className="flex-1 overflow-y-auto bg-[#f8f9fc] dark:bg-slate-950 p-3 sm:p-5 lg:p-7 text-slate-900 dark:text-slate-100 transition-colors">
-      <div className="mx-auto max-w-7xl space-y-5">
-        {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/90 dark:border-slate-800 dark:bg-slate-900/90 p-4 px-5 shadow-2xs backdrop-blur-md">
-          <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 shadow-md shadow-amber-500/20 font-black">
-              <Zap size={20} className="fill-slate-950" />
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
-                  Level Up &amp; Mastery
-                </h1>
-                <span className="rounded-full bg-amber-500/10 dark:bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-black tracking-wider uppercase text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                  PRO LEADERBOARD
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Compare your editing points, habit streaks, and cohort rank with fellow creators
-              </p>
-            </div>
-          </div>
+    <div className="flex-1 flex overflow-hidden bg-[#f8f9fc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
+      
+      {/* ========================================================================= */}
+      {/* Sub-View Navigation Mini Rail (Left Icon Bar from Reference Image)        */}
+      {/* ========================================================================= */}
+      <aside className="w-14 sm:w-16 border-r border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 flex flex-col items-center py-4 gap-3 shrink-0 backdrop-blur-md">
+        <button
+          title="Toggle view"
+          aria-label="Toggle rail"
+          className="rounded-xl p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+        >
+          <ChevronsRight size={18} />
+        </button>
 
-          {onClose && (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Back to feed"
-                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-100 hover:text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white transition"
-              >
-                <ArrowLeft size={14} />
-                <span>Back to Feed</span>
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Dashboard 4-Square Grid Icon */}
+        <button
+          onClick={() => handleSubTabChange('dashboard')}
+          title="Leaderboard & Overview"
+          aria-label="Dashboard rail button"
+          className={`flex size-10 items-center justify-center rounded-xl transition ${
+            activeSubTab === 'dashboard'
+              ? 'bg-amber-100/80 text-amber-950 font-bold dark:bg-amber-900/50 dark:text-amber-200 shadow-2xs'
+              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <LayoutGrid size={20} />
+        </button>
 
-        {/* Main Grid: 3 Columns matching reference image */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          
-          {/* ========================================================================= */}
-          {/* COLUMN 1 (5 Cols): Habit Performance & Benchmark Chart                   */}
-          {/* ========================================================================= */}
-          <div className="lg:col-span-5 flex flex-col gap-4">
-            <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-slate-900 p-5 shadow-xs">
-              {/* Header & Points Gained */}
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
-                    Habit
-                  </h3>
-                </div>
+        {/* Habits Monthly Calendar / Bar Chart Icon (Purple active pill from screenshot) */}
+        <button
+          onClick={() => handleSubTabChange('habits')}
+          title="Habits Calendar"
+          aria-label="Habits rail button"
+          className={`flex size-10 items-center justify-center rounded-xl transition ${
+            activeSubTab === 'habits'
+              ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/30'
+              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Calendar size={20} />
+        </button>
 
-                <div className="text-right">
-                  <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 block">
-                    Points gained
-                  </span>
-                  <div className="inline-flex items-center gap-1.5 mt-0.5">
-                    <span className="flex size-5 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 shadow-xs text-xs font-black text-amber-950">
-                      🪙
-                    </span>
-                    <span className="text-sm font-black text-amber-500 tracking-tight">
-                      130 PRO
-                    </span>
-                  </div>
-                </div>
-              </div>
+        {/* Challenges Trophy / Project Icon */}
+        <button
+          onClick={() => handleSubTabChange('challenges')}
+          title="Challenges 2.0"
+          aria-label="Challenges rail button"
+          className={`flex size-10 items-center justify-center rounded-xl transition ${
+            activeSubTab === 'challenges'
+              ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/30'
+              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Trophy size={19} />
+        </button>
+      </aside>
 
-              {/* Avg Completion Rate Stats */}
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full bg-indigo-500 shrink-0" />
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    Your avg completion rate{' '}
-                    <span className="font-extrabold text-indigo-600 dark:text-indigo-400">92.86%</span>
-                  </span>
-                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
-                    <TrendingUp size={11} className="mr-0.5" />
-                    ↑
-                  </span>
-                </div>
+      {/* Main Content Workspace */}
+      <div className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-7 space-y-5">
+        <div className="mx-auto max-w-7xl space-y-5">
 
-                <div className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full bg-rose-400 shrink-0" />
-                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Community avg completion rate{' '}
-                    <span className="font-bold text-slate-700 dark:text-slate-300">3.13%</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* SVG Visual Line Chart */}
-              <div className="mt-6 relative">
-                <div className="relative h-56 w-full">
-                  <svg viewBox="0 0 480 200" className="h-full w-full overflow-visible">
-                    <defs>
-                      <linearGradient id="userRateGradientView" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
-                        <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-
-                    {/* Dotted Horizontal Guidelines */}
-                    {[30, 65, 100, 135, 170].map((y, idx) => (
-                      <line
-                        key={idx}
-                        x1="30"
-                        y1={y}
-                        x2="450"
-                        y2={y}
-                        stroke="currentColor"
-                        className="text-slate-200 dark:text-slate-800"
-                        strokeDasharray="4 4"
-                        strokeWidth="1"
-                      />
-                    ))}
-
-                    {/* User Area Fill */}
-                    <path
-                      d="M 35,32 C 90,30 130,31 160,33 C 210,34 260,36 300,37 C 350,38 385,42 410,48 C 425,75 435,110 445,118 L 445,170 L 35,170 Z"
-                      fill="url(#userRateGradientView)"
-                    />
-
-                    {/* Community Benchmark Line (Coral / Rose along bottom) */}
-                    <line
-                      x1="35"
-                      y1="168"
-                      x2="445"
-                      y2="168"
-                      stroke="#f43f5e"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                    />
-
-                    {/* User Smooth Spline Line (Indigo / Cyan glow) */}
-                    <path
-                      d="M 35,32 C 90,30 130,31 160,33 C 210,34 260,36 300,37 C 350,38 385,42 410,48 C 425,75 435,110 445,118"
-                      fill="none"
-                      stroke="#6366f1"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                    />
-
-                    {/* Interactive Data Points */}
-                    {chartDays.map((cd, index) => {
-                      const x = 35 + index * 68.3;
-                      const y = index === 6 ? 118 : 32 + index * 2.5;
-                      return (
-                        <g key={cd.day} className="cursor-pointer group">
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r="5"
-                            className="fill-white stroke-indigo-600 stroke-2 group-hover:scale-125 transition-transform"
-                            onMouseEnter={() => setHoveredDay(cd)}
-                            onMouseLeave={() => setHoveredDay(null)}
-                          />
-                          <circle
-                            cx={x}
-                            cy="168"
-                            r="3.5"
-                            className="fill-rose-500 opacity-80"
-                          />
-                        </g>
-                      );
-                    })}
-                  </svg>
-
-                  {/* Hover Tooltip */}
-                  {hoveredDay && (
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 rounded-xl bg-slate-950 px-3 py-1.5 text-xs text-white shadow-xl pointer-events-none border border-slate-800 flex items-center gap-2">
-                      <span className="font-bold text-amber-400">{hoveredDay.day}:</span>
-                      <span>Your: <b>{hoveredDay.userRate}%</b></span>
-                      <span className="text-slate-400">|</span>
-                      <span>Comm: <b>{hoveredDay.commRate}%</b></span>
-                    </div>
-                  )}
-                </div>
-
-                {/* X-Axis Days Labels */}
-                <div className="flex justify-between px-2 pt-2 text-[11px] font-bold text-slate-400 dark:text-slate-500">
-                  {chartDays.map((d) => (
-                    <span key={d.day} className="w-8 text-center">
-                      {d.day}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Chart Legend */}
-                <div className="mt-6 flex items-center justify-center gap-6 border-t border-slate-100 dark:border-slate-800/80 pt-4">
-                  <div className="flex items-center gap-1.5">
-                    <span className="size-2.5 rounded-full bg-indigo-500" />
-                    <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                      Your completion rate
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="size-2.5 rounded-full bg-rose-500" />
-                    <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                      Community completion rate
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Motivation Badge */}
-            <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-r from-amber-500/5 via-yellow-500/5 to-transparent p-4 flex items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
-                <Sparkles size={20} />
+          {/* Top Header Bar with Sub-Tab Selector Pills */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/95 dark:border-slate-800 dark:bg-slate-900/95 p-4 px-5 shadow-2xs backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 shadow-md shadow-amber-500/20 font-black">
+                <Zap size={20} className="fill-slate-950" />
               </span>
-              <div className="text-xs">
-                <p className="font-black text-slate-900 dark:text-white">Consistent Editing Edge</p>
-                <p className="text-slate-500 dark:text-slate-400 mt-0.5">
-                  You rank higher than <b>88%</b> of cohort students in daily milestone completion!
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
+                    Level Up &amp; Mastery
+                  </h1>
+                  <span className="rounded-full bg-amber-500/10 dark:bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-black tracking-wider uppercase text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                    PRO LEADERBOARD
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Track daily editing habits, monitor cohort consistency, and conquer challenges
                 </p>
               </div>
             </div>
+
+            {/* Sub-Tab Navigation Segmented Pills */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center rounded-xl bg-slate-100/90 dark:bg-slate-800/80 p-1 border border-slate-200/60 dark:border-slate-700/60">
+                <button
+                  onClick={() => handleSubTabChange('dashboard')}
+                  aria-label="Switch to dashboard view"
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    activeSubTab === 'dashboard'
+                      ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-2xs font-extrabold'
+                      : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                  }`}
+                >
+                  <LayoutGrid size={14} />
+                  <span>Dashboard</span>
+                </button>
+
+                <button
+                  onClick={() => handleSubTabChange('habits')}
+                  aria-label="Switch to habits view"
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    activeSubTab === 'habits'
+                      ? 'bg-indigo-600 text-white shadow-2xs font-extrabold'
+                      : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                  }`}
+                >
+                  <Calendar size={14} />
+                  <span>Habits</span>
+                </button>
+
+                <button
+                  onClick={() => handleSubTabChange('challenges')}
+                  aria-label="Switch to challenges view"
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    activeSubTab === 'challenges'
+                      ? 'bg-amber-500 text-slate-950 shadow-2xs font-extrabold'
+                      : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                  }`}
+                >
+                  <Trophy size={14} />
+                  <span>Challenges 2.0</span>
+                </button>
+              </div>
+
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Back to feed"
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-100 hover:text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white transition"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Back to Feed</span>
+                </button>
+              )}
+            </div>
           </div>
 
+          {/* Toast Notification Banner */}
+          {toastMessage && (
+            <div className="rounded-xl bg-emerald-500 text-white p-3 text-xs font-black flex items-center justify-between shadow-md animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} />
+                <span>{toastMessage}</span>
+              </div>
+              <button onClick={() => setToastMessage(null)} className="text-white/80 hover:text-white">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
           {/* ========================================================================= */}
-          {/* COLUMN 2 (4 Cols): Levelup Members Leaderboard                            */}
+          {/* VIEW 1: HABITS CALENDAR VIEW (From User Reference Image 1)                */}
           {/* ========================================================================= */}
-          <div className="lg:col-span-4 flex flex-col gap-3">
-            <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-slate-900 p-5 shadow-xs flex flex-col h-[540px]">
-              {/* Header with All / Top 10 Filter Pills */}
-              <div className="flex items-center justify-between pb-3">
-                <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white">
-                  Levelup Members Leaderboard
-                </h3>
-                <div className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 text-[10px] font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setFilterView('all')}
-                    className={`rounded-md px-2 py-0.5 transition ${
-                      filterView === 'all'
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilterView('top10')}
-                    className={`rounded-md px-2 py-0.5 transition ${
-                      filterView === 'top10'
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    Top 10
-                  </button>
-                </div>
+          {activeSubTab === 'habits' && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                  Habits
+                </h2>
               </div>
 
-              {/* Search / Filter Input */}
-              <div className="relative mb-3">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search cohort member..."
-                  className="w-full rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 pl-8 pr-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-amber-500"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
+              {/* Grid: Calendar on Left, Today's Habits on Right */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                
+                {/* Calendar Card (8 cols) */}
+                <div className="lg:col-span-8 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
+                  {/* Calendar Top Controls: Month & Prev/Next */}
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                      {currentMonthName}
+                    </h3>
 
-              {/* MY RANK PINNED CARD (Highlighted compared to all members) */}
-              <div className="mb-3 rounded-full border-2 border-indigo-400/80 bg-indigo-50/80 dark:bg-indigo-950/60 dark:border-indigo-600 p-1.5 pr-3 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="flex size-7 items-center justify-center rounded-full border-2 border-indigo-500/40 bg-indigo-600 text-[11px] font-black text-white shrink-0">
-                    {userRank}
-                  </span>
-                  <div className="size-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-300 overflow-hidden shrink-0">
-                    {userInitials}
-                  </div>
-                  <div className="truncate">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-black text-slate-900 dark:text-white truncate">
-                        {userDisplayName.length > 14 ? `${userDisplayName.slice(0, 14)}...` : userDisplayName}
-                      </span>
-                      <span className="rounded-full bg-indigo-600 px-1.5 py-0.2 text-[9px] font-extrabold text-white uppercase tracking-wider">
-                        YOU
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentMonthName('September 2026')}
+                        className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+                      >
+                        Today
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          title="Previous Month"
+                          className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <button
+                          title="Next Month"
+                          className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Day of Week Headers */}
+                  <div className="grid grid-cols-7 gap-2 pt-4 pb-2 text-center text-xs font-black text-slate-600 dark:text-slate-400">
+                    <div>Sun</div>
+                    <div>Mon</div>
+                    <div>Tue</div>
+                    <div>Wed</div>
+                    <div>Thu</div>
+                    <div>Fri</div>
+                    <div>Sat</div>
+                  </div>
+
+                  {/* 42 Monthly Grid Cells */}
+                  <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                    {calendarCells.map((cell, idx) => (
+                      <div
+                        key={idx}
+                        className={`min-h-[72px] sm:min-h-[82px] rounded-xl border p-1.5 sm:p-2 flex flex-col justify-between transition-all ${
+                          cell.isToday
+                            ? 'border-amber-400 bg-amber-50/40 dark:border-amber-500/70 dark:bg-amber-950/20 shadow-xs'
+                            : cell.isCurrentMonth
+                            ? 'border-slate-150 dark:border-slate-800/80 bg-white dark:bg-slate-900/60'
+                            : 'border-slate-100 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-950/40 opacity-70'
+                        }`}
+                      >
+                        {/* Date Number */}
+                        <div className="text-right">
+                          <span
+                            className={`text-xs font-bold ${
+                              cell.isToday
+                                ? 'text-amber-600 dark:text-amber-400 font-black'
+                                : cell.isCurrentMonth
+                                ? 'text-slate-700 dark:text-slate-300'
+                                : 'text-slate-400 dark:text-slate-600'
+                            }`}
+                          >
+                            {cell.dateNum}
+                          </span>
+                        </div>
+
+                        {/* Habit Badge Pill inside Day */}
+                        <div
+                          className={`rounded-md border p-1 sm:p-1.5 text-[9px] sm:text-[10px] font-extrabold flex items-center gap-1 border-l-[3px] sm:border-l-4 ${
+                            cell.isCompleted
+                              ? 'border-l-amber-500 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200'
+                              : 'border-l-amber-400 border-slate-100 dark:border-slate-800/50 bg-slate-50/60 dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          {cell.isCompleted ? (
+                            <span className="flex size-3.5 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-black shrink-0">
+                              ✓
+                            </span>
+                          ) : (
+                            <span className="size-2 rounded-full bg-amber-400/80 shrink-0" />
+                          )}
+                          <span className="truncate leading-tight">{cell.habitTitle}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0 rounded-full bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 px-2.5 py-0.5 shadow-2xs">
-                  <span className="text-xs">🪙</span>
-                  <span className="text-xs font-black text-amber-500 dark:text-amber-400">
-                    {userPoints} PRO
-                  </span>
+                {/* Right Column: Complete Today's Habits (1) (Matching Reference Image 1) */}
+                <div className="lg:col-span-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                      Complete today's Habits (1)
+                    </h3>
+                  </div>
+
+                  {!todayHabitDismissed ? (
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 p-3.5 flex items-center justify-between gap-2 shadow-2xs hover:border-slate-300 transition">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleToggleTodayHabit}
+                          className={`flex size-6 items-center justify-center rounded-full transition ${
+                            todayHabitCompleted
+                              ? 'bg-emerald-500 text-white shadow-xs'
+                              : 'border-2 border-slate-300 dark:border-slate-600 hover:border-emerald-500'
+                          }`}
+                        >
+                          {todayHabitCompleted && <Check size={14} className="stroke-[3]" />}
+                        </button>
+
+                        <div>
+                          <p
+                            className={`text-xs font-extrabold ${
+                              todayHabitCompleted
+                                ? 'text-slate-600 dark:text-slate-400 line-through decoration-slate-400'
+                                : 'text-slate-900 dark:text-white'
+                            }`}
+                          >
+                            EDIT For 20 Minutes
+                          </p>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Clock size={12} />
+                            <span>08:00 AM</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10px] font-black text-white shadow-2xs">
+                          10 PRO
+                        </span>
+                        <button
+                          onClick={() => setTodayHabitDismissed(true)}
+                          title="Dismiss"
+                          className="rounded-lg p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-4 text-center space-y-2">
+                      <p className="text-xs text-slate-500">All habits logged for today!</p>
+                      <button
+                        onClick={() => setTodayHabitDismissed(false)}
+                        className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                      >
+                        Undo dismissal
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="rounded-xl bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 p-3">
+                    <p className="text-xs font-bold text-indigo-900 dark:text-indigo-300">
+                      💡 Pro Consistency Tip
+                    </p>
+                    <p className="text-[11px] text-indigo-700 dark:text-indigo-400 mt-0.5">
+                      Completing your daily 20-minute timeline practice for 7 days grants a 100 PRO streak multiplier!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* VIEW 2: CHALLENGES 2.0 VIEW (From User Reference Image 2)                 */}
+          {/* ========================================================================= */}
+          {activeSubTab === 'challenges' && (
+            <div className="space-y-5">
+              {/* Header with Title and Filter Dropdown */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                    Challenges
+                  </h2>
+                </div>
+
+                <div className="relative">
+                  <button
+                    onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                  >
+                    <span className="capitalize">{challengeFilter}</span>
+                    <Filter size={13} className="text-slate-400" />
+                    <ChevronDown size={14} className="text-slate-400" />
+                  </button>
+
+                  {showFilterDropdown && (
+                    <div className="absolute right-0 mt-1 w-36 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 shadow-xl z-20">
+                      {(['active', 'upcoming', 'completed', 'all'] as const).map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => {
+                            setChallengeFilter(opt);
+                            setShowFilterDropdown(false);
+                          }}
+                          className={`flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-bold capitalize transition ${
+                            challengeFilter === opt
+                              ? 'bg-amber-50 text-amber-950 dark:bg-amber-950/40 dark:text-amber-200'
+                              : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <span>{opt}</span>
+                          {challengeFilter === opt && <Check size={12} />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Scrollable Leaderboard List */}
-              <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
-                {filteredMembers.map((member) => {
-                  const isRank1 = member.rank === 1;
-                  const isRank2 = member.rank === 2;
-                  const isRank3 = member.rank === 3;
+              {/* Challenge Cards Grid (Matching Reference Image 2) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredChallenges.map((challenge) => {
+                  const isProject = challenge.type === 'PROJECT';
 
-                  // PODIUM RANK 1: Warm Golden Pill
-                  if (isRank1) {
-                    return (
-                      <div
-                        key={member.id}
-                        className="rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 p-1.5 pr-3 flex items-center justify-between text-white shadow-md shadow-amber-500/20 hover:scale-[1.01] transition-transform"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="flex size-7 items-center justify-center rounded-full bg-amber-600/60 border border-white/40 text-xs font-black shrink-0">
-                            🥇
-                          </span>
-                          <img
-                            src={member.avatarUrl}
-                            alt={member.name}
-                            className="size-7 rounded-full object-cover border border-white/60 shrink-0"
-                          />
-                          <span className="text-xs font-black tracking-tight truncate">
-                            {member.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0 rounded-full bg-amber-600/80 px-2.5 py-0.5 border border-amber-300/40">
-                          <span className="text-xs">🪙</span>
-                          <span className="text-xs font-black text-amber-100">
-                            {member.points.toLocaleString()} PRO
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  // PODIUM RANK 2: Silver / Sky Pill
-                  if (isRank2) {
-                    return (
-                      <div
-                        key={member.id}
-                        className="rounded-full bg-gradient-to-r from-slate-200 via-sky-100 to-slate-200 dark:from-slate-700 dark:via-slate-800 dark:to-slate-700 p-1.5 pr-3 flex items-center justify-between text-slate-900 dark:text-white shadow-sm hover:scale-[1.01] transition-transform"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="flex size-7 items-center justify-center rounded-full bg-slate-300 dark:bg-slate-600 text-xs font-black shrink-0">
-                            🥈
-                          </span>
-                          <img
-                            src={member.avatarUrl}
-                            alt={member.name}
-                            className="size-7 rounded-full object-cover border border-slate-300 dark:border-slate-600 shrink-0"
-                          />
-                          <span className="text-xs font-black tracking-tight truncate">
-                            {member.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0 rounded-full bg-slate-300/70 dark:bg-slate-600/80 px-2.5 py-0.5">
-                          <span className="text-xs">🪙</span>
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">
-                            {member.points.toLocaleString()} PRO
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  // PODIUM RANK 3: Bronze / Terracotta Pill
-                  if (isRank3) {
-                    return (
-                      <div
-                        key={member.id}
-                        className="rounded-full bg-gradient-to-r from-orange-300 via-amber-400 to-orange-400 text-slate-950 p-1.5 pr-3 flex items-center justify-between shadow-sm hover:scale-[1.01] transition-transform"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="flex size-7 items-center justify-center rounded-full bg-amber-600/30 text-xs font-black shrink-0">
-                            🥉
-                          </span>
-                          <img
-                            src={member.avatarUrl}
-                            alt={member.name}
-                            className="size-7 rounded-full object-cover border border-amber-600/30 shrink-0"
-                          />
-                          <span className="text-xs font-black tracking-tight truncate">
-                            {member.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0 rounded-full bg-amber-600/30 px-2.5 py-0.5">
-                          <span className="text-xs">🪙</span>
-                          <span className="text-xs font-black text-slate-950">
-                            {member.points.toLocaleString()} PRO
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  // RANKS 4+: Clean Standard Pill Rows
                   return (
                     <div
-                      key={member.id}
-                      className="rounded-full border border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/60 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 pr-3 flex items-center justify-between transition-colors"
+                      key={challenge.id}
+                      className="group rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs hover:shadow-lg transition-all flex flex-col justify-between"
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="flex size-7 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-black shrink-0">
-                          {member.rank}
-                        </span>
-                        <img
-                          src={member.avatarUrl}
-                          alt={member.name}
-                          className="size-7 rounded-full object-cover shrink-0"
-                        />
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                          {member.name}
-                        </span>
+                      {/* Top Graphic Banner with Styled SVGs matching screenshot */}
+                      <div className="relative h-44 sm:h-48 w-full bg-[#13161c] flex flex-col items-center justify-center p-4 border-b border-slate-800">
+                        {/* Top-Right ACTIVE Green Ribbon */}
+                        <div className="absolute top-0 right-0">
+                          <span
+                            className={`inline-block px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-bl-xl shadow-xs text-white ${
+                              challenge.status === 'active'
+                                ? 'bg-emerald-600'
+                                : challenge.status === 'completed'
+                                ? 'bg-blue-600'
+                                : 'bg-purple-600'
+                            }`}
+                          >
+                            {challenge.status}
+                          </span>
+                        </div>
+
+                        {/* Vector Graphic: Laptop Screen (Project) vs Notepad (Task) */}
+                        <div className="flex flex-col items-center justify-center space-y-1">
+                          {isProject ? (
+                            // Golden Laptop Vector Art
+                            <div className="relative">
+                              <svg width="68" height="48" viewBox="0 0 68 48" fill="none" className="text-amber-400">
+                                <rect x="8" y="4" width="52" height="32" rx="3" stroke="currentColor" strokeWidth="2.5" />
+                                <path d="M4 36H64C65.1046 36 66 36.8954 66 38V40H2V38C2 36.8954 2.89543 36 4 36Z" fill="currentColor" fillOpacity="0.3" stroke="currentColor" strokeWidth="2" />
+                                <rect x="14" y="10" width="40" height="20" rx="1.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
+                                <polygon points="30,16 40,20 30,24" fill="currentColor" />
+                                <line x1="16" y1="26" x2="52" y2="26" stroke="currentColor" strokeWidth="1.5" />
+                              </svg>
+                            </div>
+                          ) : (
+                            // Golden Notepad & Pencil Vector Art
+                            <div className="relative">
+                              <svg width="56" height="48" viewBox="0 0 56 48" fill="none" className="text-amber-400">
+                                <rect x="10" y="4" width="34" height="40" rx="4" stroke="currentColor" strokeWidth="2.5" />
+                                <line x1="16" y1="14" x2="30" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                <line x1="16" y1="20" x2="36" y2="20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                <line x1="16" y1="26" x2="26" y2="26" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                {/* Tilted Pencil */}
+                                <g transform="translate(24, 6) rotate(32)">
+                                  <polygon points="16,2 20,4 6,28 2,26" fill="currentColor" stroke="currentColor" strokeWidth="1" />
+                                  <polygon points="2,26 6,28 0,32" fill="#f59e0b" />
+                                </g>
+                              </svg>
+                            </div>
+                          )}
+
+                          {/* Bold Graphic Typography */}
+                          <div className="text-center font-black tracking-wider uppercase text-amber-400">
+                            <span className="block text-xl tracking-widest drop-shadow-[0_2px_8px_rgba(245,158,11,0.4)]">
+                              {challenge.type}
+                            </span>
+                            <span className="block text-sm tracking-wider text-amber-300 font-extrabold">
+                              {challenge.week}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5">
-                        <span className="text-xs">🪙</span>
-                        <span className="text-xs font-black text-amber-600 dark:text-amber-400">
-                          {member.points.toLocaleString()} PRO
-                        </span>
+
+                      {/* Card Body */}
+                      <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                        <div className="space-y-2.5">
+                          {/* Duration Pill */}
+                          <div className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                            <span>{challenge.startDate} - {challenge.endDate} • {challenge.durationLabel}</span>
+                          </div>
+
+                          {/* Challenge Title */}
+                          <h3 className="text-sm font-black text-slate-900 dark:text-white leading-snug group-hover:text-amber-500 transition-colors">
+                            {challenge.title}
+                          </h3>
+
+                          {/* Participants & Social Proof */}
+                          <div className="flex items-center gap-2 pt-1">
+                            <div className="flex -space-x-1.5 overflow-hidden">
+                              <img
+                                className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
+                                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64&q=80"
+                                alt="User"
+                              />
+                              <img
+                                className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
+                                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&h=64&q=80"
+                                alt="User"
+                              />
+                              {challenge.participantsJoined > 2 && (
+                                <img
+                                  className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
+                                  src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=64&h=64&q=80"
+                                  alt="User"
+                                />
+                              )}
+                            </div>
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                              +{challenge.participantsJoined - 1} participants joined
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
+                          {challenge.isJoined ? (
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                                <Check size={14} className="text-emerald-500" />
+                                <span>Joined</span>
+                              </span>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                🪙 {challenge.proReward} PRO
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium text-slate-500">
+                                Join &amp; stand a chance to earn
+                              </span>
+                              <button
+                                onClick={() => handleJoinChallenge(challenge.id)}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 px-3 py-1 text-xs font-black text-amber-800 dark:text-amber-300 hover:bg-amber-100 active:scale-95 transition shadow-2xs"
+                              >
+                                <span>🪙 {challenge.proReward} PRO</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
             </div>
-          </div>
+          )}
 
           {/* ========================================================================= */}
-          {/* COLUMN 3 (3 Cols): Artistic Profile Card & Daily Habits                   */}
+          {/* VIEW 3: DASHBOARD & LEADERBOARD (Previous 3-Column Experience)            */}
           {/* ========================================================================= */}
-          <div className="lg:col-span-3">
-            <div className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-[#3a3587] via-[#292367] to-[#161245] text-white p-5 shadow-xl min-h-[540px] flex flex-col justify-between">
+          {activeSubTab === 'dashboard' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
               
-              {/* Starry Constellation Backdrop Dots */}
-              <div className="absolute inset-0 pointer-events-none opacity-40">
-                <div className="absolute top-6 left-8 size-1 rounded-full bg-white shadow-xs" />
-                <div className="absolute top-14 right-10 size-1 rounded-full bg-white shadow-xs" />
-                <div className="absolute top-28 left-20 size-1 rounded-full bg-white shadow-xs" />
-                <div className="absolute top-36 right-16 size-1 rounded-full bg-white shadow-xs" />
-                <div className="absolute top-48 left-12 size-1 rounded-full bg-white shadow-xs" />
-              </div>
+              {/* COLUMN 1 (5 Cols): Habit Performance & Benchmark Chart */}
+              <div className="lg:col-span-5 flex flex-col gap-4">
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-slate-900 p-5 shadow-xs">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
+                        Habit
+                      </h3>
+                    </div>
 
-              <div className="relative z-10">
-                {/* Big Profile Avatar */}
-                <div className="text-center pt-2">
-                  <div className="relative mx-auto size-20">
-                    <div className="size-20 rounded-full border-4 border-white/90 bg-slate-200 text-slate-800 flex items-center justify-center font-black text-xl shadow-xl overflow-hidden">
-                      {userInitials}
+                    <div className="text-right">
+                      <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 block">
+                        Points gained
+                      </span>
+                      <div className="inline-flex items-center gap-1.5 mt-0.5">
+                        <span className="flex size-5 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 shadow-xs text-xs font-black text-amber-950">
+                          🪙
+                        </span>
+                        <span className="text-sm font-black text-amber-500 tracking-tight">
+                          130 PRO
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-900/60 border border-white/10 px-3 py-0.5 text-xs font-black text-amber-300 shadow-sm">
-                    <span>🪙</span>
-                    <span>{userPoints} PRO</span>
+                  {/* Avg Completion Rate Stats */}
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="size-2.5 rounded-full bg-indigo-500 shrink-0" />
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        Your avg completion rate{' '}
+                        <span className="font-extrabold text-indigo-600 dark:text-indigo-400">92.86%</span>
+                      </span>
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                        <TrendingUp size={11} className="mr-0.5" />
+                        ↑
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="size-2.5 rounded-full bg-rose-400 shrink-0" />
+                      <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                        Community avg completion rate{' '}
+                        <span className="font-bold text-slate-700 dark:text-slate-300">3.13%</span>
+                      </span>
+                    </div>
                   </div>
 
-                  <h4 className="mt-2 text-sm font-black text-white tracking-tight">
-                    {userDisplayName}
-                  </h4>
-                </div>
+                  {/* SVG Visual Line Chart */}
+                  <div className="mt-6 relative">
+                    <div className="relative h-56 w-full">
+                      <svg viewBox="0 0 480 200" className="h-full w-full overflow-visible">
+                        <defs>
+                          <linearGradient id="userRateGradientView" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
+                            <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+                          </linearGradient>
+                        </defs>
 
-                {/* PRO Points Banner & History Trigger Button */}
-                <div className="mt-5 rounded-2xl bg-white/10 border border-white/15 p-2.5 flex items-center justify-between backdrop-blur-xs">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm">🪙</span>
-                    <span className="text-xs font-black text-amber-300">
-                      {userPoints} PRO
-                    </span>
-                  </div>
+                        {/* Dotted Horizontal Guidelines */}
+                        <line x1="30" y1="20" x2="470" y2="20" stroke="#cbd5e1" strokeDasharray="3 3" strokeWidth="1" className="dark:stroke-slate-800" />
+                        <line x1="30" y1="70" x2="470" y2="70" stroke="#cbd5e1" strokeDasharray="3 3" strokeWidth="1" className="dark:stroke-slate-800" />
+                        <line x1="30" y1="120" x2="470" y2="120" stroke="#cbd5e1" strokeDasharray="3 3" strokeWidth="1" className="dark:stroke-slate-800" />
+                        <line x1="30" y1="170" x2="470" y2="170" stroke="#cbd5e1" strokeDasharray="3 3" strokeWidth="1" className="dark:stroke-slate-800" />
 
-                  <button
-                    type="button"
-                    onClick={() => setShowHistoryModal(true)}
-                    className="rounded-xl bg-white/90 px-2.5 py-1 text-[11px] font-black text-slate-950 hover:bg-white hover:scale-105 active:scale-95 transition shadow-xs flex items-center gap-1"
-                  >
-                    <span>View PRO History</span>
-                    <ArrowUpRight size={12} />
-                  </button>
-                </div>
+                        {/* Y-Axis Labels */}
+                        <text x="5" y="24" fontSize="10" fill="#94a3b8" fontWeight="600">100%</text>
+                        <text x="5" y="74" fontSize="10" fill="#94a3b8" fontWeight="600">75%</text>
+                        <text x="5" y="124" fontSize="10" fill="#94a3b8" fontWeight="600">50%</text>
+                        <text x="5" y="174" fontSize="10" fill="#94a3b8" fontWeight="600">25%</text>
 
-                {/* Today's Habits Section */}
-                <div className="mt-6">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <h5 className="text-xs font-black text-white tracking-wide">
-                      Today's Habits
-                    </h5>
-                    <button
-                      type="button"
-                      onClick={() => setShowHabits(!showHabits)}
-                      className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-slate-200 hover:bg-white/20 transition flex items-center gap-1"
-                    >
-                      {showHabits ? (
-                        <>
-                          <Check size={10} className="text-emerald-400" />
-                          <span>Show less</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Show more</span>
-                          <ChevronDown size={10} />
-                        </>
+                        {/* Community Average Line */}
+                        <path
+                          d="M 50 188 Q 115 187, 180 188 T 310 187 T 440 188"
+                          fill="none"
+                          stroke="#fb7185"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                        />
+
+                        {/* User Completion Curve Fill */}
+                        <path
+                          d="M 50 30 C 115 28, 180 32, 245 33 C 310 34, 375 36, 440 115 L 440 170 L 50 170 Z"
+                          fill="url(#userRateGradientView)"
+                        />
+
+                        {/* User Completion Spline */}
+                        <path
+                          d="M 50 30 C 115 28, 180 32, 245 33 C 310 34, 375 36, 440 115"
+                          fill="none"
+                          stroke="#6366f1"
+                          strokeWidth="3.5"
+                          strokeLinecap="round"
+                        />
+
+                        {/* Interactive Data Nodes */}
+                        {[
+                          { cx: 50, cy: 30, day: 'Wed', u: 94.2, c: 3.1 },
+                          { cx: 115, cy: 28, day: 'Thu', u: 95.0, c: 3.2 },
+                          { cx: 180, cy: 32, day: 'Fri', u: 93.8, c: 3.0 },
+                          { cx: 245, cy: 33, day: 'Sat', u: 93.5, c: 3.2 },
+                          { cx: 310, cy: 34, day: 'Sun', u: 92.9, c: 3.1 },
+                          { cx: 375, cy: 36, day: 'Mon', u: 91.4, c: 3.1 },
+                          { cx: 440, cy: 115, day: 'Tue', u: 52.0, c: 3.13 },
+                        ].map((pt, i) => (
+                          <g
+                            key={i}
+                            className="cursor-pointer group"
+                            onMouseEnter={() => setHoveredDay({ day: pt.day, userRate: pt.u, commRate: pt.c })}
+                            onMouseLeave={() => setHoveredDay(null)}
+                          >
+                            <circle
+                              cx={pt.cx}
+                              cy={pt.cy}
+                              r={i === 6 ? 6 : 4}
+                              className={i === 6 ? 'fill-indigo-600 stroke-4 stroke-white dark:stroke-slate-900 shadow-md' : 'fill-white stroke-3 stroke-indigo-600'}
+                            />
+                            <circle
+                              cx={pt.cx}
+                              cy={188}
+                              r={3}
+                              className="fill-rose-400 stroke-2 stroke-white dark:stroke-slate-900"
+                            />
+                          </g>
+                        ))}
+                      </svg>
+
+                      {/* Tooltip Overlay */}
+                      {hoveredDay && (
+                        <div className="absolute top-2 right-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-2 px-3 shadow-lg backdrop-blur-xs text-xs pointer-events-none animate-in fade-in">
+                          <p className="font-bold text-slate-800 dark:text-slate-200">{hoveredDay.day} Performance</p>
+                          <p className="text-indigo-600 dark:text-indigo-400 font-extrabold">You: {hoveredDay.userRate}%</p>
+                          <p className="text-rose-500 font-medium">Community: {hoveredDay.commRate}%</p>
+                        </div>
                       )}
+                    </div>
+
+                    {/* X-Axis Days of Week */}
+                    <div className="flex justify-between px-6 pt-3 text-xs font-bold text-slate-500 dark:text-slate-400">
+                      {chartDays.map((d) => (
+                        <span key={d.day} className={d.day === 'Tue' ? 'text-indigo-600 dark:text-indigo-400 font-black' : ''}>
+                          {d.day}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Chart Legend */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-6 text-[11px] font-semibold text-slate-500">
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-indigo-500" />
+                      <span>Your Completion</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-rose-400" />
+                      <span>Cohort Avg</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* COLUMN 2 (4 Cols): Members Leaderboard */}
+              <div className="lg:col-span-4 rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-slate-900 p-5 shadow-xs flex flex-col h-full">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white">
+                      Levelup Members
+                    </h3>
+                    <p className="text-[11px] text-slate-400">Ranked by points</p>
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+                    <button
+                      onClick={() => setFilterView('all')}
+                      className={`rounded-lg px-2.5 py-1 text-[11px] font-extrabold transition ${
+                        filterView === 'all'
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setFilterView('top10')}
+                      className={`rounded-lg px-2.5 py-1 text-[11px] font-extrabold transition ${
+                        filterView === 'top10'
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      Top 10
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative mb-3">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search cohort members..."
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950 py-1.5 pl-8 pr-3 text-xs placeholder:text-slate-400 focus:border-amber-500 focus:outline-hidden"
+                  />
+                </div>
+
+                {/* Pinned Current User Rank Card */}
+                <div className="rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50 to-yellow-50/60 dark:from-amber-950/40 dark:to-yellow-950/20 p-3 mb-3 flex items-center justify-between shadow-2xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-xs font-black text-amber-900 dark:text-amber-300">
+                      ({userRank})
+                    </span>
+                    <div className="truncate">
+                      <p className="text-xs font-black text-slate-900 dark:text-white truncate">
+                        {userDisplayName}
+                      </p>
+                      <span className="inline-block rounded-sm bg-amber-500/20 px-1.5 py-0.2 text-[9px] font-black text-amber-800 dark:text-amber-300">
+                        YOU
+                      </span>
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-xs font-black text-amber-900 dark:text-amber-300">
+                    {userPoints} PRO
+                  </span>
+                </div>
+
+                {/* Top 3 Podium Highlights */}
+                <div className="space-y-1.5 mb-3">
+                  <div className="rounded-xl border border-yellow-200/80 bg-yellow-500/10 dark:border-yellow-600/30 dark:bg-yellow-500/5 p-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">🥇</span>
+                      <span className="text-xs font-bold text-slate-900 dark:text-slate-100">Bala murugan</span>
+                    </div>
+                    <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400">36,190 PRO</span>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-800/40 p-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">🥈</span>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Kamalesh K</span>
+                    </div>
+                    <span className="text-xs font-extrabold text-slate-600 dark:text-slate-400">35,525 PRO</span>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-200/60 bg-amber-700/5 dark:border-amber-800/30 dark:bg-amber-900/10 p-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">🥉</span>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Prasanth R</span>
+                    </div>
+                    <span className="text-xs font-extrabold text-amber-700 dark:text-amber-500">23,430 PRO</span>
+                  </div>
+                </div>
+
+                {/* Scrollable Members List */}
+                <div className="flex-1 overflow-y-auto max-h-72 space-y-1 pr-1">
+                  {filteredMembers.slice(3).map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between rounded-xl p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition text-xs"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-5 text-center text-slate-400 font-bold text-[11px] shrink-0">
+                          {member.rank}
+                        </span>
+                        <img
+                          src={member.avatarUrl}
+                          alt={member.name}
+                          className="size-6 rounded-full object-cover shrink-0"
+                        />
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">
+                          {member.name}
+                        </span>
+                      </div>
+                      <span className="font-black text-slate-800 dark:text-slate-200 shrink-0">
+                        {member.points.toLocaleString()} PRO
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* COLUMN 3 (3 Cols): Artistic Starry Cosmic Profile & Habits Card */}
+              <div className="lg:col-span-3 rounded-2xl bg-gradient-to-b from-[#1b1f3b] via-[#10142b] to-[#0a0c1a] text-white p-5 shadow-lg border border-indigo-950 flex flex-col justify-between overflow-hidden relative">
+                <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px]" />
+
+                <div className="relative z-10 space-y-4">
+                  {/* Top Avatar & Coin Profile */}
+                  <div className="flex flex-col items-center text-center">
+                    <div className="relative">
+                      <div className="flex size-16 items-center justify-center rounded-full bg-gradient-to-tr from-amber-400 to-yellow-200 text-slate-950 font-black text-xl shadow-lg ring-4 ring-amber-400/20">
+                        {userInitials}
+                      </div>
+                      <span className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-amber-500 text-[11px] font-black shadow-md border-2 border-[#10142b]">
+                        🪙
+                      </span>
+                    </div>
+
+                    <h4 className="mt-2.5 text-sm font-black tracking-tight text-white">
+                      {userDisplayName}
+                    </h4>
+
+                    {/* PRO Points Badge */}
+                    <div className="mt-1 flex items-center gap-1 rounded-full bg-white/10 px-3 py-0.5 text-xs font-black text-amber-300 border border-white/15">
+                      <span>{userPoints} PRO</span>
+                    </div>
+
+                    {/* PRO History Trigger */}
+                    <button
+                      onClick={() => setShowHistoryModal(true)}
+                      className="mt-2 text-[10px] font-bold text-amber-300/80 hover:text-amber-200 flex items-center gap-1 transition"
+                    >
+                      <span>View PRO History</span>
+                      <ArrowUpRight size={10} />
                     </button>
                   </div>
 
-                  {showHabits && (
-                    <div className="space-y-2">
-                      {/* Habit 1 */}
-                      <div className="rounded-xl bg-white/10 border border-white/15 p-2.5 flex items-center justify-between backdrop-blur-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="flex size-5 items-center justify-center rounded-md bg-emerald-500 text-white shrink-0">
-                            <Check size={12} />
-                          </span>
-                          <div>
-                            <p className="text-[11px] font-extrabold text-white">
-                              EDIT for 20 minutes
-                            </p>
-                            <p className="text-[9px] text-slate-300">08:00 AM</p>
-                          </div>
-                        </div>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-300 border border-amber-400/30">
-                          🪙 10 PRO
-                        </span>
-                      </div>
-
-                      {/* Habit 2 */}
-                      <div className="rounded-xl bg-white/10 border border-white/15 p-2.5 flex items-center justify-between backdrop-blur-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="flex size-5 items-center justify-center rounded-md bg-emerald-500 text-white shrink-0">
-                            <Check size={12} />
-                          </span>
-                          <div>
-                            <p className="text-[11px] font-extrabold text-white">
-                              Export 1 Rough Cut
-                            </p>
-                            <p className="text-[9px] text-slate-300">11:30 AM</p>
-                          </div>
-                        </div>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-300 border border-amber-400/30">
-                          🪙 15 PRO
-                        </span>
-                      </div>
-
-                      {/* Habit 3 */}
-                      <div className="rounded-xl bg-white/5 border border-white/10 p-2.5 flex items-center justify-between backdrop-blur-xs opacity-90">
-                        <div className="flex items-center gap-2">
-                          <span className="flex size-5 items-center justify-center rounded-md border border-white/40 text-transparent shrink-0">
-                            ✓
-                          </span>
-                          <div>
-                            <p className="text-[11px] font-bold text-slate-200">
-                              Review 1 Peer Project
-                            </p>
-                            <p className="text-[9px] text-slate-400">03:00 PM</p>
-                          </div>
-                        </div>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-300 border border-amber-400/30">
-                          🪙 25 PRO
-                        </span>
-                      </div>
+                  {/* Today's Habits Header with Expand/Collapse */}
+                  <div className="border-t border-white/10 pt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-black tracking-wide text-white">
+                        Today's Habits
+                      </span>
+                      <button
+                        onClick={() => setShowHabits(!showHabits)}
+                        className="text-[10px] font-bold text-slate-400 hover:text-white flex items-center gap-0.5"
+                      >
+                        {showHabits ? <span>Show less</span> : <span>Show more</span>}
+                        <ChevronDown size={10} className={showHabits ? 'rotate-180' : ''} />
+                      </button>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Scenic Misty Pine Trees Silhouette at Bottom */}
-              <div className="relative mt-8 -mx-5 -mb-5 h-24 overflow-hidden pointer-events-none">
-                <svg viewBox="0 0 360 100" className="absolute bottom-0 w-full h-full fill-indigo-950/90" preserveAspectRatio="none">
-                  <path d="M0,100 L0,70 L20,40 L40,70 L60,45 L80,75 L110,35 L140,75 L170,40 L200,80 L230,30 L260,75 L290,45 L320,80 L340,50 L360,75 L360,100 Z" opacity="0.4" />
-                  <path d="M0,100 L0,80 L15,55 L30,85 L50,50 L75,85 L100,55 L125,90 L155,50 L185,85 L215,45 L245,85 L275,55 L305,90 L335,60 L360,85 L360,100 Z" opacity="0.8" />
-                </svg>
-              </div>
-            </div>
-          </div>
+                    {showHabits && (
+                      <div className="space-y-2">
+                        <div className="rounded-xl bg-white/10 border border-white/15 p-2.5 flex items-center justify-between backdrop-blur-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="flex size-5 items-center justify-center rounded-md bg-emerald-500 text-white shrink-0">
+                              <Check size={12} />
+                            </span>
+                            <div>
+                              <p className="text-[11px] font-extrabold text-white">EDIT for 20 minutes</p>
+                              <p className="text-[9px] text-slate-300">08:00 AM</p>
+                            </div>
+                          </div>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-300 border border-amber-400/30">
+                            🪙 10 PRO
+                          </span>
+                        </div>
 
-        </div>
-
-        {/* Footer info banner */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 rounded-2xl p-4 px-5">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Award size={15} className="text-amber-500" />
-            <span>Leaderboard refreshes hourly based on lesson watch time, assignment scores, and daily habit consistency</span>
-          </div>
-
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl bg-slate-900 px-5 py-2 text-xs font-black text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 transition"
-            >
-              Close
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* PRO Points History Modal */}
-      {showHistoryModal && (
-        <div
-          className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
-          onClick={() => setShowHistoryModal(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-slate-900 dark:text-white shadow-2xl animate-in fade-in zoom-in-95"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="flex size-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
-                  <History size={16} />
-                </span>
-                <div>
-                  <h4 className="text-sm font-black">PRO XP Transaction History</h4>
-                  <p className="text-[11px] text-slate-400">Total Balance: {userPoints} PRO</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowHistoryModal(false)}
-                className="rounded-lg p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="mt-4 max-h-72 overflow-y-auto space-y-2.5 pr-1">
-              {PRO_HISTORY_TRANSACTIONS.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950/60 p-3 flex items-center justify-between"
-                >
-                  <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{tx.title}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{tx.date}</p>
+                        <div className="rounded-xl bg-white/10 border border-white/15 p-2.5 flex items-center justify-between backdrop-blur-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="flex size-5 items-center justify-center rounded-md bg-emerald-500 text-white shrink-0">
+                              <Check size={12} />
+                            </span>
+                            <div>
+                              <p className="text-[11px] font-extrabold text-white">Export 1 Rough Cut</p>
+                              <p className="text-[9px] text-slate-300">11:30 AM</p>
+                            </div>
+                          </div>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-300 border border-amber-400/30">
+                            🪙 15 PRO
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-black text-emerald-600 dark:text-emerald-400">
-                    {tx.points}
-                  </span>
                 </div>
-              ))}
+
+                {/* Artistic Misty Layered Pine Silhouette at Base */}
+                <div className="relative mt-4 -mx-5 -mb-5 h-16 overflow-hidden opacity-30 pointer-events-none">
+                  <svg viewBox="0 0 300 80" className="w-full h-full object-cover fill-indigo-400" preserveAspectRatio="none">
+                    <polygon points="0,80 20,45 35,65 55,30 75,70 95,20 115,60 135,35 155,75 175,25 195,65 215,30 235,70 255,40 275,60 300,30 300,80" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Footer Bar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200/80 dark:border-slate-800 pt-4">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <Award size={15} className="text-amber-500" />
+              <span>Leaderboard &amp; challenges refresh hourly based on lessons, habits, and project submissions</span>
             </div>
 
-            <div className="mt-5 flex justify-end">
+            {onClose && (
               <button
-                onClick={() => setShowHistoryModal(false)}
-                className="rounded-xl bg-slate-900 px-4 py-1.5 text-xs font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950"
+                type="button"
+                onClick={onClose}
+                className="rounded-xl bg-slate-900 px-5 py-2 text-xs font-black text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 transition"
               >
-                Done
+                Close
               </button>
-            </div>
+            )}
           </div>
         </div>
-      )}
+
+        {/* PRO Points History Modal */}
+        {showHistoryModal && (
+          <div
+            className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+            onClick={() => setShowHistoryModal(false)}
+          >
+            <div
+              className="w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-slate-900 dark:text-white shadow-2xl animate-in fade-in zoom-in-95"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+                    <History size={16} />
+                  </span>
+                  <div>
+                    <h4 className="text-sm font-black">PRO XP Transaction History</h4>
+                    <p className="text-[11px] text-slate-400">Total Balance: {userPoints} PRO</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="rounded-lg p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="mt-4 max-h-72 overflow-y-auto space-y-2.5 pr-1">
+                {PRO_HISTORY_TRANSACTIONS.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950/60 p-3 flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{tx.title}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{tx.date}</p>
+                    </div>
+                    <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-black text-emerald-600 dark:text-emerald-400">
+                      {tx.points}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 flex justify-end">
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="rounded-xl bg-slate-900 px-4 py-1.5 text-xs font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
