@@ -306,9 +306,10 @@ describe('CommunityHub & Components', () => {
     const habitsSubTabBtn = screen.getByRole('button', { name: /switch to habits view/i });
     fireEvent.click(habitsSubTabBtn);
 
-    // Verify Habits section header and calendar month
+    // Verify Habits section header and dynamic calendar month
     expect(screen.getByRole('heading', { level: 2, name: 'Habits' })).toBeInTheDocument();
-    expect(screen.getByText('September 2026')).toBeInTheDocument();
+    const expectedMonthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    expect(screen.getByText(expectedMonthName)).toBeInTheDocument();
     expect(screen.getByText('Sun')).toBeInTheDocument();
     expect(screen.getByText('Mon')).toBeInTheDocument();
     expect(screen.getByText('Tue')).toBeInTheDocument();
@@ -317,6 +318,27 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByText(/Complete today's Habits \(1\)/i)).toBeInTheDocument();
     expect(screen.getByText('EDIT For 20 Minutes')).toBeInTheDocument();
     expect(screen.getByText('10 PRO')).toBeInTheDocument();
+
+    // Verify calendar cells contain interactive habit checkboxes
+    const habitCheckboxes = screen.getAllByRole('checkbox');
+    expect(habitCheckboxes.length).toBeGreaterThan(0);
+
+    // Toggle one of the checkboxes
+    const firstCheckbox = habitCheckboxes[0];
+    const initialChecked = (firstCheckbox as HTMLInputElement).checked;
+    fireEvent.click(firstCheckbox);
+    expect((firstCheckbox as HTMLInputElement).checked).toBe(!initialChecked);
+
+    // Test month navigation controls
+    const nextMonthBtn = screen.getByRole('button', { name: /next month/i });
+    fireEvent.click(nextMonthBtn);
+    // Month should change
+    expect(screen.queryByText(expectedMonthName)).not.toBeInTheDocument();
+
+    // Click Today button to jump back
+    const todayBtn = screen.getByRole('button', { name: /today/i });
+    fireEvent.click(todayBtn);
+    expect(screen.getByText(expectedMonthName)).toBeInTheDocument();
   });
 
   it('renders Challenges 2.0 with Project/Task cards and filter when switching to challenges sub-tab', () => {

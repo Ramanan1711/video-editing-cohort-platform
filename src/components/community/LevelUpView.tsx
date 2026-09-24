@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   X,
@@ -36,7 +36,15 @@ export type LevelUpSubTab = 'dashboard' | 'habits' | 'challenges';
 interface LevelUpViewProps {
   onClose?: () => void;
   initialSubTab?: LevelUpSubTab;
+  initialDate?: Date;
 }
+
+const formatDateKey = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 interface LeaderboardMember {
   rank: number;
@@ -140,9 +148,31 @@ const INITIAL_CHALLENGES: ChallengeItem[] = [
   },
 ];
 
-export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab = 'dashboard' }) => {
+export const LevelUpView: React.FC<LevelUpViewProps> = ({
+  onClose,
+  initialSubTab = 'dashboard',
+  initialDate,
+}) => {
   const { profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Dynamic live today reference (defaults to real current Date)
+  // Dynamic reference for Today (supports testing with initialDate or live clock)
+  const [currentLiveDate, setCurrentLiveDate] = useState<Date>(() => initialDate || new Date());
+  const today = currentLiveDate;
+  const todayDateKey = useMemo(() => formatDateKey(today), [today]);
+
+  // Midnight rollover listener: checks every 15s if local date has rolled over past 12:00 AM midnight
+  useEffect(() => {
+    if (initialDate) return;
+    const interval = setInterval(() => {
+      const now = new Date();
+      if (formatDateKey(now) !== formatDateKey(currentLiveDate)) {
+        setCurrentLiveDate(now);
+      }
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [currentLiveDate, initialDate]);
 
   // Sub-tab state
   const querySub = searchParams.get('sub') as LevelUpSubTab | null;
@@ -162,9 +192,38 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
   const [filterView, setFilterView] = useState<'all' | 'top10'>('all');
   const [hoveredDay, setHoveredDay] = useState<{ day: string; userRate: number; commRate: number } | null>(null);
 
-  // Habits Calendar state
-  const [currentMonthName, setCurrentMonthName] = useState('September 2026');
-  const [todayHabitCompleted, setTodayHabitCompleted] = useState(true);
+  // Dynamic Habits Calendar state based on live current date
+  const [calendarDate, setCalendarDate] = useState<Date>(
+    () => new Date(today.getFullYear(), today.getMonth(), 1)
+  );
+  const [completedHabitDates, setCompletedHabitDates] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('cutcraft_completed_habits');
+      if (saved) {
+        return new Set<string>(JSON.parse(saved));
+      }
+    } catch {
+      // ignore
+    }
+    const initial = new Set<string>();
+    // Pre-populate today and recent streak days dynamically
+    for (let offset = 0; offset <= 7; offset++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - offset);
+      initial.add(formatDateKey(d));
+    }
+    return initial;
+  });
+
+  // Sync completed habits to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('cutcraft_completed_habits', JSON.stringify(Array.from(completedHabitDates)));
+    } catch {
+      // ignore
+    }
+  }, [completedHabitDates]);
+  const todayHabitCompleted = completedHabitDates.has(todayDateKey);
   const [todayHabitDismissed, setTodayHabitDismissed] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -239,9 +298,11 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
     ? joinedChallengeIds.includes(selectedChallenge.id)
     : false;
 
-  // User's current rank data
+  // User's current rank data & dynamic points
   const userRank = 296;
-  const userPoints = 829;
+  // Base balance 819 PRO + 10 PRO earned if today's habit is completed before 12:00 AM midnight
+  const basePoints = 819;
+  const userPoints = basePoints + (todayHabitCompleted ? 10 : 0);
   const userDisplayName = profile?.full_name || 'B15068 Jayanth Durairaj';
   const userInitials = (profile?.full_name || 'Jayanth Durairaj')
     .split(' ')
@@ -274,55 +335,132 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
     return list;
   }, [filterView, searchQuery]);
 
-  // Calendar cells generation for September 2026
+  // Dynamic Month title
+  const currentMonthName = useMemo(() => {
+    return calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }, [calendarDate]);
+
+  const handlePrevMonth = () => {
+    setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleGoToToday = () => {
+    setCalendarDate(new Date(today.getFullYear(), today.getMonth(), 1));
+  };
+
+  const handleToggleHabitDate = (dateKey: string) => {
+    // 1. Upcoming days cannot be ticked in advance (disabled until 12:00 AM midnight)
+    if (dateKey > todayDateKey) {
+      setToastMessage(`⏳ Upcoming Day: Habits unlock at 12:00 AM midnight on ${dateKey}.`);
+      setTimeout(() => setToastMessage(null), 3500);
+      return;
+    }
+
+    // 2. Past days cannot be modified (permanently locked once 12:00 AM midnight passes)
+    if (dateKey < todayDateKey) {
+      setToastMessage(`🔒 Day Ended at 12:00 AM: Past habit records are sealed and cannot be modified.`);
+      setTimeout(() => setToastMessage(null), 3500);
+      return;
+    }
+
+    // 3. Today only: editable, awards or deducts points in real-time
+    setCompletedHabitDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(dateKey)) {
+        next.delete(dateKey);
+        setToastMessage(`Today's habit marked incomplete (-10 PRO)`);
+      } else {
+        next.add(dateKey);
+        setToastMessage(`🎉 Today's habit completed! +10 PRO Points earned.`);
+      }
+      return next;
+    });
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleToggleTodayHabit = () => {
+    handleToggleHabitDate(todayDateKey);
+  };
+
+  // Dynamic Calendar cells generation based on currently selected month and year
   const calendarCells = useMemo(() => {
-    const days: {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sun, 1 = Mon ...
+    const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const cells: {
+      dateKey: string;
       dateNum: number;
       isCurrentMonth: boolean;
       isToday: boolean;
+      isPast: boolean;
+      isFuture: boolean;
       isCompleted: boolean;
       habitTitle: string;
     }[] = [];
 
-    // Aug 30, Aug 31
-    days.push({ dateNum: 30, isCurrentMonth: false, isToday: false, isCompleted: true, habitTitle: 'EDIT for 20 minutes' });
-    days.push({ dateNum: 31, isCurrentMonth: false, isToday: false, isCompleted: true, habitTitle: 'EDIT for 20 minutes' });
+    // Trailing days from previous month
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      const d = daysInPrevMonth - i;
+      const prevDate = new Date(year, month - 1, d);
+      const dateKey = formatDateKey(prevDate);
 
-    // Sep 1 to Sep 30
-    for (let i = 1; i <= 30; i++) {
-      const isToday = i === 8;
-      const isCompleted = i <= 8; // Past and today are completed
-      days.push({
-        dateNum: i,
-        isCurrentMonth: true,
-        isToday,
-        isCompleted,
-        habitTitle: 'EDIT for 20 minutes',
-      });
-    }
-
-    // Oct 1 to Oct 10
-    for (let i = 1; i <= 10; i++) {
-      days.push({
-        dateNum: i,
+      cells.push({
+        dateKey,
+        dateNum: d,
         isCurrentMonth: false,
-        isToday: false,
-        isCompleted: false,
+        isToday: dateKey === todayDateKey,
+        isPast: dateKey < todayDateKey,
+        isFuture: dateKey > todayDateKey,
+        isCompleted: completedHabitDates.has(dateKey),
         habitTitle: 'EDIT for 20 minutes',
       });
     }
 
-    return days;
-  }, []);
+    // Days in current month
+    for (let d = 1; d <= daysInCurrentMonth; d++) {
+      const currDate = new Date(year, month, d);
+      const dateKey = formatDateKey(currDate);
 
-  const handleToggleTodayHabit = () => {
-    const nextState = !todayHabitCompleted;
-    setTodayHabitCompleted(nextState);
-    if (nextState) {
-      setToastMessage('+10 PRO Points Earned!');
-      setTimeout(() => setToastMessage(null), 3000);
+      cells.push({
+        dateKey,
+        dateNum: d,
+        isCurrentMonth: true,
+        isToday: dateKey === todayDateKey,
+        isPast: dateKey < todayDateKey,
+        isFuture: dateKey > todayDateKey,
+        isCompleted: completedHabitDates.has(dateKey),
+        habitTitle: 'EDIT for 20 minutes',
+      });
     }
-  };
+
+    // Leading days from next month to complete standard grid (35 or 42 cells)
+    const totalSlots = cells.length > 35 ? 42 : 35;
+    const remainingSlots = totalSlots - cells.length;
+    for (let d = 1; d <= remainingSlots; d++) {
+      const nextDate = new Date(year, month + 1, d);
+      const dateKey = formatDateKey(nextDate);
+
+      cells.push({
+        dateKey,
+        dateNum: d,
+        isCurrentMonth: false,
+        isToday: dateKey === todayDateKey,
+        isPast: dateKey < todayDateKey,
+        isFuture: dateKey > todayDateKey,
+        isCompleted: completedHabitDates.has(dateKey),
+        habitTitle: 'EDIT for 20 minutes',
+      });
+    }
+
+    return cells;
+  }, [calendarDate, completedHabitDates, todayDateKey]);
 
   // Filtered challenges list
   const filteredChallenges = useMemo(() => {
@@ -507,22 +645,26 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
 
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setCurrentMonthName('September 2026')}
-                        className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+                        onClick={handleGoToToday}
+                        className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer"
                       >
                         Today
                       </button>
 
                       <div className="flex items-center gap-1">
                         <button
+                          onClick={handlePrevMonth}
+                          aria-label="Previous Month"
                           title="Previous Month"
-                          className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                          className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                         >
                           <ChevronLeft size={16} />
                         </button>
                         <button
+                          onClick={handleNextMonth}
+                          aria-label="Next Month"
                           title="Next Month"
-                          className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                          className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                         >
                           <ChevronRight size={16} />
                         </button>
@@ -541,53 +683,125 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({ onClose, initialSubTab
                     <div>Sat</div>
                   </div>
 
-                  {/* 42 Monthly Grid Cells */}
+                  {/* Monthly Grid Cells with Interactive Habit Checkboxes */}
                   <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-                    {calendarCells.map((cell, idx) => (
-                      <div
-                        key={idx}
-                        className={`min-h-[72px] sm:min-h-[82px] rounded-xl border p-1.5 sm:p-2 flex flex-col justify-between transition-all ${
-                          cell.isToday
-                            ? 'border-amber-400 bg-amber-50/40 dark:border-amber-500/70 dark:bg-amber-950/20 shadow-xs'
-                            : cell.isCurrentMonth
-                            ? 'border-slate-150 dark:border-slate-800/80 bg-white dark:bg-slate-900/60'
-                            : 'border-slate-100 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-950/40 opacity-70'
-                        }`}
-                      >
-                        {/* Date Number */}
-                        <div className="text-right">
-                          <span
-                            className={`text-xs font-bold ${
-                              cell.isToday
-                                ? 'text-amber-600 dark:text-amber-400 font-black'
-                                : cell.isCurrentMonth
-                                ? 'text-slate-700 dark:text-slate-300'
-                                : 'text-slate-400 dark:text-slate-600'
-                            }`}
-                          >
-                            {cell.dateNum}
-                          </span>
-                        </div>
+                    {calendarCells.map((cell) => {
+                      const isEditable = cell.isToday;
+                      const isUpcoming = cell.isFuture;
+                      const isPastDay = cell.isPast;
 
-                        {/* Habit Badge Pill inside Day */}
+                      return (
                         <div
-                          className={`rounded-md border p-1 sm:p-1.5 text-[9px] sm:text-[10px] font-extrabold flex items-center gap-1 border-l-[3px] sm:border-l-4 ${
-                            cell.isCompleted
-                              ? 'border-l-amber-500 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200'
-                              : 'border-l-amber-400 border-slate-100 dark:border-slate-800/50 bg-slate-50/60 dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                          key={cell.dateKey}
+                          onClick={() => handleToggleHabitDate(cell.dateKey)}
+                          title={
+                            isUpcoming
+                              ? `Upcoming day (${cell.dateKey}) — Unlocks at 12:00 AM`
+                              : isPastDay
+                              ? `Past day (${cell.dateKey}) — Locked at 12:00 AM (${cell.isCompleted ? 'Completed' : 'Missed'})`
+                              : `Today (${cell.dateKey}) — Click to toggle habit (+10 PRO Points)`
+                          }
+                          className={`min-h-[74px] sm:min-h-[84px] rounded-xl border p-1.5 sm:p-2 flex flex-col justify-between transition-all ${
+                            cell.isToday
+                              ? 'border-amber-400 bg-amber-50/50 dark:border-amber-500/80 dark:bg-amber-950/25 shadow-xs ring-2 ring-amber-400/30 cursor-pointer hover:shadow-sm'
+                              : isUpcoming
+                              ? 'border-slate-150 dark:border-slate-800/40 bg-slate-50/30 dark:bg-slate-950/30 opacity-60 cursor-not-allowed'
+                              : cell.isCurrentMonth
+                              ? 'border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 cursor-not-allowed opacity-90'
+                              : 'border-slate-100 dark:border-slate-800/40 bg-slate-50/40 dark:bg-slate-950/30 opacity-50 cursor-not-allowed'
                           }`}
                         >
-                          {cell.isCompleted ? (
-                            <span className="flex size-3.5 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-black shrink-0">
-                              ✓
+                          {/* Date Number Header */}
+                          <div className="flex items-center justify-between">
+                            {cell.isToday ? (
+                              <span className="rounded-full bg-amber-500 px-1.5 py-0.2 text-[8px] font-black text-slate-950 shadow-2xs">
+                                TODAY
+                              </span>
+                            ) : isUpcoming ? (
+                              <span className="flex items-center gap-0.5 text-[9px] font-bold text-slate-400 dark:text-slate-500">
+                                <Lock size={10} />
+                                <span className="hidden sm:inline text-[8px]">12 AM</span>
+                              </span>
+                            ) : cell.isCompleted ? (
+                              <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.2 text-[8px] font-bold text-emerald-600 dark:text-emerald-400">
+                                ✓ Done
+                              </span>
+                            ) : (
+                              <span className="text-[8px] font-bold text-slate-400 dark:text-slate-600">
+                                Closed
+                              </span>
+                            )}
+
+                            <span
+                              className={`ml-auto text-xs font-bold ${
+                                cell.isToday
+                                  ? 'text-amber-600 dark:text-amber-400 font-black'
+                                  : cell.isCurrentMonth
+                                  ? 'text-slate-700 dark:text-slate-300'
+                                  : 'text-slate-400 dark:text-slate-600'
+                              }`}
+                            >
+                              {cell.dateNum}
                             </span>
-                          ) : (
-                            <span className="size-2 rounded-full bg-amber-400/80 shrink-0" />
-                          )}
-                          <span className="truncate leading-tight">{cell.habitTitle}</span>
+                          </div>
+
+                          {/* Interactive Habit Badge with Checkbox */}
+                          <div
+                            onClick={(e) => {
+                              if (!isEditable) {
+                                e.stopPropagation();
+                                handleToggleHabitDate(cell.dateKey);
+                              }
+                            }}
+                            className={`rounded-md border p-1 sm:p-1.5 text-[9px] sm:text-[10px] font-extrabold flex items-center gap-1.5 border-l-[3px] sm:border-l-4 select-none transition-all ${
+                              cell.isToday
+                                ? cell.isCompleted
+                                  ? 'border-l-amber-500 border-amber-300 dark:border-amber-700/60 bg-amber-100/60 dark:bg-amber-900/40 text-amber-950 dark:text-amber-200 cursor-pointer shadow-2xs'
+                                  : 'border-l-amber-400 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer hover:border-amber-400'
+                                : isUpcoming
+                                ? 'border-l-slate-300 dark:border-l-slate-700 border-slate-150 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/50 text-slate-400 cursor-not-allowed'
+                                : cell.isCompleted
+                                ? 'border-l-emerald-500 border-slate-200 dark:border-slate-800 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-300 cursor-not-allowed'
+                                : 'border-l-slate-300 dark:border-l-slate-700 border-slate-200 dark:border-slate-800/50 bg-slate-100/50 dark:bg-slate-900/40 text-slate-400 cursor-not-allowed'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={cell.isCompleted}
+                              disabled={!isEditable}
+                              onChange={() => isEditable && handleToggleHabitDate(cell.dateKey)}
+                              aria-label={`Habit checkbox for ${cell.dateKey}`}
+                              className="sr-only"
+                            />
+                            <span
+                              className={`flex size-3.5 sm:size-4 items-center justify-center rounded-xs transition-colors shrink-0 ${
+                                cell.isToday
+                                  ? cell.isCompleted
+                                    ? 'bg-amber-500 text-slate-950 font-black shadow-2xs'
+                                    : 'border-2 border-amber-500 bg-white dark:bg-slate-800 hover:bg-amber-50'
+                                  : isUpcoming
+                                  ? 'border border-dashed border-slate-300 dark:border-slate-700 bg-slate-100/60 dark:bg-slate-800/40 text-slate-400'
+                                  : cell.isCompleted
+                                  ? 'bg-emerald-500 text-white font-black'
+                                  : 'border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-300'
+                              }`}
+                            >
+                              {cell.isCompleted ? (
+                                <Check size={11} className="stroke-[3]" />
+                              ) : isUpcoming ? (
+                                <Lock size={8} className="text-slate-400" />
+                              ) : null}
+                            </span>
+                            <span className="truncate leading-tight flex-1">{cell.habitTitle}</span>
+                            {cell.isToday && (
+                              <span className="hidden sm:inline-block rounded-xs bg-amber-500/20 px-1 py-0.2 text-[8px] font-black text-amber-800 dark:text-amber-300 shrink-0">
+                                +10 PRO
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
