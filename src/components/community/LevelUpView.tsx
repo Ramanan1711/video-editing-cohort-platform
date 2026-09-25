@@ -28,9 +28,16 @@ import {
   Flag,
   Flame,
   Lock,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
-import { fetchEnrolledLeaderboard, type LeaderboardMember } from '../../lib/gamificationService';
+import {
+  fetchEnrolledLeaderboard,
+  fetchAvailableCourses,
+  fetchUserEnrolledCohort,
+  type LeaderboardMember,
+  type CourseOption,
+} from '../../lib/gamificationService';
 
 export type LevelUpSubTab = 'dashboard' | 'habits' | 'challenges';
 
@@ -136,23 +143,63 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   // Dynamic enrolled students & XP Leaderboard state
   const [members, setMembers] = useState<LeaderboardMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
+  const [courses, setCourses] = useState<CourseOption[]>([]);
+  const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
+  const [initialCohortResolved, setInitialCohortResolved] = useState<boolean>(false);
 
-  // Fetch enrolled students and their live XP points
+  // Fetch available courses and resolve user's primary enrolled course
+  useEffect(() => {
+    let isMounted = true;
+    async function loadCourses() {
+      const courseList = await fetchAvailableCourses();
+      if (!isMounted) return;
+      setCourses(courseList);
+
+      // If user has an enrolled cohort, default to their course so they see their peers
+      if (user?.id) {
+        const userCohort = await fetchUserEnrolledCohort(user.id);
+        if (isMounted && userCohort) {
+          setSelectedCohortId(userCohort.id);
+          setInitialCohortResolved(true);
+          return;
+        }
+      }
+
+      // Default to first course if available, or 'all'
+      if (isMounted && courseList.length > 0) {
+        setSelectedCohortId(courseList[0].id);
+      }
+      if (isMounted) {
+        setInitialCohortResolved(true);
+      }
+    }
+    loadCourses();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  // Fetch enrolled students and their live XP points whenever selected cohort changes
   useEffect(() => {
     let isMounted = true;
     async function loadMembers() {
       setLoadingMembers(true);
-      const data = await fetchEnrolledLeaderboard(undefined, user?.id);
+      const data = await fetchEnrolledLeaderboard(
+        selectedCohortId !== 'all' ? selectedCohortId : undefined,
+        user?.id
+      );
       if (isMounted) {
         setMembers(data);
         setLoadingMembers(false);
       }
     }
-    loadMembers();
+    if (initialCohortResolved || selectedCohortId !== 'all') {
+      loadMembers();
+    }
     return () => {
       isMounted = false;
     };
-  }, [user?.id]);
+  }, [selectedCohortId, user?.id, initialCohortResolved]);
 
   // Dynamic live today reference (defaults to real current Date)
   // Dynamic reference for Today (supports testing with initialDate or live clock)
@@ -316,6 +363,12 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
     .join('')
     .slice(0, 2)
     .toUpperCase();
+
+  // Selected course details
+  const selectedCourse = useMemo(() => {
+    if (selectedCohortId === 'all') return null;
+    return courses.find((c) => c.id === selectedCohortId) || null;
+  }, [courses, selectedCohortId]);
 
   // Habit chart data for the past 7 days
   const chartDays = [
@@ -1841,7 +1894,9 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                     <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white">
                       Levelup Members
                     </h3>
-                    <p className="text-[11px] text-slate-400">Ranked by points</p>
+                    <p className="text-[11px] text-slate-400">
+                      {selectedCourse ? `Course: ${selectedCourse.title}` : 'Ranked by points'}
+                    </p>
                   </div>
 
                   {/* Filter Pills */}
@@ -1869,6 +1924,35 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                   </div>
                 </div>
 
+                {/* Course Selection Dropdown */}
+                {courses.length > 0 && (
+                  <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 p-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <BookOpen size={14} className="text-amber-500 shrink-0" />
+                      <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0">
+                        Course:
+                      </span>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                        {selectedCourse ? selectedCourse.title : 'All Courses'}
+                      </span>
+                    </div>
+                    <select
+                      value={selectedCohortId}
+                      onChange={(e) => setSelectedCohortId(e.target.value)}
+                      className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-amber-500 cursor-pointer"
+                      aria-label="Filter leaderboard by enrolled course"
+                    >
+                      <option value="all">All Courses</option>
+                      {courses.map((course) => (
+                        <option key={course.id} value={course.id}>
+                          {course.title}
+                          {course.enrolledCount ? ` (${course.enrolledCount})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 {/* Search Bar */}
                 <div className="relative mb-3">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1888,12 +1972,19 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                       ({userRank})
                     </span>
                     <div className="truncate">
-                      <p className="text-xs font-black text-slate-900 dark:text-white truncate">
-                        {userDisplayName}
-                      </p>
-                      <span className="inline-block rounded-sm bg-amber-500/20 px-1.5 py-0.2 text-[9px] font-black text-amber-800 dark:text-amber-300">
-                        YOU
-                      </span>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <p className="text-xs font-black text-slate-900 dark:text-white truncate">
+                          {userDisplayName}
+                        </p>
+                        <span className="inline-block rounded-sm bg-amber-500/20 px-1.5 py-0.2 text-[9px] font-black text-amber-800 dark:text-amber-300">
+                          YOU
+                        </span>
+                      </div>
+                      {currentUserMember?.cohortTitle && (
+                        <p className="text-[10px] text-amber-800/80 dark:text-amber-300/80 truncate">
+                          {currentUserMember.cohortTitle}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <span className="shrink-0 text-xs font-black text-amber-900 dark:text-amber-300">
@@ -1930,14 +2021,23 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-sm shrink-0">{medal}</span>
-                            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                              {member.name}
-                            </span>
-                            {member.isCurrentUser && (
-                              <span className="rounded-sm bg-amber-500/20 px-1 py-0.2 text-[8px] font-black text-amber-800 dark:text-amber-300 shrink-0">
-                                YOU
-                              </span>
-                            )}
+                            <div className="min-w-0 truncate">
+                              <div className="flex items-center gap-1.5 truncate">
+                                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                                  {member.name}
+                                </span>
+                                {member.isCurrentUser && (
+                                  <span className="rounded-sm bg-amber-500/20 px-1 py-0.2 text-[8px] font-black text-amber-800 dark:text-amber-300 shrink-0">
+                                    YOU
+                                  </span>
+                                )}
+                              </div>
+                              {member.cohortTitle && selectedCohortId === 'all' && (
+                                <span className="block text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                                  {member.cohortTitle}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <span className={`text-xs font-extrabold shrink-0 ${pointsColor}`}>
                             {member.points.toLocaleString()} PRO
@@ -1965,14 +2065,23 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                             alt={member.name}
                             className="size-6 rounded-full object-cover shrink-0"
                           />
-                          <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">
-                            {member.name}
-                          </span>
-                          {member.isCurrentUser && (
-                            <span className="rounded-sm bg-amber-500/20 px-1 py-0.2 text-[8px] font-black text-amber-800 dark:text-amber-300 shrink-0">
-                              YOU
-                            </span>
-                          )}
+                          <div className="min-w-0 truncate">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">
+                                {member.name}
+                              </span>
+                              {member.isCurrentUser && (
+                                <span className="rounded-sm bg-amber-500/20 px-1 py-0.2 text-[8px] font-black text-amber-800 dark:text-amber-300 shrink-0">
+                                  YOU
+                                </span>
+                              )}
+                            </div>
+                            {member.cohortTitle && selectedCohortId === 'all' && (
+                              <span className="block text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                                {member.cohortTitle}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className="font-black text-slate-800 dark:text-slate-200 shrink-0">
                           {member.points.toLocaleString()} PRO

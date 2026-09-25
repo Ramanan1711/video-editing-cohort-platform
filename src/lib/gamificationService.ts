@@ -259,6 +259,14 @@ export interface LeaderboardMember {
   level?: number;
   lessonsCompleted?: number;
   submissionsCount?: number;
+  cohortId?: string;
+  cohortTitle?: string;
+}
+
+export interface CourseOption {
+  id: string;
+  title: string;
+  enrolledCount?: number;
 }
 
 const AVATAR_PHOTOS = [
@@ -287,14 +295,116 @@ function getDeterministicAvatar(seed: string): string {
 }
 
 /**
- * Fetches enrolled students and computes their PRO points dynamically based on their XP.
+ * Fetches available courses/cohorts for leaderboard course filtering
+ */
+export async function fetchAvailableCourses(): Promise<CourseOption[]> {
+  try {
+    let list: any[] = [];
+    const { data: titleData, error: titleErr } = await supabase
+      .from('cohorts')
+      .select('id, title')
+      .order('title');
+
+    if (!titleErr && titleData && titleData.length > 0) {
+      list = titleData;
+    } else {
+      const { data: nameData } = await supabase
+        .from('cohorts')
+        .select('id, name')
+        .order('name');
+      list = nameData ?? [];
+    }
+
+    return list.map((c: any) => ({
+      id: c.id,
+      title: c.title || c.name || 'Untitled Course',
+    }));
+  } catch (err) {
+    console.error('Failed to fetch available courses:', err);
+    return [];
+  }
+}
+
+/**
+ * Resolves the primary enrolled cohort for a specific user
+ */
+export async function fetchUserEnrolledCohort(
+  userId: string
+): Promise<{ id: string; title: string } | null> {
+  try {
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('cohort_id, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (!enrollments || enrollments.length === 0) return null;
+    const cohortId = enrollments[0].cohort_id;
+
+    const { data: cohortData } = await supabase
+      .from('cohorts')
+      .select('id, title')
+      .eq('id', cohortId)
+      .single();
+
+    if (cohortData) {
+      return { id: cohortData.id, title: cohortData.title };
+    }
+
+    const { data: fallbackData } = await supabase
+      .from('cohorts')
+      .select('id, name')
+      .eq('id', cohortId)
+      .single();
+
+    if (fallbackData) {
+      return { id: fallbackData.id, title: (fallbackData as any).name || 'Course' };
+    }
+
+    return { id: cohortId, title: 'Course' };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetches enrolled students and computes their PRO points dynamically based on their XP,
+ * filtered by their enrolled Course (Cohort Title).
  */
 export async function fetchEnrolledLeaderboard(
   cohortId?: string,
   currentUserId?: string
 ): Promise<LeaderboardMember[]> {
   try {
-    // 1. Fetch enrollments for the cohort (or all enrolled students)
+    // 1. Try secure Postgres RPC function first (bypasses private RLS to aggregate peer scores)
+    try {
+      const targetParam = cohortId && cohortId !== 'all' ? cohortId : null;
+      const { data: rpcData, error: rpcErr } = await supabase.rpc(
+        'get_enrolled_cohort_leaderboard',
+        { p_cohort_id: targetParam }
+      );
+
+      if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
+        return rpcData.map((row: any, idx: number) => ({
+          rank: idx + 1,
+          id: row.user_id,
+          name: row.full_name || (row.email ? row.email.split('@')[0] : 'Enrolled Student'),
+          points: Number(row.xp_points || 0),
+          avatarUrl: getDeterministicAvatar(row.user_id),
+          isCurrentUser: row.user_id === currentUserId,
+          level: Number(row.editor_level || 1),
+          lessonsCompleted: Number(row.completed_lessons || 0),
+          submissionsCount: Number(row.submissions_count || 0),
+          cohortId: row.cohort_id,
+          cohortTitle: row.cohort_title || 'Course',
+        }));
+      }
+    } catch {
+      // Fallback to table queries below
+    }
+
+    // 2. Fetch enrollments for the specified cohort (or all cohorts)
     let enrollmentQuery = supabase
       .from('enrollments')
       .select('user_id, cohort_id, status');
@@ -309,6 +419,17 @@ export async function fetchEnrolledLeaderboard(
     }
 
     let userIds = Array.from(new Set((enrollments ?? []).map((e) => e.user_id)));
+    const enrolledCohortIds = Array.from(
+      new Set((enrollments ?? []).map((e) => e.cohort_id).filter(Boolean))
+    );
+
+    // Map each user to their enrolled cohort ID
+    const userCohortMap = new Map<string, string>();
+    for (const e of enrollments ?? []) {
+      if (e.user_id && e.cohort_id) {
+        userCohortMap.set(e.user_id, e.cohort_id);
+      }
+    }
 
     // Ensure current authenticated user is included in the leaderboard so they can see their rank
     if (currentUserId && !userIds.includes(currentUserId)) {
@@ -330,20 +451,25 @@ export async function fetchEnrolledLeaderboard(
       return [];
     }
 
-    // 2. Parallel fetch student profiles, gamification points, lesson progress, and submissions
+    // 3. Parallel fetch student profiles, cohort titles, gamification points, lesson progress, and submissions
     const [
       { data: profiles },
+      { data: titleCohorts },
       { data: gamificationRows },
       { data: progressRows },
       { data: submissionsRows },
     ] = await Promise.all([
       supabase.from('profiles').select('id, full_name, email, role').in('id', userIds),
+      enrolledCohortIds.length
+        ? supabase.from('cohorts').select('id, title').in('id', enrolledCohortIds)
+        : supabase.from('cohorts').select('id, title'),
       supabase.from('student_gamification').select('user_id, xp_points, editor_level').in('user_id', userIds),
       supabase.from('lesson_progress').select('user_id, lesson_id, completed').in('user_id', userIds),
       supabase.from('submissions').select('student_id, status').in('student_id', userIds),
     ]);
 
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+    const cohortTitleMap = new Map(((titleCohorts as any[]) ?? []).map((c: any) => [c.id, c.title || c.name || 'Course']));
     const gamificationMap = new Map((gamificationRows ?? []).map((g) => [g.user_id, g]));
 
     // Group progress by user
@@ -363,7 +489,7 @@ export async function fetchEnrolledLeaderboard(
       submissionsByUser.set(s.student_id, curr);
     }
 
-    // 3. Compute each enrolled student's PRO points directly based on their XP
+    // 4. Compute each enrolled student's PRO points directly based on their XP
     const members: LeaderboardMember[] = userIds.map((uid) => {
       const prof = profileMap.get(uid);
       const name =
@@ -383,6 +509,8 @@ export async function fetchEnrolledLeaderboard(
       const totalXp = Math.max(savedGamification?.xp_points ?? 0, calculatedXp);
 
       const avatarUrl = getDeterministicAvatar(uid);
+      const userCohortId = userCohortMap.get(uid);
+      const cohortTitle = userCohortId ? cohortTitleMap.get(userCohortId) || 'Course' : undefined;
 
       return {
         rank: 1,
@@ -394,10 +522,12 @@ export async function fetchEnrolledLeaderboard(
         level: savedGamification?.editor_level ?? 1,
         lessonsCompleted: completedLessons,
         submissionsCount: sub.total,
+        cohortId: userCohortId,
+        cohortTitle,
       };
     });
 
-    // 4. Sort by points descending (highest XP first). Tie-break alphabetically by name
+    // 5. Sort by points descending (highest XP first). Tie-break alphabetically by name
     members.sort((a, b) => {
       if (b.points !== a.points) {
         return b.points - a.points;
@@ -405,7 +535,7 @@ export async function fetchEnrolledLeaderboard(
       return a.name.localeCompare(b.name);
     });
 
-    // 5. Assign sequential ranks
+    // 6. Assign sequential ranks
     members.forEach((m, idx) => {
       m.rank = idx + 1;
     });

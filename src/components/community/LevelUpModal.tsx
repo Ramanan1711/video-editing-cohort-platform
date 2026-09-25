@@ -11,9 +11,16 @@ import {
   History,
   Award,
   Loader2,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
-import { fetchEnrolledLeaderboard, type LeaderboardMember } from '../../lib/gamificationService';
+import {
+  fetchEnrolledLeaderboard,
+  fetchAvailableCourses,
+  fetchUserEnrolledCohort,
+  type LeaderboardMember,
+  type CourseOption,
+} from '../../lib/gamificationService';
 
 interface LevelUpModalProps {
   isOpen: boolean;
@@ -39,6 +46,41 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
 
   const [members, setMembers] = useState<LeaderboardMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState<boolean>(true);
+  const [courses, setCourses] = useState<CourseOption[]>([]);
+  const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
+  const [initialCohortResolved, setInitialCohortResolved] = useState<boolean>(false);
+
+  // Fetch available courses and resolve user's primary enrolled course
+  useEffect(() => {
+    let isMounted = true;
+    async function loadCourses() {
+      const courseList = await fetchAvailableCourses();
+      if (!isMounted) return;
+      setCourses(courseList);
+
+      if (user?.id) {
+        const userCohort = await fetchUserEnrolledCohort(user.id);
+        if (isMounted && userCohort) {
+          setSelectedCohortId(userCohort.id);
+          setInitialCohortResolved(true);
+          return;
+        }
+      }
+
+      if (isMounted && courseList.length > 0) {
+        setSelectedCohortId(courseList[0].id);
+      }
+      if (isMounted) {
+        setInitialCohortResolved(true);
+      }
+    }
+    if (isOpen) {
+      loadCourses();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, user?.id]);
 
   // Fetch enrolled students dynamically from Supabase
   useEffect(() => {
@@ -46,7 +88,10 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
     async function loadMembers() {
       try {
         setLoadingMembers(true);
-        const data = await fetchEnrolledLeaderboard(undefined, user?.id);
+        const data = await fetchEnrolledLeaderboard(
+          selectedCohortId !== 'all' ? selectedCohortId : undefined,
+          user?.id
+        );
         if (isMounted) {
           setMembers(data);
         }
@@ -58,13 +103,13 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
         }
       }
     }
-    if (isOpen) {
+    if (isOpen && (initialCohortResolved || selectedCohortId !== 'all')) {
       loadMembers();
     }
     return () => {
       isMounted = false;
     };
-  }, [isOpen, user?.id]);
+  }, [isOpen, selectedCohortId, user?.id, initialCohortResolved]);
 
   // User's current rank data
   const currentUserMember = useMemo(() => {
@@ -81,6 +126,12 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
     .join('')
     .slice(0, 2)
     .toUpperCase();
+
+  // Selected course details
+  const selectedCourse = useMemo(() => {
+    if (selectedCohortId === 'all') return null;
+    return courses.find((c) => c.id === selectedCohortId) || null;
+  }, [courses, selectedCohortId]);
 
   // Habit chart data for the past 7 days
   const chartDays = [
@@ -343,9 +394,14 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
               <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-slate-900 p-5 shadow-xs flex flex-col h-[540px]">
                 {/* Header */}
                 <div className="flex items-center justify-between pb-3">
-                  <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white">
-                    Levelup Members Leaderboard
-                  </h3>
+                  <div>
+                    <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white">
+                      Levelup Members Leaderboard
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      {selectedCourse ? `Course: ${selectedCourse.title}` : 'Compare points across enrolled peers'}
+                    </p>
+                  </div>
                   <div className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 text-[10px] font-bold">
                     <button
                       type="button"
@@ -371,6 +427,35 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
                     </button>
                   </div>
                 </div>
+
+                {/* Course Selection Dropdown */}
+                {courses.length > 0 && (
+                  <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 p-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <BookOpen size={14} className="text-amber-500 shrink-0" />
+                      <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0">
+                        Course:
+                      </span>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                        {selectedCourse ? selectedCourse.title : 'All Courses'}
+                      </span>
+                    </div>
+                    <select
+                      value={selectedCohortId}
+                      onChange={(e) => setSelectedCohortId(e.target.value)}
+                      className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-amber-500 cursor-pointer"
+                      aria-label="Filter leaderboard by enrolled course"
+                    >
+                      <option value="all">All Courses</option>
+                      {courses.map((course) => (
+                        <option key={course.id} value={course.id}>
+                          {course.title}
+                          {course.enrolledCount ? ` (${course.enrolledCount})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Search / Filter Input */}
                 <div className="relative mb-3">
@@ -410,6 +495,11 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
                           YOU
                         </span>
                       </div>
+                      {currentUserMember?.cohortTitle && (
+                        <p className="text-[10px] text-indigo-700 dark:text-indigo-300 truncate">
+                          {currentUserMember.cohortTitle}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -454,9 +544,16 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
                               alt={member.name}
                               className="size-7 rounded-full object-cover border border-white/60 shrink-0"
                             />
-                            <span className="text-xs font-black tracking-tight truncate">
-                              {member.name}
-                            </span>
+                            <div className="min-w-0 truncate">
+                              <span className="text-xs font-black tracking-tight truncate block">
+                                {member.name}
+                              </span>
+                              {member.cohortTitle && selectedCohortId === 'all' && (
+                                <span className="text-[9px] text-amber-100/90 truncate block">
+                                  {member.cohortTitle}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0 rounded-full bg-amber-600/80 px-2.5 py-0.5 border border-amber-300/40">
                             <span className="text-xs">🪙</span>
@@ -484,9 +581,16 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
                               alt={member.name}
                               className="size-7 rounded-full object-cover border border-slate-300 dark:border-slate-600 shrink-0"
                             />
-                            <span className="text-xs font-black tracking-tight truncate">
-                              {member.name}
-                            </span>
+                            <div className="min-w-0 truncate">
+                              <span className="text-xs font-black tracking-tight truncate block">
+                                {member.name}
+                              </span>
+                              {member.cohortTitle && selectedCohortId === 'all' && (
+                                <span className="text-[9px] text-slate-500 dark:text-slate-400 truncate block">
+                                  {member.cohortTitle}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0 rounded-full bg-slate-300/70 dark:bg-slate-600/80 px-2.5 py-0.5">
                             <span className="text-xs">🪙</span>
@@ -514,9 +618,16 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
                               alt={member.name}
                               className="size-7 rounded-full object-cover border border-amber-600/30 shrink-0"
                             />
-                            <span className="text-xs font-black tracking-tight truncate">
-                              {member.name}
-                            </span>
+                            <div className="min-w-0 truncate">
+                              <span className="text-xs font-black tracking-tight truncate block">
+                                {member.name}
+                              </span>
+                              {member.cohortTitle && selectedCohortId === 'all' && (
+                                <span className="text-[9px] text-amber-950/80 truncate block">
+                                  {member.cohortTitle}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0 rounded-full bg-amber-600/30 px-2.5 py-0.5">
                             <span className="text-xs">🪙</span>
@@ -543,9 +654,16 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
                             alt={member.name}
                             className="size-7 rounded-full object-cover shrink-0"
                           />
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                            {member.name}
-                          </span>
+                          <div className="min-w-0 truncate">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">
+                              {member.name}
+                            </span>
+                            {member.cohortTitle && selectedCohortId === 'all' && (
+                              <span className="text-[9px] text-slate-400 dark:text-slate-500 truncate block">
+                                {member.cohortTitle}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5">
                           <span className="text-xs">🪙</span>
