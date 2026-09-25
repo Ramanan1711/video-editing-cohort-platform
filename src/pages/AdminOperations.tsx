@@ -498,14 +498,22 @@ export function AdminOperations() {
   const handleUpdateEnrollmentStatus = async (
     userId: string,
     cohortId: string,
-    status: 'active' | 'completed' | 'dropped' | 'waitlisted'
+    status: 'active' | 'completed' | 'dropped' | 'waitlisted' | 'inactive'
   ) => {
     try {
       await updateEnrollmentStatus(userId, cohortId, status, user?.id);
       setEnrollments((prev) =>
-        prev.map((item) =>
-          item.user_id === userId && item.cohort_id === cohortId ? { ...item, status } : item
-        )
+        prev.map((item) => {
+          if (item.user_id === userId) {
+            if (item.cohort_id === cohortId) {
+              return { ...item, status };
+            }
+            if (status === 'active' && item.status === 'active') {
+              return { ...item, status: 'inactive' };
+            }
+          }
+          return item;
+        })
       );
       setSuccess('Enrollment status updated.');
       toast.success(`Enrollment status set to ${status}.`);
@@ -2299,7 +2307,7 @@ export function AdminOperations() {
                             void handleUpdateEnrollmentStatus(
                               item.user_id,
                               item.cohort_id,
-                              e.target.value as 'active' | 'completed' | 'dropped' | 'waitlisted'
+                              e.target.value as 'active' | 'completed' | 'dropped' | 'waitlisted' | 'inactive'
                             )
                           }
                           className={`rounded-lg border px-2.5 py-1 text-xs font-bold outline-none ${
@@ -2311,6 +2319,8 @@ export function AdminOperations() {
                               ? 'border-purple-200 bg-purple-50 text-purple-800'
                               : item.status === 'waitlisted'
                               ? 'border-amber-200 bg-amber-50 text-amber-800'
+                              : item.status === 'inactive'
+                              ? 'border-slate-300 bg-slate-100 text-slate-500'
                               : 'border-slate-200 bg-slate-100 text-slate-600'
                           }`}
                         >
@@ -2318,6 +2328,7 @@ export function AdminOperations() {
                           <option value="completed">Completed</option>
                           <option value="dropped">Dropped</option>
                           <option value="waitlisted">Waitlisted</option>
+                          <option value="inactive">Inactive</option>
                         </select>
 
                         {canManageEnrollments && (

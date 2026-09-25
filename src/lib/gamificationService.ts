@@ -334,8 +334,9 @@ export async function fetchUserEnrolledCohort(
   try {
     const { data: enrollments } = await supabase
       .from('enrollments')
-      .select('cohort_id, created_at')
+      .select('cohort_id, created_at, status')
       .eq('user_id', userId)
+      .in('status', ['enrolled', 'active'])
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -407,7 +408,8 @@ export async function fetchEnrolledLeaderboard(
     // 2. Fetch enrollments for the specified cohort (or all cohorts)
     let enrollmentQuery = supabase
       .from('enrollments')
-      .select('user_id, cohort_id, status');
+      .select('user_id, cohort_id, status')
+      .in('status', ['enrolled', 'active']);
 
     if (cohortId && cohortId !== 'all') {
       enrollmentQuery = enrollmentQuery.eq('cohort_id', cohortId);

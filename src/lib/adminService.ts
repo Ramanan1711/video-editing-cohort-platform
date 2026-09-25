@@ -194,7 +194,7 @@ export interface UserProfile {
 export interface AdminEnrollment {
   user_id: string;
   cohort_id: string;
-  status: 'active' | 'completed' | 'dropped' | 'waitlisted';
+  status: 'active' | 'completed' | 'dropped' | 'waitlisted' | 'inactive';
   created_at: string;
   student_name: string;
   student_email: string;
@@ -1075,12 +1075,25 @@ export async function listCohortEnrollmentsPaged(
 export async function enrollUserInCohort(
   userId: string,
   cohortId: string,
-  status: 'active' | 'waitlisted' = 'active',
+  status: 'active' | 'waitlisted' | 'inactive' = 'active',
   actorId?: string
 ): Promise<void> {
   queryCache.invalidate('admin');
   queryCache.invalidate('enrollments');
   queryCache.invalidate('stats');
+
+  if (status === 'active') {
+    try {
+      await supabase
+        .from('enrollments')
+        .update({ status: 'inactive' })
+        .eq('user_id', userId)
+        .neq('cohort_id', cohortId)
+        .in('status', ['active', 'enrolled']);
+    } catch (err) {
+      console.warn('Could not deactivate prior enrollments in enrollUserInCohort:', err);
+    }
+  }
 
   const { error } = await supabase.from('enrollments').upsert(
     { user_id: userId, cohort_id: cohortId, status, created_at: new Date().toISOString() },
@@ -1098,12 +1111,25 @@ export async function enrollUserInCohort(
 export async function updateEnrollmentStatus(
   userId: string,
   cohortId: string,
-  status: 'active' | 'completed' | 'dropped' | 'waitlisted',
+  status: 'active' | 'completed' | 'dropped' | 'waitlisted' | 'inactive',
   actorId?: string
 ): Promise<void> {
   queryCache.invalidate('admin');
   queryCache.invalidate('enrollments');
   queryCache.invalidate('stats');
+
+  if (status === 'active') {
+    try {
+      await supabase
+        .from('enrollments')
+        .update({ status: 'inactive' })
+        .eq('user_id', userId)
+        .neq('cohort_id', cohortId)
+        .in('status', ['active', 'enrolled']);
+    } catch (err) {
+      console.warn('Could not deactivate prior enrollments in updateEnrollmentStatus:', err);
+    }
+  }
 
   const { error } = await supabase
     .from('enrollments')
