@@ -11,13 +11,21 @@ import {
   CalendarPlus,
   Check,
   X,
+  Plus,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
+import { useAuth } from '../context/useAuth';
 import { CommunityTopNav } from '../components/community/CommunityTopNav';
 import { LevelUpModal } from '../components/community/LevelUpModal';
 import {
   listStudentLiveSessions,
   type StudentLiveSession,
 } from '../lib/courseService';
+import {
+  createLiveSession,
+  deleteLiveSession,
+} from '../lib/adminService';
 
 interface WorkshopItem {
   id: string;
@@ -33,79 +41,14 @@ interface WorkshopItem {
   speaker?: string;
 }
 
-const DEFAULT_WORKSHOPS: WorkshopItem[] = [
-  {
-    id: 'ws-1',
-    title: "B15 W3 MC's Live Session",
-    dateStr: '2026-09-13',
-    dateHeading: 'Sep 13, 2026',
-    timeRange: '11:00 AM – 1:30 PM',
-    platform: 'Zoom Meeting',
-    meetingUrl: 'https://zoom.us',
-    status: 'upcoming',
-    isLive: false,
-    description: 'Week 3 Masterclass: Kinetic typography, pacing drills, and live timeline critiques.',
-    speaker: 'Shibin (Lead Mentor)',
-  },
-  {
-    id: 'ws-2',
-    title: "B15 W4 MC's Live Session",
-    dateStr: '2026-09-20',
-    dateHeading: 'Sep 20, 2026',
-    timeRange: '11:00 AM – 1:30 PM',
-    platform: 'Zoom Meeting',
-    meetingUrl: 'https://zoom.us',
-    status: 'upcoming',
-    isLive: false,
-    description: 'Week 4 Masterclass: Advanced sound design, audio bus routing, and SFX dynamics.',
-    speaker: 'Meshak (Sound & Foley Artist)',
-  },
-  {
-    id: 'ws-3',
-    title: "B15 W5 MC's Live Session",
-    dateStr: '2026-09-27',
-    dateHeading: 'Sep 27, 2026',
-    timeRange: '11:00 AM – 1:30 PM',
-    platform: 'Zoom Meeting',
-    meetingUrl: 'https://zoom.us',
-    status: 'upcoming',
-    isLive: false,
-    description: 'Week 5 Masterclass: Client pitch simulations, commercial deliverables, and portfolio review.',
-    speaker: 'Shibin & Guest Agency Director',
-  },
-  {
-    id: 'ws-past-1',
-    title: "B15 W2 MC's Live Session",
-    dateStr: '2026-09-06',
-    dateHeading: 'Sep 6, 2026',
-    timeRange: '11:00 AM – 1:30 PM',
-    platform: 'Zoom Meeting',
-    meetingUrl: 'https://zoom.us/rec/w2',
-    status: 'completed',
-    isLive: false,
-    description: 'Week 2 Masterclass: Color grading workflows, ACES color management, and tone curves.',
-    speaker: 'Lead Colorist',
-  },
-  {
-    id: 'ws-past-2',
-    title: "B15 W1 MC's Live Session",
-    dateStr: '2026-08-30',
-    dateHeading: 'Aug 30, 2026',
-    timeRange: '11:00 AM – 1:30 PM',
-    platform: 'Zoom Meeting',
-    meetingUrl: 'https://zoom.us/rec/w1',
-    status: 'completed',
-    isLive: false,
-    description: 'Week 1 Masterclass: Foundation sprint, keyboard shortcut drills, and narrative arc setup.',
-    speaker: 'Shibin (Lead Mentor)',
-  },
-];
-
 export function WorkshopsPage() {
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
+  const canManageSessions = profile?.role === 'admin' || profile?.role === 'mentor';
+
   const [activeSubTab, setActiveSubTab] = useState<'upcoming' | 'completed'>('upcoming');
-  const [workshops, setWorkshops] = useState<WorkshopItem[]>(DEFAULT_WORKSHOPS);
-  const [loading, setLoading] = useState(false);
+  const [workshops, setWorkshops] = useState<WorkshopItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [selectedInfoWorkshop, setSelectedInfoWorkshop] = useState<WorkshopItem | null>(null);
@@ -116,15 +59,27 @@ export function WorkshopsPage() {
   const [startDateFilter, setStartDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
 
+  // Schedule Session Modal state
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [savingSession, setSavingSession] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [newSessionForm, setNewSessionForm] = useState({
+    title: '',
+    starts_at: '',
+    duration_hours: 2.5,
+    meeting_url: '',
+    description: '',
+  });
+
   const loadLiveSessions = async () => {
     try {
       setLoading(true);
       const data: StudentLiveSession[] = await listStudentLiveSessions();
       if (data && data.length > 0) {
-        const now = new Date();
+        const now = Date.now();
         const mapped: WorkshopItem[] = data.map((s, idx) => {
           const dateObj = new Date(s.starts_at);
-          const isPast = dateObj < now;
+          const isPast = dateObj.getTime() + 150 * 60 * 1000 < now;
 
           const dateHeading = dateObj.toLocaleDateString('en-US', {
             month: 'short',
@@ -146,34 +101,35 @@ export function WorkshopsPage() {
             hour12: true,
           });
 
+          let platform = 'Live Meeting';
+          const lowerUrl = (s.meeting_url || '').toLowerCase();
+          if (lowerUrl.includes('zoom')) platform = 'Zoom Meeting';
+          else if (lowerUrl.includes('meet.google')) platform = 'Google Meet';
+          else if (lowerUrl.includes('teams')) platform = 'Microsoft Teams';
+          else if (lowerUrl.includes('youtube')) platform = 'YouTube Live';
+
           return {
             id: s.id || `live-${idx}`,
             title: s.title,
             dateStr: dateObj.toISOString().slice(0, 10),
             dateHeading,
             timeRange: `${startTimeStr} – ${endTimeStr}`,
-            platform: s.meeting_url?.toLowerCase().includes('zoom') ? 'Zoom Meeting' : 'Google Meet',
+            platform,
             meetingUrl: s.meeting_url || 'https://zoom.us',
             status: isPast ? 'completed' : 'upcoming',
-            isLive: Math.abs(now.getTime() - dateObj.getTime()) < 120 * 60 * 1000,
+            isLive: Math.abs(now - dateObj.getTime()) < 120 * 60 * 1000,
             description: s.description || undefined,
+            speaker: 'Cohort Lead Mentor',
           };
         });
 
-        // Combine with fallback default items if fewer than 2 upcoming
-        const combined = [...mapped];
-        if (mapped.filter((w) => w.status === 'upcoming').length === 0) {
-          combined.push(...DEFAULT_WORKSHOPS.filter((w) => w.status === 'upcoming'));
-        }
-        if (mapped.filter((w) => w.status === 'completed').length === 0) {
-          combined.push(...DEFAULT_WORKSHOPS.filter((w) => w.status === 'completed'));
-        }
-        setWorkshops(combined);
+        setWorkshops(mapped);
       } else {
-        setWorkshops(DEFAULT_WORKSHOPS);
+        setWorkshops([]);
       }
-    } catch {
-      setWorkshops(DEFAULT_WORKSHOPS);
+    } catch (err) {
+      console.warn('Failed to load real live sessions:', err);
+      setWorkshops([]);
     } finally {
       setLoading(false);
     }
@@ -243,6 +199,56 @@ export function WorkshopsPage() {
     setOpenMenuId(null);
   };
 
+  const handleDelete = async (id: string) => {
+    if (!canManageSessions) return;
+    if (!window.confirm('Delete this live session from the schedule?')) return;
+    try {
+      await deleteLiveSession(id, user?.id);
+      setWorkshops((prev) => prev.filter((w) => w.id !== id));
+      setOpenMenuId(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete live session');
+    }
+  };
+
+  const handleCreateSessionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (!newSessionForm.title.trim()) {
+      setScheduleError('Please enter a session title');
+      return;
+    }
+    if (!newSessionForm.starts_at) {
+      setScheduleError('Please select a start date and time');
+      return;
+    }
+
+    setSavingSession(true);
+    setScheduleError(null);
+    try {
+      await createLiveSession(user.id, {
+        title: newSessionForm.title.trim(),
+        description: newSessionForm.description.trim() || null,
+        starts_at: new Date(newSessionForm.starts_at).toISOString(),
+        meeting_url: newSessionForm.meeting_url.trim() || 'https://zoom.us',
+      });
+
+      setShowScheduleModal(false);
+      setNewSessionForm({
+        title: '',
+        starts_at: '',
+        duration_hours: 2.5,
+        meeting_url: '',
+        description: '',
+      });
+      await loadLiveSessions();
+    } catch (err) {
+      setScheduleError(err instanceof Error ? err.message : 'Failed to schedule live session');
+    } finally {
+      setSavingSession(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#fafafb] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans flex flex-col">
       {/* Top Application Bar with Workshops active tab */}
@@ -265,10 +271,27 @@ export function WorkshopsPage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white tracking-tight">
               Workshops
             </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Live mentor sessions, interactive cohort critiques, and masterclasses.
+            </p>
           </div>
 
-          {/* Right Controls: Date Range Filter Pill + Refresh Button */}
+          {/* Right Controls: Date Range Filter Pill + Refresh Button + Optional Mentor Schedule Button */}
           <div className="flex items-center gap-3">
+            {canManageSessions && (
+              <button
+                type="button"
+                onClick={() => {
+                  setScheduleError(null);
+                  setShowScheduleModal(true);
+                }}
+                className="flex items-center gap-1.5 rounded-full bg-[#ea580c] hover:bg-orange-600 text-white px-4 py-2 text-xs font-bold shadow-sm transition active:scale-95"
+              >
+                <Plus size={15} />
+                <span>Schedule Session</span>
+              </button>
+            )}
+
             {/* Date Range Filter Button */}
             <div className="relative">
               <button
@@ -396,8 +419,14 @@ export function WorkshopsPage() {
           </button>
         </div>
 
-        {/* Workshops Grouped by Date */}
-        {groupedWorkshops.length > 0 ? (
+        {/* Loading Indicator */}
+        {loading ? (
+          <div className="py-24 flex flex-col items-center justify-center text-slate-400">
+            <Loader2 size={32} className="animate-spin text-orange-500 mb-3" />
+            <p className="text-sm font-semibold">Loading live sessions from database...</p>
+          </div>
+        ) : groupedWorkshops.length > 0 ? (
+          /* Workshops Grouped by Date matching reference screenshot */
           <div className="space-y-8">
             {groupedWorkshops.map((group) => (
               <section key={group.heading}>
@@ -425,9 +454,16 @@ export function WorkshopsPage() {
 
                         {/* Text Details */}
                         <div className="min-w-0">
-                          <h3 className="text-sm sm:text-base font-extrabold text-slate-950 dark:text-white leading-snug line-clamp-1">
-                            {workshop.title}
-                          </h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm sm:text-base font-extrabold text-slate-950 dark:text-white leading-snug line-clamp-1">
+                              {workshop.title}
+                            </h3>
+                            {workshop.isLive && (
+                              <span className="flex items-center gap-1 rounded-full bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 uppercase tracking-wider animate-pulse">
+                                LIVE NOW
+                              </span>
+                            )}
+                          </div>
 
                           {/* Time Range with Info Icon */}
                           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1">
@@ -517,6 +553,16 @@ export function WorkshopsPage() {
                                 <Info size={14} />
                                 <span>View session info</span>
                               </button>
+                              {canManageSessions && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(workshop.id)}
+                                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 border-t border-slate-100 dark:border-slate-800 mt-1"
+                                >
+                                  <Trash2 size={14} />
+                                  <span>Delete session</span>
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -528,20 +574,32 @@ export function WorkshopsPage() {
             ))}
           </div>
         ) : (
-          /* Empty State */
+          /* Empty State when no live sessions exist in the database */
           <div className="py-20 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 mt-6">
             <Video className="mx-auto size-10 text-slate-300 dark:text-slate-600 mb-3" />
             <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
               {activeSubTab === 'upcoming'
-                ? 'No upcoming workshops scheduled'
-                : 'No completed workshops yet'}
+                ? 'No upcoming live sessions scheduled'
+                : 'No past live sessions recorded'}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
               {activeSubTab === 'upcoming'
-                ? 'Check back soon for new live timeline breakdowns, masterclasses, and cohort critique sessions.'
-                : 'Workshops you attend will appear here along with full recorded replay streams.'}
+                ? 'Live sessions created by mentors in the database will appear here in chronological order.'
+                : 'Past live sessions and their stream links will be archived here.'}
             </p>
-            {(startDateFilter || endDateFilter) && (
+            {canManageSessions ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setScheduleError(null);
+                  setShowScheduleModal(true);
+                }}
+                className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[#ea580c] hover:bg-orange-600 text-white font-bold text-xs px-4 py-2 transition shadow-sm"
+              >
+                <Plus size={14} />
+                <span>Schedule First Live Session</span>
+              </button>
+            ) : (startDateFilter || endDateFilter) ? (
               <button
                 type="button"
                 onClick={() => {
@@ -552,10 +610,128 @@ export function WorkshopsPage() {
               >
                 Clear date filters
               </button>
-            )}
+            ) : null}
           </div>
         )}
       </main>
+
+      {/* Schedule Live Session Modal (Admins / Mentors) */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="flex size-8 items-center justify-center rounded-xl bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">
+                  <Calendar size={17} />
+                </span>
+                <h3 className="text-sm font-black text-slate-950 dark:text-white">
+                  Schedule Live Session
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSessionSubmit} className="mt-4 space-y-3.5">
+              {scheduleError && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-300">
+                  {scheduleError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Session Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. B15 W3 MC's Live Session"
+                  value={newSessionForm.title}
+                  onChange={(e) =>
+                    setNewSessionForm({ ...newSessionForm, title: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Start Date &amp; Time *
+                </label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={newSessionForm.starts_at}
+                  onChange={(e) =>
+                    setNewSessionForm({ ...newSessionForm, starts_at: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Meeting URL (Zoom / Google Meet)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+                  value={newSessionForm.meeting_url}
+                  onChange={(e) =>
+                    setNewSessionForm({ ...newSessionForm, meeting_url: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Description &amp; Agenda
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Topics, kinetic typography reviews, guest critique..."
+                  value={newSessionForm.description}
+                  onChange={(e) =>
+                    setNewSessionForm({ ...newSessionForm, description: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleModal(false)}
+                  className="rounded-xl px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingSession}
+                  className="rounded-xl bg-[#ea580c] hover:bg-orange-600 text-white px-4 py-2 text-xs font-bold shadow-sm transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {savingSession ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Scheduling...</span>
+                    </>
+                  ) : (
+                    <span>Schedule Session</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Workshop Details Modal (Triggered by ⓘ icon) */}
       {selectedInfoWorkshop && (
@@ -592,7 +768,7 @@ export function WorkshopsPage() {
               {selectedInfoWorkshop.description && (
                 <div>
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    Agenda & Focus
+                    Agenda &amp; Focus
                   </label>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
                     {selectedInfoWorkshop.description}

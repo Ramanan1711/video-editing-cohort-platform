@@ -1528,15 +1528,23 @@ export async function createLiveSession(
   createdBy: string,
   input: Omit<LiveSession, 'id'>
 ): Promise<LiveSession> {
-  const { data, error } = await supabase
+  let res = await supabase
     .from('live_sessions')
     .insert({ ...input, created_by: createdBy })
     .select('id, title, description, starts_at, meeting_url')
     .single();
-  if (error) throw error;
 
-  void logAuditEvent(createdBy, 'session.created', 'session', data.id, { title: input.title });
-  return data as LiveSession;
+  if (res.error && (res.error.message.includes('created_by') || res.error.code === '42703')) {
+    res = await supabase
+      .from('live_sessions')
+      .insert(input)
+      .select('id, title, description, starts_at, meeting_url')
+      .single();
+  }
+  if (res.error) throw res.error;
+
+  void logAuditEvent(createdBy, 'session.created', 'session', res.data.id, { title: input.title });
+  return res.data as LiveSession;
 }
 
 export async function updateLiveSession(
