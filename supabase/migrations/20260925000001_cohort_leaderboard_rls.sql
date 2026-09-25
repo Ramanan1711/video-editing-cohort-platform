@@ -3,28 +3,40 @@
 -- Enables Cohort-Based Community Leaderboard & Peer Visibility
 -- ==============================================================================
 
--- 1. Allow enrolled students to view peer enrollments within their same cohort
+-- 1. Helper function: check if authenticated user is enrolled in cohort (Security Definer avoids RLS infinite recursion)
+create or replace function public.is_enrolled_in_cohort(p_cohort_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.enrollments
+    where user_id = auth.uid()
+      and cohort_id = p_cohort_id
+  );
+$$;
+
+-- 2. Allow enrolled students to view peer enrollments within their same cohort without recursion
+drop policy if exists "Enrollments select policy" on public.enrollments;
 drop policy if exists "Users can view enrollments" on public.enrollments;
+drop policy if exists "Users can view their enrollments" on public.enrollments;
+drop policy if exists "Users can view their own enrollments" on public.enrollments;
 drop policy if exists "Enrolled students can view cohort peers and staff can read all" on public.enrollments;
 
-create policy "Enrolled students can view cohort peers and staff can read all"
+create policy "Enrollments select policy"
   on public.enrollments for select
   to authenticated
   using (
-    public.is_active_user()
-    and (
-      user_id = auth.uid()
-      or public.is_admin()
-      or public.is_mentor_for_cohort(cohort_id)
-      or exists (
-        select 1 from public.enrollments my_enrollment
-        where my_enrollment.user_id = auth.uid()
-        and my_enrollment.cohort_id = enrollments.cohort_id
-      )
-    )
+    (user_id = auth.uid() and public.is_active_user())
+    or public.is_admin()
+    or public.is_mentor_for_cohort(cohort_id)
+    or (public.is_active_user() and public.is_enrolled_in_cohort(cohort_id))
   );
 
--- 2. Allow authenticated community members to view gamification XP on leaderboards
+-- 3. Allow authenticated community members to view gamification XP on leaderboards
 drop policy if exists "Users can view own gamification record" on public.student_gamification;
 drop policy if exists "Authenticated users can view gamification for leaderboard" on public.student_gamification;
 
@@ -33,7 +45,7 @@ create policy "Authenticated users can view gamification for leaderboard"
   to authenticated
   using (true);
 
--- 3. Security Definer RPC for Cohort-Scoped Leaderboard
+-- 4. Security Definer RPC for Cohort-Scoped Leaderboard
 -- Safely aggregates enrolled students, computes PRO points, and ranks them by course title
 create or replace function public.get_enrolled_cohort_leaderboard(p_cohort_id uuid default null)
 returns table (
