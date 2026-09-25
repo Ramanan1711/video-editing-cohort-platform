@@ -42,7 +42,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   unreadMessagesCount = 2,
   unreadNotificationsCount = 10,
   onOpenLevelUpModal: _onOpenLevelUpModal,
-  onOpenWorkshopsModal,
+  onOpenWorkshopsModal: _onOpenWorkshopsModal,
 }) => {
   const { profile, signOut } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
@@ -112,7 +112,6 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
       id: 'workshops',
       label: 'Workshops',
       icon: Video,
-      onClick: onOpenWorkshopsModal,
     },
     {
       id: 'courses',

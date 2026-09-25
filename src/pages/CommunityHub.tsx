@@ -54,6 +54,8 @@ export const CommunityHub: React.FC = () => {
       handleSelectView('messages');
     } else if (tab === 'levelup') {
       handleSelectView('levelup');
+    } else if (tab === 'workshops') {
+      navigate('/workshops');
     } else if (tab === 'courses') {
       if (profile?.role === 'admin') {
         navigate('/admin/courses');

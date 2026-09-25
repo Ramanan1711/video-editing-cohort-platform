@@ -588,7 +588,7 @@ export function StudentDashboard() {
             if (tab === 'community') navigate('/community?tab=feed');
             else if (tab === 'messages') navigate('/community?tab=messages');
             else if (tab === 'levelup') navigate('/community?tab=levelup');
-            else if (tab === 'workshops') setWorkshopsModalOpen(true);
+            else if (tab === 'workshops') navigate('/workshops');
             else if (tab === 'courses') handleSetDashboardView('catalog');
           }}
           onOpenLevelUpModal={() => setLevelUpModalOpen(true)}
@@ -617,7 +617,7 @@ export function StudentDashboard() {
             if (tab === 'community') navigate('/community?tab=feed');
             else if (tab === 'messages') navigate('/community?tab=messages');
             else if (tab === 'levelup') navigate('/community?tab=levelup');
-            else if (tab === 'workshops') setWorkshopsModalOpen(true);
+            else if (tab === 'workshops') navigate('/workshops');
             else if (tab === 'courses') handleSetDashboardView('catalog');
           }}
           onOpenLevelUpModal={() => setLevelUpModalOpen(true)}
@@ -649,7 +649,7 @@ export function StudentDashboard() {
           } else if (tab === 'levelup') {
             navigate('/community?tab=levelup');
           } else if (tab === 'workshops') {
-            setWorkshopsModalOpen(true);
+            navigate('/workshops');
           } else if (tab === 'courses') {
             handleSetDashboardView('catalog');
           }

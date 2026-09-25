@@ -18,6 +18,7 @@ import { MentorDashboard } from './pages/MentorDashboard';
 import { MentorStudents } from './pages/MentorStudents';
 import { AdminOperations } from './pages/AdminOperations';
 import { CommunityHub } from './pages/CommunityHub';
+import { WorkshopsPage } from './pages/WorkshopsPage';
 import { WorkspaceShell } from './components/WorkspaceShell';
 import { Unauthorized } from './pages/Unauthorized';
 
@@ -63,6 +64,14 @@ export function App() {
               element={
                 <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
                   <WorkspaceShell><CommunityHub /></WorkspaceShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workshops"
+              element={
+                <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+                  <WorkspaceShell><WorkshopsPage /></WorkspaceShell>
                 </ProtectedRoute>
               }
             />
