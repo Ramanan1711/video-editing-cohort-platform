@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
   Zap,
@@ -10,37 +10,15 @@ import {
   Sparkles,
   History,
   Award,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
+import { fetchEnrolledLeaderboard, type LeaderboardMember } from '../../lib/gamificationService';
 
 interface LevelUpModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-interface LeaderboardMember {
-  rank: number;
-  id: string;
-  name: string;
-  points: number;
-  avatarUrl?: string;
-  isCurrentUser?: boolean;
-}
-
-const DEFAULT_LEADERBOARD_MEMBERS: LeaderboardMember[] = [
-  { rank: 1, id: 'mem-1', name: 'Bala murugan', points: 36190, avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 2, id: 'mem-2', name: 'Kamalesh K', points: 35525, avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 3, id: 'mem-3', name: 'Prasanth R', points: 23430, avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 4, id: 'mem-4', name: 'Santhoshkumar S', points: 19000, avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 5, id: 'mem-5', name: 'Manikandan Kumar', points: 16620, avatarUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 6, id: 'mem-6', name: 'Deepak Saravanan', points: 15750, avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 7, id: 'mem-7', name: 'Kalaiselvan', points: 14830, avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 8, id: 'mem-8', name: 'Raghul Jadeja', points: 14235, avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 9, id: 'mem-9', name: 'Kavinraj G', points: 13965, avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 10, id: 'mem-10', name: 'Arun Prakash', points: 12400, avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 11, id: 'mem-11', name: 'Vigneshwaran M', points: 11850, avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 12, id: 'mem-12', name: 'Siddharth N', points: 10250, avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=120&h=120&q=80' },
-];
 
 const PRO_HISTORY_TRANSACTIONS = [
   { id: 'tx-1', title: 'Daily Edit: 20 min habit completed', date: 'Today, 08:20 AM', points: '+10 PRO', type: 'habit' },
@@ -52,19 +30,53 @@ const PRO_HISTORY_TRANSACTIONS = [
 ];
 
 export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) => {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [showHabits, setShowHabits] = useState(true);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterView, setFilterView] = useState<'all' | 'top10' | 'myrank'>('all');
   const [hoveredDay, setHoveredDay] = useState<{ day: string; userRate: number; commRate: number } | null>(null);
 
+  const [members, setMembers] = useState<LeaderboardMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState<boolean>(true);
+
+  // Fetch enrolled students dynamically from Supabase
+  useEffect(() => {
+    let isMounted = true;
+    async function loadMembers() {
+      try {
+        setLoadingMembers(true);
+        const data = await fetchEnrolledLeaderboard(undefined, user?.id);
+        if (isMounted) {
+          setMembers(data);
+        }
+      } catch (err) {
+        console.error('Failed to load enrolled members for modal leaderboard:', err);
+      } finally {
+        if (isMounted) {
+          setLoadingMembers(false);
+        }
+      }
+    }
+    if (isOpen) {
+      loadMembers();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, user?.id]);
+
   // User's current rank data
-  const userRank = 296;
-  const userPoints = 829;
-  const userDisplayName = profile?.full_name || 'B15068 Jayanth Durairaj';
-  const userInitials = (profile?.full_name || 'Jayanth Durairaj')
+  const currentUserMember = useMemo(() => {
+    return members.find((m) => m.id === user?.id || m.isCurrentUser);
+  }, [members, user?.id]);
+
+  const userRank = currentUserMember ? currentUserMember.rank : (members.length > 0 ? members.length + 1 : 1);
+  const userPoints = currentUserMember ? currentUserMember.points : 0;
+  const userDisplayName = profile?.full_name || currentUserMember?.name || 'You';
+  const userInitials = (userDisplayName || 'ST')
     .split(' ')
+    .filter(Boolean)
     .map((n) => n[0])
     .join('')
     .slice(0, 2)
@@ -83,7 +95,7 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
 
   // Filter leaderboard based on query and tabs
   const filteredMembers = useMemo(() => {
-    let list = DEFAULT_LEADERBOARD_MEMBERS;
+    let list = members;
     if (filterView === 'top10') {
       list = list.slice(0, 10);
     }
@@ -92,7 +104,7 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
       list = list.filter((m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q));
     }
     return list;
-  }, [filterView, searchQuery]);
+  }, [members, filterView, searchQuery]);
 
   if (!isOpen) return null;
 
@@ -411,7 +423,17 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
 
                 {/* Scrollable Leaderboard List */}
                 <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
-                  {filteredMembers.map((member) => {
+                  {loadingMembers && members.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-slate-400 gap-2">
+                      <Loader2 size={24} className="animate-spin text-amber-500" />
+                      <span className="text-xs font-semibold">Loading enrolled students...</span>
+                    </div>
+                  ) : filteredMembers.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                      <span className="text-xs font-semibold">No enrolled members found</span>
+                    </div>
+                  ) : (
+                    filteredMembers.map((member) => {
                     const isRank1 = member.rank === 1;
                     const isRank2 = member.rank === 2;
                     const isRank3 = member.rank === 3;
@@ -533,7 +555,7 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
                         </div>
                       </div>
                     );
-                  })}
+                  }))}
                 </div>
               </div>
             </div>

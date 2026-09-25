@@ -248,3 +248,172 @@ export async function syncGamificationProfile(
     // Non-blocking fallback
   }
 }
+
+export interface LeaderboardMember {
+  rank: number;
+  id: string;
+  name: string;
+  points: number; // PRO points = total XP
+  avatarUrl?: string;
+  isCurrentUser?: boolean;
+  level?: number;
+  lessonsCompleted?: number;
+  submissionsCount?: number;
+}
+
+const AVATAR_PHOTOS = [
+  '1535713875002-d1d0cf377fde',
+  '1570295999919-56ceb5ecca61',
+  '1507003211169-0a1dd7228f2d',
+  '1500648767791-00dcc994a43e',
+  '1492562080023-ab3db95bfbce',
+  '1522075469751-3a6694fb2f61',
+  '1519085360753-af0119f7cbe7',
+  '1472099645785-5658abf4ff4e',
+  '1517841905240-472988babdf9',
+  '1534528741775-53994a69daeb',
+  '1506794778202-cad84cf45f1d',
+  '1539571696357-5a69c17a67c6',
+];
+
+function getDeterministicAvatar(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % AVATAR_PHOTOS.length;
+  return `https://images.unsplash.com/photo-${AVATAR_PHOTOS[index]}?auto=format&fit=crop&w=120&h=120&q=80`;
+}
+
+/**
+ * Fetches enrolled students and computes their PRO points dynamically based on their XP.
+ */
+export async function fetchEnrolledLeaderboard(
+  cohortId?: string,
+  currentUserId?: string
+): Promise<LeaderboardMember[]> {
+  try {
+    // 1. Fetch enrollments for the cohort (or all enrolled students)
+    let enrollmentQuery = supabase
+      .from('enrollments')
+      .select('user_id, cohort_id, status');
+
+    if (cohortId && cohortId !== 'all') {
+      enrollmentQuery = enrollmentQuery.eq('cohort_id', cohortId);
+    }
+
+    const { data: enrollments, error: enrollError } = await enrollmentQuery;
+    if (enrollError) {
+      console.warn('Error fetching enrollments for leaderboard:', enrollError);
+    }
+
+    let userIds = Array.from(new Set((enrollments ?? []).map((e) => e.user_id)));
+
+    // Ensure current authenticated user is included in the leaderboard so they can see their rank
+    if (currentUserId && !userIds.includes(currentUserId)) {
+      userIds.push(currentUserId);
+    }
+
+    // Fallback: If no enrollments are found in database, check for registered student profiles
+    if (userIds.length === 0) {
+      const { data: studentProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role')
+        .limit(50);
+      if (studentProfiles && studentProfiles.length > 0) {
+        userIds = studentProfiles.map((p) => p.id);
+      }
+    }
+
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    // 2. Parallel fetch student profiles, gamification points, lesson progress, and submissions
+    const [
+      { data: profiles },
+      { data: gamificationRows },
+      { data: progressRows },
+      { data: submissionsRows },
+    ] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, email, role').in('id', userIds),
+      supabase.from('student_gamification').select('user_id, xp_points, editor_level').in('user_id', userIds),
+      supabase.from('lesson_progress').select('user_id, lesson_id, completed').in('user_id', userIds),
+      supabase.from('submissions').select('student_id, status').in('student_id', userIds),
+    ]);
+
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+    const gamificationMap = new Map((gamificationRows ?? []).map((g) => [g.user_id, g]));
+
+    // Group progress by user
+    const completedLessonsByUser = new Map<string, number>();
+    for (const p of progressRows ?? []) {
+      if (p.completed) {
+        completedLessonsByUser.set(p.user_id, (completedLessonsByUser.get(p.user_id) || 0) + 1);
+      }
+    }
+
+    // Group submissions by user
+    const submissionsByUser = new Map<string, { total: number; reviewed: number }>();
+    for (const s of submissionsRows ?? []) {
+      const curr = submissionsByUser.get(s.student_id) || { total: 0, reviewed: 0 };
+      curr.total++;
+      if (s.status === 'reviewed') curr.reviewed++;
+      submissionsByUser.set(s.student_id, curr);
+    }
+
+    // 3. Compute each enrolled student's PRO points directly based on their XP
+    const members: LeaderboardMember[] = userIds.map((uid) => {
+      const prof = profileMap.get(uid);
+      const name =
+        prof?.full_name?.trim() ||
+        (prof?.email ? prof.email.split('@')[0] : 'Enrolled Student');
+
+      const savedGamification = gamificationMap.get(uid);
+      const completedLessons = completedLessonsByUser.get(uid) || 0;
+      const sub = submissionsByUser.get(uid) || { total: 0, reviewed: 0 };
+
+      // Calculate XP:
+      // - 50 XP per completed lesson
+      // - 150 XP per submission
+      // - 300 XP per approved/reviewed submission
+      const calculatedXp =
+        completedLessons * 50 + sub.total * 150 + sub.reviewed * 300;
+      const totalXp = Math.max(savedGamification?.xp_points ?? 0, calculatedXp);
+
+      const avatarUrl = getDeterministicAvatar(uid);
+
+      return {
+        rank: 1,
+        id: uid,
+        name,
+        points: totalXp,
+        avatarUrl,
+        isCurrentUser: uid === currentUserId,
+        level: savedGamification?.editor_level ?? 1,
+        lessonsCompleted: completedLessons,
+        submissionsCount: sub.total,
+      };
+    });
+
+    // 4. Sort by points descending (highest XP first). Tie-break alphabetically by name
+    members.sort((a, b) => {
+      if (b.points !== a.points) {
+        return b.points - a.points;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    // 5. Assign sequential ranks
+    members.forEach((m, idx) => {
+      m.rank = idx + 1;
+    });
+
+    return members;
+  } catch (err) {
+    console.error('Failed to fetch enrolled leaderboard:', err);
+    return [];
+  }
+}
+

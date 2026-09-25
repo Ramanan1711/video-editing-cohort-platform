@@ -30,6 +30,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
+import { fetchEnrolledLeaderboard, type LeaderboardMember } from '../../lib/gamificationService';
 
 export type LevelUpSubTab = 'dashboard' | 'habits' | 'challenges';
 
@@ -45,30 +46,6 @@ const formatDateKey = (date: Date): string => {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
-
-interface LeaderboardMember {
-  rank: number;
-  id: string;
-  name: string;
-  points: number;
-  avatarUrl?: string;
-  isCurrentUser?: boolean;
-}
-
-const DEFAULT_LEADERBOARD_MEMBERS: LeaderboardMember[] = [
-  { rank: 1, id: 'mem-1', name: 'Bala murugan', points: 36190, avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 2, id: 'mem-2', name: 'Kamalesh K', points: 35525, avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 3, id: 'mem-3', name: 'Prasanth R', points: 23430, avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 4, id: 'mem-4', name: 'Santhoshkumar S', points: 19000, avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 5, id: 'mem-5', name: 'Manikandan Kumar', points: 16620, avatarUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 6, id: 'mem-6', name: 'Deepak Saravanan', points: 15750, avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 7, id: 'mem-7', name: 'Kalaiselvan', points: 14830, avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 8, id: 'mem-8', name: 'Raghul Jadeja', points: 14235, avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 9, id: 'mem-9', name: 'Kavinraj G', points: 13965, avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 10, id: 'mem-10', name: 'Arun Prakash', points: 12400, avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 11, id: 'mem-11', name: 'Vigneshwaran M', points: 11850, avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=120&h=120&q=80' },
-  { rank: 12, id: 'mem-12', name: 'Siddharth N', points: 10250, avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=120&h=120&q=80' },
-];
 
 const PRO_HISTORY_TRANSACTIONS = [
   { id: 'tx-1', title: 'Daily Edit: 20 min habit completed', date: 'Today, 08:20 AM', points: '+10 PRO', type: 'habit' },
@@ -153,8 +130,29 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   initialSubTab = 'dashboard',
   initialDate,
 }) => {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Dynamic enrolled students & XP Leaderboard state
+  const [members, setMembers] = useState<LeaderboardMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
+
+  // Fetch enrolled students and their live XP points
+  useEffect(() => {
+    let isMounted = true;
+    async function loadMembers() {
+      setLoadingMembers(true);
+      const data = await fetchEnrolledLeaderboard(undefined, user?.id);
+      if (isMounted) {
+        setMembers(data);
+        setLoadingMembers(false);
+      }
+    }
+    loadMembers();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   // Dynamic live today reference (defaults to real current Date)
   // Dynamic reference for Today (supports testing with initialDate or live clock)
@@ -298,14 +296,22 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
     ? joinedChallengeIds.includes(selectedChallenge.id)
     : false;
 
-  // User's current rank data & dynamic points
-  const userRank = 296;
-  // Base balance 819 PRO + 10 PRO earned if today's habit is completed before 12:00 AM midnight
-  const basePoints = 819;
+  // User's current rank data & dynamic points derived from real enrolled students
+  const currentUserMember = useMemo(() => {
+    return members.find((m) => m.id === user?.id || m.isCurrentUser);
+  }, [members, user?.id]);
+
+  const userRank = currentUserMember ? currentUserMember.rank : (members.length > 0 ? members.length + 1 : 1);
+  const basePoints = currentUserMember ? currentUserMember.points : 0;
   const userPoints = basePoints + (todayHabitCompleted ? 10 : 0);
-  const userDisplayName = profile?.full_name || 'B15068 Jayanth Durairaj';
-  const userInitials = (profile?.full_name || 'Jayanth Durairaj')
+  const userDisplayName =
+    profile?.full_name?.trim() ||
+    currentUserMember?.name ||
+    profile?.email?.split('@')[0] ||
+    'Enrolled Student';
+  const userInitials = (userDisplayName || 'ES')
     .split(' ')
+    .filter(Boolean)
     .map((n) => n[0])
     .join('')
     .slice(0, 2)
@@ -322,9 +328,9 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
     { day: 'Tue', userRate: 52.0, commRate: 3.13 },
   ];
 
-  // Filter leaderboard
+  // Filter dynamic enrolled members
   const filteredMembers = useMemo(() => {
-    let list = DEFAULT_LEADERBOARD_MEMBERS;
+    let list = members;
     if (filterView === 'top10') {
       list = list.slice(0, 10);
     }
@@ -333,7 +339,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
       list = list.filter((m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q));
     }
     return list;
-  }, [filterView, searchQuery]);
+  }, [members, filterView, searchQuery]);
 
   // Dynamic Month title
   const currentMonthName = useMemo(() => {
@@ -1145,27 +1151,29 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                     </div>
 
                     <div className="space-y-2">
-                      {/* Leaderboard Item #1 matching reference image */}
-                      <div className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 p-3 hover:bg-slate-100/70 transition">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-black text-slate-400 w-5 text-center">#1</span>
-                          <img
-                            src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80"
-                            alt="Bala murugan"
-                            className="size-8 rounded-full object-cover ring-2 ring-amber-400/40"
-                          />
-                          <div>
-                            <p className="text-xs font-black text-slate-900 dark:text-white">Bala murugan</p>
-                            <p className="text-[10px] text-slate-400">Checked in 3 hours ago</p>
+                      {/* Dynamic Checkin Leaderboard Item #1 */}
+                      {members.length > 0 && (
+                        <div className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 p-3 hover:bg-slate-100/70 transition">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-black text-slate-400 w-5 text-center">#1</span>
+                            <img
+                              src={members[0].avatarUrl}
+                              alt={members[0].name}
+                              className="size-8 rounded-full object-cover ring-2 ring-amber-400/40"
+                            />
+                            <div>
+                              <p className="text-xs font-black text-slate-900 dark:text-white">{members[0].name}</p>
+                              <p className="text-[10px] text-slate-400">Checked in 3 hours ago</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-xs font-black text-amber-600 dark:text-amber-400">
+                              🪙 50 PRO
+                            </span>
+                            <span className="text-base" title="1st Place">🥇</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-xs font-black text-amber-600 dark:text-amber-400">
-                            🪙 50 PRO
-                          </span>
-                          <span className="text-base" title="1st Place">🥇</span>
-                        </div>
-                      </div>
+                      )}
 
                       {/* User submission if submitted */}
                       {submittedCheckinIds.includes(selectedChallenge.id) && (
@@ -1437,30 +1445,31 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
-                        {[
-                          { name: 'Bala murugan', rank: '🥇 Rank 1', time: 'Yesterday', views: 42, score: '48/50' },
-                          { name: 'Kamalesh K', rank: '🥈 Rank 2', time: '2 days ago', views: 31, score: '46/50' },
-                          { name: 'Prasanth R', rank: '🥉 Rank 3', time: '3 days ago', views: 28, score: '45/50' },
-                        ].map((peer, i) => (
-                          <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-2 bg-slate-50/50 dark:bg-slate-800/40">
-                            <div className="relative h-28 rounded-xl bg-slate-900 flex items-center justify-center overflow-hidden group">
-                              <span className="flex size-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-xs group-hover:scale-110 transition">
-                                <Play size={16} />
-                              </span>
-                              <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-black text-white">
-                                0:58
-                              </span>
+                        {(members.length > 0 ? members.slice(0, 3) : []).map((peer, i) => {
+                          const medals = ['🥇 Rank 1', '🥈 Rank 2', '🥉 Rank 3'];
+                          const times = ['Yesterday', '2 days ago', '3 days ago'];
+                          const scores = ['48/50', '46/50', '45/50'];
+                          return (
+                            <div key={peer.id || i} className="rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-2 bg-slate-50/50 dark:bg-slate-800/40">
+                              <div className="relative h-28 rounded-xl bg-slate-900 flex items-center justify-center overflow-hidden group">
+                                <span className="flex size-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-xs group-hover:scale-110 transition">
+                                  <Play size={16} />
+                                </span>
+                                <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-black text-white">
+                                  0:58
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-slate-900 dark:text-white truncate">{peer.name}</span>
+                                <span className="text-[10px] font-black text-amber-500">{medals[i] || `#${i + 1}`}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] text-slate-400">
+                                <span>Score: {scores[i] || '45/50'}</span>
+                                <span>{times[i] || 'Recently'}</span>
+                              </div>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-900 dark:text-white">{peer.name}</span>
-                              <span className="text-[10px] font-black text-amber-500">{peer.rank}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-[10px] text-slate-400">
-                              <span>Score: {peer.score}</span>
-                              <span>{peer.time}</span>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -1894,56 +1903,83 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
 
                 {/* Top 3 Podium Highlights */}
                 <div className="space-y-1.5 mb-3">
-                  <div className="rounded-xl border border-yellow-200/80 bg-yellow-500/10 dark:border-yellow-600/30 dark:bg-yellow-500/5 p-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">🥇</span>
-                      <span className="text-xs font-bold text-slate-900 dark:text-slate-100">Bala murugan</span>
-                    </div>
-                    <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400">36,190 PRO</span>
-                  </div>
+                  {loadingMembers ? (
+                    <div className="py-4 text-center text-xs text-slate-400">Loading enrolled members...</div>
+                  ) : filteredMembers.length === 0 ? (
+                    <div className="py-4 text-center text-xs text-slate-400">No enrolled students found</div>
+                  ) : (
+                    filteredMembers.slice(0, 3).map((member, idx) => {
+                      const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+                      const borderBg =
+                        idx === 0
+                          ? 'border-yellow-200/80 bg-yellow-500/10 dark:border-yellow-600/30 dark:bg-yellow-500/5'
+                          : idx === 1
+                          ? 'border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-800/40'
+                          : 'border-amber-200/60 bg-amber-700/5 dark:border-amber-800/30 dark:bg-amber-900/10';
+                      const pointsColor =
+                        idx === 0
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : idx === 1
+                          ? 'text-slate-600 dark:text-slate-400'
+                          : 'text-amber-700 dark:text-amber-500';
 
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-800/40 p-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">🥈</span>
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Kamalesh K</span>
-                    </div>
-                    <span className="text-xs font-extrabold text-slate-600 dark:text-slate-400">35,525 PRO</span>
-                  </div>
-
-                  <div className="rounded-xl border border-amber-200/60 bg-amber-700/5 dark:border-amber-800/30 dark:bg-amber-900/10 p-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">🥉</span>
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Prasanth R</span>
-                    </div>
-                    <span className="text-xs font-extrabold text-amber-700 dark:text-amber-500">23,430 PRO</span>
-                  </div>
+                      return (
+                        <div
+                          key={member.id}
+                          className={`rounded-xl border ${borderBg} p-2.5 flex items-center justify-between transition`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm shrink-0">{medal}</span>
+                            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                              {member.name}
+                            </span>
+                            {member.isCurrentUser && (
+                              <span className="rounded-sm bg-amber-500/20 px-1 py-0.2 text-[8px] font-black text-amber-800 dark:text-amber-300 shrink-0">
+                                YOU
+                              </span>
+                            )}
+                          </div>
+                          <span className={`text-xs font-extrabold shrink-0 ${pointsColor}`}>
+                            {member.points.toLocaleString()} PRO
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Scrollable Members List */}
                 <div className="flex-1 overflow-y-auto max-h-72 space-y-1 pr-1">
-                  {filteredMembers.slice(3).map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between rounded-xl p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition text-xs"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-5 text-center text-slate-400 font-bold text-[11px] shrink-0">
-                          {member.rank}
-                        </span>
-                        <img
-                          src={member.avatarUrl}
-                          alt={member.name}
-                          className="size-6 rounded-full object-cover shrink-0"
-                        />
-                        <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">
-                          {member.name}
+                  {filteredMembers.length > 3 ? (
+                    filteredMembers.slice(3).map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between rounded-xl p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition text-xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="w-5 text-center text-slate-400 font-bold text-[11px] shrink-0">
+                            {member.rank}
+                          </span>
+                          <img
+                            src={member.avatarUrl}
+                            alt={member.name}
+                            className="size-6 rounded-full object-cover shrink-0"
+                          />
+                          <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">
+                            {member.name}
+                          </span>
+                          {member.isCurrentUser && (
+                            <span className="rounded-sm bg-amber-500/20 px-1 py-0.2 text-[8px] font-black text-amber-800 dark:text-amber-300 shrink-0">
+                              YOU
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-black text-slate-800 dark:text-slate-200 shrink-0">
+                          {member.points.toLocaleString()} PRO
                         </span>
                       </div>
-                      <span className="font-black text-slate-800 dark:text-slate-200 shrink-0">
-                        {member.points.toLocaleString()} PRO
-                      </span>
-                    </div>
-                  ))}
+                    ))
+                  ) : null}
                 </div>
               </div>
 

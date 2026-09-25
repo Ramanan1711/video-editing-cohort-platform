@@ -51,6 +51,45 @@ vi.mock('../../lib/communityService', () => ({
   togglePostReaction: vi.fn().mockResolvedValue({ added: true }),
 }));
 
+// Mock gamificationService
+vi.mock('../../lib/gamificationService', () => ({
+  fetchEnrolledLeaderboard: vi.fn().mockResolvedValue([
+    {
+      rank: 1,
+      id: 'student-1',
+      name: 'Alex Rivera',
+      points: 1250,
+      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&h=120&q=80',
+      isCurrentUser: false,
+      level: 3,
+      lessonsCompleted: 10,
+      submissionsCount: 5,
+    },
+    {
+      rank: 2,
+      id: 'test-user-1',
+      name: 'Test Creator',
+      points: 950,
+      avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=120&h=120&q=80',
+      isCurrentUser: true,
+      level: 2,
+      lessonsCompleted: 8,
+      submissionsCount: 3,
+    },
+    {
+      rank: 3,
+      id: 'student-3',
+      name: 'Jordan Smith',
+      points: 600,
+      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80',
+      isCurrentUser: false,
+      level: 2,
+      lessonsCompleted: 6,
+      submissionsCount: 2,
+    },
+  ]),
+}));
+
 describe('CommunityHub & Components', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -260,7 +299,7 @@ describe('CommunityHub & Components', () => {
     expect(localStorage.getItem('cutcraft_theme')).toBe('light');
   });
 
-  it('renders Level Up as a dedicated tab with 3-column stats, leaderboard, and habits when navigated via ?tab=levelup', () => {
+  it('renders Level Up as a dedicated tab with 3-column stats, leaderboard, and habits when navigated via ?tab=levelup', async () => {
     render(
       <MemoryRouter initialEntries={['/community?tab=levelup']}>
         <CommunityHub />
@@ -277,14 +316,15 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByText(/Community avg completion rate/i)).toBeInTheDocument();
     expect(screen.getByText('3.13%')).toBeInTheDocument();
 
-    // Verify Podium members
-    expect(screen.getByText('Bala murugan')).toBeInTheDocument();
-    expect(screen.getByText('36,190 PRO')).toBeInTheDocument();
-    expect(screen.getByText('Kamalesh K')).toBeInTheDocument();
-    expect(screen.getByText('Prasanth R')).toBeInTheDocument();
+    // Verify dynamic enrolled leaderboard members from XP
+    await waitFor(() => {
+      expect(screen.getByText('Alex Rivera')).toBeInTheDocument();
+      expect(screen.getByText('1,250 PRO')).toBeInTheDocument();
+      expect(screen.getByText('Jordan Smith')).toBeInTheDocument();
+    });
 
-    // Verify Pinned user rank card
-    expect(screen.getByText('YOU')).toBeInTheDocument();
+    // Verify Pinned user rank card and dynamic current user indicator
+    expect(screen.getAllByText(/YOU/i).length).toBeGreaterThanOrEqual(1);
 
     // Verify Daily Habits list
     expect(screen.getByText('EDIT for 20 minutes')).toBeInTheDocument();
@@ -419,7 +459,7 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Challenges' })).toBeInTheDocument();
   });
 
-  it('renders Checkin details modal with 5 steps, Epidemic sound link, points assigned, and submission action matching reference image', () => {
+  it('renders Checkin details modal with 5 steps, Epidemic sound link, points assigned, and submission action matching reference image', async () => {
     render(
       <MemoryRouter initialEntries={['/community?tab=levelup&sub=challenges']}>
         <CommunityHub />
@@ -469,7 +509,9 @@ describe('CommunityHub & Components', () => {
 
     // Verify background workspace is visible with hero card and submissions leaderboard
     expect(screen.queryByText('Checkin details for Task 3 - Design sounds for the video')).not.toBeInTheDocument();
-    expect(screen.getByText('Bala murugan')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Alex Rivera')).toBeInTheDocument();
+    });
     expect(screen.getByText('Submissions')).toBeInTheDocument();
 
     // Reopen modal via hero button
