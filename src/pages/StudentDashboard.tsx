@@ -45,7 +45,9 @@ import {
   formatFileSize,
   getStudentCourseData,
   listAssignments,
+  listCohorts,
   listLessonResources,
+  listModules,
   listMySubmissions,
   listStudentAnnouncements,
   listStudentLiveSessions,
@@ -53,8 +55,10 @@ import {
   parseVideoUrl,
   updateLessonWatchProgress,
   type Assignment,
+  type Cohort,
   type Lesson,
   type LessonResource,
+  type Module,
   type StudentAnnouncement,
   type StudentCourseData,
   type StudentLiveSession,
@@ -95,6 +99,8 @@ export function StudentDashboard() {
   const [cohortAssignments, setCohortAssignments] = useState<Assignment[]>([]);
   const [liveSessions, setLiveSessions] = useState<StudentLiveSession[]>([]);
   const [announcements, setAnnouncements] = useState<StudentAnnouncement[]>([]);
+  const [allCohorts, setAllCohorts] = useState<Cohort[]>([]);
+  const [allModules, setAllModules] = useState<Module[]>([]);
   const [appError, setAppError] = useState<AppError | null>(null);
   const [activeTab, setActiveTab] = useState<
     'curriculum' | 'assignments' | 'calendar' | 'community' | 'sessions' | 'announcements'
@@ -158,12 +164,22 @@ export function StudentDashboard() {
     async function loadDashboardData() {
       try {
         setLoading(true);
-        const [courseRes, submissionsRes, sessionsRes, announcementsRes, assignmentsRes] = await Promise.allSettled([
+        const [
+          courseRes,
+          submissionsRes,
+          sessionsRes,
+          announcementsRes,
+          assignmentsRes,
+          allCohortsRes,
+          allModulesRes,
+        ] = await Promise.allSettled([
           getStudentCourseData(userId, selectedCohortId ?? undefined),
           listMySubmissions(userId),
           listStudentLiveSessions(),
           listStudentAnnouncements(),
           listAssignments(selectedCohortId ?? undefined),
+          listCohorts(),
+          listModules(),
         ]);
 
         if (!active) return;
@@ -178,6 +194,18 @@ export function StudentDashboard() {
         const partialErrors: string[] = [];
 
         setCourse(courseRes.value);
+
+        if (allCohortsRes.status === 'fulfilled') {
+          setAllCohorts(allCohortsRes.value);
+        } else {
+          console.warn('Cohorts load failure:', allCohortsRes.reason);
+        }
+
+        if (allModulesRes.status === 'fulfilled') {
+          setAllModules(allModulesRes.value);
+        } else {
+          console.warn('Modules load failure:', allModulesRes.reason);
+        }
 
         if (submissionsRes.status === 'fulfilled') {
           setMySubmissions(submissionsRes.value);
@@ -245,55 +273,95 @@ export function StudentDashboard() {
   const completedCount = completedLessons.length;
   const progressPercent = allLessons.length ? Math.round((completedCount / allLessons.length) * 100) : 0;
 
-  // Courses catalog data matching reference image
-  const activeCourseTitle = course.cohort?.name || 'B15 - Full Stack Video Editing Cohort';
-  const activeSectionsCount = course.modules.length > 0 ? course.modules.length : 9;
-  const activeLecturesCount = allLessons.length > 0 ? allLessons.length : 34;
-  const activeProgress = progressPercent > 0 ? progressPercent : 60;
-  const isCourseCompleted = activeProgress === 100;
+  // Courses catalog dynamically mapped from existing cohorts in the database
+  const catalogCourses = useMemo(() => {
+    // Gather all existing cohorts from the database
+    let sourceCohorts: Cohort[] = [];
+    if (allCohorts.length > 0) {
+      sourceCohorts = allCohorts;
+    } else if (course.enrolledCohorts && course.enrolledCohorts.length > 0) {
+      sourceCohorts = course.enrolledCohorts;
+    } else if (course.cohort) {
+      sourceCohorts = [course.cohort];
+    }
 
-  const catalogCourses = useMemo(() => [
-    {
-      id: course.cohort?.id || 'active-b15',
-      title: activeCourseTitle,
-      platform: 'Pro Editors Club',
-      sections: activeSectionsCount,
-      lectures: activeLecturesCount,
-      progress: activeProgress,
-      isLocked: false,
-      status: isCourseCompleted ? 'completed' : 'in_progress',
-      tag: 'NEW 12 new chapters recently added',
-      batchTag: 'BATCH 15',
-      headline: 'FULL STACK',
-      subheadline: 'VIDEO EDITING COHORT',
-    },
-    {
-      id: 'hub-pro-alumni',
-      title: 'Pro Alumni Hub',
-      platform: 'Pro Editors Club',
-      sections: 14,
-      lectures: 60,
-      progress: 0,
-      isLocked: true,
-      status: 'paid',
-      batchTag: 'THE PRO - ALUMNI HUB',
-      headline: 'SOCIAL MEDIA',
-      subheadline: 'VIDEO EDITING COHORT',
-    },
-    {
-      id: 'b9-social-media',
-      title: 'Batch - 9 Social Media Video Editing Cohort',
-      platform: 'Pro Editors Club',
-      sections: 14,
-      lectures: 59,
-      progress: 0,
-      isLocked: true,
-      status: 'paid',
-      batchTag: 'BATCH-9',
-      headline: 'SOCIAL MEDIA',
-      subheadline: 'VIDEO EDITING COHORT',
-    },
-  ], [course.cohort, activeCourseTitle, activeSectionsCount, activeLecturesCount, activeProgress, isCourseCompleted]);
+    const completedLessonIdSet = new Set(
+      course.progress.filter((p) => p.completed).map((p) => p.lesson_id)
+    );
+
+    const enrolledIdSet = new Set([
+      ...(course.enrolledCohorts || []).map((c) => c.id),
+      ...(course.cohort ? [course.cohort.id] : []),
+    ]);
+
+    return sourceCohorts.map((cohort) => {
+      const isEnrolled = enrolledIdSet.has(cohort.id);
+      const isCurrentActive = course.cohort?.id === cohort.id;
+
+      // Modules and lessons for this cohort
+      const cohortModules = allModules.filter((m) => m.cohort_id === cohort.id);
+      const sectionsCount = isCurrentActive && course.modules.length > 0
+        ? course.modules.length
+        : cohortModules.length;
+
+      const cohortLessons = isCurrentActive && allLessons.length > 0
+        ? allLessons
+        : cohortModules.flatMap((m) => m.lessons || []);
+
+      const lecturesCount = cohortLessons.length;
+
+      // Real progress
+      let computedProgress = 0;
+      if (isEnrolled && lecturesCount > 0) {
+        const completed = cohortLessons.filter((l) => completedLessonIdSet.has(l.id)).length;
+        computedProgress = Math.round((completed / lecturesCount) * 100);
+      } else if (isCurrentActive && progressPercent > 0) {
+        computedProgress = progressPercent;
+      }
+
+      const isCourseDone = isEnrolled && computedProgress === 100;
+      const status: 'in_progress' | 'completed' | 'paid' = isEnrolled
+        ? isCourseDone
+          ? 'completed'
+          : 'in_progress'
+        : 'paid';
+
+      // Clean display typography for the dark cinematic banner
+      const cleanName = (cohort.name || 'COHORT').trim();
+      const nameParts = cleanName.split(/\s+/);
+      const headline = nameParts.slice(0, 2).join(' ').toUpperCase();
+      const subheadline = nameParts.length > 2 
+        ? nameParts.slice(2).join(' ').toUpperCase() 
+        : 'VIDEO EDITING COHORT';
+
+      const batchMatch = cleanName.match(/\b(b(?:atch)?\s*[-]?\s*\d+)\b/i);
+      const batchTag = batchMatch ? batchMatch[0].toUpperCase() : headline;
+
+      return {
+        id: cohort.id,
+        title: cleanName,
+        platform: 'Pro Editors Club',
+        sections: sectionsCount,
+        lectures: lecturesCount,
+        progress: computedProgress,
+        isLocked: !isEnrolled,
+        status,
+        tag: isEnrolled ? 'Active Enrollment' : undefined,
+        batchTag,
+        headline,
+        subheadline,
+      };
+    });
+  }, [
+    allCohorts,
+    course.enrolledCohorts,
+    course.cohort,
+    course.modules,
+    course.progress,
+    allModules,
+    allLessons,
+    progressPercent,
+  ]);
 
   const filteredCatalogCourses = useMemo(() => {
     return catalogCourses.filter((item) => {
@@ -796,7 +864,12 @@ export function StudentDashboard() {
                       {/* Continue Action Button */}
                       <button
                         type="button"
-                        onClick={() => handleSetDashboardView('player')}
+                        onClick={() => {
+                          if (c.id && c.id !== course.cohort?.id) {
+                            setSelectedCohortId(c.id);
+                          }
+                          handleSetDashboardView('player');
+                        }}
                         className="mt-5 w-full rounded-xl bg-[#ea580c] hover:bg-orange-600 text-white font-bold py-2.5 px-4 text-sm transition shadow-sm hover:shadow active:scale-[0.99] flex items-center justify-center gap-2"
                       >
                         Continue
@@ -880,7 +953,12 @@ export function StudentDashboard() {
                     {/* Buy Now Button */}
                     <button
                       type="button"
-                      onClick={() => setDiscoveryModalOpen(true)}
+                      onClick={() => {
+                        if (c.id) {
+                          setSelectedCohortId(c.id);
+                        }
+                        setDiscoveryModalOpen(true);
+                      }}
                       className="mt-6 w-full rounded-xl bg-[#ea580c] hover:bg-orange-600 text-white font-bold py-2.5 px-4 text-sm transition shadow-sm hover:shadow active:scale-[0.99] flex items-center justify-center gap-2"
                     >
                       Buy now to unlock
