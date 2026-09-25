@@ -195,7 +195,7 @@ describe('StudentDashboard - Courses Catalog & Player View', () => {
     expect(await screen.findByText('B15 - Full Stack Video Editing Cohort')).toBeInTheDocument();
     expect(screen.getByText('FULL STACK')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
-    expect(screen.getByText(/12 new chapters recently added/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 new video recently added/i)).toBeInTheDocument();
 
     // Card 2: Python Masterclass Cohort (Locked)
     expect(screen.getByText('Python Masterclass Cohort')).toBeInTheDocument();

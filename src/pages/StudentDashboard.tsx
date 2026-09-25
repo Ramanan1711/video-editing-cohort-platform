@@ -285,6 +285,8 @@ export function StudentDashboard() {
       sourceCohorts = [course.cohort];
     }
 
+    const progressMap = new Map(course.progress.map((p) => [p.lesson_id, p]));
+
     const completedLessonIdSet = new Set(
       course.progress.filter((p) => p.completed).map((p) => p.lesson_id)
     );
@@ -319,6 +321,19 @@ export function StudentDashboard() {
         computedProgress = progressPercent;
       }
 
+      // Check uploaded videos and whether the student has viewed them yet
+      const videoLessons = cohortLessons.filter(
+        (l) => Boolean(l.video_url && l.video_url.trim().length > 0) && l.status !== 'draft'
+      );
+      const totalVideosCount = videoLessons.length;
+      const unviewedVideoLessons = videoLessons.filter((l) => {
+        const p = progressMap.get(l.id);
+        if (!p) return true; // not viewed yet
+        const isViewed = Boolean(p.completed || (p.watch_percentage ?? 0) > 0 || (p.last_position_seconds ?? 0) > 0);
+        return !isViewed;
+      });
+      const unviewedVideoCount = unviewedVideoLessons.length;
+
       const isCourseDone = isEnrolled && computedProgress === 100;
       const status: 'in_progress' | 'completed' | 'paid' = isEnrolled
         ? isCourseDone
@@ -350,6 +365,8 @@ export function StudentDashboard() {
         batchTag,
         headline,
         subheadline,
+        totalVideosCount,
+        unviewedVideoCount,
       };
     });
   }, [
@@ -878,12 +895,31 @@ export function StudentDashboard() {
 
                     {/* Card Footer Banner */}
                     <div className="border-t border-slate-100 dark:border-slate-800/80 px-5 py-3 flex items-center gap-2 bg-slate-50/60 dark:bg-slate-900/60">
-                      <span className="rounded-full bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 tracking-wider uppercase">
-                        NEW
-                      </span>
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        12 new chapters recently added
-                      </span>
+                      {c.unviewedVideoCount > 0 ? (
+                        <>
+                          <span className="rounded-full bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 tracking-wider uppercase">
+                            NEW
+                          </span>
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            {c.unviewedVideoCount === 1
+                              ? '1 new video recently added'
+                              : `${c.unviewedVideoCount} new videos recently added`}
+                          </span>
+                        </>
+                      ) : c.totalVideosCount > 0 ? (
+                        <>
+                          <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-black px-2 py-0.5 tracking-wider uppercase border border-emerald-500/30">
+                            UP TO DATE
+                          </span>
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                            All videos watched
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
+                          No video lessons uploaded yet
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -904,11 +940,13 @@ export function StudentDashboard() {
                     <span className="absolute bottom-3.5 right-3.5 size-3 border-b-2 border-r-2 border-white/20 pointer-events-none" />
 
                     {/* Top right badges */}
-                    <div className="absolute top-3.5 right-3.5 flex items-center gap-2">
-                      <span className="text-[8px] font-black text-white/90 border border-white/30 rounded px-1.5 py-0.5 uppercase tracking-wider">
-                        NEW
-                      </span>
-                    </div>
+                    {c.unviewedVideoCount > 0 && (
+                      <div className="absolute top-3.5 right-3.5 flex items-center gap-2">
+                        <span className="text-[8px] font-black text-white/90 border border-white/30 rounded px-1.5 py-0.5 uppercase tracking-wider">
+                          NEW
+                        </span>
+                      </div>
+                    )}
                     <div className="absolute top-3.5 left-3.5">
                       <div className="flex flex-col items-start leading-none opacity-80">
                         <span className="text-[9px] font-black tracking-widest text-[#f59e0b]">PRO</span>
@@ -963,6 +1001,26 @@ export function StudentDashboard() {
                     >
                       Buy now to unlock
                     </button>
+                  </div>
+
+                  {/* Card Footer Banner */}
+                  <div className="border-t border-slate-100 dark:border-slate-800/80 px-5 py-3 flex items-center gap-2 bg-slate-50/60 dark:bg-slate-900/60">
+                    {c.unviewedVideoCount > 0 ? (
+                      <>
+                        <span className="rounded-full bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 tracking-wider uppercase">
+                          NEW
+                        </span>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                          {c.unviewedVideoCount === 1
+                            ? '1 new video recently added'
+                            : `${c.unviewedVideoCount} new videos recently added`}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
+                        {c.totalVideosCount > 0 ? `${c.totalVideosCount} videos available` : 'Curriculum in preparation'}
+                      </span>
+                    )}
                   </div>
                 </div>
               );
