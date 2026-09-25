@@ -17,6 +17,61 @@ vi.mock('../../context/useAuth', () => ({
 }));
 
 vi.mock('../../lib/courseService', () => ({
+  listCohorts: vi.fn().mockResolvedValue([
+    {
+      id: 'cohort-1',
+      name: 'B15 - Full Stack Video Editing Cohort',
+      title: 'B15 - Full Stack Video Editing Cohort',
+      description: 'Comprehensive video editing cohort',
+      status: 'published',
+    },
+    {
+      id: 'cohort-2',
+      name: 'Python Masterclass Cohort',
+      title: 'Python Masterclass Cohort',
+      description: 'Learn Python programming',
+      status: 'published',
+    },
+    {
+      id: 'cohort-3',
+      name: 'Batch - 9 Social Media Video Editing Cohort',
+      title: 'Batch - 9 Social Media Video Editing Cohort',
+      description: 'Social media video editing',
+      status: 'published',
+    },
+  ]),
+  listModules: vi.fn().mockResolvedValue([
+    {
+      id: 'mod-1',
+      cohort_id: 'cohort-1',
+      title: 'Module 1: Foundations',
+      position: 1,
+      lessons: [
+        {
+          id: 'les-1',
+          module_id: 'mod-1',
+          title: 'Lesson 1: Intro to Pacing',
+          position: 1,
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          duration_minutes: 15,
+        },
+      ],
+    },
+    {
+      id: 'mod-2',
+      cohort_id: 'cohort-2',
+      title: 'Python Basics',
+      position: 1,
+      lessons: [],
+    },
+    {
+      id: 'mod-3',
+      cohort_id: 'cohort-3',
+      title: 'Shorts & Reels',
+      position: 1,
+      lessons: [],
+    },
+  ]),
   getStudentCourseData: vi.fn().mockResolvedValue({
     cohort: {
       id: 'cohort-1',
@@ -94,12 +149,12 @@ describe('StudentDashboard - Courses Catalog & Player View', () => {
     );
   };
 
-  it('renders top navigation bar with PRO EDITORS CLUB branding and Courses active tab', async () => {
+  it('renders top navigation bar with ProCut Hub branding and Courses active tab', async () => {
     renderDashboard();
 
     // Top Navigation Brand & Active Tab
-    expect(await screen.findByText('PRO')).toBeInTheDocument();
-    expect(screen.getAllByText('EDITORS CLUB').length).toBeGreaterThan(0);
+    expect(await screen.findByText('ProCut')).toBeInTheDocument();
+    expect(screen.getAllByText('Hub').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /^courses$/i })).toBeInTheDocument();
   });
 
@@ -142,8 +197,8 @@ describe('StudentDashboard - Courses Catalog & Player View', () => {
     expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
     expect(screen.getByText(/12 new chapters recently added/i)).toBeInTheDocument();
 
-    // Card 2: Pro Alumni Hub (Locked)
-    expect(screen.getByText('Pro Alumni Hub')).toBeInTheDocument();
+    // Card 2: Python Masterclass Cohort (Locked)
+    expect(screen.getByText('Python Masterclass Cohort')).toBeInTheDocument();
 
     // Card 3: Batch - 9 Social Media Video Editing Cohort (Locked)
     expect(screen.getByText('Batch - 9 Social Media Video Editing Cohort')).toBeInTheDocument();
@@ -184,13 +239,13 @@ describe('StudentDashboard - Courses Catalog & Player View', () => {
     fireEvent.click(inProgressBtn);
 
     expect(screen.getByText('B15 - Full Stack Video Editing Cohort')).toBeInTheDocument();
-    expect(screen.queryByText('Pro Alumni Hub')).not.toBeInTheDocument();
+    expect(screen.queryByText('Python Masterclass Cohort')).not.toBeInTheDocument();
     expect(screen.queryByText('Batch - 9 Social Media Video Editing Cohort')).not.toBeInTheDocument();
 
     // Clicking "All" restores all cards
     const allBtn = screen.getByRole('button', { name: 'All' });
     fireEvent.click(allBtn);
 
-    expect(screen.getByText('Pro Alumni Hub')).toBeInTheDocument();
+    expect(screen.getByText('Python Masterclass Cohort')).toBeInTheDocument();
   });
 });

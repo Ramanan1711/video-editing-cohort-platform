@@ -135,22 +135,21 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
             <Menu size={20} />
           </button>
 
-          {/* Brand Logo - PRO EDITORS CLUB */}
+          {/* Brand Logo - ProCut Hub */}
           <Link
             to={profile?.role === 'admin' ? '/admin' : '/student/dashboard'}
             className="flex items-center gap-2.5 group"
-            title="CUT / CRAFT - PRO EDITORS CLUB"
+            title="ProCut Hub"
           >
-            <div className="flex flex-col leading-none">
+            <div className="flex items-center gap-1.5 leading-none">
               <span className="text-xl font-black tracking-tight text-orange-500 group-hover:text-orange-600 transition">
-                PRO
+                ProCut
               </span>
-              <span className="text-[7px] font-extrabold tracking-widest text-slate-800 dark:text-slate-200 uppercase -mt-0.5">
-                EDITORS CLUB
+              <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white transition">
+                Hub
               </span>
             </div>
-            <span className="sr-only">CUT / CRAFT</span>
-            <span className="sr-only">Community Hub</span>
+            <span className="sr-only">ProCut Hub</span>
           </Link>
         </div>
 

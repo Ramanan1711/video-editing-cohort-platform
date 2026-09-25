@@ -174,7 +174,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
         </div>
       </div>
 
-      {/* MAIN PINNED POST: Pro Editors Club Leaderboard (Matching Screenshot) */}
+      {/* MAIN PINNED POST: ProCut Hub Leaderboard (Matching Screenshot) */}
       {(filterType === 'all' || filterType === 'pinned') && (
         <article className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm hover:shadow-md transition-shadow dark:border-slate-800 dark:bg-slate-900">
           <div className="p-5 sm:p-6 space-y-4">
