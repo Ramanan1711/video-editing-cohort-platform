@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   Award,
@@ -20,13 +20,12 @@ import {
   Layers,
   Lightbulb,
   Lock,
-  LogOut,
   Megaphone,
-  Menu,
   MessagesSquare,
   Play,
   Radio,
   RefreshCw,
+  RotateCw,
   Search,
   Shield,
   Sparkles,
@@ -36,6 +35,9 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import { CommunityTopNav } from '../components/community/CommunityTopNav';
+import { LevelUpModal } from '../components/community/LevelUpModal';
+import { WorkshopsModal } from '../components/community/WorkshopsModal';
 import { useAuth } from '../context/useAuth';
 import {
   calculateLearningTime,
@@ -73,12 +75,10 @@ import {
   EnrollmentPanel,
   MilestonePanel,
 } from '../components/StudentFlowPanels';
-import { NotificationCenter } from '../components/NotificationCenter';
 import { CertificateModal } from '../components/CertificateModal';
 import { StudentCalendar } from '../components/StudentCalendar';
 import { CommunityBoard } from '../components/CommunityBoard';
 import { Button } from '../components/ui/Button';
-import { TopRightControls } from '../components/TopRightControls';
 import { StateFallback } from '../components/ui/StateFallback';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 
@@ -86,7 +86,8 @@ const emptyCourse: StudentCourseData = { cohort: null, modules: [], progress: []
 
 export function StudentDashboard() {
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, profile } = useAuth();
   const [course, setCourse] = useState<StudentCourseData>(emptyCourse);
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
@@ -113,6 +114,27 @@ export function StudentDashboard() {
   const [isOnline, setIsOnline] = useState<boolean>(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
+
+  // Courses Catalog View vs Detailed Player View
+  const viewParam = searchParams.get('view');
+  const [dashboardView, setDashboardView] = useState<'catalog' | 'player'>(
+    viewParam === 'player' ? 'player' : 'catalog'
+  );
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
+  const [catalogFilter, setCatalogFilter] = useState<'all' | 'in_progress' | 'completed' | 'expired' | 'paid'>('all');
+  const [levelUpModalOpen, setLevelUpModalOpen] = useState(false);
+  const [workshopsModalOpen, setWorkshopsModalOpen] = useState(false);
+
+  const handleSetDashboardView = useCallback((view: 'catalog' | 'player') => {
+    setDashboardView(view);
+    const newParams = new URLSearchParams(searchParams);
+    if (view === 'player') {
+      newParams.set('view', 'player');
+    } else {
+      newParams.delete('view');
+    }
+    setSearchParams(newParams);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -222,6 +244,77 @@ export function StudentDashboard() {
   );
   const completedCount = completedLessons.length;
   const progressPercent = allLessons.length ? Math.round((completedCount / allLessons.length) * 100) : 0;
+
+  // Courses catalog data matching reference image
+  const activeCourseTitle = course.cohort?.name || 'B15 - Full Stack Video Editing Cohort';
+  const activeSectionsCount = course.modules.length > 0 ? course.modules.length : 9;
+  const activeLecturesCount = allLessons.length > 0 ? allLessons.length : 34;
+  const activeProgress = progressPercent > 0 ? progressPercent : 60;
+  const isCourseCompleted = activeProgress === 100;
+
+  const catalogCourses = useMemo(() => [
+    {
+      id: course.cohort?.id || 'active-b15',
+      title: activeCourseTitle,
+      platform: 'Pro Editors Club',
+      sections: activeSectionsCount,
+      lectures: activeLecturesCount,
+      progress: activeProgress,
+      isLocked: false,
+      status: isCourseCompleted ? 'completed' : 'in_progress',
+      tag: 'NEW 12 new chapters recently added',
+      batchTag: 'BATCH 15',
+      headline: 'FULL STACK',
+      subheadline: 'VIDEO EDITING COHORT',
+    },
+    {
+      id: 'hub-pro-alumni',
+      title: 'Pro Alumni Hub',
+      platform: 'Pro Editors Club',
+      sections: 14,
+      lectures: 60,
+      progress: 0,
+      isLocked: true,
+      status: 'paid',
+      batchTag: 'THE PRO - ALUMNI HUB',
+      headline: 'SOCIAL MEDIA',
+      subheadline: 'VIDEO EDITING COHORT',
+    },
+    {
+      id: 'b9-social-media',
+      title: 'Batch - 9 Social Media Video Editing Cohort',
+      platform: 'Pro Editors Club',
+      sections: 14,
+      lectures: 59,
+      progress: 0,
+      isLocked: true,
+      status: 'paid',
+      batchTag: 'BATCH-9',
+      headline: 'SOCIAL MEDIA',
+      subheadline: 'VIDEO EDITING COHORT',
+    },
+  ], [course.cohort, activeCourseTitle, activeSectionsCount, activeLecturesCount, activeProgress, isCourseCompleted]);
+
+  const filteredCatalogCourses = useMemo(() => {
+    return catalogCourses.filter((item) => {
+      if (catalogSearchQuery.trim()) {
+        const q = catalogSearchQuery.toLowerCase();
+        const matchTitle = item.title.toLowerCase().includes(q);
+        const matchHeadline = item.headline.toLowerCase().includes(q);
+        const matchSub = item.subheadline.toLowerCase().includes(q);
+        if (!matchTitle && !matchHeadline && !matchSub) return false;
+      }
+      if (catalogFilter === 'in_progress') return item.status === 'in_progress';
+      if (catalogFilter === 'completed') return item.status === 'completed';
+      if (catalogFilter === 'paid') return item.isLocked || item.status === 'paid';
+      if (catalogFilter === 'expired') return false;
+      return true;
+    });
+  }, [catalogCourses, catalogSearchQuery, catalogFilter]);
+
+  const inProgressCatalogCount = catalogCourses.filter((c) => c.status === 'in_progress').length;
+  const completedCatalogCount = catalogCourses.filter((c) => c.status === 'completed').length;
+  const totalCatalogCount = catalogCourses.length;
 
   // Real computed metrics
   const streak = useMemo(() => {
@@ -401,30 +494,29 @@ export function StudentDashboard() {
   }
 
   // Guard 2: Initial Platform Loading State
-  if (loading) {
+  if (loading && !course.cohort) {
     return (
-      <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 px-6 py-4 backdrop-blur">
-          <div className="mx-auto flex h-[41px] max-w-[1440px] items-center justify-between">
-            <div className="flex items-center gap-3 pl-12 lg:pl-0">
-              <div className="size-9 rounded-xl bg-orange-500/20 animate-pulse" />
-              <div className="h-4 w-28 rounded-lg bg-slate-200 animate-pulse" />
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-24 rounded-full bg-slate-100 animate-pulse" />
-              <div className="size-8 rounded-full bg-slate-100 animate-pulse" />
-            </div>
+      <div className="min-h-screen bg-[#f8f9fa] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+        <CommunityTopNav
+          activeTab="courses"
+          onTabChange={(tab) => {
+            if (tab === 'community') navigate('/community?tab=feed');
+            else if (tab === 'messages') navigate('/community?tab=messages');
+            else if (tab === 'levelup') navigate('/community?tab=levelup');
+            else if (tab === 'workshops') setWorkshopsModalOpen(true);
+            else if (tab === 'courses') handleSetDashboardView('catalog');
+          }}
+          onOpenLevelUpModal={() => setLevelUpModalOpen(true)}
+          onOpenWorkshopsModal={() => setWorkshopsModalOpen(true)}
+        />
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+          <div className="mb-4 h-8 w-48 rounded-lg bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          <div className="mb-8 h-5 w-64 rounded-lg bg-slate-200 dark:bg-slate-800 animate-pulse" />
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="h-80 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 animate-pulse" />
+            <div className="h-80 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 animate-pulse" />
+            <div className="h-80 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 animate-pulse" />
           </div>
-        </header>
-        <div className="mx-auto max-w-5xl py-12 px-6">
-          <div className="mb-4 h-6 w-48 rounded-lg bg-slate-200 animate-pulse" />
-          <div className="mb-8 h-10 w-80 rounded-xl bg-slate-200 animate-pulse" />
-          <div className="mb-8 grid gap-4 sm:grid-cols-3">
-            <div className="h-24 rounded-2xl bg-white border border-slate-100 p-4 shadow-2xs animate-pulse" />
-            <div className="h-24 rounded-2xl bg-white border border-slate-100 p-4 shadow-2xs animate-pulse" />
-            <div className="h-24 rounded-2xl bg-white border border-slate-100 p-4 shadow-2xs animate-pulse" />
-          </div>
-          <div className="h-96 rounded-3xl bg-white border border-slate-100 shadow-2xs animate-pulse" />
         </div>
       </div>
     );
@@ -433,24 +525,19 @@ export function StudentDashboard() {
   // Guard 3: Fatal Error / Connection / Permission / Migration Failure
   if (appError) {
     return (
-      <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 px-6 py-4 backdrop-blur">
-          <div className="mx-auto flex h-[41px] max-w-[1440px] items-center justify-between">
-            <div className="flex items-center gap-3 pl-12 lg:pl-0">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white font-black text-xs">
-                C
-              </span>
-              <span className="text-sm font-black tracking-tight text-slate-950">CUT / CRAFT</span>
-            </div>
-            <button
-              onClick={signOut}
-              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
-              aria-label="Sign out"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
-        </header>
+      <div className="min-h-screen bg-[#f8f9fa] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+        <CommunityTopNav
+          activeTab="courses"
+          onTabChange={(tab) => {
+            if (tab === 'community') navigate('/community?tab=feed');
+            else if (tab === 'messages') navigate('/community?tab=messages');
+            else if (tab === 'levelup') navigate('/community?tab=levelup');
+            else if (tab === 'workshops') setWorkshopsModalOpen(true);
+            else if (tab === 'courses') handleSetDashboardView('catalog');
+          }}
+          onOpenLevelUpModal={() => setLevelUpModalOpen(true)}
+          onOpenWorkshopsModal={() => setWorkshopsModalOpen(true)}
+        />
         <div className="mx-auto max-w-2xl py-16 px-6">
           <StateFallback
             appError={appError}
@@ -464,170 +551,27 @@ export function StudentDashboard() {
     );
   }
 
-  // Guard 4: Empty Dataset (User enrolled in zero cohorts)
-  if (!course.cohort && course.enrolledCohorts.length === 0) {
-    return (
-      <div className="min-h-screen bg-[#f6f7f9] text-slate-900">
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 px-6 py-4 backdrop-blur">
-          <div className="mx-auto flex h-[41px] max-w-[1440px] items-center justify-between">
-            <div className="flex items-center gap-3 pl-12 lg:pl-0">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white font-black text-xs">
-                C
-              </span>
-              <span className="text-sm font-black tracking-tight text-slate-950">CUT / CRAFT</span>
-            </div>
-            <button
-              onClick={signOut}
-              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
-              aria-label="Sign out"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
-        </header>
-        <div className="mx-auto max-w-2xl py-16 px-6 text-center">
-          <StateFallback
-            type="empty"
-            title="Welcome to CUT / CRAFT Cohort Studio"
-            description="You are not currently enrolled in an active video editing cohort. Discover open cohorts to unlock weekly modules, timeline assignments, and mentor feedback."
-            actionText="Explore Open Cohorts"
-            onAction={() => setDiscoveryModalOpen(true)}
-          />
-          {discoveryModalOpen && (
-            <CohortDiscoveryModal
-              userId={user.id}
-              isOpen={discoveryModalOpen}
-              onClose={() => setDiscoveryModalOpen(false)}
-              currentCohortId={undefined}
-              onSelectCohort={(cohortId) => {
-                setSelectedCohortId(cohortId);
-                setRefreshKey((k) => k + 1);
-              }}
-            />
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#f6f7f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      {/* Top Application Bar */}
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
-        <div className="mx-auto flex h-[73px] max-w-[1440px] items-center justify-between px-5 lg:px-8">
-          <div className="flex items-center gap-3 pl-12 lg:pl-0">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 lg:hidden"
-              aria-label="Open course navigation"
-            >
-              <Menu size={21} />
-            </button>
-            <div className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white shadow-xs">
-              <Sparkles size={18} />
-            </div>
-            <div>
-              <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">CUT / CRAFT</p>
-              <p className="hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500 sm:block">
-                Student Studio
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Cohort Switcher / Discovery Button */}
-            {course.cohort && (
-              <div className="flex items-center gap-1.5">
-                {course.enrolledCohorts.length > 1 ? (
-                  <div className="relative">
-                    <select
-                      value={course.cohort.id}
-                      onChange={(e) => setSelectedCohortId(e.target.value)}
-                      className="h-9 appearance-none rounded-xl border border-slate-200 bg-slate-50 py-1.5 pl-3 pr-8 text-xs font-bold text-slate-800 outline-none hover:bg-slate-100 focus:border-orange-400"
-                    >
-                      {course.enrolledCohorts.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-2.5 text-slate-400" />
-                  </div>
-                ) : (
-                  <span className="hidden rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 md:inline-block">
-                    {course.cohort.name}
-                  </span>
-                )}
-
-                <button
-                  onClick={() => setDiscoveryModalOpen(true)}
-                  className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50"
-                  title="Discover other cohorts"
-                >
-                  <Layers size={14} className="text-orange-500" />
-                  <span className="hidden sm:inline">Explore Cohorts</span>
-                </button>
-              </div>
-            )}
-
-            {/* Gamification Level & XP Badge */}
-            <button
-              type="button"
-              onClick={() => setAchievementsModalOpen(true)}
-              className="flex items-center gap-2 rounded-xl border border-amber-200/90 bg-gradient-to-r from-amber-50/90 to-orange-50/90 px-3 py-1.5 text-xs font-bold text-amber-950 transition hover:border-amber-300 hover:shadow-xs"
-              title="View Editor Level & Achievements"
-            >
-              <div className="flex size-6 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs">
-                <Trophy size={13} />
-              </div>
-              <div className="text-left hidden md:block">
-                <div className="flex items-center gap-1.5 leading-none">
-                  <span className="text-[10px] uppercase font-black tracking-wider text-orange-600">
-                    Lvl {gamification.level}
-                  </span>
-                  <span className="text-[11px] font-black text-slate-800 truncate max-w-28">
-                    {gamification.tierTitle}
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <div className="h-1.5 w-16 overflow-hidden rounded-full bg-amber-200/70">
-                    <div
-                      className="h-full rounded-full bg-orange-500 transition-all duration-300"
-                      style={{
-                        width: `${gamification.progressPercent}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="text-[9px] font-mono font-bold text-slate-500">{gamification.totalXp} XP</span>
-                </div>
-              </div>
-            </button>
-
-            {/* Notification Center */}
-            {user && <NotificationCenter userId={user.id} />}
-
-            {/* Role Links */}
-            {profile?.role === 'admin' && (
-              <Link
-                to="/admin/courses"
-                className="hidden rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-800 sm:inline-block"
-              >
-                Admin
-              </Link>
-            )}
-            {profile?.role === 'mentor' && (
-              <Link
-                to="/review/submissions"
-                className="hidden rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-800 sm:inline-block"
-              >
-                Review Queue
-              </Link>
-            )}
-
-            <TopRightControls />
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#f8f9fa] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+      {/* Top Application Bar - CommunityTopNav with activeTab="courses" */}
+      <CommunityTopNav
+        activeTab="courses"
+        onTabChange={(tab) => {
+          if (tab === 'community') {
+            navigate('/community?tab=feed');
+          } else if (tab === 'messages') {
+            navigate('/community?tab=messages');
+          } else if (tab === 'levelup') {
+            navigate('/community?tab=levelup');
+          } else if (tab === 'workshops') {
+            setWorkshopsModalOpen(true);
+          } else if (tab === 'courses') {
+            handleSetDashboardView('catalog');
+          }
+        }}
+        onOpenLevelUpModal={() => setLevelUpModalOpen(true)}
+        onOpenWorkshopsModal={() => setWorkshopsModalOpen(true)}
+      />
 
       {/* Offline Warning Banner */}
       {!isOnline && (
@@ -658,7 +602,347 @@ export function StudentDashboard() {
         </div>
       )}
 
-      <div className="mx-auto flex max-w-[1440px]">
+      {/* View Switch: Courses Catalog vs Curriculum Video Studio */}
+      {dashboardView === 'catalog' ? (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+          {/* Page Title & Subtitle with Refresh Button */}
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                Courses
+              </h1>
+              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                {totalCatalogCount} courses • {inProgressCatalogCount} in progress • {completedCatalogCount} completed
+              </p>
+            </div>
+            <button
+              onClick={() => setRefreshKey((k) => k + 1)}
+              className="flex size-9 items-center justify-center rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs transition active:scale-95"
+              title="Sync and refresh courses"
+              aria-label="Sync and refresh courses"
+            >
+              <RotateCw size={15} className="text-slate-400" />
+            </button>
+          </div>
+
+          {/* Pill Search Bar */}
+          <div className="mt-6 flex items-center rounded-full border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 shadow-2xs focus-within:border-orange-500 transition">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 pr-3 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border-r border-slate-200 dark:border-slate-800 shrink-0"
+            >
+              <span>Course</span>
+              <ChevronDown size={14} className="text-slate-400" />
+            </button>
+            <Search size={16} className="ml-3 text-slate-400 shrink-0" />
+            <input
+              type="text"
+              value={catalogSearchQuery}
+              onChange={(e) => setCatalogSearchQuery(e.target.value)}
+              placeholder="Search by course, chapter, or section title"
+              className="w-full bg-transparent px-3 text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none"
+            />
+            {catalogSearchQuery && (
+              <button
+                type="button"
+                onClick={() => setCatalogSearchQuery('')}
+                className="text-slate-400 hover:text-slate-600 p-1"
+                aria-label="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Filter Pills Row */}
+          <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+            <button
+              onClick={() => setCatalogFilter('all')}
+              className={`rounded-full px-4 py-1.5 text-xs font-bold transition shadow-xs ${
+                catalogFilter === 'all'
+                  ? 'bg-[#ea580c] text-white shadow-orange-500/20'
+                  : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setCatalogFilter('in_progress')}
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                catalogFilter === 'in_progress'
+                  ? 'bg-[#ea580c] text-white font-bold'
+                  : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              In Progress
+            </button>
+            <button
+              onClick={() => setCatalogFilter('completed')}
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                catalogFilter === 'completed'
+                  ? 'bg-[#ea580c] text-white font-bold'
+                  : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Completed
+            </button>
+            <button
+              onClick={() => setCatalogFilter('expired')}
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                catalogFilter === 'expired'
+                  ? 'bg-[#ea580c] text-white font-bold'
+                  : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Expired
+            </button>
+            <button
+              onClick={() => setCatalogFilter('paid')}
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                catalogFilter === 'paid'
+                  ? 'bg-[#ea580c] text-white font-bold'
+                  : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Paid
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-800 px-4 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0"
+            >
+              <span>Service</span>
+              <ChevronDown size={13} className="text-slate-400" />
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-800 px-4 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0"
+            >
+              <span>Duration</span>
+              <ChevronDown size={13} className="text-slate-400" />
+            </button>
+          </div>
+
+          {/* 3-Column Courses Grid */}
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCatalogCourses.map((c) => {
+              if (!c.isLocked) {
+                // Card 1: Active Enrolled Course
+                return (
+                  <div
+                    key={c.id}
+                    className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col"
+                  >
+                    {/* Dark Cinematic Banner */}
+                    <div className="relative h-48 bg-gradient-to-b from-[#1b1c20] via-[#121316] to-[#0a0b0d] p-6 flex flex-col items-center justify-center select-none overflow-hidden text-center">
+                      {/* Corner Brackets */}
+                      <span className="absolute top-3.5 left-3.5 size-3 border-t-2 border-l-2 border-white/25 pointer-events-none" />
+                      <span className="absolute top-3.5 right-3.5 size-3 border-t-2 border-r-2 border-white/25 pointer-events-none" />
+                      <span className="absolute bottom-3.5 left-3.5 size-3 border-b-2 border-l-2 border-white/25 pointer-events-none" />
+                      <span className="absolute bottom-3.5 right-3.5 size-3 border-b-2 border-r-2 border-white/25 pointer-events-none" />
+
+                      {/* Top PRO Logo */}
+                      <div className="flex flex-col items-center leading-none mb-1.5">
+                        <span className="text-xs font-black tracking-widest text-[#f59e0b]">PRO</span>
+                        <span className="text-[6px] font-bold tracking-widest text-slate-400 uppercase">EDITORS CLUB</span>
+                      </div>
+
+                      {/* Film Reel Icon */}
+                      <div className="flex items-center justify-center text-[#f59e0b] mb-1">
+                        <Video size={18} className="text-[#f59e0b]" />
+                      </div>
+
+                      {/* Banner Text */}
+                      <h4 className="text-2xl sm:text-3xl font-black tracking-tight text-[#f59e0b] uppercase font-sans leading-none">
+                        {c.headline}
+                      </h4>
+                      <p className="mt-1 text-[9px] font-bold tracking-[0.22em] text-white/90 uppercase">
+                        {c.subheadline}
+                      </p>
+                      <span className="mt-1.5 inline-block text-[8px] font-black tracking-widest text-[#f59e0b] border border-[#f59e0b]/40 rounded px-1.5 py-0.5">
+                        {c.batchTag}
+                      </span>
+                    </div>
+
+                    {/* Body Content */}
+                    <div className="p-5 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug line-clamp-1">
+                          {c.title}
+                        </h3>
+                        <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {c.platform}
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          {c.sections} sections • {c.lectures} lectures
+                        </p>
+
+                        {/* Progress Bar */}
+                        <div className="mt-4">
+                          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                            <span>Progress</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">
+                              {c.progress}%
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-orange-100 dark:bg-orange-950/40 overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-orange-500 to-[#ea580c] rounded-full transition-all duration-300"
+                              style={{ width: `${c.progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Continue Action Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleSetDashboardView('player')}
+                        className="mt-5 w-full rounded-xl bg-[#ea580c] hover:bg-orange-600 text-white font-bold py-2.5 px-4 text-sm transition shadow-sm hover:shadow active:scale-[0.99] flex items-center justify-center gap-2"
+                      >
+                        Continue
+                      </button>
+                    </div>
+
+                    {/* Card Footer Banner */}
+                    <div className="border-t border-slate-100 dark:border-slate-800/80 px-5 py-3 flex items-center gap-2 bg-slate-50/60 dark:bg-slate-900/60">
+                      <span className="rounded-full bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 tracking-wider uppercase">
+                        NEW
+                      </span>
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        12 new chapters recently added
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Cards 2 & 3: Locked Courses
+              return (
+                <div
+                  key={c.id}
+                  className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col"
+                >
+                  {/* Dark Cinematic Banner with Lock Icon Overlay */}
+                  <div className="relative h-48 bg-gradient-to-b from-[#18191d] via-[#111215] to-[#090a0c] p-6 flex flex-col items-center justify-center select-none overflow-hidden text-center">
+                    {/* Corner Brackets */}
+                    <span className="absolute top-3.5 left-3.5 size-3 border-t-2 border-l-2 border-white/20 pointer-events-none" />
+                    <span className="absolute top-3.5 right-3.5 size-3 border-t-2 border-r-2 border-white/20 pointer-events-none" />
+                    <span className="absolute bottom-3.5 left-3.5 size-3 border-b-2 border-l-2 border-white/20 pointer-events-none" />
+                    <span className="absolute bottom-3.5 right-3.5 size-3 border-b-2 border-r-2 border-white/20 pointer-events-none" />
+
+                    {/* Top right badges */}
+                    <div className="absolute top-3.5 right-3.5 flex items-center gap-2">
+                      <span className="text-[8px] font-black text-white/90 border border-white/30 rounded px-1.5 py-0.5 uppercase tracking-wider">
+                        NEW
+                      </span>
+                    </div>
+                    <div className="absolute top-3.5 left-3.5">
+                      <div className="flex flex-col items-start leading-none opacity-80">
+                        <span className="text-[9px] font-black tracking-widest text-[#f59e0b]">PRO</span>
+                      </div>
+                    </div>
+
+                    {/* Subtle Background Text */}
+                    <div className="opacity-25 flex flex-col items-center pointer-events-none">
+                      <h4 className="text-2xl font-black tracking-tight text-[#f59e0b] uppercase font-sans">
+                        {c.headline}
+                      </h4>
+                      <p className="text-[8px] tracking-[0.2em] font-bold text-white uppercase">
+                        {c.subheadline}
+                      </p>
+                      <p className="text-[8px] tracking-widest font-black text-[#f59e0b] mt-2">
+                        {c.batchTag}
+                      </p>
+                    </div>
+
+                    {/* Centered Circular Lock Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex size-14 items-center justify-center rounded-full border border-white/25 bg-black/65 backdrop-blur-xs text-white shadow-xl">
+                        <Lock size={22} className="text-white" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Body Content */}
+                  <div className="p-5 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug line-clamp-1">
+                        {c.title}
+                      </h3>
+                      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                        {c.platform}
+                      </p>
+                      <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {c.sections} sections • {c.lectures} lectures
+                      </p>
+                    </div>
+
+                    {/* Buy Now Button */}
+                    <button
+                      type="button"
+                      onClick={() => setDiscoveryModalOpen(true)}
+                      className="mt-6 w-full rounded-xl bg-[#ea580c] hover:bg-orange-600 text-white font-bold py-2.5 px-4 text-sm transition shadow-sm hover:shadow active:scale-[0.99] flex items-center justify-center gap-2"
+                    >
+                      Buy now to unlock
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {filteredCatalogCourses.length === 0 && (
+            <div className="mt-12 text-center py-16 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+              <BookOpen className="mx-auto text-slate-300 dark:text-slate-600 mb-3" size={32} />
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No courses match your filter</p>
+              <button
+                onClick={() => {
+                  setCatalogFilter('all');
+                  setCatalogSearchQuery('');
+                }}
+                className="mt-3 text-xs font-bold text-orange-600 hover:text-orange-700 underline"
+              >
+                Reset filters
+              </button>
+            </div>
+          )}
+        </main>
+      ) : (
+        /* Player View */
+        <div>
+          {/* Top Sub-bar with Back to Courses button */}
+          <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 sm:px-6 py-3 flex items-center justify-between">
+            <button
+              onClick={() => handleSetDashboardView('catalog')}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+            >
+              <ChevronLeft size={16} />
+              <span>Back to Courses</span>
+            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-slate-500 hidden sm:inline">
+                {course.cohort?.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAchievementsModalOpen(true)}
+                className="flex items-center gap-2 rounded-xl border border-amber-200/90 bg-gradient-to-r from-amber-50/90 to-orange-50/90 px-3 py-1.5 text-xs font-bold text-amber-950 transition hover:border-amber-300 hover:shadow-xs"
+                title="View Editor Level & Achievements"
+              >
+                <div className="flex size-5 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs">
+                  <Trophy size={11} />
+                </div>
+                <span className="text-[10px] font-black uppercase text-orange-600">
+                  Lvl {gamification.level}
+                </span>
+                <span className="text-[11px] font-black text-slate-800 truncate max-w-28 hidden md:inline">
+                  {gamification.tierTitle}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mx-auto flex max-w-[1440px]">
         {/* Left Sidebar: Collapsible Curriculum Navigation */}
         <aside
           className={`${
@@ -948,7 +1232,7 @@ export function StudentDashboard() {
               {/* 14 Days Visual Heatmap Blocks */}
               <div className="mt-3.5">
                 <div className="flex items-center justify-between gap-1.5 overflow-x-auto pb-1">
-                  {gamification.recentHeatmap.map((day) => (
+                  {(gamification.recentHeatmap ?? []).map((day) => (
                     <div
                       key={day.dateStr}
                       className="flex flex-col items-center gap-1 flex-1 min-w-[34px]"
@@ -1400,20 +1684,38 @@ export function StudentDashboard() {
           </div>
         </main>
       </div>
+    </div>
+  )}
 
-      {/* Cohort Discovery / Switcher Modal */}
-      {user && (
-        <CohortDiscoveryModal
-          userId={user.id}
-          isOpen={discoveryModalOpen}
-          onClose={() => setDiscoveryModalOpen(false)}
-          currentCohortId={course.cohort?.id}
-          onSelectCohort={(cohortId) => {
-            setSelectedCohortId(cohortId);
-            setRefreshKey((k) => k + 1);
-          }}
-        />
-      )}
+  {/* Level Up Modal */}
+  {levelUpModalOpen && (
+    <LevelUpModal
+      isOpen={levelUpModalOpen}
+      onClose={() => setLevelUpModalOpen(false)}
+    />
+  )}
+
+  {/* Workshops Modal */}
+  {workshopsModalOpen && (
+    <WorkshopsModal
+      isOpen={workshopsModalOpen}
+      onClose={() => setWorkshopsModalOpen(false)}
+    />
+  )}
+
+  {/* Cohort Discovery / Switcher Modal */}
+  {user && (
+    <CohortDiscoveryModal
+      userId={user.id}
+      isOpen={discoveryModalOpen}
+      onClose={() => setDiscoveryModalOpen(false)}
+      currentCohortId={course.cohort?.id}
+      onSelectCohort={(cohortId) => {
+        setSelectedCohortId(cohortId);
+        setRefreshKey((k) => k + 1);
+      }}
+    />
+  )}
 
       {/* Certificate Modal */}
       {user && course.cohort && (

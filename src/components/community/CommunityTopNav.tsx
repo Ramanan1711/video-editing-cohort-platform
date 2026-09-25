@@ -135,23 +135,22 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
             <Menu size={20} />
           </button>
 
-          {/* CUT / CRAFT Brand Logo */}
+          {/* Brand Logo - PRO EDITORS CLUB */}
           <Link
             to={profile?.role === 'admin' ? '/admin' : '/student/dashboard'}
             className="flex items-center gap-2.5 group"
-            title="CUT / CRAFT Workspace"
+            title="CUT / CRAFT - PRO EDITORS CLUB"
           >
-            <span className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white font-black text-sm shadow-md group-hover:scale-105 transition-transform dark:bg-orange-500">
-              <Sparkles size={18} className="text-orange-500 dark:text-white" />
-            </span>
-            <div className="hidden sm:flex flex-col">
-              <span className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
-                CUT / CRAFT
+            <div className="flex flex-col leading-none">
+              <span className="text-xl font-black tracking-tight text-orange-500 group-hover:text-orange-600 transition">
+                PRO
               </span>
-              <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
-                Community Hub
+              <span className="text-[7px] font-extrabold tracking-widest text-slate-800 dark:text-slate-200 uppercase -mt-0.5">
+                EDITORS CLUB
               </span>
             </div>
+            <span className="sr-only">CUT / CRAFT</span>
+            <span className="sr-only">Community Hub</span>
           </Link>
         </div>
 
