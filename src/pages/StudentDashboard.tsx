@@ -85,6 +85,9 @@ import { CommunityBoard } from '../components/CommunityBoard';
 import { Button } from '../components/ui/Button';
 import { StateFallback } from '../components/ui/StateFallback';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
+import { SprintChallengeTracker } from '../components/internship/SprintChallengeTracker';
+import { WhatsAppSupportWidget } from '../components/internship/WhatsAppSupportWidget';
+import { getStudentSprintDays, type InternshipDayStatus } from '../lib/internshipService';
 
 const emptyCourse: StudentCourseData = { cohort: null, modules: [], progress: [], enrolledCohorts: [] };
 
@@ -103,8 +106,25 @@ export function StudentDashboard() {
   const [allModules, setAllModules] = useState<Module[]>([]);
   const [appError, setAppError] = useState<AppError | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'curriculum' | 'assignments' | 'calendar' | 'community' | 'sessions' | 'announcements'
-  >('curriculum');
+    'curriculum' | 'internship_sprint' | 'assignments' | 'calendar' | 'community' | 'sessions' | 'announcements'
+  >(() => {
+    const t = searchParams.get('tab');
+    if (
+      t === 'internship_sprint' ||
+      t === 'assignments' ||
+      t === 'calendar' ||
+      t === 'community' ||
+      t === 'sessions' ||
+      t === 'announcements'
+    ) {
+      return t;
+    }
+    return 'curriculum';
+  });
+  const [sprintDays, setSprintDays] = useState<InternshipDayStatus[]>([]);
+  const [sprintCompletedCount, setSprintCompletedCount] = useState(0);
+  const [sprintStreak, setSprintStreak] = useState(1);
+  const [sprintScore, setSprintScore] = useState(85);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -236,6 +256,21 @@ export function StudentDashboard() {
 
         setFailedSections(partialErrors);
 
+        // Fetch 15-day internship sprint progress
+        if (courseRes.value.cohort) {
+          try {
+            const sprintData = await getStudentSprintDays(userId, courseRes.value.cohort.id);
+            if (active) {
+              setSprintDays(sprintData.days);
+              setSprintCompletedCount(sprintData.completedCount);
+              setSprintStreak(sprintData.streakCount);
+              setSprintScore(sprintData.overallScore);
+            }
+          } catch (sprintErr) {
+            console.warn('Failed to load sprint progress:', sprintErr);
+          }
+        }
+
         // Auto select first lesson if no lesson selected or cohort changed
         const firstLessonId = courseRes.value.modules[0]?.lessons[0]?.id ?? null;
         setSelectedLessonId((prev) => {
@@ -343,14 +378,15 @@ export function StudentDashboard() {
 
       // Clean display typography for the dark cinematic banner
       const cleanName = (cohort.name || 'COHORT').trim();
-      const nameParts = cleanName.split(/\s+/);
-      const headline = nameParts.slice(0, 2).join(' ').toUpperCase();
-      const subheadline = nameParts.length > 2 
-        ? nameParts.slice(2).join(' ').toUpperCase() 
+      const nameWithoutBatch = cleanName.replace(/^(b(?:atch)?\s*[-]?\s*\d+\s*[-]?\s*)/i, '').trim();
+      const displayParts = (nameWithoutBatch || cleanName).split(/\s+/);
+      const headline = displayParts.slice(0, 2).join(' ').toUpperCase();
+      const subheadline = displayParts.length > 2 
+        ? displayParts.slice(2).join(' ').toUpperCase() 
         : 'VIDEO EDITING COHORT';
 
       const batchMatch = cleanName.match(/\b(b(?:atch)?\s*[-]?\s*\d+)\b/i);
-      const batchTag = batchMatch ? batchMatch[0].toUpperCase() : headline;
+      const batchTag = batchMatch ? batchMatch[0].toUpperCase() : 'BATCH';
 
       return {
         id: cohort.id,
@@ -1515,10 +1551,53 @@ export function StudentDashboard() {
               )
             ) : (
               <>
+                {/* 15-Day Sprint High-Priority Notification Banner */}
+                {course.cohort && (
+                  <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 p-4 shadow-2xs">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm shrink-0">
+                        <Flame size={20} className="animate-pulse" />
+                      </span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-orange-600">
+                            15-Day Internship Track
+                          </span>
+                          <span className="rounded-full bg-orange-200/80 px-2 py-0.2 text-[9px] font-extrabold text-orange-900">
+                            Day {Math.min(15, sprintCompletedCount + 1)} of 15
+                          </span>
+                        </div>
+                        <p className="text-xs font-black text-slate-900">
+                          {sprintCompletedCount >= 15
+                            ? 'All 15 Sprint challenges completed! Awaiting final graduation certification.'
+                            : `Today's production task is live! Complete and submit your deliverable for mentor critique.`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setActiveTab('internship_sprint');
+                        const p = new URLSearchParams(searchParams);
+                        p.set('tab', 'internship_sprint');
+                        setSearchParams(p);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 px-3.5 py-2 text-xs font-black text-white shadow-sm transition shrink-0"
+                    >
+                      <span>Open 15-Day Sprint</span>
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                )}
+
                 {/* Workspace Navigation Tabs */}
                 <div className="mb-6 flex overflow-x-auto border-b border-slate-200 text-sm font-bold gap-4 sm:gap-6">
                   <button
-                    onClick={() => setActiveTab('curriculum')}
+                    onClick={() => {
+                      setActiveTab('curriculum');
+                      const p = new URLSearchParams(searchParams);
+                      p.delete('tab');
+                      setSearchParams(p);
+                    }}
                     className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
                       activeTab === 'curriculum'
                         ? 'border-orange-500 text-orange-600'
@@ -1530,7 +1609,32 @@ export function StudentDashboard() {
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('assignments')}
+                    onClick={() => {
+                      setActiveTab('internship_sprint');
+                      const p = new URLSearchParams(searchParams);
+                      p.set('tab', 'internship_sprint');
+                      setSearchParams(p);
+                    }}
+                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
+                      activeTab === 'internship_sprint'
+                        ? 'border-orange-500 text-orange-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Flame size={16} className={activeTab === 'internship_sprint' ? 'text-orange-500' : 'text-slate-400'} />
+                    <span>15-Day Sprint</span>
+                    <span className="rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-[10px] font-black">
+                      {sprintCompletedCount}/15
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab('assignments');
+                      const p = new URLSearchParams(searchParams);
+                      p.set('tab', 'assignments');
+                      setSearchParams(p);
+                    }}
                     className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
                       activeTab === 'assignments'
                         ? 'border-orange-500 text-orange-600'
@@ -1547,7 +1651,12 @@ export function StudentDashboard() {
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('calendar')}
+                    onClick={() => {
+                      setActiveTab('calendar');
+                      const p = new URLSearchParams(searchParams);
+                      p.set('tab', 'calendar');
+                      setSearchParams(p);
+                    }}
                     className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
                       activeTab === 'calendar'
                         ? 'border-orange-500 text-orange-600'
@@ -1559,7 +1668,12 @@ export function StudentDashboard() {
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('community')}
+                    onClick={() => {
+                      setActiveTab('community');
+                      const p = new URLSearchParams(searchParams);
+                      p.set('tab', 'community');
+                      setSearchParams(p);
+                    }}
                     className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
                       activeTab === 'community'
                         ? 'border-orange-500 text-orange-600'
@@ -1571,7 +1685,12 @@ export function StudentDashboard() {
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('sessions')}
+                    onClick={() => {
+                      setActiveTab('sessions');
+                      const p = new URLSearchParams(searchParams);
+                      p.set('tab', 'sessions');
+                      setSearchParams(p);
+                    }}
                     className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
                       activeTab === 'sessions'
                         ? 'border-orange-500 text-orange-600'
@@ -1583,7 +1702,12 @@ export function StudentDashboard() {
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('announcements')}
+                    onClick={() => {
+                      setActiveTab('announcements');
+                      const p = new URLSearchParams(searchParams);
+                      p.set('tab', 'announcements');
+                      setSearchParams(p);
+                    }}
                     className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
                       activeTab === 'announcements'
                         ? 'border-orange-500 text-orange-600'
@@ -1594,6 +1718,21 @@ export function StudentDashboard() {
                     <span>Announcements ({announcements.length})</span>
                   </button>
                 </div>
+
+                {/* TAB: 15-Day Production Sprint */}
+                {activeTab === 'internship_sprint' && course.cohort && user && (
+                  <SprintChallengeTracker
+                    cohortId={course.cohort.id}
+                    cohortName={course.cohort.name}
+                    userId={user.id}
+                    studentName={profile?.full_name || 'Student'}
+                    sprintDays={sprintDays}
+                    completedCount={sprintCompletedCount}
+                    streakCount={sprintStreak}
+                    overallScore={sprintScore}
+                    onRefresh={() => setRefreshKey((k) => k + 1)}
+                  />
+                )}
 
                 {/* TAB 1: Curriculum & Video Player */}
                 {activeTab === 'curriculum' && (
@@ -2007,6 +2146,17 @@ export function StudentDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* WhatsApp Floating Mentor Support */}
+      {user && (
+        <WhatsAppSupportWidget
+          userId={user.id}
+          studentName={profile?.full_name || 'Student'}
+          cohortName={course.cohort?.name}
+          currentDay={Math.min(15, sprintCompletedCount + 1)}
+          initialPhone={profile?.whatsapp_number || ''}
+        />
       )}
     </div>
   );

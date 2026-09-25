@@ -10,6 +10,8 @@ export interface Profile {
   role: 'student' | 'mentor' | 'admin';
   status?: 'active' | 'suspended' | 'inactive';
   admin_role?: AdminSubRole;
+  whatsapp_number?: string | null;
+  whatsapp_opt_in?: boolean;
 }
 
 export interface AuthContextType {

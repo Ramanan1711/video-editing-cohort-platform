@@ -21,6 +21,8 @@ import { getSecureSubmissionUrl } from '../lib/courseService';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/useToast';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
+import { InternshipMonitoringHub } from '../components/internship/InternshipMonitoringHub';
+import { Flame, MessageCircle, Users } from 'lucide-react';
 import {
   getMentorAssignedCohorts,
   listDetailedMentorSubmissions,
@@ -33,6 +35,7 @@ import {
 export function MentorStudents() {
   const { user, profile } = useAuth();
   const toast = useToast();
+  const [viewTab, setViewTab] = useState<'roster' | 'internship_hub'>('internship_hub');
   const [students, setStudents] = useState<MentorStudentProgress[]>([]);
   const [cohorts, setCohorts] = useState<{ id: string; name: string }[]>([]);
   const [selectedCohort, setSelectedCohort] = useState<string>('all');
@@ -242,9 +245,51 @@ export function MentorStudents() {
           </div>
         )}
 
-        {/* Filters and Search Bar */}
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Primary View Mode Switcher */}
+        <div className="mb-6 flex overflow-x-auto border-b border-slate-200 dark:border-slate-800 text-sm font-bold gap-4 sm:gap-6">
+          <button
+            onClick={() => setViewTab('internship_hub')}
+            className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
+              viewTab === 'internship_hub'
+                ? 'border-orange-500 text-orange-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Flame size={16} className="text-orange-500" />
+            <span>15-Day Internship &amp; WhatsApp Hub</span>
+            <span className="flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-300">
+              <MessageCircle size={10} /> Live Heatmap
+            </span>
+          </button>
+
+          <button
+            onClick={() => setViewTab('roster')}
+            className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
+              viewTab === 'roster'
+                ? 'border-orange-500 text-orange-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Users size={16} />
+            <span>General Roster &amp; Dossiers</span>
+            <span className="rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 text-[10px] font-black">
+              {students.length}
+            </span>
+          </button>
+        </div>
+
+        {/* View Mode 1: 15-Day Internship & WhatsApp Hub */}
+        {viewTab === 'internship_hub' ? (
+          <InternshipMonitoringHub
+            cohortId={selectedCohort === 'all' ? (cohorts[0]?.id || '') : selectedCohort}
+            cohortName={cohorts.find((c) => c.id === selectedCohort)?.name || 'Cohort'}
+            mentorId={user?.id || ''}
+          />
+        ) : (
+          <>
+            {/* Filters and Search Bar */}
+            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setFilterMode('all')}
               className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
@@ -434,6 +479,8 @@ export function MentorStudents() {
             }}
           />
         )}
+      </>
+    )}
       </main>
 
       {/* Student Dossier Slide-Over / Modal */}

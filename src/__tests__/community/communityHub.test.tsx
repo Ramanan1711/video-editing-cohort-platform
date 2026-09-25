@@ -108,9 +108,9 @@ describe('CommunityHub & Components', () => {
       </MemoryRouter>
     );
 
-    // CUT / CRAFT Brand Identity
-    expect(screen.getAllByText('CUT / CRAFT').length).toBeGreaterThan(0);
-    expect(screen.getByText('Community Hub')).toBeInTheDocument();
+    // ProCut Hub Brand Identity
+    expect(screen.getAllByText('ProCut').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Hub').length).toBeGreaterThan(0);
 
     // Workspace Navigation Menu Button (Hamburger icon: three minus symbols one below one: ☰)
     const menuBtn = screen.getByRole('button', { name: /open workspace navigation/i });
