@@ -418,7 +418,11 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
   ] = await Promise.all([
     supabase.from('profiles').select('id, full_name, email, role, admin_role, status, created_at'),
     supabase.from('enrollments').select('user_id, cohort_id, status, created_at'),
-    supabase.from('cohorts').select('id, name, capacity, visibility, status'),
+    (async () => {
+      const res = await supabase.from('cohorts').select('id, title, capacity, visibility, status');
+      if (!res.error && res.data) return res;
+      return supabase.from('cohorts').select('id, name, capacity, visibility, status');
+    })(),
     supabase.from('submissions').select('id, student_id, assignment_id, status, created_at'),
     supabase.from('lesson_progress').select('user_id, lesson_id, completed, completed_at'),
     supabase.from('feedback').select('submission_id, mentor_id, created_at'),
@@ -428,7 +432,7 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
 
   const totalUsers = profiles?.length || 0;
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-  const cohortMap = new Map((cohorts ?? []).map((c) => [c.id, c.name]));
+  const cohortMap = new Map(((cohorts as any[]) ?? []).map((c: any) => [c.id, c.title || c.name || 'Cohort']));
   const studentCohortMap = new Map((enrollments ?? []).map((e) => [e.user_id, e.cohort_id]));
 
   const uniqueEnrolledStudents = new Set((enrollments ?? []).map((e) => e.user_id)).size;
@@ -595,9 +599,10 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
     const completionPct = enrolledCount > 0 ? Math.round((completedCount / enrolledCount) * 100) : 0;
     const churnRatePct = enrolledCount > 0 ? Math.round((droppedCount / enrolledCount) * 100) : 0;
 
+    const cohortTitle = (c as any).title || (c as any).name || 'Cohort';
     cohortChurn.push({
       cohortId: c.id,
-      cohortName: c.name,
+      cohortName: cohortTitle,
       totalEnrolled: enrolledCount,
       activeCount,
       completedCount,
@@ -607,7 +612,7 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
 
     return {
       id: c.id,
-      name: c.name,
+      name: cohortTitle,
       capacity,
       enrolledCount,
       fillPct,
@@ -957,6 +962,28 @@ export async function bulkUpdateUserStatus(
 // 4. Cohort Enrollment Management & Enterprise Operations
 // ============================================================================
 
+async function getCohortNameMap(cohortIds: string[]): Promise<Map<string, string>> {
+  if (!cohortIds.length) return new Map();
+  // In Supabase schema, the cohort column is 'title'. Try 'title' first, fallback to 'name'.
+  let list: any[] = [];
+  const { data: titleData, error: titleErr } = await supabase
+    .from('cohorts')
+    .select('id, title')
+    .in('id', cohortIds);
+
+  if (!titleErr && titleData && titleData.length > 0) {
+    list = titleData;
+  } else {
+    const { data: nameData } = await supabase
+      .from('cohorts')
+      .select('id, name')
+      .in('id', cohortIds);
+    list = nameData ?? [];
+  }
+
+  return new Map(list.map((c: any) => [c.id, c.title || c.name || 'Cohort']));
+}
+
 export async function listCohortEnrollments(cohortId?: string): Promise<AdminEnrollment[]> {
   let query = supabase.from('enrollments').select('user_id, cohort_id, status, created_at').order('created_at', { ascending: false });
   if (cohortId) {
@@ -970,13 +997,12 @@ export async function listCohortEnrollments(cohortId?: string): Promise<AdminEnr
   const userIds = Array.from(new Set(enrollments.map((e) => e.user_id)));
   const cohortIds = Array.from(new Set(enrollments.map((e) => e.cohort_id)));
 
-  const [{ data: profiles }, { data: cohorts }] = await Promise.all([
+  const [{ data: profiles }, cohortMap] = await Promise.all([
     supabase.from('profiles').select('id, full_name, email').in('id', userIds),
-    supabase.from('cohorts').select('id, name').in('id', cohortIds),
+    getCohortNameMap(cohortIds),
   ]);
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-  const cohortMap = new Map((cohorts ?? []).map((c) => [c.id, c.name]));
 
   return enrollments.map((e) => {
     const student = profileMap.get(e.user_id);
@@ -1023,13 +1049,12 @@ export async function listCohortEnrollmentsPaged(
   const userIds = Array.from(new Set(enrollments.map((e) => e.user_id)));
   const cohortIds = Array.from(new Set(enrollments.map((e) => e.cohort_id)));
 
-  const [{ data: profiles }, { data: cohorts }] = await Promise.all([
+  const [{ data: profiles }, cohortMap] = await Promise.all([
     supabase.from('profiles').select('id, full_name, email').in('id', userIds),
-    supabase.from('cohorts').select('id, name').in('id', cohortIds),
+    getCohortNameMap(cohortIds),
   ]);
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-  const cohortMap = new Map((cohorts ?? []).map((c) => [c.id, c.name]));
 
   const data: AdminEnrollment[] = enrollments.map((e) => {
     const student = profileMap.get(e.user_id);

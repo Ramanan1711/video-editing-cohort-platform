@@ -2281,7 +2281,9 @@ export function AdminOperations() {
                           <strong className="text-sm font-bold text-slate-950">{item.student_name}</strong>
                           <span className="text-xs text-slate-400">({item.student_email})</span>
                           <span className="rounded-md bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700">
-                            {item.cohort_name}
+                            {item.cohort_name && item.cohort_name !== 'Cohort'
+                              ? item.cohort_name
+                              : (cohorts.find((c) => c.id === item.cohort_id)?.name || item.cohort_name || 'Cohort')}
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-slate-400">

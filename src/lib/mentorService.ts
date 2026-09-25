@@ -780,7 +780,11 @@ export async function listMentorStudents(
   const [{ data: profiles }, { data: cohorts }, { data: modules }, { data: progressRows }, { data: submissions }] =
     await Promise.all([
       supabase.from('profiles').select('id, full_name, email').in('id', studentIds),
-      supabase.from('cohorts').select('id, name').in('id', enrolledCohortIds),
+      (async () => {
+        const res = await supabase.from('cohorts').select('id, title').in('id', enrolledCohortIds);
+        if (!res.error && res.data && res.data.length > 0) return res;
+        return supabase.from('cohorts').select('id, name').in('id', enrolledCohortIds);
+      })(),
       supabase.from('modules').select('id, cohort_id').in('cohort_id', enrolledCohortIds),
       supabase.from('lesson_progress').select('user_id, lesson_id, completed, completed_at').in('user_id', studentIds),
       supabase
@@ -790,7 +794,7 @@ export async function listMentorStudents(
     ]);
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-  const cohortMap = new Map((cohorts ?? []).map((c) => [c.id, c.name]));
+  const cohortMap = new Map(((cohorts as any[]) ?? []).map((c: any) => [c.id, c.title || c.name || 'Cohort']));
 
   // Resolve lessons and total lessons per cohort
   const moduleIds = (modules ?? []).map((m) => m.id);
@@ -1013,10 +1017,17 @@ export async function listMentorOfficeHours(
     if (!data || data.length === 0) return [];
 
     const cohortIds = Array.from(new Set(data.map((d) => d.cohort_id).filter((c): c is string => Boolean(c))));
-    const { data: cohorts } = cohortIds.length
-      ? await supabase.from('cohorts').select('id, name').in('id', cohortIds)
-      : { data: [] };
-    const cohortMap = new Map((cohorts ?? []).map((c) => [c.id, c.name]));
+    let cohorts: any[] = [];
+    if (cohortIds.length) {
+      const res = await supabase.from('cohorts').select('id, title').in('id', cohortIds);
+      if (!res.error && res.data && res.data.length > 0) {
+        cohorts = res.data;
+      } else {
+        const fallback = await supabase.from('cohorts').select('id, name').in('id', cohortIds);
+        cohorts = fallback.data ?? [];
+      }
+    }
+    const cohortMap = new Map((cohorts ?? []).map((c: any) => [c.id, c.title || c.name || 'Cohort']));
 
     return data.map((d) => ({
       ...d,
