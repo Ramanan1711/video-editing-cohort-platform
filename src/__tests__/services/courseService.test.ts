@@ -6,6 +6,10 @@ import {
   submitOrReplaceAssignment,
   listEnrollments,
   saveEnrollment,
+  listCourses,
+  createCourse,
+  cloneCourseCurriculumToCohort,
+  createCohort,
 } from '../../lib/courseService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -327,6 +331,135 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
       );
       expect(result.status).toBe('active');
       expect(result.enrolled_at).toBe('2026-09-28T12:00:00Z');
+    });
+  });
+
+  describe('Course Entity & Cohort Decoupling', () => {
+    it('listCourses fetches from courses_overview with fallback resilience', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'courses_overview') {
+          return {
+            select: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: 'course-1',
+                    title: 'Premiere Pro Masterclass',
+                    cohorts_count: 3,
+                    modules_count: 8,
+                    status: 'published',
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      const courses = await listCourses();
+      expect(courses).toHaveLength(1);
+      expect(courses[0].title).toBe('Premiere Pro Masterclass');
+      expect(courses[0].cohorts_count).toBe(3);
+    });
+
+    it('createCourse inserts into courses table with generated slug', async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'new-course-id',
+              title: 'After Effects VFX Sprint',
+              slug: 'after-effects-vfx-sprint-abc123',
+              status: 'published',
+              difficulty_level: 'intermediate',
+            },
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'courses') {
+          return { insert: mockInsert };
+        }
+        return { select: vi.fn() };
+      });
+
+      const course = await createCourse({
+        title: 'After Effects VFX Sprint',
+        difficulty_level: 'intermediate',
+      });
+
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'After Effects VFX Sprint',
+          difficulty_level: 'intermediate',
+        })
+      );
+      expect(course.id).toBe('new-course-id');
+    });
+
+    it('createCohort stores course_id association when provided', async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'cohort-inst-1',
+              title: 'Fall 2026 Batch A',
+              course_id: 'master-course-123',
+              description: 'First run',
+              status: 'published',
+              capacity: 25,
+            },
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'cohorts') {
+          return { insert: mockInsert };
+        }
+        return { select: vi.fn() };
+      });
+
+      const cohort = await createCohort({
+        name: 'Fall 2026 Batch A',
+        description: 'First run',
+        course_id: 'master-course-123',
+      });
+
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Fall 2026 Batch A',
+          course_id: 'master-course-123',
+        })
+      );
+      expect(cohort.course_id).toBe('master-course-123');
+    });
+
+    it('cloneCourseCurriculumToCohort calls server RPC', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: {
+          success: true,
+          course_id: 'c-1',
+          cohort_id: 'ch-1',
+          modules_cloned: 4,
+          lessons_cloned: 16,
+        },
+        error: null,
+      });
+
+      const res = await cloneCourseCurriculumToCohort('c-1', 'ch-1');
+      expect(res.success).toBe(true);
+      expect(res.modules_cloned).toBe(4);
+      expect(res.lessons_cloned).toBe(16);
+      expect(supabase.rpc).toHaveBeenCalledWith('clone_course_curriculum_to_cohort', {
+        p_course_id: 'c-1',
+        p_cohort_id: 'ch-1',
+      });
     });
   });
 });

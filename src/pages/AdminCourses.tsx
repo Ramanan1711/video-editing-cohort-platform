@@ -61,11 +61,13 @@ import {
   listAllAssignments,
   listAllLessonResources,
   listCohorts,
+  listCourses,
   listModules,
   reorderLesson,
   reorderModule,
   type Assignment,
   type Cohort,
+  type Course,
   type Lesson,
   type LessonResource,
   type Module,
@@ -85,6 +87,7 @@ type EditorModalType = 'cohort' | 'module' | 'lesson' | 'assignment' | 'resource
 interface CohortEditorState {
   type: 'cohort';
   id?: string;
+  courseId?: string;
   name: string;
   description: string;
   status: 'draft' | 'review' | 'published' | 'archived' | 'upcoming' | 'active' | 'completed';
@@ -97,7 +100,8 @@ interface CohortEditorState {
 interface ModuleEditorState {
   type: 'module';
   id?: string;
-  cohortId: string;
+  cohortId?: string | null;
+  courseId?: string | null;
   title: string;
   description: string;
   position: number;
@@ -147,6 +151,7 @@ export function AdminCourses() {
   const { user, profile } = useAuth();
   const toast = useToast();
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [resources, setResources] = useState<LessonResource[]>([]);
@@ -176,16 +181,18 @@ export function AdminCourses() {
 
   const loadData = async () => {
     try {
-      const [cohortsRes, modulesRes, assignmentsRes, resourcesRes] = await Promise.all([
+      const [cohortsRes, modulesRes, assignmentsRes, resourcesRes, coursesRes] = await Promise.all([
         listCohorts(),
         listModules(),
         listAllAssignments(),
         listAllLessonResources(),
+        listCourses(),
       ]);
       setCohorts(cohortsRes);
       setModules(modulesRes);
       setAssignments(assignmentsRes);
       setResources(resourcesRes);
+      setCourses(coursesRes);
       setError(null);
       setAppError(null);
       if (cohortsRes.length > 0 && !expandedCohortId) {
@@ -288,6 +295,7 @@ export function AdminCourses() {
       setEditor({
         type: 'cohort',
         id: cohort.id,
+        courseId: cohort.course_id || (courses[0]?.id ?? ''),
         name: cohort.name,
         description: cohort.description ?? '',
         status: cohort.status ?? 'draft',
@@ -299,6 +307,7 @@ export function AdminCourses() {
     } else {
       setEditor({
         type: 'cohort',
+        courseId: courses[0]?.id ?? '',
         name: '',
         description: '',
         status: 'draft',
@@ -316,7 +325,8 @@ export function AdminCourses() {
       setEditor({
         type: 'module',
         id: mod.id,
-        cohortId: mod.cohort_id,
+        cohortId: mod.cohort_id || cohortId,
+        courseId: mod.course_id ?? null,
         title: mod.title,
         description: mod.description ?? '',
         position: mod.position,
@@ -438,6 +448,7 @@ export function AdminCourses() {
         const cohortPayload = {
           name: editor.name.trim(),
           description: editor.description.trim() || null,
+          course_id: editor.courseId || null,
           status: editor.status,
           capacity: Number(editor.capacity) || 30,
           visibility: editor.visibility,
@@ -900,7 +911,8 @@ export function AdminCourses() {
 
       <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
         {/* Top Stats */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-4">
+        <div className="mb-6 grid gap-4 sm:grid-cols-5">
+          <StatCard label="Master Courses" value={courses.length} icon={<FileText size={18} className="text-indigo-500" />} />
           <StatCard label="Cohorts" value={cohorts.length} icon={<Sparkles size={18} className="text-orange-500" />} />
           <StatCard label="Modules" value={modules.length} icon={<BookOpen size={18} className="text-blue-500" />} />
           <StatCard label="Lessons" value={totalLessons} icon={<Play size={18} className="text-emerald-500" />} />
@@ -997,6 +1009,11 @@ export function AdminCourses() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h2 className="truncate text-lg font-black text-slate-950">{cohort.name}</h2>
+                          {cohort.course_id && (
+                            <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700 border border-indigo-200">
+                              Course: {courses.find((c) => c.id === cohort.course_id)?.title || 'Master Syllabus'}
+                            </span>
+                          )}
                           <span
                             className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
                               cohort.status === 'published'
@@ -1701,6 +1718,23 @@ export function AdminCourses() {
                     placeholder="Overview of the learning objectives, deliverables, and expectations..."
                     rows={3}
                   />
+                  <label className="block text-left">
+                    <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                      Master Course Container
+                    </span>
+                    <select
+                      value={editor.courseId || ''}
+                      onChange={(e) => setEditor({ ...editor, courseId: e.target.value })}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    >
+                      <option value="">(Auto-create or Inherit Master Course)</option>
+                      {courses.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <label className="block text-left">
                       <span className="mb-1.5 block text-sm font-bold text-slate-700">

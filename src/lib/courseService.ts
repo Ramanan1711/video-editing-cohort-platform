@@ -2,10 +2,29 @@ import { supabase } from './supabaseClient';
 import { parseDatabaseError } from './errorHandling';
 import { queryCache } from './queryCache';
 
+export interface Course {
+  id: string;
+  title: string;
+  slug?: string;
+  description: string | null;
+  thumbnail_url?: string | null;
+  status: 'draft' | 'review' | 'published' | 'archived';
+  difficulty_level?: 'beginner' | 'intermediate' | 'advanced' | 'all_levels';
+  estimated_hours?: number;
+  track_type?: 'coding' | 'non_coding' | 'general';
+  cohorts_count?: number;
+  modules_count?: number;
+  total_active_students?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Cohort {
   id: string;
   name: string;
   title?: string;
+  course_id?: string | null;
+  course?: Course | null;
   description: string | null;
   status?: 'draft' | 'review' | 'published' | 'archived' | 'upcoming' | 'active' | 'completed';
   capacity?: number;
@@ -29,7 +48,8 @@ export interface Lesson {
 
 export interface Module {
   id: string;
-  cohort_id: string;
+  cohort_id?: string | null;
+  course_id?: string | null;
   title: string;
   description: string | null;
   position: number;
@@ -224,8 +244,11 @@ export interface StudentLiveSession {
   meeting_url: string;
 }
 
+export type CourseInput = Pick<Course, 'title'> &
+  Partial<Pick<Course, 'description' | 'slug' | 'thumbnail_url' | 'status' | 'difficulty_level' | 'estimated_hours' | 'track_type'>>;
+
 export type CohortInput = Pick<Cohort, 'name' | 'description'> &
-  Partial<Pick<Cohort, 'status' | 'capacity' | 'visibility' | 'enrollment_start' | 'enrollment_end'>>;
+  Partial<Pick<Cohort, 'status' | 'capacity' | 'visibility' | 'enrollment_start' | 'enrollment_end' | 'course_id' | 'track_type' | 'duration_days'>>;
 export type ModuleInput = Pick<Module, 'cohort_id' | 'title' | 'description' | 'position'>;
 export type LessonInput = Pick<Lesson, 'module_id' | 'title' | 'description' | 'video_url' | 'duration_minutes' | 'position'> &
   Partial<Pick<Lesson, 'status'>>;
@@ -488,7 +511,7 @@ export async function listCohorts(): Promise<Cohort[]> {
     async () => {
       const { data, error } = await supabase
         .from('cohorts')
-        .select('id, title, description, status, capacity, visibility, enrollment_start, enrollment_end')
+        .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days')
         .order('title');
 
       if (error) {
@@ -509,15 +532,19 @@ export async function listCohorts(): Promise<Cohort[]> {
         }));
       }
 
-      return (data ?? []).map((cohort) => ({
+      return (data ?? []).map((cohort: any) => ({
         id: cohort.id,
         name: cohort.title,
+        title: cohort.title,
+        course_id: cohort.course_id ?? null,
         description: cohort.description,
         status: cohort.status ?? 'published',
         capacity: cohort.capacity ?? 30,
         visibility: cohort.visibility ?? 'public',
         enrollment_start: cohort.enrollment_start ?? null,
         enrollment_end: cohort.enrollment_end ?? null,
+        track_type: cohort.track_type ?? 'general',
+        duration_days: cohort.duration_days ?? 15,
       }));
     },
     300_000,
@@ -577,19 +604,24 @@ export async function enrollInCohort(userId: string, cohortId: string): Promise<
 
 export async function createCohort(input: CohortInput): Promise<Cohort> {
   queryCache.invalidate('cohorts');
+  queryCache.invalidate('courses');
   queryCache.invalidate('stats');
 
   const payload: Record<string, unknown> = {
     title: input.name,
+    name: input.name,
     description: input.description,
   };
+  if (input.course_id !== undefined) payload.course_id = input.course_id;
   if (input.status !== undefined) payload.status = input.status;
   if (input.capacity !== undefined) payload.capacity = input.capacity;
   if (input.visibility !== undefined) payload.visibility = input.visibility;
   if (input.enrollment_start !== undefined) payload.enrollment_start = input.enrollment_start;
   if (input.enrollment_end !== undefined) payload.enrollment_end = input.enrollment_end;
+  if (input.track_type !== undefined) payload.track_type = input.track_type;
+  if (input.duration_days !== undefined) payload.duration_days = input.duration_days;
 
-  let res = await supabase.from('cohorts').insert(payload).select('id, title, description, status, capacity, visibility, enrollment_start, enrollment_end').single();
+  let res = await supabase.from('cohorts').insert(payload).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days').single();
   if (res.error) {
     res = await supabase.from('cohorts').insert({ title: input.name, description: input.description }).select('id, title, description').single();
   }
@@ -597,28 +629,39 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
   return {
     id: res.data.id,
     name: res.data.title,
+    title: res.data.title,
+    course_id: (res.data as any).course_id ?? null,
     description: res.data.description,
     status: res.data.status ?? 'published',
     capacity: res.data.capacity ?? 30,
     visibility: res.data.visibility ?? 'public',
     enrollment_start: res.data.enrollment_start ?? null,
     enrollment_end: res.data.enrollment_end ?? null,
+    track_type: (res.data as any).track_type ?? 'general',
+    duration_days: (res.data as any).duration_days ?? 15,
   };
 }
 
 export async function updateCohort(id: string, input: Partial<CohortInput>): Promise<Cohort> {
   queryCache.invalidate('cohorts');
+  queryCache.invalidate('courses');
 
   const payload: Record<string, unknown> = {};
-  if (input.name !== undefined) payload.title = input.name;
+  if (input.name !== undefined) {
+    payload.title = input.name;
+    payload.name = input.name;
+  }
+  if (input.course_id !== undefined) payload.course_id = input.course_id;
   if (input.description !== undefined) payload.description = input.description;
   if (input.status !== undefined) payload.status = input.status;
   if (input.capacity !== undefined) payload.capacity = input.capacity;
   if (input.visibility !== undefined) payload.visibility = input.visibility;
   if (input.enrollment_start !== undefined) payload.enrollment_start = input.enrollment_start;
   if (input.enrollment_end !== undefined) payload.enrollment_end = input.enrollment_end;
+  if (input.track_type !== undefined) payload.track_type = input.track_type;
+  if (input.duration_days !== undefined) payload.duration_days = input.duration_days;
 
-  let res = await supabase.from('cohorts').update(payload).eq('id', id).select('id, title, description, status, capacity, visibility, enrollment_start, enrollment_end').single();
+  let res = await supabase.from('cohorts').update(payload).eq('id', id).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days').single();
   if (res.error) {
     const fallbackPayload: Record<string, unknown> = {};
     if (input.name !== undefined) fallbackPayload.title = input.name;
@@ -629,13 +672,118 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
   return {
     id: res.data.id,
     name: res.data.title,
+    title: res.data.title,
+    course_id: (res.data as any).course_id ?? null,
     description: res.data.description,
     status: res.data.status ?? 'published',
     capacity: res.data.capacity ?? 30,
     visibility: res.data.visibility ?? 'public',
     enrollment_start: res.data.enrollment_start ?? null,
     enrollment_end: res.data.enrollment_end ?? null,
+    track_type: (res.data as any).track_type ?? 'general',
+    duration_days: (res.data as any).duration_days ?? 15,
   };
+}
+
+// ============================================================================
+// First-Class Master Course Entity Operations
+// ============================================================================
+
+export async function listCourses(): Promise<Course[]> {
+  return queryCache.getOrFetch(
+    'courses_list',
+    async () => {
+      // 1. Try canonical courses_overview view
+      const { data, error } = await supabase
+        .from('courses_overview')
+        .select('*')
+        .order('title');
+
+      if (!error && data) {
+        return data as Course[];
+      }
+
+      // 2. Try raw courses table
+      const rawRes = await supabase.from('courses').select('*').order('title');
+      if (!rawRes.error && rawRes.data) {
+        return rawRes.data as Course[];
+      }
+
+      // 3. Fallback: synthesize courses from cohorts if migrations are in-flight
+      const cohorts = await listCohorts();
+      const uniqueCourses = new Map<string, Course>();
+      cohorts.forEach((c) => {
+        const id = c.course_id || c.id;
+        if (!uniqueCourses.has(id)) {
+          uniqueCourses.set(id, {
+            id,
+            title: c.title || c.name,
+            description: c.description,
+            status: (c.status as Course['status']) || 'published',
+            track_type: c.track_type,
+            cohorts_count: 1,
+          });
+        }
+      });
+      return Array.from(uniqueCourses.values());
+    },
+    300_000,
+    ['courses']
+  );
+}
+
+export async function getCourse(id: string): Promise<Course | null> {
+  const { data, error } = await supabase.from('courses').select('*').eq('id', id).maybeSingle();
+  if (error) {
+    console.warn('Error fetching course:', error);
+    return null;
+  }
+  return data as Course | null;
+}
+
+export async function createCourse(input: CourseInput): Promise<Course> {
+  queryCache.invalidate('courses');
+  const slug = input.slug || input.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now().toString(36);
+  const payload = {
+    title: input.title,
+    slug,
+    description: input.description ?? null,
+    thumbnail_url: input.thumbnail_url ?? null,
+    status: input.status ?? 'published',
+    difficulty_level: input.difficulty_level ?? 'all_levels',
+    estimated_hours: input.estimated_hours ?? 20,
+    track_type: input.track_type ?? 'general',
+  };
+  const { data, error } = await supabase.from('courses').insert(payload).select('*').single();
+  if (error) throw error;
+  return data as Course;
+}
+
+export async function updateCourse(id: string, input: Partial<CourseInput>): Promise<Course> {
+  queryCache.invalidate('courses');
+  const { data, error } = await supabase.from('courses').update(input).eq('id', id).select('*').single();
+  if (error) throw error;
+  return data as Course;
+}
+
+export async function deleteCourse(id: string): Promise<void> {
+  queryCache.invalidate('courses');
+  const { error } = await supabase.from('courses').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function cloneCourseCurriculumToCohort(
+  courseId: string,
+  cohortId: string
+): Promise<{ success: boolean; modules_cloned: number; lessons_cloned: number }> {
+  queryCache.invalidate('cohorts');
+  queryCache.invalidate('courses');
+  const { data, error } = await supabase.rpc('clone_course_curriculum_to_cohort', {
+    p_course_id: courseId,
+    p_cohort_id: cohortId,
+  });
+  if (error) throw error;
+  return data as { success: boolean; modules_cloned: number; lessons_cloned: number };
 }
 
 export async function deleteCohort(id: string, force: boolean = false) {
