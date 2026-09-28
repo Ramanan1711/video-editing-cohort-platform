@@ -213,9 +213,6 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
   },
 ];
 
-/**
- * List daily challenges for a cohort (with fallback to default 15-day curriculum)
- */
 export async function listDailyChallenges(cohortId: string): Promise<DailyChallenge[]> {
   const { data, error } = await supabase
     .from('daily_challenges')
@@ -223,16 +220,33 @@ export async function listDailyChallenges(cohortId: string): Promise<DailyChalle
     .eq('cohort_id', cohortId)
     .order('day_number', { ascending: true });
 
-  if (error || !data || data.length === 0) {
-    // Generate default 15 days attached to this cohortId
-    return DEFAULT_15_DAY_CURRICULUM.map((item, idx) => ({
-      ...item,
-      id: `default-ch-${idx + 1}`,
-      cohort_id: cohortId,
-    }));
+  if (!error && data && data.length > 0) {
+    return data as DailyChallenge[];
   }
 
-  return data as DailyChallenge[];
+  // Attempt database-level auto-seeding for cohort
+  try {
+    const { error: seedErr } = await supabase.rpc('ensure_cohort_daily_challenges', {
+      p_cohort_id: cohortId,
+    });
+    if (!seedErr) {
+      const { data: seededData } = await supabase
+        .from('daily_challenges')
+        .select('*')
+        .eq('cohort_id', cohortId)
+        .order('day_number', { ascending: true });
+      if (seededData && seededData.length > 0) {
+        return seededData as DailyChallenge[];
+      }
+    }
+  } catch (seedCatch) {
+    console.warn('ensure_cohort_daily_challenges RPC unavailable:', seedCatch);
+  }
+
+  if (error) {
+    console.warn('Failed to load daily challenges from Supabase:', error.message);
+  }
+  return [];
 }
 
 /**
@@ -277,20 +291,6 @@ export async function submitDailyChallenge(
     .single();
 
   if (error) {
-    // Fallback if table not yet migrated
-    if (error.code === '42P01' || error.message.includes('daily_challenge_submissions')) {
-      return {
-        id: `local-sub-${Date.now()}`,
-        challenge_id: challengeId,
-        user_id: userId,
-        submission_url: submissionUrl,
-        notes: notes || null,
-        status: 'pending',
-        score: null,
-        mentor_feedback: null,
-        submitted_at: new Date().toISOString(),
-      };
-    }
     throw parseDatabaseError(error);
   }
 
@@ -334,7 +334,7 @@ export async function getStudentSprintDays(
   days: InternshipDayStatus[];
   completedCount: number;
   streakCount: number;
-  overallScore: number;
+  overallScore: number | null;
 }> {
   const [challenges, submissions] = await Promise.all([
     listDailyChallenges(cohortId),
@@ -384,8 +384,8 @@ export async function getStudentSprintDays(
     });
   }
 
-  const streakCount = completedCount > 0 ? Math.min(completedCount, 15) : 1;
-  const overallScore = scoredCount > 0 ? Math.round(totalScore / scoredCount) : 85;
+  const streakCount = completedCount > 0 ? Math.min(completedCount, 15) : 0;
+  const overallScore = scoredCount > 0 ? Math.round(totalScore / scoredCount) : null;
 
   return {
     days,

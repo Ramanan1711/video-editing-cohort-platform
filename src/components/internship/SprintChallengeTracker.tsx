@@ -35,7 +35,7 @@ interface SprintChallengeTrackerProps {
   sprintDays: InternshipDayStatus[];
   completedCount: number;
   streakCount: number;
-  overallScore: number;
+  overallScore: number | null;
   onRefresh: () => void;
   mentorPhone?: string;
 }
@@ -177,7 +177,9 @@ export function SprintChallengeTracker({
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-orange-200">Current Streak</p>
-                <p className="text-lg font-black text-white">{streakCount} Days 🔥</p>
+                <p className="text-lg font-black text-white">
+                  {streakCount > 0 ? `${streakCount} Day${streakCount === 1 ? '' : 's'} 🔥` : '0 Days'}
+                </p>
               </div>
             </div>
 
@@ -196,8 +198,12 @@ export function SprintChallengeTracker({
                 <Sparkles size={20} className="text-amber-300" />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-orange-200">Mentor Rating</p>
-                <p className="text-lg font-black text-white">{overallScore}%</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-orange-200">
+                  {overallScore !== null ? 'Mentor Rating' : 'Rating Pending'}
+                </p>
+                <p className="text-lg font-black text-white">
+                  {overallScore !== null ? `${overallScore}%` : '—'}
+                </p>
               </div>
             </div>
           </div>

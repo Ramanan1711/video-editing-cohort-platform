@@ -123,8 +123,8 @@ export function StudentDashboard() {
   });
   const [sprintDays, setSprintDays] = useState<InternshipDayStatus[]>([]);
   const [sprintCompletedCount, setSprintCompletedCount] = useState(0);
-  const [sprintStreak, setSprintStreak] = useState(1);
-  const [sprintScore, setSprintScore] = useState(85);
+  const [sprintStreak, setSprintStreak] = useState(0);
+  const [sprintScore, setSprintScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);

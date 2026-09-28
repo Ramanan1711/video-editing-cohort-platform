@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   formatWhatsAppChallengeMessage,
   formatWhatsAppWorkshopAlert,
@@ -6,9 +6,24 @@ import {
   formatWhatsAppFeedbackAlert,
   generateWhatsAppClickToChatUrl,
 } from '../../lib/whatsappService';
-import { DEFAULT_15_DAY_CURRICULUM } from '../../lib/internshipService';
+import {
+  DEFAULT_15_DAY_CURRICULUM,
+  getStudentSprintDays,
+  submitDailyChallenge,
+} from '../../lib/internshipService';
+import { supabase } from '../../lib/supabaseClient';
+
+vi.mock('../../lib/supabaseClient', () => ({
+  supabase: {
+    from: vi.fn(),
+    rpc: vi.fn(),
+  },
+}));
 
 describe('15-Day Internship Platform & WhatsApp Suite', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
   it('has 15 curated daily challenges in the default curriculum', () => {
     expect(DEFAULT_15_DAY_CURRICULUM).toHaveLength(15);
     expect(DEFAULT_15_DAY_CURRICULUM[0].day_number).toBe(1);
@@ -87,4 +102,63 @@ describe('15-Day Internship Platform & WhatsApp Suite', () => {
     expect(msg).toContain('*Score:* 94/100');
     expect(msg).toContain('Day 05 Multi-Track Sound Design');
   });
+
+  describe('Database Persistence & Honest Sprint Metrics', () => {
+    it('returns honest zero streak and null mentor rating when student has no completed challenges', async () => {
+      const mockFrom = vi.fn().mockImplementation((table: string) => {
+        if (table === 'daily_challenges') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [
+                    { id: 'ch-uuid-1', day_number: 1, title: 'Day 01 Challenge', cohort_id: 'c-1' },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'daily_challenge_submissions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockFrom);
+
+      const result = await getStudentSprintDays('user-new-1', 'c-1');
+
+      expect(result.completedCount).toBe(0);
+      expect(result.streakCount).toBe(0);
+      expect(result.overallScore).toBeNull();
+      expect(result.days[0].isUnlocked).toBe(true);
+      expect(result.days[0].status).toBe('todo');
+    });
+
+    it('propagates database errors on daily challenge submission without creating fake local submissions', async () => {
+      const mockFrom = vi.fn().mockReturnValue({
+        upsert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: '23505', message: 'duplicate key value violates unique constraint' },
+            }),
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockFrom);
+
+      await expect(
+        submitDailyChallenge('user-1', 'ch-uuid-1', 'https://github.com/pull/1')
+      ).rejects.toThrow();
+    });
+  });
 });
+

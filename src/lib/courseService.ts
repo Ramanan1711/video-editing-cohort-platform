@@ -2102,12 +2102,60 @@ export async function verifyCertificateEligibility(
     const isAssignsComplete = totalAssigns === 0 || approvedAssigns >= totalAssigns;
 
     if (isLessonsComplete && isAssignsComplete) {
-      const fallbackCertNumber = `CC-${cohortId.replace(/-/g, '').slice(0, 6).toUpperCase()}-${studentId.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+      // Check existing certificate in database
+      const { data: certRow } = await supabase
+        .from('certificates')
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('cohort_id', cohortId)
+        .maybeSingle();
+
+      if (certRow) {
+        return {
+          eligible: true,
+          already_issued: true,
+          certificate_number: certRow.certificate_number,
+          issued_at: certRow.issued_at,
+          completed_lessons: completedLessons,
+          total_lessons: allLessonIds.length,
+          approved_assignments: approvedAssigns,
+          total_assignments: totalAssigns,
+        };
+      }
+
+      // Persist new verified certificate in database
+      const certNumber = `CC-${new Date().toISOString().slice(0, 7).replace('-', '')}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+      const { data: newCert, error: insertErr } = await supabase
+        .from('certificates')
+        .insert({
+          certificate_number: certNumber,
+          student_id: studentId,
+          cohort_id: cohortId,
+          metadata: {
+            total_lessons: allLessonIds.length,
+            total_assignments: totalAssigns,
+            verified_by: 'system',
+          },
+        })
+        .select('*')
+        .single();
+
+      if (!insertErr && newCert) {
+        return {
+          eligible: true,
+          already_issued: false,
+          certificate_number: newCert.certificate_number,
+          issued_at: newCert.issued_at,
+          completed_lessons: completedLessons,
+          total_lessons: allLessonIds.length,
+          approved_assignments: approvedAssigns,
+          total_assignments: totalAssigns,
+        };
+      }
+
       return {
-        eligible: true,
-        already_issued: true,
-        certificate_number: fallbackCertNumber,
-        issued_at: new Date().toISOString(),
+        eligible: false,
+        reason: 'Curriculum requirements met. Official certificate issuance is pending database verification.',
         completed_lessons: completedLessons,
         total_lessons: allLessonIds.length,
         approved_assignments: approvedAssigns,
@@ -2151,122 +2199,67 @@ export async function listStudentStudyReminders(
       query = query.or(`cohort_id.eq.${cohortId},cohort_id.is.null`);
     }
     const { data, error } = await query;
-    if (!error && data) {
-      return data as StudentStudyReminder[];
+    if (error) {
+      console.warn('Failed to load student study reminders:', error.message);
+      return [];
     }
+    return (data ?? []) as StudentStudyReminder[];
   } catch (err) {
-    console.warn('student_study_reminders table query error, falling back to localStorage:', err);
+    console.warn('student_study_reminders query error:', err);
+    return [];
   }
-
-  // Fallback to localStorage
-  try {
-    const raw = localStorage.getItem(`student_study_reminders_${userId}`);
-    if (raw) {
-      const items = JSON.parse(raw) as StudentStudyReminder[];
-      if (cohortId) {
-        return items.filter((r) => !r.cohort_id || r.cohort_id === cohortId);
-      }
-      return items;
-    }
-  } catch {
-    // ignore
-  }
-  return [];
 }
 
 export async function createStudentStudyReminder(
   input: Omit<StudentStudyReminder, 'id' | 'created_at'>
 ): Promise<StudentStudyReminder> {
-  try {
-    const { data, error } = await supabase
-      .from('student_study_reminders')
-      .insert({
-        user_id: input.user_id,
-        cohort_id: input.cohort_id || null,
-        title: input.title,
-        description: input.description || null,
-        scheduled_at: input.scheduled_at,
-        reminder_type: input.reminder_type || 'study_block',
-        is_completed: input.is_completed || false,
-      })
-      .select('*')
-      .single();
+  const { data, error } = await supabase
+    .from('student_study_reminders')
+    .insert({
+      user_id: input.user_id,
+      cohort_id: input.cohort_id || null,
+      title: input.title,
+      description: input.description || null,
+      scheduled_at: input.scheduled_at,
+      reminder_type: input.reminder_type || 'study_block',
+      is_completed: input.is_completed || false,
+    })
+    .select('*')
+    .single();
 
-    if (!error && data) {
-      return data as StudentStudyReminder;
-    }
-  } catch (err) {
-    console.warn('Failed to insert student study reminder in Supabase, using localStorage:', err);
+  if (error || !data) {
+    throw parseDatabaseError(error);
   }
 
-  // Fallback
-  const fallbackItem: StudentStudyReminder = {
-    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    ...input,
-    created_at: new Date().toISOString(),
-  };
-  try {
-    const raw = localStorage.getItem(`student_study_reminders_${input.user_id}`);
-    const current = raw ? (JSON.parse(raw) as StudentStudyReminder[]) : [];
-    localStorage.setItem(`student_study_reminders_${input.user_id}`, JSON.stringify([...current, fallbackItem]));
-  } catch {
-    // ignore
-  }
-  return fallbackItem;
+  return data as StudentStudyReminder;
 }
 
 export async function toggleStudyReminder(
   id: string,
   isCompleted: boolean,
-  userId: string
+  _userId: string
 ): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('student_study_reminders')
-      .update({ is_completed: isCompleted })
-      .eq('id', id);
-    if (!error) return;
-  } catch {
-    // ignore
-  }
+  const { error } = await supabase
+    .from('student_study_reminders')
+    .update({ is_completed: isCompleted })
+    .eq('id', id);
 
-  // Fallback
-  try {
-    const raw = localStorage.getItem(`student_study_reminders_${userId}`);
-    if (raw) {
-      const current = JSON.parse(raw) as StudentStudyReminder[];
-      const updated = current.map((r) => (r.id === id ? { ...r, is_completed: isCompleted } : r));
-      localStorage.setItem(`student_study_reminders_${userId}`, JSON.stringify(updated));
-    }
-  } catch {
-    // ignore
+  if (error) {
+    throw parseDatabaseError(error);
   }
 }
 
 export async function deleteStudentStudyReminder(
   id: string,
-  userId: string
+  _userId: string
 ): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('student_study_reminders')
-      .delete()
-      .eq('id', id);
-    if (!error) return;
-  } catch {
-    // ignore
-  }
+  const { error } = await supabase
+    .from('student_study_reminders')
+    .delete()
+    .eq('id', id);
 
-  // Fallback
-  try {
-    const raw = localStorage.getItem(`student_study_reminders_${userId}`);
-    if (raw) {
-      const current = JSON.parse(raw) as StudentStudyReminder[];
-      const updated = current.filter((r) => r.id !== id);
-      localStorage.setItem(`student_study_reminders_${userId}`, JSON.stringify(updated));
-    }
-  } catch {
-    // ignore
+  if (error) {
+    throw parseDatabaseError(error);
   }
 }
 
