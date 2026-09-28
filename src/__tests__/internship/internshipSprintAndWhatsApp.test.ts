@@ -10,6 +10,11 @@ import {
   DEFAULT_15_DAY_CURRICULUM,
   getStudentSprintDays,
   submitDailyChallenge,
+  listDailyChallenges,
+  createDailyChallenge,
+  updateDailyChallenge,
+  deleteDailyChallenge,
+  seedCohortDailyChallenges,
 } from '../../lib/internshipService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -158,6 +163,170 @@ describe('15-Day Internship Platform & WhatsApp Suite', () => {
       await expect(
         submitDailyChallenge('user-1', 'ch-uuid-1', 'https://github.com/pull/1')
       ).rejects.toThrow();
+    });
+  });
+
+  describe('Admin Challenge-Authoring & Database Integrity', () => {
+    it('creates a daily challenge with valid database record', async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'd1111111-1111-1111-1111-111111111111',
+              cohort_id: 'c-uuid-1',
+              day_number: 16,
+              title: 'Day 16: Bonus Motion Graphics Drill',
+              track_type: 'general',
+              submission_type: 'drive_link',
+              deadline_hours: 24,
+            },
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        insert: mockInsert,
+      });
+
+      const res = await createDailyChallenge({
+        cohort_id: 'c-uuid-1',
+        day_number: 16,
+        title: 'Day 16: Bonus Motion Graphics Drill',
+        track_type: 'general',
+        submission_type: 'drive_link',
+        deadline_hours: 24,
+        description: null,
+        instructions: null,
+        starter_files_url: null,
+      });
+
+      expect(res.id).toBe('d1111111-1111-1111-1111-111111111111');
+      expect(res.title).toBe('Day 16: Bonus Motion Graphics Drill');
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cohort_id: 'c-uuid-1',
+          day_number: 16,
+          title: 'Day 16: Bonus Motion Graphics Drill',
+        })
+      );
+    });
+
+    it('updates an existing daily challenge', async () => {
+      const mockUpdate = vi.fn().mockReturnValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'd1111111-1111-1111-1111-111111111111',
+                  day_number: 16,
+                  title: 'Day 16: Advanced Sound & Kinetics',
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockUpdate);
+
+      const res = await updateDailyChallenge('d1111111-1111-1111-1111-111111111111', {
+        title: 'Day 16: Advanced Sound & Kinetics',
+      });
+
+      expect(res.title).toBe('Day 16: Advanced Sound & Kinetics');
+    });
+
+    it('deletes a daily challenge by ID', async () => {
+      const mockDelete = vi.fn().mockReturnValue({
+        delete: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockDelete);
+
+      await expect(deleteDailyChallenge('d1111111-1111-1111-1111-111111111111')).resolves.toBeUndefined();
+    });
+
+    it('seeds default 15-day sprint curriculum into database without returning fake string IDs', async () => {
+      const mockUpsert = vi.fn().mockReturnValue({
+        upsert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
+              data: DEFAULT_15_DAY_CURRICULUM.map((c, i) => ({
+                ...c,
+                id: `00000000-0000-0000-0000-${String(i + 1).padStart(12, '0')}`,
+                cohort_id: 'c-uuid-1',
+              })),
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockUpsert);
+
+      const challenges = await seedCohortDailyChallenges('c-uuid-1');
+      expect(challenges).toHaveLength(15);
+      expect(challenges[0].id).toBe('00000000-0000-0000-0000-000000000001');
+      // Verify no fake default-ch-X IDs exist
+      expect(challenges.every((c) => !c.id.startsWith('default-ch-'))).toBe(true);
+    });
+
+    it('lists daily challenges for a cohort from database', async () => {
+      const mockSelect = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: '00000000-0000-0000-0000-000000000001',
+                  cohort_id: 'c-uuid-1',
+                  day_number: 1,
+                  title: 'Day 01 Challenge',
+                },
+              ],
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockSelect);
+
+      const list = await listDailyChallenges('c-uuid-1');
+      expect(list).toHaveLength(1);
+      expect(list[0].id).toBe('00000000-0000-0000-0000-000000000001');
+    });
+
+    it('rejects submissions with synthetic non-UUID IDs if unresolvable in database', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'daily_challenges') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          upsert: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: null, error: new Error('foreign key constraint') }),
+            }),
+          }),
+        };
+      });
+
+      await expect(
+        submitDailyChallenge('u-1', 'default-ch-999', 'https://drive.google.com/test')
+      ).rejects.toThrow('Invalid challenge ID');
     });
   });
 });
