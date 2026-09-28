@@ -93,6 +93,7 @@ import {
   type AdminAnnouncement,
   type AdminCommunityPost,
   type AdminEnrollment,
+  type EnrollmentStatus,
   type AdminExecutiveMetrics,
   type AdminStats,
   type AuditLog,
@@ -568,7 +569,7 @@ export function AdminOperations() {
   const handleUpdateEnrollmentStatus = async (
     userId: string,
     cohortId: string,
-    status: 'active' | 'completed' | 'dropped' | 'waitlisted' | 'inactive'
+    status: EnrollmentStatus
   ) => {
     try {
       await updateEnrollmentStatus(userId, cohortId, status, user?.id);
@@ -2440,17 +2441,17 @@ export function AdminOperations() {
                             void handleUpdateEnrollmentStatus(
                               item.user_id,
                               item.cohort_id,
-                              e.target.value as 'active' | 'completed' | 'dropped' | 'waitlisted' | 'inactive'
+                              e.target.value as EnrollmentStatus
                             )
                           }
                           className={`rounded-lg border px-2.5 py-1 text-xs font-bold outline-none ${
                             !canManageEnrollments ? 'cursor-not-allowed opacity-75 ' : ''
                           }${
-                            item.status === 'active'
+                            item.status === 'active' || item.status === 'enrolled'
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                               : item.status === 'completed'
                               ? 'border-purple-200 bg-purple-50 text-purple-800'
-                              : item.status === 'waitlisted'
+                              : item.status === 'waitlisted' || item.status === 'waitlist'
                               ? 'border-amber-200 bg-amber-50 text-amber-800'
                               : item.status === 'inactive'
                               ? 'border-slate-300 bg-slate-100 text-slate-500'
@@ -2458,9 +2459,11 @@ export function AdminOperations() {
                           }`}
                         >
                           <option value="active">Active</option>
+                          <option value="enrolled">Enrolled</option>
                           <option value="completed">Completed</option>
                           <option value="dropped">Dropped</option>
                           <option value="waitlisted">Waitlisted</option>
+                          <option value="waitlist">Waitlist</option>
                           <option value="inactive">Inactive</option>
                         </select>
 

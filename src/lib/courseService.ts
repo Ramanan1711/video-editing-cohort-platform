@@ -5,12 +5,15 @@ import { queryCache } from './queryCache';
 export interface Cohort {
   id: string;
   name: string;
+  title?: string;
   description: string | null;
-  status?: 'draft' | 'review' | 'published' | 'archived';
+  status?: 'draft' | 'review' | 'published' | 'archived' | 'upcoming' | 'active' | 'completed';
   capacity?: number;
   visibility?: 'public' | 'private' | 'unlisted';
   enrollment_start?: string | null;
   enrollment_end?: string | null;
+  track_type?: 'coding' | 'non_coding' | 'general';
+  duration_days?: number;
 }
 
 export interface Lesson {
@@ -33,11 +36,21 @@ export interface Module {
   lessons: Lesson[];
 }
 
+export type EnrollmentStatus =
+  | 'enrolled'
+  | 'active'
+  | 'inactive'
+  | 'waitlist'
+  | 'waitlisted'
+  | 'completed'
+  | 'dropped';
+
 export interface Enrollment {
   user_id: string;
   cohort_id: string;
-  status: 'active' | 'completed' | 'dropped' | 'waitlisted' | 'inactive';
+  status: EnrollmentStatus;
   created_at?: string;
+  enrolled_at?: string;
 }
 
 export type VisibilityRule = 'enrolled' | 'public' | 'after_completion';
@@ -936,10 +949,19 @@ export async function duplicateModule(moduleId: string): Promise<Module> {
 }
 
 export async function listEnrollments(cohortId?: string): Promise<Enrollment[]> {
-  let query = supabase.from('enrollments').select('user_id, cohort_id, status, created_at').order('created_at', { ascending: false });
+  let query = supabase.from('enrollments').select('user_id, cohort_id, status, created_at, enrolled_at').order('created_at', { ascending: false });
   if (cohortId) query = query.eq('cohort_id', cohortId);
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) {
+    if (error.message.includes('enrolled_at')) {
+      let fallbackQuery = supabase.from('enrollments').select('user_id, cohort_id, status, created_at').order('created_at', { ascending: false });
+      if (cohortId) fallbackQuery = fallbackQuery.eq('cohort_id', cohortId);
+      const fallback = await fallbackQuery;
+      if (fallback.error) throw fallback.error;
+      return (fallback.data ?? []) as Enrollment[];
+    }
+    throw error;
+  }
   return (data ?? []) as Enrollment[];
 }
 
@@ -956,8 +978,24 @@ export async function saveEnrollment(input: EnrollmentInput, id?: string): Promi
       console.warn('Could not deactivate prior enrollments in saveEnrollment:', err);
     }
   }
-  const query = id ? supabase.from('enrollments').update({ status: input.status }).eq('user_id', input.user_id).eq('cohort_id', input.cohort_id) : supabase.from('enrollments').upsert(input, { onConflict: 'user_id,cohort_id' });
-  const { data, error } = await query.select('user_id, cohort_id, status, created_at').single();
+  const now = new Date().toISOString();
+  const upsertPayload = {
+    ...input,
+    created_at: now,
+    enrolled_at: now,
+  };
+  const query = id
+    ? supabase.from('enrollments').update({ status: input.status }).eq('user_id', input.user_id).eq('cohort_id', input.cohort_id)
+    : supabase.from('enrollments').upsert(upsertPayload, { onConflict: 'user_id,cohort_id' });
+  let { data, error } = await query.select('user_id, cohort_id, status, created_at, enrolled_at').single();
+  if (error && error.message.includes('enrolled_at')) {
+    const fallbackQuery = id
+      ? supabase.from('enrollments').update({ status: input.status }).eq('user_id', input.user_id).eq('cohort_id', input.cohort_id)
+      : supabase.from('enrollments').upsert(input, { onConflict: 'user_id,cohort_id' });
+    const fallbackRes = await fallbackQuery.select('user_id, cohort_id, status, created_at').single();
+    data = fallbackRes.data ? ({ ...fallbackRes.data, enrolled_at: fallbackRes.data.created_at } as typeof data) : null;
+    error = fallbackRes.error;
+  }
   if (error) throw error;
   return data as Enrollment;
 }

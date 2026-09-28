@@ -189,10 +189,18 @@ export async function getMentorAssignedCohorts(
 }
 
 export async function assignMentorToCohort(mentorId: string, cohortId: string): Promise<void> {
-  const { error } = await supabase.from('mentor_cohorts').upsert(
-    { mentor_id: mentorId, cohort_id: cohortId, assigned_at: new Date().toISOString() },
+  const timestamp = new Date().toISOString();
+  let { error } = await supabase.from('mentor_cohorts').upsert(
+    { mentor_id: mentorId, cohort_id: cohortId, assigned_at: timestamp, created_at: timestamp },
     { onConflict: 'mentor_id,cohort_id' }
   );
+  if (error && (error.message.includes('created_at') || error.message.includes('assigned_at'))) {
+    const fallbackPayload = error.message.includes('created_at')
+      ? { mentor_id: mentorId, cohort_id: cohortId, assigned_at: timestamp }
+      : { mentor_id: mentorId, cohort_id: cohortId, created_at: timestamp };
+    const res = await supabase.from('mentor_cohorts').upsert(fallbackPayload as any, { onConflict: 'mentor_id,cohort_id' });
+    error = res.error;
+  }
   if (error) throw error;
 }
 

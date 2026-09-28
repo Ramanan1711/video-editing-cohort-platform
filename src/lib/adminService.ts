@@ -2,6 +2,8 @@ import { supabase } from './supabaseClient';
 import { queryCache } from './queryCache';
 import type { AdminSubRole } from './adminPermissions';
 export type { AdminSubRole } from './adminPermissions';
+import type { EnrollmentStatus } from './courseService';
+export type { EnrollmentStatus } from './courseService';
 
 export interface PagedResult<T> {
   data: T[];
@@ -195,8 +197,9 @@ export interface UserProfile {
 export interface AdminEnrollment {
   user_id: string;
   cohort_id: string;
-  status: 'active' | 'completed' | 'dropped' | 'waitlisted' | 'inactive';
+  status: EnrollmentStatus;
   created_at: string;
+  enrolled_at?: string;
   student_name: string;
   student_email: string;
   cohort_name: string;
@@ -1090,14 +1093,14 @@ export async function listCohortEnrollmentsPaged(
 export async function enrollUserInCohort(
   userId: string,
   cohortId: string,
-  status: 'active' | 'waitlisted' | 'inactive' = 'active',
+  status: EnrollmentStatus = 'active',
   actorId?: string
 ): Promise<void> {
   queryCache.invalidate('admin');
   queryCache.invalidate('enrollments');
   queryCache.invalidate('stats');
 
-  if (status === 'active') {
+  if (status === 'active' || status === 'enrolled') {
     try {
       await supabase
         .from('enrollments')
@@ -1110,10 +1113,18 @@ export async function enrollUserInCohort(
     }
   }
 
-  const { error } = await supabase.from('enrollments').upsert(
-    { user_id: userId, cohort_id: cohortId, status, created_at: new Date().toISOString() },
+  const now = new Date().toISOString();
+  let { error } = await supabase.from('enrollments').upsert(
+    { user_id: userId, cohort_id: cohortId, status, created_at: now, enrolled_at: now },
     { onConflict: 'user_id,cohort_id' }
   );
+  if (error && error.message.includes('enrolled_at')) {
+    const fallback = await supabase.from('enrollments').upsert(
+      { user_id: userId, cohort_id: cohortId, status, created_at: now },
+      { onConflict: 'user_id,cohort_id' }
+    );
+    error = fallback.error;
+  }
   if (error) throw error;
 
   void logAuditEvent(actorId || null, 'enrollment.created', 'enrollment', `${userId}:${cohortId}`, {
@@ -1126,14 +1137,14 @@ export async function enrollUserInCohort(
 export async function updateEnrollmentStatus(
   userId: string,
   cohortId: string,
-  status: 'active' | 'completed' | 'dropped' | 'waitlisted' | 'inactive',
+  status: EnrollmentStatus,
   actorId?: string
 ): Promise<void> {
   queryCache.invalidate('admin');
   queryCache.invalidate('enrollments');
   queryCache.invalidate('stats');
 
-  if (status === 'active') {
+  if (status === 'active' || status === 'enrolled') {
     try {
       await supabase
         .from('enrollments')
@@ -1783,16 +1794,24 @@ export async function assignMentorToCohort(
 ): Promise<void> {
   const timestamp = new Date().toISOString();
   let { error } = await supabase.from('mentor_cohorts').upsert(
-    { mentor_id: mentorId, cohort_id: cohortId, created_at: timestamp },
+    { mentor_id: mentorId, cohort_id: cohortId, created_at: timestamp, assigned_at: timestamp },
     { onConflict: 'mentor_id,cohort_id' }
   );
 
-  if (error && error.message.includes('created_at')) {
-    const res = await supabase.from('mentor_cohorts').upsert(
-      { mentor_id: mentorId, cohort_id: cohortId, assigned_at: timestamp },
-      { onConflict: 'mentor_id,cohort_id' }
-    );
-    error = res.error;
+  if (error) {
+    if (error.message.includes('assigned_at')) {
+      const res = await supabase.from('mentor_cohorts').upsert(
+        { mentor_id: mentorId, cohort_id: cohortId, created_at: timestamp },
+        { onConflict: 'mentor_id,cohort_id' }
+      );
+      error = res.error;
+    } else if (error.message.includes('created_at')) {
+      const res = await supabase.from('mentor_cohorts').upsert(
+        { mentor_id: mentorId, cohort_id: cohortId, assigned_at: timestamp },
+        { onConflict: 'mentor_id,cohort_id' }
+      );
+      error = res.error;
+    }
   }
   if (error) throw error;
 

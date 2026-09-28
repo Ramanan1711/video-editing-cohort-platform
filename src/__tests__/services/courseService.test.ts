@@ -4,6 +4,8 @@ import {
   updateLessonWatchProgress,
   enrollInCohort,
   submitOrReplaceAssignment,
+  listEnrollments,
+  saveEnrollment,
 } from '../../lib/courseService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -240,6 +242,91 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
       expect(sub.version_number).toBe(2);
       expect(sub.status).toBe('pending');
       expect(sub.file_url).toBe('https://cdn.cutcraft.test/v2_revision.mp4');
+    });
+  });
+
+  describe('Enrollment Schema Harmonization & Dual Timestamp Resilience', () => {
+    it('listEnrollments queries both created_at and enrolled_at and falls back smoothly if enrolled_at is absent', async () => {
+      // First attempt fails with column missing, fallback succeeds
+      const mockOrder = vi.fn()
+        .mockResolvedValueOnce({
+          data: null,
+          error: { message: 'column enrolled_at does not exist', code: '42703' },
+        })
+        .mockResolvedValueOnce({
+          data: [
+            {
+              user_id: 'u-1',
+              cohort_id: 'c-1',
+              status: 'enrolled',
+              created_at: '2026-09-28T00:00:00Z',
+            },
+          ],
+          error: null,
+        });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          order: mockOrder,
+        }),
+      });
+
+      const enrollments = await listEnrollments();
+      expect(enrollments).toHaveLength(1);
+      expect(enrollments[0].status).toBe('enrolled');
+      expect(enrollments[0].created_at).toBe('2026-09-28T00:00:00Z');
+    });
+
+    it('saveEnrollment populates both created_at and enrolled_at on upsert', async () => {
+      const mockUpsert = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              user_id: 'u-2',
+              cohort_id: 'c-2',
+              status: 'active',
+              created_at: '2026-09-28T12:00:00Z',
+              enrolled_at: '2026-09-28T12:00:00Z',
+            },
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'enrollments') {
+          return {
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                neq: vi.fn().mockReturnValue({
+                  in: vi.fn().mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+            }),
+            upsert: mockUpsert,
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      const result = await saveEnrollment({
+        user_id: 'u-2',
+        cohort_id: 'c-2',
+        status: 'active',
+      });
+
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: 'u-2',
+          cohort_id: 'c-2',
+          status: 'active',
+          created_at: expect.any(String),
+          enrolled_at: expect.any(String),
+        }),
+        expect.anything()
+      );
+      expect(result.status).toBe('active');
+      expect(result.enrolled_at).toBe('2026-09-28T12:00:00Z');
     });
   });
 });

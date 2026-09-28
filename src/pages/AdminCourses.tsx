@@ -87,7 +87,7 @@ interface CohortEditorState {
   id?: string;
   name: string;
   description: string;
-  status: 'draft' | 'review' | 'published' | 'archived';
+  status: 'draft' | 'review' | 'published' | 'archived' | 'upcoming' | 'active' | 'completed';
   capacity: string;
   visibility: 'public' | 'private' | 'unlisted';
   enrollmentStart: string;
@@ -1719,6 +1719,9 @@ export function AdminCourses() {
                         <option value="draft">Draft</option>
                         <option value="review">In Review</option>
                         <option value="published">Published</option>
+                        <option value="upcoming">Upcoming</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
                         <option value="archived">Archived</option>
                       </select>
                     </label>
