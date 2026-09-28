@@ -72,7 +72,42 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
       });
     });
 
-    it('auto-completes lesson when updateLessonWatchProgress reaches 80%', async () => {
+    it('authoritatively records watch heartbeat via record_lesson_watch_heartbeat RPC', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: { success: true, watch_percentage: 85, completed: true, is_auto_completed: true },
+        error: null,
+      });
+
+      await updateLessonWatchProgress('user-1', 'lesson-1', 85, 420, 1.5);
+
+      expect(supabase.rpc).toHaveBeenCalledWith('record_lesson_watch_heartbeat', {
+        p_lesson_id: 'lesson-1',
+        p_position_seconds: 420,
+        p_playback_rate: 1.5,
+        p_user_id: 'user-1',
+      });
+    });
+
+    it('unmarks lesson completion via toggle_lesson_completion RPC', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: { success: true, completed: false },
+        error: null,
+      });
+
+      await markLessonComplete('user-1', 'lesson-1', false);
+
+      expect(supabase.rpc).toHaveBeenCalledWith('toggle_lesson_completion', {
+        p_lesson_id: 'lesson-1',
+        p_completed: false,
+        p_user_id: 'user-1',
+      });
+    });
+
+    it('auto-completes lesson when updateLessonWatchProgress reaches 80% in fallback mode', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: null,
+        error: { code: '42883', message: 'function record_lesson_watch_heartbeat does not exist' },
+      });
       const mockUpsert = vi.fn().mockResolvedValue({ data: null, error: null });
       (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         upsert: mockUpsert,

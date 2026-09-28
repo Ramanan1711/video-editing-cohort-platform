@@ -2267,7 +2267,7 @@ function LessonPlayer({
   const syncWatchProgress = (pct: number, currentTime: number) => {
     if (!userId) return;
     const isAutoCompleted = pct >= 80;
-    void updateLessonWatchProgress(userId, lesson.id, pct, currentTime);
+    void updateLessonWatchProgress(userId, lesson.id, pct, currentTime, playbackSpeed);
     if (onWatchProgressUpdate) {
       onWatchProgressUpdate(lesson.id, pct, isAutoCompleted);
     }

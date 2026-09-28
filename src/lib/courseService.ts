@@ -458,8 +458,14 @@ export async function markLessonComplete(
         }
         return;
       }
+      if (rpcErr) {
+        const msg = rpcErr.message || '';
+        if (msg.includes('80%') || msg.includes('threshold') || msg.includes('watched') || msg.includes('DIRECT_WRITE_DENIED')) {
+          throw new Error(msg);
+        }
+      }
     } catch (err: unknown) {
-      if (err instanceof Error && (err.message.includes('80%') || err.message.includes('threshold') || err.message.includes('watched'))) {
+      if (err instanceof Error && (err.message.includes('80%') || err.message.includes('threshold') || err.message.includes('watched') || err.message.includes('DIRECT_WRITE_DENIED'))) {
         throw err;
       }
       console.warn('verify_and_complete_lesson RPC fallback:', err);
@@ -493,6 +499,20 @@ export async function markLessonComplete(
         );
       }
     }
+  } else {
+    // Unmarking completion via toggle_lesson_completion
+    try {
+      const { data: toggleRes, error: toggleErr } = await supabase.rpc('toggle_lesson_completion', {
+        p_lesson_id: lessonId,
+        p_completed: false,
+        p_user_id: userId,
+      });
+      if (!toggleErr && toggleRes) {
+        return;
+      }
+    } catch (toggleErr) {
+      console.warn('toggle_lesson_completion RPC fallback:', toggleErr);
+    }
   }
 
   const { error } = await supabase.from('lesson_progress').upsert(
@@ -513,9 +533,28 @@ export async function updateLessonWatchProgress(
   userId: string,
   lessonId: string,
   watchPercentage: number,
-  positionSeconds: number = 0
+  positionSeconds: number = 0,
+  playbackRate: number = 1.0
 ): Promise<void> {
   const isAutoCompleted = watchPercentage >= 80;
+
+  // 1. Authoritative server-side heartbeat tracking
+  try {
+    const { data: heartbeatRes, error: heartbeatErr } = await supabase.rpc('record_lesson_watch_heartbeat', {
+      p_lesson_id: lessonId,
+      p_position_seconds: Math.round(positionSeconds),
+      p_playback_rate: playbackRate,
+      p_user_id: userId,
+    });
+
+    if (!heartbeatErr && heartbeatRes) {
+      return;
+    }
+  } catch (rpcErr) {
+    console.warn('record_lesson_watch_heartbeat RPC fallback:', rpcErr);
+  }
+
+  // 2. Resilient fallback for unmigrated environments
   try {
     const payload: Record<string, unknown> = {
       user_id: userId,
@@ -537,7 +576,7 @@ export async function updateLessonWatchProgress(
       }
     }
   } catch (err) {
-    console.warn('Failed to update watch progress:', err);
+    console.warn('Failed to update watch progress fallback:', err);
   }
 }
 
