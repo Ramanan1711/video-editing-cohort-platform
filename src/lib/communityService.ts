@@ -49,6 +49,33 @@ export function detectMediaType(urlOrFilename: string): 'video' | 'image' | 'fil
   return 'file';
 }
 
+/**
+ * Securely fetch public social attributes (id, full_name, role) for authors
+ * without querying or exposing private contact fields (email, phone, etc.).
+ */
+export async function fetchAuthorPublicProfiles(authorIds: string[]): Promise<Array<{ id: string; full_name: string | null; role: string }>> {
+  if (!authorIds.length) return [];
+  try {
+    const { data: publicProfiles, error: publicErr } = await supabase
+      .from('public_profiles')
+      .select('id, full_name, role')
+      .in('id', authorIds);
+
+    if (!publicErr && publicProfiles) {
+      return publicProfiles as Array<{ id: string; full_name: string | null; role: string }>;
+    }
+  } catch {
+    // Graceful fallback to scoped profiles query if public_profiles view is pending migration
+  }
+
+  const { data: fallbackProfiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, role')
+    .in('id', authorIds);
+
+  return (fallbackProfiles ?? []) as Array<{ id: string; full_name: string | null; role: string }>;
+}
+
 export function parsePostMediaEnvelope(rawBody: string): {
   body: string;
   mediaUrl?: string | null;
@@ -162,12 +189,9 @@ export async function listCohortPosts(
       );
     }
 
-    // Fetch author profiles
+    // Fetch author public profiles (sanitized, zero contact fields)
     const authorIds = Array.from(new Set(filtered.map((p) => p.author_id)));
-    const { data: profiles } = authorIds.length
-      ? await supabase.from('profiles').select('id, full_name, role').in('id', authorIds)
-      : { data: [] };
-
+    const profiles = await fetchAuthorPublicProfiles(authorIds);
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
     // Fetch comment counts
@@ -360,10 +384,7 @@ export async function listCommunityComments(postId: string): Promise<CommunityCo
     if (!comments || comments.length === 0) return [];
 
     const authorIds = Array.from(new Set(comments.map((c) => c.author_id)));
-    const { data: profiles } = authorIds.length
-      ? await supabase.from('profiles').select('id, full_name, role').in('id', authorIds)
-      : { data: [] };
-
+    const profiles = await fetchAuthorPublicProfiles(authorIds);
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
     return comments.map((c) => {

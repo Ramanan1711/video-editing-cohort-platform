@@ -461,7 +461,7 @@ export async function fetchEnrolledLeaderboard(
       { data: progressRows },
       { data: submissionsRows },
     ] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, email, role').in('id', userIds),
+      supabase.from('profiles').select('id, full_name, role').in('id', userIds),
       enrolledCohortIds.length
         ? supabase.from('cohorts').select('id, title').in('id', enrolledCohortIds)
         : supabase.from('cohorts').select('id, title'),
@@ -494,9 +494,7 @@ export async function fetchEnrolledLeaderboard(
     // 4. Compute each enrolled student's PRO points directly based on their XP
     const members: LeaderboardMember[] = userIds.map((uid) => {
       const prof = profileMap.get(uid);
-      const name =
-        prof?.full_name?.trim() ||
-        (prof?.email ? prof.email.split('@')[0] : 'Enrolled Student');
+      const name = prof?.full_name?.trim() || 'Enrolled Student';
 
       const savedGamification = gamificationMap.get(uid);
       const completedLessons = completedLessonsByUser.get(uid) || 0;

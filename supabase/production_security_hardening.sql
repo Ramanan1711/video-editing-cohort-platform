@@ -16,6 +16,34 @@
 -- 5. Storage privacy lockdown & signed URL access control
 
 -- ==============================================================================
+-- 0. Idempotent Schema Prerequisites
+-- ==============================================================================
+create table if not exists public.mentor_cohorts (
+  id uuid primary key default gen_random_uuid(),
+  mentor_id uuid not null references public.profiles(id) on delete cascade,
+  cohort_id uuid not null references public.cohorts(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (mentor_id, cohort_id)
+);
+
+create index if not exists idx_mentor_cohorts_mentor on public.mentor_cohorts(mentor_id);
+create index if not exists idx_mentor_cohorts_cohort on public.mentor_cohorts(cohort_id);
+alter table public.mentor_cohorts enable row level security;
+
+create table if not exists public.submission_versions (
+  id uuid primary key default gen_random_uuid(),
+  submission_id uuid not null references public.submissions(id) on delete cascade,
+  version_number int not null default 1,
+  file_url text not null,
+  status text not null default 'pending',
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_submission_versions_submission_id on public.submission_versions(submission_id);
+alter table public.submission_versions enable row level security;
+
+-- ==============================================================================
 -- 1. Helper Functions (Security Definer)
 -- ==============================================================================
 create or replace function public.is_admin()
@@ -259,10 +287,32 @@ grant execute on function public.submit_student_assignment(uuid, text, boolean, 
 alter table public.profiles enable row level security;
 
 drop policy if exists "Authenticated users can read profiles" on public.profiles;
-create policy "Authenticated users can read profiles"
+drop policy if exists "Users can read own full profile" on public.profiles;
+drop policy if exists "Admins can read all profiles" on public.profiles;
+drop policy if exists "Mentors can read cohort student profiles" on public.profiles;
+
+create policy "Users can read own full profile"
 on public.profiles for select
 to authenticated
-using (true);
+using (id = auth.uid());
+
+create policy "Admins can read all profiles"
+on public.profiles for select
+to authenticated
+using (public.is_admin());
+
+create policy "Mentors can read cohort student profiles"
+on public.profiles for select
+to authenticated
+using (
+  exists (
+    select 1 from public.mentor_cohorts mc
+    join public.enrollments e on e.cohort_id = mc.cohort_id
+    where mc.mentor_id = auth.uid()
+    and e.user_id = public.profiles.id
+    and e.status in ('active', 'enrolled')
+  )
+);
 
 drop policy if exists "Users can insert own initial profile" on public.profiles;
 create policy "Users can insert own initial profile"
@@ -334,6 +384,7 @@ alter table public.submissions enable row level security;
 drop policy if exists "Users can view submissions" on public.submissions;
 drop policy if exists "Students can read own submissions and staff can read all" on public.submissions;
 drop policy if exists "Mentors and Admins can view all submissions" on public.submissions;
+drop policy if exists "Submissions select policy" on public.submissions;
 
 create policy "Submissions select policy"
 on public.submissions for select
@@ -358,6 +409,7 @@ with check (
 drop policy if exists "Students can update own submissions" on public.submissions;
 drop policy if exists "Students and staff can update submissions" on public.submissions;
 drop policy if exists "Mentors and Admins can update submissions" on public.submissions;
+drop policy if exists "Students can update draft or pending submissions" on public.submissions;
 
 -- Students can ONLY update their own file or notes between draft and pending.
 -- They CANNOT set status to 'reviewed', or change student_id or assignment_id!
@@ -375,6 +427,7 @@ with check (
   and status in ('draft', 'pending')
 );
 
+drop policy if exists "Mentors and Admins can update submissions" on public.submissions;
 create policy "Mentors and Admins can update submissions"
 on public.submissions for update
 to authenticated
@@ -412,6 +465,7 @@ using (
 );
 
 drop policy if exists "Mentors and Admins can manage feedback" on public.feedback;
+drop policy if exists "Mentors and Admins can insert feedback" on public.feedback;
 create policy "Mentors and Admins can insert feedback"
 on public.feedback for insert
 to authenticated
@@ -427,6 +481,7 @@ with check (
   )
 );
 
+drop policy if exists "Mentors and Admins can update feedback" on public.feedback;
 create policy "Mentors and Admins can update feedback"
 on public.feedback for update
 to authenticated
