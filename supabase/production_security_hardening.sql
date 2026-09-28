@@ -90,6 +90,61 @@ as $$
   );
 $$;
 
+create or replace function public.has_admin_permission(p_permission text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_role text;
+  v_admin_role text;
+  v_status text;
+begin
+  if auth.uid() is null then
+    return false;
+  end if;
+
+  select role, admin_role, status
+  into v_role, v_admin_role, v_status
+  from public.profiles
+  where id = auth.uid();
+
+  if not found or v_role != 'admin' or coalesce(v_status, 'active') != 'active' then
+    return false;
+  end if;
+
+  v_admin_role := coalesce(v_admin_role, 'super_admin');
+
+  if v_admin_role = 'super_admin' then
+    return true;
+  end if;
+
+  if v_admin_role = 'content_admin' and p_permission in (
+    'manage_cohorts', 'manage_curriculum', 'publish_content', 'view_insights'
+  ) then
+    return true;
+  end if;
+
+  if v_admin_role = 'operations_admin' and p_permission in (
+    'manage_cohorts', 'manage_enrollments', 'broadcast_announcements', 'schedule_sessions', 'view_insights'
+  ) then
+    return true;
+  end if;
+
+  if v_admin_role = 'moderator' and p_permission in (
+    'moderate_community', 'broadcast_announcements', 'view_insights'
+  ) then
+    return true;
+  end if;
+
+  return false;
+end;
+$$;
+
+grant execute on function public.has_admin_permission(text) to authenticated, anon;
+
 -- Helper to check if caller is an assigned mentor for a cohort
 create or replace function public.is_mentor_for_cohort(p_cohort_id uuid)
 returns boolean
@@ -331,17 +386,99 @@ to authenticated
 using (id = auth.uid() and public.is_active_user())
 with check (
   id = auth.uid()
-  -- Students cannot escalate their role or change their account status
+  -- Users cannot escalate their role, change their account status, or alter admin_role
   and role = (select p.role from public.profiles p where p.id = auth.uid())
   and coalesce(status, 'active') = (select coalesce(p.status, 'active') from public.profiles p where p.id = auth.uid())
+  and admin_role is not distinct from (select p.admin_role from public.profiles p where p.id = auth.uid())
 );
 
 drop policy if exists "Admins can update user profiles" on public.profiles;
 create policy "Admins can update user profiles"
 on public.profiles for update
 to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (
+  public.has_admin_permission('manage_roles')
+  or public.has_admin_permission('manage_user_status')
+)
+with check (
+  public.has_admin_permission('manage_roles')
+  or public.has_admin_permission('manage_user_status')
+);
+
+-- Trigger Defense-in-Depth: Block unauthorized modification of privilege fields on profiles
+create or replace function public.fn_protect_profile_privilege_fields()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_caller_id uuid := auth.uid();
+  v_super_admin_count int;
+  v_admin_count int;
+begin
+  if v_caller_id is null then
+    return new;
+  end if;
+
+  -- Users cannot alter role, admin_role, or status on their own row
+  if v_caller_id = old.id then
+    if new.role is distinct from old.role then
+      raise exception 'Unauthorized: Users cannot alter their own system role.' using errcode = '42501';
+    end if;
+    if new.admin_role is distinct from old.admin_role then
+      raise exception 'Unauthorized: Users cannot alter their own administrative sub-role.' using errcode = '42501';
+    end if;
+    if new.status is distinct from old.status then
+      raise exception 'Unauthorized: Users cannot alter their own account status.' using errcode = '42501';
+    end if;
+  end if;
+
+  -- Modifying role or admin_role requires manage_roles
+  if (new.role is distinct from old.role) or (new.admin_role is distinct from old.admin_role) then
+    if not public.has_admin_permission('manage_roles') then
+      raise exception 'Unauthorized: Only Super Administrators can modify user roles or administrative sub-roles.' using errcode = '42501';
+    end if;
+
+    -- Prevent demoting last active super_admin
+    if old.role = 'admin' and coalesce(old.admin_role, 'super_admin') = 'super_admin' and
+       (new.role != 'admin' or coalesce(new.admin_role, 'super_admin') != 'super_admin') then
+      select count(*) into v_super_admin_count
+      from public.profiles
+      where role = 'admin' and coalesce(admin_role, 'super_admin') = 'super_admin' and coalesce(status, 'active') = 'active';
+
+      if v_super_admin_count <= 1 then
+        raise exception 'Safety block: Cannot demote or revoke the last remaining active Super Admin.' using errcode = 'P0001';
+      end if;
+    end if;
+  end if;
+
+  -- Modifying status requires manage_user_status or manage_roles
+  if new.status is distinct from old.status then
+    if not (public.has_admin_permission('manage_user_status') or public.has_admin_permission('manage_roles')) then
+      raise exception 'Unauthorized: Insufficient permissions to modify account status.' using errcode = '42501';
+    end if;
+
+    if old.role = 'admin' and new.status != 'active' then
+      select count(*) into v_admin_count
+      from public.profiles
+      where role = 'admin' and coalesce(status, 'active') = 'active';
+
+      if v_admin_count <= 1 then
+        raise exception 'Safety block: Cannot deactivate the last remaining active administrator.' using errcode = 'P0001';
+      end if;
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_protect_profile_privilege_fields on public.profiles;
+create trigger trg_protect_profile_privilege_fields
+  before update on public.profiles
+  for each row
+  execute function public.fn_protect_profile_privilege_fields();
 
 -- ==============================================================================
 -- 4. Enrollments Table RLS Lockdown
@@ -373,8 +510,8 @@ drop policy if exists "Admins have full management on enrollments" on public.enr
 create policy "Admins have full management on enrollments"
 on public.enrollments for all
 to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (public.has_admin_permission('manage_enrollments'))
+with check (public.has_admin_permission('manage_enrollments'));
 
 -- ==============================================================================
 -- 5. Submissions Table RLS Lockdown
@@ -584,6 +721,6 @@ drop policy if exists "Admins can manage lesson resources" on public.lesson_reso
 create policy "Admins can manage lesson resources"
 on public.lesson_resources for all
 to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (public.has_admin_permission('manage_curriculum'))
+with check (public.has_admin_permission('manage_curriculum'));
 

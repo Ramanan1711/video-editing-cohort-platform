@@ -144,5 +144,59 @@ describe('User Profiles Privacy & Contact Fields Protection', () => {
       expect((result[0] as any).email).toBeUndefined();
     });
   });
+
+  describe('Role Management & Privilege Field Immutability (admin_role, role, status)', () => {
+    it('blocks self-update from mutating admin_role, role, or status', async () => {
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: {
+                message: 'new row violates row-level security policy for table "profiles"',
+                code: '42501',
+              },
+            }),
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        update: mockUpdate,
+      });
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ admin_role: 'super_admin' })
+        .eq('id', 'student-attacker-id')
+        .select()
+        .single();
+
+      expect(data).toBeNull();
+      expect(error?.code).toBe('42501');
+      expect(error?.message).toContain('row-level security');
+    });
+
+    it('enforces SQL subrole check: non-super_admin cannot call admin_update_user_role', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: null,
+        error: {
+          code: '42501',
+          message: 'Unauthorized: Only Super Administrators can modify roles or admin sub-roles.',
+        },
+      });
+
+      const { data, error } = await supabase.rpc('admin_update_user_role', {
+        p_user_id: 'some-user',
+        p_new_role: 'admin',
+        p_new_admin_role: 'super_admin',
+      });
+
+      expect(data).toBeNull();
+      expect(error?.code).toBe('42501');
+      expect(error?.message).toContain('Only Super Administrators');
+    });
+  });
 });
+
 
