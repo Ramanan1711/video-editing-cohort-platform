@@ -1738,6 +1738,69 @@ export async function getSecureAssetUrl(fileUrl: string, expiresIn = 3600): Prom
   return fileUrl;
 }
 
+/**
+ * Validates access entitlements and returns a secure, time-limited signed download URL
+ * for a lesson resource. Enforces enrollment and completion rules via server-side RPC.
+ */
+export async function getLessonResourceDownloadUrl(
+  resourceId: string,
+  fallbackUrl?: string,
+  expiresIn = 3600
+): Promise<string> {
+  if (!resourceId && fallbackUrl) {
+    return getSecureAssetUrl(fallbackUrl, expiresIn);
+  }
+  if (!resourceId) return '';
+
+  try {
+    const { data, error } = await supabase.rpc('get_lesson_resource_download_url', {
+      p_resource_id: resourceId,
+    });
+
+    if (error) {
+      const errMsg = error.message || '';
+      if (
+        errMsg.includes('LOCKED_RESOURCE') ||
+        errMsg.includes('UNAUTHORIZED') ||
+        errMsg.includes('UNAUTHENTICATED')
+      ) {
+        throw new Error(errMsg);
+      }
+      if (fallbackUrl) {
+        return getSecureAssetUrl(fallbackUrl, expiresIn);
+      }
+      throw new Error(errMsg || 'Failed to resolve download URL.');
+    }
+
+    const payload = data as { url?: string } | null;
+    const targetUrl = payload?.url || fallbackUrl;
+    if (!targetUrl) {
+      throw new Error('No download URL available for this resource.');
+    }
+
+    return getSecureAssetUrl(targetUrl, expiresIn);
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error
+        ? err.message
+        : typeof err === 'object' && err !== null && 'message' in err
+        ? String((err as { message: unknown }).message)
+        : String(err);
+
+    if (
+      msg.includes('LOCKED_RESOURCE') ||
+      msg.includes('UNAUTHORIZED') ||
+      msg.includes('UNAUTHENTICATED')
+    ) {
+      throw err instanceof Error ? err : new Error(msg);
+    }
+    if (fallbackUrl) {
+      return getSecureAssetUrl(fallbackUrl, expiresIn);
+    }
+    throw err instanceof Error ? err : new Error(msg);
+  }
+}
+
 // Student Submissions & Resubmissions
 export async function listMySubmissions(userId: string): Promise<Submission[]> {
   let { data, error } = await supabase

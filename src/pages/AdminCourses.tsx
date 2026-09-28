@@ -58,6 +58,7 @@ import {
   duplicateLesson,
   duplicateModule,
   formatFileSize,
+  getSecureAssetUrl,
   listAllAssignments,
   listAllLessonResources,
   listCohorts,
@@ -1576,6 +1577,17 @@ export function AdminCourses() {
                                                             <div className="min-w-0">
                                                               <a
                                                                 href={res.url}
+                                                                onClick={async (e) => {
+                                                                  if (res.url.includes('course-assets')) {
+                                                                    e.preventDefault();
+                                                                    try {
+                                                                      const signed = await getSecureAssetUrl(res.url);
+                                                                      window.open(signed, '_blank', 'noopener,noreferrer');
+                                                                    } catch {
+                                                                      window.open(res.url, '_blank', 'noopener,noreferrer');
+                                                                    }
+                                                                  }
+                                                                }}
                                                                 target="_blank"
                                                                 rel="noreferrer"
                                                                 className="inline-flex items-center gap-1 text-xs font-bold text-slate-900 hover:text-orange-600"

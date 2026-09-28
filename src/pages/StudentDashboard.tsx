@@ -39,10 +39,13 @@ import { CommunityTopNav } from '../components/community/CommunityTopNav';
 import { LevelUpModal } from '../components/community/LevelUpModal';
 import { WorkshopsModal } from '../components/community/WorkshopsModal';
 import { useAuth } from '../context/useAuth';
+import { useToast } from '../context/useToast';
 import {
   calculateLearningTime,
   calculateStreak,
   formatFileSize,
+  getLessonResourceDownloadUrl,
+  getSecureAssetUrl,
   getStudentCourseData,
   listAssignments,
   listCohorts,
@@ -2190,17 +2193,58 @@ function LessonPlayer({
   initialLastPositionSeconds = 0,
   onWatchProgressUpdate,
 }: LessonPlayerProps) {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<'overview' | 'resources' | 'notes' | 'discussion'>('overview');
   const [resources, setResources] = useState<LessonResource[]>([]);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [watchPercentage, setWatchPercentage] = useState<number>(initialWatchPercentage);
+  const [downloadingResourceId, setDownloadingResourceId] = useState<string | null>(null);
+  const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(lesson.video_url);
   const [showResumePrompt, setShowResumePrompt] = useState<boolean>(
     () => initialLastPositionSeconds > 10 && !completed
   );
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastSyncTimeRef = useRef<number>(0);
 
-  const videoMeta = parseVideoUrl(lesson.video_url);
+  useEffect(() => {
+    let isMounted = true;
+    if (!lesson.video_url) {
+      setResolvedVideoUrl(null);
+      return;
+    }
+    if (lesson.video_url.includes('course-assets')) {
+      void getSecureAssetUrl(lesson.video_url).then((signed) => {
+        if (isMounted) setResolvedVideoUrl(signed);
+      });
+    } else {
+      setResolvedVideoUrl(lesson.video_url);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [lesson.video_url]);
+
+  const videoMeta = parseVideoUrl(resolvedVideoUrl);
+
+  const handleDownloadResource = async (resource: LessonResource) => {
+    setDownloadingResourceId(resource.id);
+    try {
+      const secureUrl = await getLessonResourceDownloadUrl(resource.id, resource.url);
+      if (!secureUrl) throw new Error('Could not resolve download link.');
+      window.open(secureUrl, '_blank', 'noopener,noreferrer');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to download resource.';
+      if (message.includes('LOCKED_RESOURCE')) {
+        toast.error('Mark this lesson complete first to unlock this download.');
+      } else if (message.includes('UNAUTHORIZED')) {
+        toast.error('You must be actively enrolled in this cohort to download this file.');
+      } else {
+        toast.error(message, 'Download Failed');
+      }
+    } finally {
+      setDownloadingResourceId(null);
+    }
+  };
 
   const tabs = [
     { id: 'overview' as const, label: 'Overview' },
@@ -2592,15 +2636,24 @@ function LessonPlayer({
                           </div>
                         </div>
 
-                        <a
-                          href={resource.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-orange-600"
+                        <button
+                          type="button"
+                          disabled={downloadingResourceId === resource.id}
+                          onClick={() => void handleDownloadResource(resource)}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-orange-600 disabled:opacity-60 cursor-pointer"
                         >
-                          <span>Download / Open</span>
-                          <ExternalLink size={13} />
-                        </a>
+                          {downloadingResourceId === resource.id ? (
+                            <>
+                              <span className="inline-block animate-spin text-[10px]">⏳</span>
+                              <span>Resolving link...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Download / Open</span>
+                              <ExternalLink size={13} />
+                            </>
+                          )}
+                        </button>
                       </div>
                     );
                   })}

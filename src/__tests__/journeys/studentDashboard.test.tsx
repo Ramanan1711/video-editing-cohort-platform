@@ -110,6 +110,8 @@ vi.mock('../../lib/courseService', () => ({
   listStudentAnnouncements: vi.fn().mockResolvedValue([]),
   listAssignments: vi.fn().mockResolvedValue([]),
   listLessonResources: vi.fn().mockResolvedValue([]),
+  getLessonResourceDownloadUrl: vi.fn().mockResolvedValue('https://signed.download/file.zip'),
+  getSecureAssetUrl: vi.fn().mockImplementation((url: string) => Promise.resolve(url)),
   markLessonComplete: vi.fn().mockResolvedValue(true),
   updateLessonWatchProgress: vi.fn().mockResolvedValue(undefined),
   parseVideoUrl: vi.fn().mockReturnValue({ type: 'youtube', id: 'dQw4w9WgXcQ' }),

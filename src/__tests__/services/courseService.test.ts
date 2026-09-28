@@ -20,13 +20,20 @@ import {
   deleteLesson,
   reorderLessons,
   duplicateLesson,
+  getSecureAssetUrl,
+  getLessonResourceDownloadUrl,
 } from '../../lib/courseService';
 import { supabase } from '../../lib/supabaseClient';
+
+const mockStorageFrom = vi.fn();
 
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     from: vi.fn(),
     rpc: vi.fn(),
+    storage: {
+      from: (...args: unknown[]) => mockStorageFrom(...args),
+    },
   },
 }));
 
@@ -911,4 +918,89 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
       expect(res.action).toBe('archived');
     });
   });
+
+  describe('Lesson Resources & Storage Privacy', () => {
+    it('returns third-party external URLs as-is without attempting storage signing', async () => {
+      const externalUrl = 'https://drive.google.com/file/d/1B2C3D4E5F/view';
+      const result = await getSecureAssetUrl(externalUrl);
+      expect(result).toBe(externalUrl);
+      expect(mockStorageFrom).not.toHaveBeenCalled();
+    });
+
+    it('generates a time-limited signed URL for private course-assets files', async () => {
+      const createSignedUrlMock = vi.fn().mockResolvedValue({
+        data: { signedUrl: 'https://test.supabase.co/storage/v1/object/sign/course-assets/resources/raw-footage.zip?token=xyz' },
+        error: null,
+      });
+      mockStorageFrom.mockReturnValue({
+        createSignedUrl: createSignedUrlMock,
+      });
+
+      const rawStorageUrl = 'https://test.supabase.co/storage/v1/object/public/course-assets/resources/raw-footage.zip';
+      const signed = await getSecureAssetUrl(rawStorageUrl, 1800);
+
+      expect(mockStorageFrom).toHaveBeenCalledWith('course-assets');
+      expect(createSignedUrlMock).toHaveBeenCalledWith('resources/raw-footage.zip', 1800);
+      expect(signed).toBe('https://test.supabase.co/storage/v1/object/sign/course-assets/resources/raw-footage.zip?token=xyz');
+    });
+
+    it('resolves download URL via server-side entitlement RPC for enrolled students', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: {
+          success: true,
+          resource_id: 'res-123',
+          name: 'DaVinci Resolve Template',
+          url: 'course-assets/resources/template.drp',
+          visibility: 'enrolled',
+          authorized_as: 'student',
+        },
+        error: null,
+      });
+
+      const createSignedUrlMock = vi.fn().mockResolvedValue({
+        data: { signedUrl: 'https://test.supabase.co/storage/v1/object/sign/course-assets/resources/template.drp?token=signed' },
+        error: null,
+      });
+      mockStorageFrom.mockReturnValue({
+        createSignedUrl: createSignedUrlMock,
+      });
+
+      const downloadUrl = await getLessonResourceDownloadUrl('res-123');
+
+      expect(supabase.rpc).toHaveBeenCalledWith('get_lesson_resource_download_url', {
+        p_resource_id: 'res-123',
+      });
+      expect(createSignedUrlMock).toHaveBeenCalledWith('resources/template.drp', 3600);
+      expect(downloadUrl).toBe('https://test.supabase.co/storage/v1/object/sign/course-assets/resources/template.drp?token=signed');
+    });
+
+    it('throws error when server RPC rejects access due to locked resource (lesson incomplete)', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: null,
+        error: {
+          code: '42501',
+          message: 'LOCKED_RESOURCE: You must complete this lesson before accessing this download.',
+        },
+      });
+
+      await expect(
+        getLessonResourceDownloadUrl('res-locked-1', 'course-assets/resources/secret.zip')
+      ).rejects.toThrow('LOCKED_RESOURCE');
+    });
+
+    it('throws error when server RPC rejects access due to lack of enrollment', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: null,
+        error: {
+          code: '42501',
+          message: 'UNAUTHORIZED: You must be actively enrolled in this cohort to download this resource.',
+        },
+      });
+
+      await expect(
+        getLessonResourceDownloadUrl('res-unauth-1', 'course-assets/resources/locked.zip')
+      ).rejects.toThrow('UNAUTHORIZED');
+    });
+  });
 });
+
