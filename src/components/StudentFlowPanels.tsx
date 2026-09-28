@@ -312,6 +312,7 @@ export function AssignmentPanel({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [acknowledgedLate, setAcknowledgedLate] = useState(false);
+  const [submissionNotes, setSubmissionNotes] = useState('');
   const [nowTimestamp] = useState(() => Date.now());
 
   // Version History Modal State
@@ -401,7 +402,8 @@ export function AssignmentPanel({
         activeAssignment.id,
         submittedUrl,
         existingSubmission?.id,
-        isDraft
+        isDraft,
+        submissionNotes.trim() || undefined
       );
 
       setSuccess(
@@ -413,6 +415,7 @@ export function AssignmentPanel({
       );
       setActiveAssignment(null);
       setFile(null);
+      setSubmissionNotes('');
       setIsResubmitting(false);
       setAcknowledgedLate(false);
       setChecklist({ pacing: false, audio: false, color: false, critique: false });
@@ -428,6 +431,7 @@ export function AssignmentPanel({
     setActiveAssignment(assignment);
     setIsResubmitting(isResubmit);
     setFile(null);
+    setSubmissionNotes('');
     setError(null);
     setAcknowledgedLate(false);
     setChecklist({ pacing: false, audio: false, color: false, critique: false });
@@ -662,6 +666,20 @@ export function AssignmentPanel({
                 <span className="font-bold">Ready to upload:</span> {file.name} ({formatFileSize(file.size)})
               </div>
             )}
+
+            {/* Student Reflection / Notes */}
+            <label className="mt-4 block text-left">
+              <span className="mb-1.5 block text-xs font-bold text-slate-700">
+                Notes / Reflection for your mentor (optional)
+              </span>
+              <textarea
+                value={submissionNotes}
+                onChange={(e) => setSubmissionNotes(e.target.value)}
+                placeholder="Share your creative decisions, problem areas you faced, or specific feedback you'd like on this cut..."
+                rows={3}
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs outline-none focus:border-orange-400 placeholder:text-slate-400"
+              />
+            </label>
 
             <div className="mt-6 flex flex-wrap justify-between gap-3 border-t border-slate-100 pt-4">
               <Button type="button" variant="secondary" onClick={() => setActiveAssignment(null)} disabled={saving}>
@@ -1097,6 +1115,12 @@ function AssignmentCard({
               </a>
             </div>
 
+            {submission.notes && (
+              <div className="mt-2 text-xs text-slate-600 bg-slate-50 border border-slate-200/80 rounded-lg p-2.5">
+                <span className="font-semibold text-slate-800">Your notes:</span> {submission.notes}
+              </div>
+            )}
+
             {/* Version History Button */}
             {onOpenVersions && (
               <button
@@ -1104,7 +1128,7 @@ function AssignmentCard({
                 onClick={() => onOpenVersions(submission)}
                 className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:underline"
               >
-                <History size={12} /> Submission Version History (v{submission.version_number || 1})
+                <History size={12} /> Submission Version History (v{submission.version_number || submission.version || 1})
               </button>
             )}
 

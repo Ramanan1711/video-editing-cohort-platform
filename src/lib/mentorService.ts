@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 import { queryCache } from './queryCache';
-import type { MentorSubmission, FeedbackItem } from './courseService';
+import { normalizeSubmissionStatus, type MentorSubmission, type FeedbackItem } from './courseService';
 
 export interface RubricScore {
   storytelling: number;
@@ -493,7 +493,7 @@ export async function listDetailedMentorSubmissions(
       assignment_id: s.assignment_id,
       student_id: s.student_id,
       file_url: s.file_url,
-      status: s.status,
+      status: normalizeSubmissionStatus(s.status),
       feedback: latestFeedback,
       feedback_history: subFeedbackHistory,
       detailed_feedback_history: subFeedbackHistory,
@@ -581,7 +581,8 @@ export async function getMentorDashboardStats(
   let gradedReviewCount = 0;
 
   for (const sub of submissions) {
-    if (sub.status === 'pending') {
+    const normStatus = normalizeSubmissionStatus(sub.status);
+    if (normStatus === 'pending') {
       pendingCount++;
       if (sub.sla_status === 'overdue') overdueCount++;
       else if (sub.sla_status === 'warning') warningCount++;
@@ -595,9 +596,9 @@ export async function getMentorDashboardStats(
       };
       current.pending_count++;
       assignmentWorkloadMap.set(key, current);
-    } else if (sub.status === 'reviewed') {
+    } else if (normStatus === 'reviewed') {
       reviewedCount++;
-    } else if (sub.status === 'resubmit') {
+    } else if (normStatus === 'resubmit') {
       resubmitCount++;
     }
 
@@ -866,8 +867,9 @@ export async function listMentorStudents(
   for (const s of submissions ?? []) {
     const cur = submissionsByUser.get(s.student_id) || { total: 0, passed: 0, resubmit: 0 };
     cur.total++;
-    if (s.status === 'reviewed') cur.passed++;
-    if (s.status === 'resubmit') cur.resubmit++;
+    const normStatus = normalizeSubmissionStatus(s.status);
+    if (normStatus === 'reviewed') cur.passed++;
+    if (normStatus === 'resubmit') cur.resubmit++;
     submissionsByUser.set(s.student_id, cur);
 
     if (s.created_at) {

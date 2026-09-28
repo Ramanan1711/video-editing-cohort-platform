@@ -29,6 +29,9 @@ import {
   updateAssignment,
   deleteAssignment,
   normalizeAssignmentRow,
+  normalizeSubmissionStatus,
+  listMySubmissions,
+  listSubmissionVersions,
 } from '../../lib/courseService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -420,6 +423,142 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
       expect(sub.version_number).toBe(2);
       expect(sub.status).toBe('pending');
       expect(sub.file_url).toBe('https://cdn.cutcraft.test/v2_revision.mp4');
+    });
+
+    it('normalizeSubmissionStatus correctly harmonizes DB and UI status vocabularies', () => {
+      expect(normalizeSubmissionStatus('resubmit_requested')).toBe('resubmit');
+      expect(normalizeSubmissionStatus('needs_revision')).toBe('resubmit');
+      expect(normalizeSubmissionStatus('needs_work')).toBe('resubmit');
+      expect(normalizeSubmissionStatus('approved')).toBe('reviewed');
+      expect(normalizeSubmissionStatus('accepted')).toBe('reviewed');
+      expect(normalizeSubmissionStatus('reviewed')).toBe('reviewed');
+      expect(normalizeSubmissionStatus('draft')).toBe('draft');
+      expect(normalizeSubmissionStatus('pending')).toBe('pending');
+      expect(normalizeSubmissionStatus('resubmit')).toBe('resubmit');
+      expect(normalizeSubmissionStatus(null)).toBe('pending');
+      expect(normalizeSubmissionStatus(undefined)).toBe('pending');
+    });
+
+    it('listMySubmissions harmonizes legacy statuses and exposes notes and dual version fields', async () => {
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'sub-legacy-1',
+            assignment_id: 'assign-1',
+            student_id: 'student-1',
+            file_url: 'https://cdn.cutcraft.test/v1.mp4',
+            status: 'resubmit_requested',
+            notes: 'Check dialogue ducking at 00:45',
+            created_at: '2026-09-28T00:00:00Z',
+            updated_at: '2026-09-28T01:00:00Z',
+            is_late: false,
+            version: 1,
+            version_number: 1,
+          },
+          {
+            id: 'sub-legacy-2',
+            assignment_id: 'assign-2',
+            student_id: 'student-1',
+            file_url: 'https://cdn.cutcraft.test/v2.mp4',
+            status: 'approved',
+            notes: 'Final export cut',
+            created_at: '2026-09-28T02:00:00Z',
+            updated_at: '2026-09-28T03:00:00Z',
+            is_late: false,
+            version: 2,
+            version_number: 2,
+          },
+        ],
+        error: null,
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'submissions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: mockOrder,
+              }),
+            }),
+          };
+        }
+        if (table === 'feedback') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const subs = await listMySubmissions('student-1');
+      expect(subs).toHaveLength(2);
+      expect(subs[0].status).toBe('resubmit');
+      expect(subs[0].notes).toBe('Check dialogue ducking at 00:45');
+      expect(subs[0].version_number).toBe(1);
+      expect(subs[0].version).toBe(1);
+
+      expect(subs[1].status).toBe('reviewed');
+      expect(subs[1].notes).toBe('Final export cut');
+      expect(subs[1].version_number).toBe(2);
+      expect(subs[1].version).toBe(2);
+    });
+
+    it('listSubmissionVersions queries dual version numbers, submitted_at, notes and normalizes status', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'submission_versions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: 'ver-2',
+                      submission_id: 'sub-1',
+                      version: 2,
+                      version_number: 2,
+                      file_url: 'https://cdn.cutcraft.test/v2.mp4',
+                      status: 'needs_revision',
+                      notes: 'Revised pacing in scene 2',
+                      submitted_at: '2026-09-28T04:00:00Z',
+                      created_at: '2026-09-28T04:00:00Z',
+                    },
+                    {
+                      id: 'ver-1',
+                      submission_id: 'sub-1',
+                      version: 1,
+                      version_number: 1,
+                      file_url: 'https://cdn.cutcraft.test/v1.mp4',
+                      status: 'resubmit_requested',
+                      notes: 'Initial rough cut',
+                      submitted_at: '2026-09-28T01:00:00Z',
+                      created_at: '2026-09-28T01:00:00Z',
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const versions = await listSubmissionVersions('sub-1');
+      expect(versions).toHaveLength(2);
+      expect(versions[0].status).toBe('resubmit');
+      expect(versions[0].version).toBe(2);
+      expect(versions[0].version_number).toBe(2);
+      expect(versions[0].notes).toBe('Revised pacing in scene 2');
+      expect(versions[0].submitted_at).toBe('2026-09-28T04:00:00Z');
+
+      expect(versions[1].status).toBe('resubmit');
+      expect(versions[1].version).toBe(1);
+      expect(versions[1].version_number).toBe(1);
+      expect(versions[1].notes).toBe('Initial rough cut');
     });
   });
 

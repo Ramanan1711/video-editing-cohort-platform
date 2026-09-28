@@ -120,6 +120,15 @@ export interface Assignment {
 
 export type SubmissionStatus = 'draft' | 'pending' | 'reviewed' | 'resubmit';
 
+export function normalizeSubmissionStatus(status?: string | null): SubmissionStatus {
+  if (!status) return 'pending';
+  const s = status.trim().toLowerCase();
+  if (s === 'draft') return 'draft';
+  if (s === 'reviewed' || s === 'approved' || s === 'accepted') return 'reviewed';
+  if (s === 'resubmit' || s === 'resubmit_requested' || s === 'needs_revision' || s === 'needs_work') return 'resubmit';
+  return 'pending';
+}
+
 export interface FeedbackReply {
   id: string;
   feedback_id: string;
@@ -170,10 +179,12 @@ export interface StudentStudyReminder {
 export interface SubmissionVersion {
   id: string;
   submission_id: string;
+  version?: number;
   version_number: number;
   file_url: string;
   status: string;
   notes?: string | null;
+  submitted_at?: string;
   created_at: string;
 }
 
@@ -185,7 +196,9 @@ export interface Submission {
   status: SubmissionStatus;
   feedback: string | null;
   feedback_history?: FeedbackItem[];
+  notes?: string | null;
   is_late?: boolean;
+  version?: number;
   version_number?: number;
   versions?: SubmissionVersion[];
   created_at?: string;
@@ -2027,11 +2040,11 @@ export async function getLessonResourceDownloadUrl(
 export async function listMySubmissions(userId: string): Promise<Submission[]> {
   let { data, error } = await supabase
     .from('submissions')
-    .select('id, assignment_id, student_id, file_url, status, created_at, is_late, version_number')
+    .select('id, assignment_id, student_id, file_url, status, notes, created_at, updated_at, is_late, version_number, version')
     .eq('student_id', userId)
     .order('created_at', { ascending: false });
 
-  if (error && (error.message.includes('is_late') || error.message.includes('version_number'))) {
+  if (error && (error.message.includes('is_late') || error.message.includes('version_number') || error.message.includes('version') || error.message.includes('notes'))) {
     const fallback = await supabase
       .from('submissions')
       .select('id, assignment_id, student_id, file_url, status, created_at')
@@ -2041,7 +2054,13 @@ export async function listMySubmissions(userId: string): Promise<Submission[]> {
     error = fallback.error;
   }
   if (error) throw error;
-  const submissions = (data ?? []) as Omit<Submission, 'feedback'>[];
+  const submissions = (data ?? []).map((s: any) => ({
+    ...s,
+    status: normalizeSubmissionStatus(s.status),
+    version: s.version ?? s.version_number ?? 1,
+    version_number: s.version_number ?? s.version ?? 1,
+    notes: s.notes ?? null,
+  })) as Omit<Submission, 'feedback'>[];
   return addFeedback(submissions);
 }
 
@@ -2064,14 +2083,17 @@ export async function submitOrReplaceAssignment(
 
     if (!rpcError && rpcData) {
       const parsed = rpcData as Record<string, unknown>;
+      const versionNum = (parsed.version_number as number) ?? (parsed.version as number) ?? 1;
       return {
         id: parsed.id as string,
         assignment_id: parsed.assignment_id as string,
         student_id: parsed.student_id as string,
         file_url: parsed.file_url as string,
-        status: parsed.status as SubmissionStatus,
+        status: normalizeSubmissionStatus(parsed.status as string),
+        notes: (parsed.notes as string) || notes || null,
         is_late: Boolean(parsed.is_late),
-        version_number: (parsed.version_number as number) || 1,
+        version: versionNum,
+        version_number: versionNum,
         created_at: parsed.created_at as string,
         updated_at: (parsed.updated_at as string) || (parsed.created_at as string),
         feedback: null,
@@ -2110,12 +2132,12 @@ export async function submitOrReplaceAssignment(
   }
 
   let targetId = existingSubmissionId;
-  let previousRecord: { id: string; file_url: string; status: string; version_number?: number } | null = null;
+  let previousRecord: { id: string; file_url: string; status: string; notes?: string | null; version_number?: number; version?: number } | null = null;
 
   if (!targetId) {
     const { data: existing } = await supabase
       .from('submissions')
-      .select('id, file_url, status, version_number')
+      .select('id, file_url, status, notes, version_number, version')
       .eq('student_id', userId)
       .eq('assignment_id', assignmentId)
       .order('created_at', { ascending: false })
@@ -2128,24 +2150,26 @@ export async function submitOrReplaceAssignment(
   } else {
     const { data: existing } = await supabase
       .from('submissions')
-      .select('id, file_url, status, version_number')
+      .select('id, file_url, status, notes, version_number, version')
       .eq('id', targetId)
       .maybeSingle();
     previousRecord = existing;
   }
 
   const newStatus: SubmissionStatus = isDraft ? 'draft' : 'pending';
-  const newVersionNumber = (previousRecord?.version_number || 1) + (previousRecord ? 1 : 0);
+  const prevVer = previousRecord?.version_number ?? previousRecord?.version ?? 1;
+  const newVersionNumber = prevVer + (previousRecord ? 1 : 0);
 
   if (targetId && previousRecord) {
     // Save previous version to submission_versions
     try {
       await supabase.from('submission_versions').insert({
         submission_id: targetId,
-        version_number: previousRecord.version_number || 1,
+        version_number: prevVer,
+        version: prevVer,
         file_url: previousRecord.file_url,
-        status: previousRecord.status,
-        notes: notes || null,
+        status: normalizeSubmissionStatus(previousRecord.status),
+        notes: previousRecord.notes || notes || null,
       });
     } catch (verErr) {
       console.warn('submission_versions table unavailable:', verErr);
@@ -2154,17 +2178,19 @@ export async function submitOrReplaceAssignment(
     const updatePayload: Record<string, unknown> = {
       file_url: fileUrl,
       status: newStatus,
+      notes: notes || null,
       is_late: isLate,
+      version: newVersionNumber,
       version_number: newVersionNumber,
     };
     let { data, error } = await supabase
       .from('submissions')
       .update({ ...updatePayload, updated_at: new Date().toISOString() })
       .eq('id', targetId)
-      .select('id, assignment_id, student_id, file_url, status, created_at, is_late, version_number')
+      .select('id, assignment_id, student_id, file_url, status, notes, created_at, updated_at, is_late, version_number, version')
       .single();
 
-    if (error && (error.message.includes('updated_at') || error.message.includes('is_late') || error.message.includes('version_number'))) {
+    if (error && (error.message.includes('updated_at') || error.message.includes('is_late') || error.message.includes('version') || error.message.includes('notes'))) {
       const retry = await supabase
         .from('submissions')
         .update({ file_url: fileUrl, status: newStatus })
@@ -2175,7 +2201,21 @@ export async function submitOrReplaceAssignment(
       error = retry.error;
     }
     if (error) throw error;
-    return { ...(data as Omit<Submission, 'feedback'>), feedback: null, is_late: isLate, version_number: newVersionNumber };
+    const finalData = data as Record<string, unknown>;
+    return {
+      id: finalData.id as string,
+      assignment_id: finalData.assignment_id as string,
+      student_id: finalData.student_id as string,
+      file_url: finalData.file_url as string,
+      status: normalizeSubmissionStatus(finalData.status as string),
+      notes: (finalData.notes as string) || notes || null,
+      is_late: Boolean(finalData.is_late ?? isLate),
+      version: (finalData.version as number) ?? (finalData.version_number as number) ?? newVersionNumber,
+      version_number: (finalData.version_number as number) ?? (finalData.version as number) ?? newVersionNumber,
+      created_at: finalData.created_at as string,
+      updated_at: (finalData.updated_at as string) || new Date().toISOString(),
+      feedback: null,
+    };
   }
 
   // Initial submission
@@ -2184,17 +2224,19 @@ export async function submitOrReplaceAssignment(
     assignment_id: assignmentId,
     file_url: fileUrl,
     status: newStatus,
+    notes: notes || null,
     is_late: isLate,
+    version: 1,
     version_number: 1,
   };
 
   let { data, error } = await supabase
     .from('submissions')
     .insert(insertPayload)
-    .select('id, assignment_id, student_id, file_url, status, created_at, is_late, version_number')
+    .select('id, assignment_id, student_id, file_url, status, notes, created_at, updated_at, is_late, version_number, version')
     .single();
 
-  if (error && (error.message.includes('is_late') || error.message.includes('version_number'))) {
+  if (error && (error.message.includes('is_late') || error.message.includes('version') || error.message.includes('notes'))) {
     const retry = await supabase
       .from('submissions')
       .insert({ student_id: userId, assignment_id: assignmentId, file_url: fileUrl, status: newStatus })
@@ -2204,7 +2246,21 @@ export async function submitOrReplaceAssignment(
     error = retry.error;
   }
   if (error) throw error;
-  return { ...(data as Omit<Submission, 'feedback'>), feedback: null, is_late: isLate, version_number: 1 };
+  const finalData = data as Record<string, unknown>;
+  return {
+    id: finalData.id as string,
+    assignment_id: finalData.assignment_id as string,
+    student_id: finalData.student_id as string,
+    file_url: finalData.file_url as string,
+    status: normalizeSubmissionStatus(finalData.status as string),
+    notes: (finalData.notes as string) || notes || null,
+    is_late: Boolean(finalData.is_late ?? isLate),
+    version: (finalData.version as number) ?? (finalData.version_number as number) ?? 1,
+    version_number: (finalData.version_number as number) ?? (finalData.version as number) ?? 1,
+    created_at: finalData.created_at as string,
+    updated_at: (finalData.updated_at as string) || finalData.created_at as string,
+    feedback: null,
+  };
 }
 
 export async function submitAssignment(userId: string, assignmentId: string, videoUrl: string): Promise<Submission> {
@@ -2214,11 +2270,18 @@ export async function submitAssignment(userId: string, assignmentId: string, vid
 export async function listPendingSubmissions(): Promise<Submission[]> {
   const { data, error } = await supabase
     .from('submissions')
-    .select('id, assignment_id, student_id, file_url, status, created_at')
+    .select('id, assignment_id, student_id, file_url, status, notes, created_at, updated_at, is_late, version_number, version')
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
   if (error) throw error;
-  return addFeedback((data ?? []) as Omit<Submission, 'feedback'>[]);
+  const submissions = (data ?? []).map((s: any) => ({
+    ...s,
+    status: normalizeSubmissionStatus(s.status),
+    version: s.version ?? s.version_number ?? 1,
+    version_number: s.version_number ?? s.version ?? 1,
+    notes: s.notes ?? null,
+  })) as Omit<Submission, 'feedback'>[];
+  return addFeedback(submissions);
 }
 
 export async function listMentorSubmissions(
@@ -2235,11 +2298,17 @@ export async function listMentorSubmissions(
 
   let query = supabase
     .from('submissions')
-    .select('id, assignment_id, student_id, file_url, status, created_at, updated_at')
+    .select('id, assignment_id, student_id, file_url, status, notes, created_at, updated_at, is_late, version_number, version')
     .order('created_at', { ascending: false });
 
   if (statusFilter !== 'all') {
-    query = query.eq('status', statusFilter);
+    if (statusFilter === 'resubmit') {
+      query = query.in('status', ['resubmit', 'resubmit_requested', 'needs_revision']);
+    } else if (statusFilter === 'reviewed') {
+      query = query.in('status', ['reviewed', 'accepted', 'approved']);
+    } else {
+      query = query.eq('status', statusFilter);
+    }
   }
 
   const { data: rawSubmissions, error } = await query;
@@ -2708,11 +2777,38 @@ export async function listSubmissionVersions(submissionId: string): Promise<Subm
   try {
     const { data, error } = await supabase
       .from('submission_versions')
-      .select('id, submission_id, version_number, file_url, status, notes, created_at')
+      .select('id, submission_id, version, version_number, file_url, status, notes, submitted_at, created_at')
       .eq('submission_id', submissionId)
       .order('version_number', { ascending: false });
-    if (error) throw error;
-    return (data ?? []) as SubmissionVersion[];
+
+    if (error) {
+      if (error.message.includes('version') || error.message.includes('notes') || error.message.includes('submitted_at')) {
+        const fallback = await supabase
+          .from('submission_versions')
+          .select('id, submission_id, version_number, file_url, status, created_at')
+          .eq('submission_id', submissionId)
+          .order('version_number', { ascending: false });
+        if (fallback.error) throw fallback.error;
+        return (fallback.data ?? []).map((v: any) => ({
+          ...v,
+          status: normalizeSubmissionStatus(v.status),
+          version: v.version_number ?? 1,
+          version_number: v.version_number ?? 1,
+          notes: null,
+          submitted_at: v.created_at,
+        })) as SubmissionVersion[];
+      }
+      throw error;
+    }
+
+    return (data ?? []).map((v: any) => ({
+      ...v,
+      status: normalizeSubmissionStatus(v.status),
+      version: v.version ?? v.version_number ?? 1,
+      version_number: v.version_number ?? v.version ?? 1,
+      notes: v.notes ?? null,
+      submitted_at: v.submitted_at ?? v.created_at,
+    })) as SubmissionVersion[];
   } catch (err) {
     console.warn('submission_versions table unavailable:', err);
     return [];
@@ -2810,7 +2906,7 @@ export async function verifyCertificateEligibility(
       supabase.from('modules').select('id, lessons(id, video_url)').eq('cohort_id', cohortId),
       supabase.from('lesson_progress').select('lesson_id, completed, watch_percentage').eq('user_id', studentId),
       listAssignments(cohortId),
-      supabase.from('submissions').select('assignment_id, status').eq('student_id', studentId).eq('status', 'reviewed'),
+      supabase.from('submissions').select('assignment_id, status').eq('student_id', studentId).in('status', ['reviewed', 'accepted', 'approved']),
     ]);
 
     const allLessons = (modulesRes.data ?? []).flatMap((m) => ((m.lessons as Array<{ id: string; video_url?: string }>) ?? []));
