@@ -10,6 +10,13 @@ import {
   createCourse,
   cloneCourseCurriculumToCohort,
   createCohort,
+  createModule,
+  updateModule,
+  deleteModule,
+  reorderModules,
+  duplicateModule,
+  updateModuleStatus,
+  listModules,
 } from '../../lib/courseService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -460,6 +467,276 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
         p_course_id: 'c-1',
         p_cohort_id: 'ch-1',
       });
+    });
+  });
+
+  describe('Module Curriculum Management & Reordering', () => {
+    it('creates a module with status and course_id', async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'mod-1',
+              cohort_id: 'cohort-1',
+              course_id: 'course-1',
+              title: 'Narrative Pacing',
+              description: 'Editing rhythms and cuts',
+              position: 1,
+              status: 'published',
+            },
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'modules') return { insert: mockInsert };
+        return {};
+      });
+
+      const module = await createModule({
+        cohort_id: 'cohort-1',
+        course_id: 'course-1',
+        title: 'Narrative Pacing',
+        description: 'Editing rhythms and cuts',
+        position: 1,
+        status: 'published',
+      });
+
+      expect(module.id).toBe('mod-1');
+      expect(module.status).toBe('published');
+      expect(module.lessons).toEqual([]);
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Narrative Pacing',
+          status: 'published',
+        })
+      );
+    });
+
+    it('falls back to legacy insert if status/course_id columns are missing', async () => {
+      let callCount = 0;
+      const mockInsert = vi.fn().mockImplementation((payload: Record<string, unknown>) => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'column status does not exist' },
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'mod-legacy-1',
+                cohort_id: payload.cohort_id,
+                title: payload.title,
+                description: payload.description,
+                position: payload.position,
+              },
+              error: null,
+            }),
+          }),
+        };
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'modules') return { insert: mockInsert };
+        return {};
+      });
+
+      const module = await createModule({
+        cohort_id: 'cohort-1',
+        title: 'Color Grading Fundamentals',
+        description: 'Basics of color',
+        position: 2,
+        status: 'published',
+      });
+
+      expect(callCount).toBe(2);
+      expect(module.id).toBe('mod-legacy-1');
+      expect(module.status).toBe('published');
+    });
+
+    it('reorders modules using canonical atomic RPC', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: { success: true, count: 3 },
+        error: null,
+      });
+
+      await reorderModules({ cohortId: 'cohort-1' }, ['mod-3', 'mod-1', 'mod-2']);
+
+      expect(supabase.rpc).toHaveBeenCalledWith('reorder_modules', {
+        p_module_ids: ['mod-3', 'mod-1', 'mod-2'],
+        p_cohort_id: 'cohort-1',
+        p_course_id: null,
+      });
+    });
+
+    it('falls back to sequential updates when reorder_modules RPC is not installed', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: null,
+        error: { code: '42883', message: 'function reorder_modules does not exist' },
+      });
+
+      const mockEq = vi.fn().mockResolvedValue({ data: null, error: null });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'modules') return { update: mockUpdate };
+        return {};
+      });
+
+      await reorderModules({ cohortId: 'cohort-1' }, ['mod-1', 'mod-2']);
+
+      expect(mockUpdate).toHaveBeenCalledTimes(2);
+      expect(mockEq).toHaveBeenCalledWith('id', 'mod-1');
+      expect(mockEq).toHaveBeenCalledWith('id', 'mod-2');
+    });
+
+    it('duplicates module via atomic RPC and retrieves cloned lessons', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: {
+          id: 'mod-copy-1',
+          cohort_id: 'cohort-1',
+          course_id: null,
+          title: 'Color Grading (Copy)',
+          description: 'Desc',
+          position: 2,
+          status: 'draft',
+        },
+        error: null,
+      });
+
+      const mockSelect = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({
+            data: [
+              { id: 'less-cloned-1', module_id: 'mod-copy-1', title: 'Color Wheel Basics', position: 1, status: 'draft' },
+            ],
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'lessons') return { select: mockSelect };
+        return {};
+      });
+
+      const copy = await duplicateModule('mod-orig-1');
+
+      expect(supabase.rpc).toHaveBeenCalledWith('duplicate_module', {
+        p_module_id: 'mod-orig-1',
+      });
+      expect(copy.id).toBe('mod-copy-1');
+      expect(copy.lessons).toHaveLength(1);
+      expect(copy.lessons[0].title).toBe('Color Wheel Basics');
+    });
+
+    it('safely deletes or archives module using admin_delete_module RPC', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: { success: true, action: 'archived', message: 'Preserved learner submissions.' },
+        error: null,
+      });
+
+      const res = await deleteModule('mod-1', { force: false });
+
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_delete_module', {
+        p_module_id: 'mod-1',
+        p_force: false,
+      });
+      expect(res.action).toBe('archived');
+    });
+
+    it('updates module status with updateModuleStatus', async () => {
+      const mockEq = vi.fn().mockResolvedValue({ data: null, error: null });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'modules') return { update: mockUpdate };
+        return {};
+      });
+
+      await updateModuleStatus('mod-1', 'archived');
+
+      expect(mockUpdate).toHaveBeenCalledWith({ status: 'archived' });
+      expect(mockEq).toHaveBeenCalledWith('id', 'mod-1');
+    });
+
+    it('updates a module with updateModule', async () => {
+      const mockSelect = vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: {
+            id: 'mod-1',
+            cohort_id: 'cohort-1',
+            course_id: 'course-1',
+            title: 'Updated Pacing',
+            description: 'Updated desc',
+            position: 2,
+            status: 'review',
+          },
+          error: null,
+        }),
+      });
+      const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'modules') return { update: mockUpdate };
+        return {};
+      });
+
+      const updated = await updateModule('mod-1', {
+        title: 'Updated Pacing',
+        description: 'Updated desc',
+        position: 2,
+        status: 'review',
+      });
+
+      expect(updated.title).toBe('Updated Pacing');
+      expect(updated.status).toBe('review');
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Updated Pacing',
+          status: 'review',
+        })
+      );
+    });
+
+    it('lists modules for a cohort with listModules', async () => {
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'mod-1',
+            cohort_id: 'cohort-1',
+            course_id: null,
+            title: 'Module 1',
+            description: null,
+            position: 1,
+            status: 'published',
+            lessons: [{ id: 'l-1', module_id: 'mod-1', title: 'Lesson 1', position: 1, status: 'published' }],
+          },
+        ],
+        error: null,
+      });
+      const mockEq = vi.fn().mockReturnValue({ order: mockOrder });
+      const mockSelect = vi.fn().mockReturnValue({ order: mockOrder, eq: mockEq });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'modules') return { select: mockSelect };
+        return {};
+      });
+
+      const list = await listModules('cohort-1');
+
+      expect(list).toHaveLength(1);
+      expect(list[0].title).toBe('Module 1');
+      expect(list[0].lessons).toHaveLength(1);
     });
   });
 });

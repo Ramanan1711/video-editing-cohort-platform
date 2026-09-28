@@ -64,7 +64,7 @@ import {
   listCourses,
   listModules,
   reorderLesson,
-  reorderModule,
+  reorderModules,
   type Assignment,
   type Cohort,
   type Course,
@@ -79,6 +79,7 @@ import {
   updateLessonResource,
   updateLessonStatus,
   updateModule,
+  updateModuleStatus,
   uploadCourseAsset,
 } from '../lib/courseService';
 
@@ -105,6 +106,7 @@ interface ModuleEditorState {
   title: string;
   description: string;
   position: number;
+  status: 'draft' | 'review' | 'published' | 'archived';
 }
 
 interface LessonEditorState {
@@ -330,6 +332,7 @@ export function AdminCourses() {
         title: mod.title,
         description: mod.description ?? '',
         position: mod.position,
+        status: mod.status ?? 'published',
       });
     } else {
       const cohortModules = modules.filter((m) => m.cohort_id === cohortId);
@@ -339,6 +342,7 @@ export function AdminCourses() {
         title: '',
         description: '',
         position: cohortModules.length + 1,
+        status: 'published',
       });
     }
   };
@@ -484,28 +488,31 @@ export function AdminCourses() {
             title: editor.title.trim(),
             description: editor.description.trim() || null,
             position: Number(editor.position) || 1,
+            status: editor.status,
           });
           void logAuditEvent({
             actor_id: user?.id,
             action: 'module.updated',
             entity_type: 'module',
             entity_id: editor.id,
-            metadata: { title: editor.title },
+            metadata: { title: editor.title, status: editor.status },
           });
           setSuccess('Module updated successfully.');
         } else {
           const createdMod = await createModule({
             cohort_id: editor.cohortId,
+            course_id: editor.courseId,
             title: editor.title.trim(),
             description: editor.description.trim() || null,
             position: Number(editor.position) || 1,
+            status: editor.status,
           });
           void logAuditEvent({
             actor_id: user?.id,
             action: 'module.created',
             entity_type: 'module',
             entity_id: createdMod.id,
-            metadata: { title: editor.title, cohort_id: editor.cohortId },
+            metadata: { title: editor.title, cohort_id: editor.cohortId, status: editor.status },
           });
           setSuccess('Module created successfully.');
         }
@@ -699,18 +706,18 @@ export function AdminCourses() {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= cohortModules.length) return;
 
-    const otherMod = cohortModules[targetIndex];
+    const reordered = [...cohortModules];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+
     try {
-      await Promise.all([
-        reorderModule(currentMod.id, otherMod.position),
-        reorderModule(otherMod.id, currentMod.position),
-      ]);
+      await reorderModules({ cohortId }, reordered.map((m) => m.id));
       void logAuditEvent({
         actor_id: user?.id,
         action: 'module.reordered',
         entity_type: 'module',
         entity_id: currentMod.id,
-        metadata: { title: currentMod.title, direction },
+        metadata: { title: currentMod.title, direction, new_position: targetIndex + 1 },
       });
       const msg = `Moved module "${currentMod.title}" ${direction}.`;
       setSuccess(msg);
@@ -845,9 +852,11 @@ export function AdminCourses() {
     newStatus: 'draft' | 'review' | 'published' | 'archived'
   ) => {
     const ids = mod.lessons.map((l) => l.id);
-    if (!ids.length) return;
     try {
-      await bulkUpdateLessonStatus(ids, newStatus);
+      await Promise.all([
+        updateModuleStatus(mod.id, newStatus),
+        ids.length > 0 ? bulkUpdateLessonStatus(ids, newStatus) : Promise.resolve(),
+      ]);
       void logAuditEvent({
         actor_id: user?.id,
         action: 'module.bulk_status_changed',
@@ -855,10 +864,10 @@ export function AdminCourses() {
         entity_id: mod.id,
         metadata: { module_title: mod.title, new_status: newStatus, lesson_count: ids.length },
       });
-      setSuccess(`All ${ids.length} lessons in "${mod.title}" marked as "${newStatus}".`);
+      setSuccess(`Module "${mod.title}" and ${ids.length} lesson(s) marked as "${newStatus}".`);
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to bulk update lesson statuses.');
+      setError(err instanceof Error ? err.message : 'Failed to bulk update module and lesson statuses.');
     }
   };
 
@@ -1147,9 +1156,19 @@ export function AdminCourses() {
                                       {module.position}
                                     </span>
                                     <div>
-                                      <h3 className="text-sm font-bold text-slate-950 sm:text-base">
-                                        {module.title}
-                                      </h3>
+                                      <div className="flex items-center gap-2">
+                                        <h3 className="text-sm font-bold text-slate-950 sm:text-base">
+                                          {module.title}
+                                        </h3>
+                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                          module.status === 'published' ? 'bg-emerald-100 text-emerald-800' :
+                                          module.status === 'review' ? 'bg-amber-100 text-amber-800' :
+                                          module.status === 'archived' ? 'bg-rose-100 text-rose-800' :
+                                          'bg-slate-100 text-slate-700'
+                                        }`}>
+                                          {module.status ?? 'published'}
+                                        </span>
+                                      </div>
                                       {module.description && (
                                         <p className="text-xs text-slate-500">{module.description}</p>
                                       )}
@@ -1824,14 +1843,36 @@ export function AdminCourses() {
                     placeholder="Brief description of what this module covers..."
                     rows={2}
                   />
-                  <FormField
-                    label="Position / Order"
-                    type="number"
-                    min="1"
-                    value={String(editor.position)}
-                    onChange={(val) => setEditor({ ...editor, position: Number(val) || 1 })}
-                    required
-                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      label="Position / Order"
+                      type="number"
+                      min="1"
+                      value={String(editor.position)}
+                      onChange={(val) => setEditor({ ...editor, position: Number(val) || 1 })}
+                      required
+                    />
+                    <label className="block text-left">
+                      <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                        Module Status
+                      </span>
+                      <select
+                        value={editor.status}
+                        onChange={(e) =>
+                          setEditor({
+                            ...editor,
+                            status: e.target.value as 'draft' | 'review' | 'published' | 'archived',
+                          })
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      >
+                        <option value="draft">Draft</option>
+                        <option value="review">In Review</option>
+                        <option value="published">Published</option>
+                        <option value="archived">Archived</option>
+                      </select>
+                    </label>
+                  </div>
                 </>
               )}
 

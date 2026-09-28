@@ -53,6 +53,9 @@ export interface Module {
   title: string;
   description: string | null;
   position: number;
+  status?: 'draft' | 'review' | 'published' | 'archived';
+  created_at?: string;
+  updated_at?: string;
   lessons: Lesson[];
 }
 
@@ -249,7 +252,8 @@ export type CourseInput = Pick<Course, 'title'> &
 
 export type CohortInput = Pick<Cohort, 'name' | 'description'> &
   Partial<Pick<Cohort, 'status' | 'capacity' | 'visibility' | 'enrollment_start' | 'enrollment_end' | 'course_id' | 'track_type' | 'duration_days'>>;
-export type ModuleInput = Pick<Module, 'cohort_id' | 'title' | 'description' | 'position'>;
+export type ModuleInput = Pick<Module, 'title'> &
+  Partial<Pick<Module, 'cohort_id' | 'course_id' | 'description' | 'position' | 'status'>>;
 export type LessonInput = Pick<Lesson, 'module_id' | 'title' | 'description' | 'video_url' | 'duration_minutes' | 'position'> &
   Partial<Pick<Lesson, 'status'>>;
 export type EnrollmentInput = Pick<Enrollment, 'user_id' | 'cohort_id' | 'status'>;
@@ -263,7 +267,7 @@ export interface LessonResourceInput {
   file_size?: number | null;
 }
 
-const courseSelectWithStatus = 'id, cohort_id, title, description, position, lessons(id, module_id, title, description, video_url, duration_minutes, position, status)';
+const courseSelectWithStatus = 'id, cohort_id, course_id, title, description, position, status, lessons(id, module_id, title, description, video_url, duration_minutes, position, status)';
 const courseSelectLegacy = 'id, cohort_id, title, description, position, lessons(id, module_id, title, description, video_url, duration_minutes, position)';
 const courseSelect = courseSelectWithStatus;
 
@@ -811,21 +815,23 @@ export async function deleteCohort(id: string, force: boolean = false) {
 }
 
 export async function listModules(cohortId?: string): Promise<Module[]> {
-  let query = supabase.from('modules').select(courseSelect).order('position');
+  let query = supabase.from('modules').select(courseSelect);
   if (cohortId) query = query.eq('cohort_id', cohortId);
-  const { data, error } = await query;
+  const { data, error } = await query.order('position');
   if (error) {
-    let fallbackQuery = supabase.from('modules').select(courseSelectLegacy).order('position');
+    let fallbackQuery = supabase.from('modules').select(courseSelectLegacy);
     if (cohortId) fallbackQuery = fallbackQuery.eq('cohort_id', cohortId);
-    const { data: fallbackData, error: fallbackError } = await fallbackQuery;
-    if (fallbackError) throw fallbackError;
+    const { data: fallbackData, error: fallbackError } = await fallbackQuery.order('position');
+    if (fallbackError) throw parseDatabaseError(fallbackError);
     return ((fallbackData ?? []) as Module[]).map((module) => ({
       ...module,
+      status: module.status ?? 'published',
       lessons: [...(module.lessons ?? [])].map((l) => ({ ...l, status: l.status ?? 'published' })).sort((a, b) => a.position - b.position),
     }));
   }
   return ((data ?? []) as Module[]).map((module) => ({
     ...module,
+    status: module.status ?? 'published',
     lessons: [...(module.lessons ?? [])].map((l) => ({ ...l, status: l.status ?? 'published' })).sort((a, b) => a.position - b.position),
   }));
 }
@@ -833,24 +839,79 @@ export async function listModules(cohortId?: string): Promise<Module[]> {
 export async function createModule(input: ModuleInput): Promise<Module> {
   queryCache.invalidate('curriculum');
   queryCache.invalidate('cohorts');
-  const { data, error } = await supabase.from('modules').insert(input).select('id, cohort_id, title, description, position').single();
-  if (error) throw error;
-  return { ...(data as Module), lessons: [] };
+  let res = await supabase
+    .from('modules')
+    .insert(input)
+    .select('id, cohort_id, course_id, title, description, position, status')
+    .single();
+
+  if (res.error) {
+    const fallbackInput = {
+      cohort_id: input.cohort_id,
+      title: input.title,
+      description: input.description,
+      position: input.position,
+    };
+    res = await supabase
+      .from('modules')
+      .insert(fallbackInput)
+      .select('id, cohort_id, title, description, position')
+      .single();
+  }
+
+  if (res.error) throw parseDatabaseError(res.error);
+  return { ...(res.data as Module), lessons: [], status: res.data.status ?? 'published' };
 }
 
-export async function updateModule(id: string, input: Omit<ModuleInput, 'cohort_id'>): Promise<Module> {
+export async function updateModule(id: string, input: Partial<Omit<ModuleInput, 'cohort_id'>>): Promise<Module> {
   queryCache.invalidate('curriculum');
   queryCache.invalidate('cohorts');
-  const { data, error } = await supabase.from('modules').update(input).eq('id', id).select('id, cohort_id, title, description, position').single();
-  if (error) throw error;
-  return { ...(data as Module), lessons: [] };
+  let res = await supabase
+    .from('modules')
+    .update(input)
+    .eq('id', id)
+    .select('id, cohort_id, course_id, title, description, position, status')
+    .single();
+
+  if (res.error) {
+    const fallbackInput: Record<string, unknown> = {};
+    if (input.title !== undefined) fallbackInput.title = input.title;
+    if (input.description !== undefined) fallbackInput.description = input.description;
+    if (input.position !== undefined) fallbackInput.position = input.position;
+
+    res = await supabase
+      .from('modules')
+      .update(fallbackInput)
+      .eq('id', id)
+      .select('id, cohort_id, title, description, position')
+      .single();
+  }
+
+  if (res.error) throw parseDatabaseError(res.error);
+  return { ...(res.data as Module), lessons: [], status: res.data.status ?? 'published' };
 }
 
-export async function deleteModule(id: string) {
+export async function deleteModule(id: string, options?: { force?: boolean }): Promise<{ success: boolean; action: 'deleted' | 'archived'; message?: string }> {
   queryCache.invalidate('curriculum');
   queryCache.invalidate('cohorts');
-  const { error } = await supabase.from('modules').delete().eq('id', id);
-  if (error) throw error;
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_module', {
+    p_module_id: id,
+    p_force: options?.force ?? false,
+  });
+
+  if (!rpcError && rpcData) {
+    return rpcData as { success: boolean; action: 'deleted' | 'archived'; message?: string };
+  }
+
+  if (rpcError && (rpcError.code === '42883' || rpcError.message.includes('admin_delete_module'))) {
+    const { error } = await supabase.from('modules').delete().eq('id', id);
+    if (error) throw parseDatabaseError(error);
+    return { success: true, action: 'deleted' };
+  }
+
+  if (rpcError) throw parseDatabaseError(rpcError);
+  return { success: true, action: 'deleted' };
 }
 
 export async function createLesson(input: LessonInput): Promise<Lesson> {
@@ -886,11 +947,50 @@ export async function deleteLesson(id: string) {
   if (error) throw error;
 }
 
+export async function reorderModules(
+  container: { cohortId?: string; courseId?: string },
+  moduleIds: string[]
+): Promise<void> {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
+
+  if (!moduleIds.length) return;
+
+  const { error: rpcError } = await supabase.rpc('reorder_modules', {
+    p_module_ids: moduleIds,
+    p_cohort_id: container.cohortId ?? null,
+    p_course_id: container.courseId ?? null,
+  });
+
+  if (!rpcError) return;
+
+  if (rpcError.code === '42883' || rpcError.message.includes('reorder_modules')) {
+    await Promise.all(
+      moduleIds.map((id, index) =>
+        supabase.from('modules').update({ position: index + 1 }).eq('id', id)
+      )
+    );
+    return;
+  }
+
+  throw parseDatabaseError(rpcError);
+}
+
 export async function reorderModule(moduleId: string, newPosition: number): Promise<void> {
   queryCache.invalidate('curriculum');
   queryCache.invalidate('cohorts');
   const { error } = await supabase.from('modules').update({ position: newPosition }).eq('id', moduleId);
-  if (error) throw error;
+  if (error) throw parseDatabaseError(error);
+}
+
+export async function updateModuleStatus(
+  moduleId: string,
+  status: 'draft' | 'review' | 'published' | 'archived'
+): Promise<void> {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
+  const { error } = await supabase.from('modules').update({ status }).eq('id', moduleId);
+  if (error) throw parseDatabaseError(error);
 }
 
 export async function reorderLesson(lessonId: string, newPosition: number): Promise<void> {
@@ -1049,51 +1149,106 @@ export async function duplicateLesson(lessonId: string): Promise<Lesson> {
 }
 
 export async function duplicateModule(moduleId: string): Promise<Module> {
-  const { data: original, error } = await supabase
-    .from('modules')
-    .select('cohort_id, title, description, position')
-    .eq('id', moduleId)
-    .single();
-  if (error) throw error;
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
 
-  const { data: newModule, error: createError } = await supabase
-    .from('modules')
-    .insert({
-      cohort_id: original.cohort_id,
-      title: `${original.title} (Copy)`,
-      description: original.description,
-      position: (original.position || 0) + 1,
-    })
-    .select('id, cohort_id, title, description, position')
-    .single();
-  if (createError) throw createError;
+  // 1. Try atomic server RPC
+  const { data: rpcData, error: rpcError } = await supabase.rpc('duplicate_module', {
+    p_module_id: moduleId,
+  });
 
-  // Clone lessons inside module
-  const { data: lessons } = await supabase
-    .from('lessons')
-    .select('id, title, description, video_url, duration_minutes, position, status')
-    .eq('module_id', moduleId);
-
-  const clonedLessons: Lesson[] = [];
-  for (const l of lessons ?? []) {
-    const { data: newLesson } = await supabase
+  if (!rpcError && rpcData) {
+    const newModuleId = (rpcData.id || rpcData.module_id) as string;
+    const { data: lessons } = await supabase
       .from('lessons')
-      .insert({
-        module_id: newModule.id,
-        title: l.title,
-        description: l.description,
-        video_url: l.video_url,
-        duration_minutes: l.duration_minutes,
-        position: l.position,
-        status: 'draft',
-      })
       .select('id, module_id, title, description, video_url, duration_minutes, position, status')
-      .single();
+      .eq('module_id', newModuleId)
+      .order('position', { ascending: true });
 
-    if (newLesson) clonedLessons.push(newLesson as Lesson);
+    return {
+      id: newModuleId,
+      cohort_id: rpcData.cohort_id,
+      course_id: rpcData.course_id,
+      title: rpcData.title,
+      description: rpcData.description,
+      position: rpcData.position,
+      status: rpcData.status ?? 'draft',
+      lessons: (lessons ?? []) as Lesson[],
+    };
   }
 
-  return { ...(newModule as Module), lessons: clonedLessons };
+  // 2. Client fallback if RPC is not deployed
+  if (rpcError && (rpcError.code === '42883' || rpcError.message.includes('duplicate_module'))) {
+    const { data: original, error } = await supabase
+      .from('modules')
+      .select('cohort_id, course_id, title, description, position')
+      .eq('id', moduleId)
+      .single();
+    if (error) throw parseDatabaseError(error);
+
+    let newModuleRes = await supabase
+      .from('modules')
+      .insert({
+        cohort_id: original.cohort_id,
+        course_id: original.course_id,
+        title: `${original.title} (Copy)`,
+        description: original.description,
+        position: (original.position || 0) + 1,
+        status: 'draft',
+      })
+      .select('id, cohort_id, course_id, title, description, position, status')
+      .single();
+
+    if (newModuleRes.error) {
+      newModuleRes = await supabase
+        .from('modules')
+        .insert({
+          cohort_id: original.cohort_id,
+          title: `${original.title} (Copy)`,
+          description: original.description,
+          position: (original.position || 0) + 1,
+        })
+        .select('id, cohort_id, title, description, position')
+        .single();
+    }
+
+    if (newModuleRes.error) throw parseDatabaseError(newModuleRes.error);
+    const newModule = newModuleRes.data;
+
+    // Clone lessons inside module
+    const { data: lessons } = await supabase
+      .from('lessons')
+      .select('id, title, description, video_url, duration_minutes, position, status')
+      .eq('module_id', moduleId);
+
+    const clonedLessons: Lesson[] = [];
+    for (const l of lessons ?? []) {
+      const { data: newLesson } = await supabase
+        .from('lessons')
+        .insert({
+          module_id: newModule.id,
+          title: l.title,
+          description: l.description,
+          video_url: l.video_url,
+          duration_minutes: l.duration_minutes,
+          position: l.position,
+          status: 'draft',
+        })
+        .select('id, module_id, title, description, video_url, duration_minutes, position, status')
+        .single();
+
+      if (newLesson) clonedLessons.push(newLesson as Lesson);
+    }
+
+    return {
+      ...(newModule as Module),
+      status: newModule.status ?? 'draft',
+      lessons: clonedLessons,
+    };
+  }
+
+  if (rpcError) throw parseDatabaseError(rpcError);
+  throw new Error('Failed to duplicate module.');
 }
 
 export async function listEnrollments(cohortId?: string): Promise<Enrollment[]> {
