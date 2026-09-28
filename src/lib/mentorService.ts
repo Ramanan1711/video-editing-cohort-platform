@@ -529,12 +529,12 @@ export async function getMentorDashboardStats(
       assignedCohorts: [],
       cohortSummaries: [],
       skillDistribution: {
-        storytelling: 4.0,
-        pacing: 4.0,
-        audio: 4.0,
-        color: 4.0,
-        technical: 4.0,
-        overall_average: 4.0,
+        storytelling: 0,
+        pacing: 0,
+        audio: 0,
+        color: 0,
+        technical: 0,
+        overall_average: 0,
         lowest_skill_area: 'None',
         total_graded_reviews: 0,
       },
@@ -651,13 +651,13 @@ export async function getMentorDashboardStats(
     };
   } else {
     skillDistribution = {
-      storytelling: 4.1,
-      pacing: 3.8,
-      audio: 3.2,
-      color: 3.9,
-      technical: 4.4,
-      overall_average: 3.9,
-      lowest_skill_area: 'Audio & Sound Design',
+      storytelling: 0,
+      pacing: 0,
+      audio: 0,
+      color: 0,
+      technical: 0,
+      overall_average: 0,
+      lowest_skill_area: 'None',
       total_graded_reviews: 0,
     };
   }

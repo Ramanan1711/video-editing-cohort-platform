@@ -4,6 +4,7 @@ import {
   RUBRIC_REVIEW_TEMPLATES,
   listDetailedMentorSubmissions,
   submitDetailedReview,
+  getMentorDashboardStats,
 } from '../../lib/mentorService';
 import { supabase } from '../../lib/supabaseClient';
 import { queryCache } from '../../lib/queryCache';
@@ -204,5 +205,72 @@ describe('Mentor Review, SLA & Scoping Suite', () => {
         p_private_notes: null,
       });
     });
+
+    it('falls back to review_submission RPC when review_submission_v2 fails', async () => {
+      const mockRpc = vi.fn().mockImplementation((fnName: string) => {
+        if (fnName === 'review_submission_v2') {
+          return Promise.resolve({ data: null, error: new Error('Function not found') });
+        }
+        if (fnName === 'review_submission') {
+          return Promise.resolve({ data: null, error: null });
+        }
+        return Promise.resolve({ data: null, error: null });
+      });
+
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockRpc);
+      const mockFrom = vi.fn().mockReturnValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      });
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockFrom);
+
+      await submitDetailedReview(
+        'sub-2',
+        'resubmit',
+        'Pacing drags in scene 3; trim by 8 seconds.',
+        undefined,
+        [],
+        'Keep eye on student progress.'
+      );
+
+      expect(mockRpc).toHaveBeenCalledWith('review_submission_v2', expect.any(Object));
+      expect(mockRpc).toHaveBeenCalledWith('review_submission', {
+        p_submission_id: 'sub-2',
+        p_status: 'resubmit',
+        p_comments: 'Pacing drags in scene 3; trim by 8 seconds.',
+      });
+    });
+  });
+
+  describe('Mentor Dashboard Honest KPIs & Zero-State Metrics', () => {
+    it('returns honest zero-state stats without fabricated rubric fallbacks for unassigned mentors', async () => {
+      const mockFrom = vi.fn().mockImplementation((table: string) => {
+        if (table === 'mentor_cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockFrom);
+
+      const stats = await getMentorDashboardStats('mentor-empty-1', 'mentor');
+
+      expect(stats.avgResponseHours).toBeNull();
+      expect(stats.skillDistribution).toBeDefined();
+      expect(stats.skillDistribution!.total_graded_reviews).toBe(0);
+      expect(stats.skillDistribution!.storytelling).toBe(0);
+      expect(stats.skillDistribution!.pacing).toBe(0);
+      expect(stats.skillDistribution!.audio).toBe(0);
+      expect(stats.skillDistribution!.color).toBe(0);
+      expect(stats.skillDistribution!.technical).toBe(0);
+      expect(stats.skillDistribution!.overall_average).toBe(0);
+      expect(stats.skillDistribution!.lowest_skill_area).toBe('None');
+    });
   });
 });
+

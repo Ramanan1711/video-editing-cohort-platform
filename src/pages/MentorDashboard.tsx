@@ -155,6 +155,7 @@ export function MentorDashboard() {
   const skillItems = useMemo(() => {
     if (!stats?.skillDistribution) return [];
     const sd = stats.skillDistribution;
+    const hasData = sd && sd.total_graded_reviews > 0;
     return [
       { title: 'Storytelling & Arc', score: sd.storytelling },
       { title: 'Pacing & Rhythm', score: sd.pacing },
@@ -164,7 +165,10 @@ export function MentorDashboard() {
     ].map((crit) => {
       let status: string;
       let color: string;
-      if (crit.score >= 4.5) {
+      if (!hasData) {
+        status = 'No Data';
+        color = 'slate';
+      } else if (crit.score >= 4.5) {
         status = 'Mastered';
         color = 'emerald';
       } else if (crit.score >= 4.0) {
@@ -336,9 +340,11 @@ export function MentorDashboard() {
                   Avg Turnaround
                 </p>
                 <p className="mt-1 text-2xl font-black text-slate-950">
-                  {stats.avgResponseHours !== null ? `${stats.avgResponseHours}h` : '18.5h'}
+                  {stats.avgResponseHours !== null ? `${stats.avgResponseHours}h` : '—'}
                 </p>
-                <p className="mt-1 text-[11px] text-slate-500">Response time to first critique</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  {stats.avgResponseHours !== null ? 'Response time to first critique' : 'Awaiting first review'}
+                </p>
               </Card>
 
               <Card className="p-5 shadow-2xs">
@@ -627,14 +633,22 @@ export function MentorDashboard() {
                             ? 'bg-blue-100 text-blue-800'
                             : crit.color === 'purple'
                             ? 'bg-purple-100 text-purple-800'
-                            : 'bg-amber-100 text-amber-800'
+                            : crit.color === 'amber'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-100 text-slate-600'
                         }`}
                       >
                         {crit.status}
                       </span>
                     </div>
                     <p className="mt-2 text-xl font-black text-slate-950">
-                      {crit.score.toFixed(1)} <span className="text-xs font-normal text-slate-400">/ 5.0</span>
+                      {stats.skillDistribution && stats.skillDistribution.total_graded_reviews > 0 ? (
+                        <>
+                          {crit.score.toFixed(1)} <span className="text-xs font-normal text-slate-400">/ 5.0</span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400 font-bold">—</span>
+                      )}
                     </p>
                     <div className="mt-2.5 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
                       <div
@@ -643,9 +657,17 @@ export function MentorDashboard() {
                             ? 'bg-emerald-500'
                             : crit.score >= 3.5
                             ? 'bg-blue-500'
-                            : 'bg-amber-500'
+                            : crit.score > 0
+                            ? 'bg-amber-500'
+                            : 'bg-transparent'
                         }`}
-                        style={{ width: `${Math.min(100, (crit.score / 5) * 100)}%` }}
+                        style={{
+                          width: `${
+                            stats.skillDistribution && stats.skillDistribution.total_graded_reviews > 0
+                              ? Math.min(100, (crit.score / 5) * 100)
+                              : 0
+                          }%`,
+                        }}
                       />
                     </div>
                   </div>
