@@ -107,9 +107,13 @@ export interface StudentCourseData {
 
 export interface Assignment {
   id: string;
+  cohort_id?: string | null;
+  module_id?: string | null;
   lesson_id: string;
   title: string;
   instructions: string | null;
+  description?: string | null;
+  rubric?: unknown;
   deadline: string | null;
   created_at?: string;
 }
@@ -257,7 +261,15 @@ export type ModuleInput = Pick<Module, 'title'> &
 export type LessonInput = Pick<Lesson, 'module_id' | 'title' | 'description' | 'video_url' | 'duration_minutes' | 'position'> &
   Partial<Pick<Lesson, 'status'>>;
 export type EnrollmentInput = Pick<Enrollment, 'user_id' | 'cohort_id' | 'status'>;
-export type AssignmentInput = Pick<Assignment, 'lesson_id' | 'title' | 'instructions' | 'deadline'>;
+export type AssignmentInput = {
+  lesson_id: string;
+  cohort_id?: string | null;
+  module_id?: string | null;
+  title: string;
+  instructions?: string | null;
+  description?: string | null;
+  deadline?: string | null;
+};
 export interface LessonResourceInput {
   lesson_id: string;
   name: string;
@@ -1270,15 +1282,19 @@ export async function duplicateLesson(lessonId: string): Promise<Lesson> {
     // Duplicate assignment
     const { data: assignment } = await supabase
       .from('assignments')
-      .select('title, instructions, deadline')
+      .select('title, instructions, description, deadline, cohort_id, module_id')
       .eq('lesson_id', lessonId)
       .maybeSingle();
 
     if (assignment) {
+      const assignmentText = assignment.instructions ?? assignment.description ?? null;
       await supabase.from('assignments').insert({
         lesson_id: newLesson.id,
+        cohort_id: assignment.cohort_id || null,
+        module_id: newLesson.module_id || assignment.module_id || null,
         title: `${assignment.title} (Copy)`,
-        instructions: assignment.instructions,
+        instructions: assignmentText,
+        description: assignmentText,
         deadline: assignment.deadline,
       });
     }
@@ -1450,68 +1466,235 @@ export async function deleteEnrollment(userId: string, cohortId: string) {
   if (error) throw error;
 }
 
-// Assignment CRUD
+// Assignment Normalizer & CRUD
+export function normalizeAssignmentRow(row: {
+  id: string;
+  lesson_id: string;
+  title: string;
+  cohort_id?: string | null;
+  module_id?: string | null;
+  instructions?: string | null;
+  description?: string | null;
+  rubric?: unknown;
+  deadline?: string | null;
+  created_at?: string;
+}): Assignment {
+  const instructions = row.instructions ?? row.description ?? null;
+  const description = row.description ?? row.instructions ?? null;
+  return {
+    id: row.id,
+    cohort_id: row.cohort_id ?? null,
+    module_id: row.module_id ?? null,
+    lesson_id: row.lesson_id,
+    title: row.title,
+    instructions,
+    description,
+    rubric: row.rubric,
+    deadline: row.deadline ?? null,
+    created_at: row.created_at,
+  };
+}
+
 export async function listAssignments(cohortId?: string): Promise<Assignment[]> {
   if (!cohortId) return listAllAssignments();
+
+  // Primary fast path: direct query by cohort_id
+  const { data: byCohort, error: cohortErr } = await supabase
+    .from('assignments')
+    .select('id, cohort_id, module_id, lesson_id, title, instructions, description, deadline, created_at')
+    .eq('cohort_id', cohortId)
+    .order('deadline', { ascending: true, nullsFirst: false });
+
+  if (!cohortErr && byCohort && byCohort.length > 0) {
+    return byCohort.map((row) => normalizeAssignmentRow(row as unknown as Parameters<typeof normalizeAssignmentRow>[0]));
+  }
+
+  // Fallback: traverse modules -> lessons for this cohort
   const modules = await listModules(cohortId);
   const lessonIds = modules.flatMap((module) => module.lessons.map((lesson) => lesson.id));
   if (!lessonIds.length) return [];
+
   const { data, error } = await supabase
     .from('assignments')
-    .select('id, lesson_id, title, instructions, deadline, created_at')
+    .select('id, cohort_id, module_id, lesson_id, title, instructions, description, deadline, created_at')
     .in('lesson_id', lessonIds)
     .order('deadline', { ascending: true, nullsFirst: false });
-  if (error) throw error;
-  return (data ?? []) as Assignment[];
+
+  if (error) {
+    // Resilience fallback if schema lacks instructions or description column in query
+    const fallback = await supabase
+      .from('assignments')
+      .select('id, lesson_id, title, instructions, deadline, created_at')
+      .in('lesson_id', lessonIds)
+      .order('deadline', { ascending: true, nullsFirst: false });
+    if (fallback.error) throw fallback.error;
+    return (fallback.data ?? []).map((row) => normalizeAssignmentRow(row as unknown as Parameters<typeof normalizeAssignmentRow>[0]));
+  }
+
+  return (data ?? []).map((row) => normalizeAssignmentRow(row as unknown as Parameters<typeof normalizeAssignmentRow>[0]));
 }
 
 export async function listAssignmentsByLesson(lessonId: string): Promise<Assignment[]> {
   const { data, error } = await supabase
     .from('assignments')
-    .select('id, lesson_id, title, instructions, deadline, created_at')
+    .select('id, cohort_id, module_id, lesson_id, title, instructions, description, deadline, created_at')
     .eq('lesson_id', lessonId)
     .order('created_at', { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as Assignment[];
+
+  if (error) {
+    const fallback = await supabase
+      .from('assignments')
+      .select('id, lesson_id, title, instructions, deadline, created_at')
+      .eq('lesson_id', lessonId)
+      .order('created_at', { ascending: true });
+    if (fallback.error) throw fallback.error;
+    return (fallback.data ?? []).map((row) => normalizeAssignmentRow(row as unknown as Parameters<typeof normalizeAssignmentRow>[0]));
+  }
+
+  return (data ?? []).map((row) => normalizeAssignmentRow(row as unknown as Parameters<typeof normalizeAssignmentRow>[0]));
 }
 
 export async function listAllAssignments(): Promise<Assignment[]> {
   const { data, error } = await supabase
     .from('assignments')
-    .select('id, lesson_id, title, instructions, deadline, created_at')
+    .select('id, cohort_id, module_id, lesson_id, title, instructions, description, deadline, created_at')
     .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as Assignment[];
+
+  if (error) {
+    const fallback = await supabase
+      .from('assignments')
+      .select('id, lesson_id, title, instructions, deadline, created_at')
+      .order('created_at', { ascending: false });
+    if (fallback.error) throw fallback.error;
+    return (fallback.data ?? []).map((row) => normalizeAssignmentRow(row as unknown as Parameters<typeof normalizeAssignmentRow>[0]));
+  }
+
+  return (data ?? []).map((row) => normalizeAssignmentRow(row as unknown as Parameters<typeof normalizeAssignmentRow>[0]));
 }
 
 export async function createAssignment(input: AssignmentInput): Promise<Assignment> {
+  const trimmedTitle = input.title.trim();
+  const textBody = input.instructions?.trim() || input.description?.trim() || null;
+  const deadline = input.deadline || null;
+
+  // Resolve cohort_id and module_id if omitted
+  let cohortId = input.cohort_id || null;
+  let moduleId = input.module_id || null;
+  if ((!cohortId || !moduleId) && input.lesson_id) {
+    try {
+      const { data: lessonData } = await supabase
+        .from('lessons')
+        .select('id, module_id, modules(cohort_id)')
+        .eq('id', input.lesson_id)
+        .maybeSingle();
+
+      if (lessonData) {
+        if (!moduleId && lessonData.module_id) {
+          moduleId = lessonData.module_id;
+        }
+        const parentCohort = (lessonData.modules as { cohort_id?: string } | undefined)?.cohort_id;
+        if (!cohortId && parentCohort) {
+          cohortId = parentCohort;
+        }
+      }
+    } catch {
+      // Continue and allow database trigger to populate cohort_id/module_id
+    }
+  }
+
+  const payload: Record<string, unknown> = {
+    lesson_id: input.lesson_id,
+    title: trimmedTitle,
+    instructions: textBody,
+    description: textBody,
+    deadline,
+  };
+  if (cohortId) payload.cohort_id = cohortId;
+  if (moduleId) payload.module_id = moduleId;
+
   const { data, error } = await supabase
     .from('assignments')
-    .insert({
-      lesson_id: input.lesson_id,
-      title: input.title.trim(),
-      instructions: input.instructions?.trim() || null,
-      deadline: input.deadline || null,
-    })
-    .select('id, lesson_id, title, instructions, deadline, created_at')
+    .insert(payload)
+    .select('id, cohort_id, module_id, lesson_id, title, instructions, description, deadline, created_at')
     .single();
-  if (error) throw error;
-  return data as Assignment;
+
+  if (error) {
+    // Resilience: If instructions column doesn't exist, try description
+    if (error.message?.includes('instructions') || error.code === '42703') {
+      const { instructions: _, ...legacyPayload } = payload;
+      const fallback = await supabase
+        .from('assignments')
+        .insert(legacyPayload)
+        .select('id, lesson_id, title, description, deadline, created_at')
+        .single();
+      if (fallback.error) throw fallback.error;
+      return normalizeAssignmentRow(fallback.data as unknown as Parameters<typeof normalizeAssignmentRow>[0]);
+    }
+    // Resilience: If description column doesn't exist, try instructions
+    if (error.message?.includes('description')) {
+      const { description: _, ...legacyPayload } = payload;
+      const fallback = await supabase
+        .from('assignments')
+        .insert(legacyPayload)
+        .select('id, lesson_id, title, instructions, deadline, created_at')
+        .single();
+      if (fallback.error) throw fallback.error;
+      return normalizeAssignmentRow(fallback.data as unknown as Parameters<typeof normalizeAssignmentRow>[0]);
+    }
+    throw error;
+  }
+
+  return normalizeAssignmentRow(data as unknown as Parameters<typeof normalizeAssignmentRow>[0]);
 }
 
-export async function updateAssignment(id: string, input: Omit<AssignmentInput, 'lesson_id'>): Promise<Assignment> {
+export async function updateAssignment(
+  id: string,
+  input: Omit<AssignmentInput, 'lesson_id'>
+): Promise<Assignment> {
+  const textBody = input.instructions?.trim() || input.description?.trim() || null;
+  const updatePayload: Record<string, unknown> = {
+    title: input.title.trim(),
+    instructions: textBody,
+    description: textBody,
+    deadline: input.deadline || null,
+  };
+  if (input.cohort_id) updatePayload.cohort_id = input.cohort_id;
+  if (input.module_id) updatePayload.module_id = input.module_id;
+
   const { data, error } = await supabase
     .from('assignments')
-    .update({
-      title: input.title.trim(),
-      instructions: input.instructions?.trim() || null,
-      deadline: input.deadline || null,
-    })
+    .update(updatePayload)
     .eq('id', id)
-    .select('id, lesson_id, title, instructions, deadline, created_at')
+    .select('id, cohort_id, module_id, lesson_id, title, instructions, description, deadline, created_at')
     .single();
-  if (error) throw error;
-  return data as Assignment;
+
+  if (error) {
+    if (error.message?.includes('instructions') || error.code === '42703') {
+      const { instructions: _, ...legacyPayload } = updatePayload;
+      const fallback = await supabase
+        .from('assignments')
+        .update(legacyPayload)
+        .eq('id', id)
+        .select('id, lesson_id, title, description, deadline, created_at')
+        .single();
+      if (fallback.error) throw fallback.error;
+      return normalizeAssignmentRow(fallback.data as unknown as Parameters<typeof normalizeAssignmentRow>[0]);
+    }
+    if (error.message?.includes('description')) {
+      const { description: _, ...legacyPayload } = updatePayload;
+      const fallback = await supabase
+        .from('assignments')
+        .update(legacyPayload)
+        .eq('id', id)
+        .select('id, lesson_id, title, instructions, deadline, created_at')
+        .single();
+      if (fallback.error) throw fallback.error;
+      return normalizeAssignmentRow(fallback.data as unknown as Parameters<typeof normalizeAssignmentRow>[0]);
+    }
+    throw error;
+  }
+
+  return normalizeAssignmentRow(data as unknown as Parameters<typeof normalizeAssignmentRow>[0]);
 }
 
 export async function deleteAssignment(id: string): Promise<void> {
@@ -2073,7 +2256,7 @@ export async function listMentorSubmissions(
     { data: feedbackRows },
   ] = await Promise.all([
     supabase.from('profiles').select('id, full_name, email').in('id', studentIds),
-    supabase.from('assignments').select('id, title, instructions, deadline, lesson_id').in('id', assignmentIds),
+    supabase.from('assignments').select('id, title, instructions, description, deadline, lesson_id, cohort_id').in('id', assignmentIds),
     supabase.from('feedback').select('id, submission_id, mentor_id, comments, created_at').in('submission_id', submissionIds).order('created_at', { ascending: false }),
   ]);
 
@@ -2082,15 +2265,20 @@ export async function listMentorSubmissions(
     profileMap.set(p.id, { full_name: p.full_name, email: p.email });
   }
 
+  const cohortNameByAssignment = new Map<string, string>();
+  const cohortIdByAssignment = new Map<string, string>();
   const assignmentMap = new Map<string, { title: string; instructions: string | null; deadline: string | null; lesson_id: string }>();
   for (const a of assignments ?? []) {
-    assignmentMap.set(a.id, { title: a.title, instructions: a.instructions, deadline: a.deadline, lesson_id: a.lesson_id });
+    const aRecord = a as { id: string; title: string; instructions?: string | null; description?: string | null; deadline: string | null; lesson_id: string; cohort_id?: string | null };
+    const text = aRecord.instructions ?? aRecord.description ?? null;
+    assignmentMap.set(aRecord.id, { title: aRecord.title, instructions: text, deadline: aRecord.deadline, lesson_id: aRecord.lesson_id });
+    if (aRecord.cohort_id) {
+      cohortIdByAssignment.set(aRecord.id, aRecord.cohort_id);
+    }
   }
 
   // Resolve cohort names via lesson_id -> module_id -> cohort_id
   const lessonIds = Array.from(new Set((assignments ?? []).map((a) => a.lesson_id).filter(Boolean)));
-  const cohortNameByAssignment = new Map<string, string>();
-  const cohortIdByAssignment = new Map<string, string>();
 
   if (lessonIds.length > 0) {
     const { data: lessons } = await supabase

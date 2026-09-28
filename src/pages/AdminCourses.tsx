@@ -126,6 +126,7 @@ interface AssignmentEditorState {
   type: 'assignment';
   id?: string;
   lessonId: string;
+  cohortId?: string;
   title: string;
   instructions: string;
   deadline: string;
@@ -378,7 +379,7 @@ export function AdminCourses() {
     }
   };
 
-  const openAssignmentEditor = (lessonId: string, assignment?: Assignment) => {
+  const openAssignmentEditor = (lessonId: string, assignment?: Assignment, cohortId?: string) => {
     setUploadFile(null);
     if (assignment) {
       // Format deadline for datetime-local input
@@ -393,8 +394,9 @@ export function AdminCourses() {
         type: 'assignment',
         id: assignment.id,
         lessonId: assignment.lesson_id,
+        cohortId: cohortId || assignment.cohort_id || undefined,
         title: assignment.title,
-        instructions: assignment.instructions ?? '',
+        instructions: assignment.instructions ?? assignment.description ?? '',
         deadline: deadlineFormatted,
       });
     } else {
@@ -403,6 +405,7 @@ export function AdminCourses() {
       setEditor({
         type: 'assignment',
         lessonId,
+        cohortId,
         title: '',
         instructions: '',
         deadline: defaultDeadline,
@@ -563,11 +566,14 @@ export function AdminCourses() {
       } else if (editor.type === 'assignment') {
         if (!editor.title.trim()) throw new Error('Assignment title is required.');
         const deadlineIso = editor.deadline ? new Date(editor.deadline).toISOString() : null;
+        const textContent = editor.instructions.trim() || null;
 
         if (editor.id) {
           await updateAssignment(editor.id, {
+            cohort_id: editor.cohortId,
             title: editor.title.trim(),
-            instructions: editor.instructions.trim() || null,
+            instructions: textContent,
+            description: textContent,
             deadline: deadlineIso,
           });
           void logAuditEvent({
@@ -575,14 +581,16 @@ export function AdminCourses() {
             action: 'assignment.updated',
             entity_type: 'assignment',
             entity_id: editor.id,
-            metadata: { title: editor.title },
+            metadata: { title: editor.title, cohort_id: editor.cohortId },
           });
           setSuccess('Assignment updated successfully.');
         } else {
           const createdAssign = await createAssignment({
             lesson_id: editor.lessonId,
+            cohort_id: editor.cohortId,
             title: editor.title.trim(),
-            instructions: editor.instructions.trim() || null,
+            instructions: textContent,
+            description: textContent,
             deadline: deadlineIso,
           });
           void logAuditEvent({
@@ -590,7 +598,7 @@ export function AdminCourses() {
             action: 'assignment.created',
             entity_type: 'assignment',
             entity_id: createdAssign.id,
-            metadata: { title: editor.title, lesson_id: editor.lessonId },
+            metadata: { title: editor.title, lesson_id: editor.lessonId, cohort_id: editor.cohortId },
           });
           setSuccess('Assignment created successfully.');
         }
@@ -1471,7 +1479,7 @@ export function AdminCourses() {
                                                       <Button
                                                         variant="secondary"
                                                         size="sm"
-                                                        onClick={() => openAssignmentEditor(lesson.id)}
+                                                        onClick={() => openAssignmentEditor(lesson.id, undefined, cohort.id)}
                                                         className="h-7 px-2 text-[11px]"
                                                       >
                                                         <Plus size={13} /> Add Assignment
@@ -1490,9 +1498,9 @@ export function AdminCourses() {
                                                             <strong className="block text-xs font-bold text-slate-900">
                                                               {assignment.title}
                                                             </strong>
-                                                            {assignment.instructions && (
+                                                            {(assignment.instructions || assignment.description) && (
                                                               <p className="mt-1 line-clamp-2 text-xs text-slate-500">
-                                                                {assignment.instructions}
+                                                                {assignment.instructions || assignment.description}
                                                               </p>
                                                             )}
                                                             <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-slate-600">
@@ -1513,7 +1521,7 @@ export function AdminCourses() {
                                                           {canManageCurriculum && (
                                                             <div className="flex shrink-0 items-center gap-1">
                                                               <button
-                                                                onClick={() => openAssignmentEditor(lesson.id, assignment)}
+                                                                onClick={() => openAssignmentEditor(lesson.id, assignment, cohort.id)}
                                                                 className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-800 transition"
                                                                 title="Edit Assignment"
                                                                 aria-label="Edit Assignment"

@@ -1060,7 +1060,7 @@ function AssignmentCard({
 
         {/* Instructions */}
         <p className="mt-3 text-xs leading-relaxed text-slate-600">
-          {assignment.instructions || 'Complete the challenge and submit your edited video or project file for mentor review.'}
+          {assignment.instructions || assignment.description || 'Complete the challenge and submit your edited video or project file for mentor review.'}
         </p>
 
         {/* Submission Feedback & Status Details */}

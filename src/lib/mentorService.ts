@@ -320,22 +320,23 @@ export async function getAssignmentCohortMap(): Promise<Map<string, AssignmentCo
     async () => {
       const { data: assignments, error: aErr } = await supabase
         .from('assignments')
-        .select('id, lesson_id, title, instructions, deadline');
+        .select('id, lesson_id, cohort_id, title, instructions, description, deadline');
       if (aErr || !assignments) return new Map<string, AssignmentCohortMapItem>();
 
-      const lessonIds = Array.from(new Set(assignments.map((a) => a.lesson_id)));
+      const lessonIds = Array.from(new Set(assignments.map((a) => a.lesson_id).filter(Boolean)));
       const { data: lessons } = lessonIds.length
         ? await supabase.from('lessons').select('id, module_id').in('id', lessonIds)
         : { data: [] };
       const lessonMap = new Map((lessons ?? []).map((l) => [l.id, l.module_id]));
 
-      const moduleIds = Array.from(new Set((lessons ?? []).map((l) => l.module_id)));
+      const moduleIds = Array.from(new Set((lessons ?? []).map((l) => l.module_id).filter(Boolean)));
       const { data: modules } = moduleIds.length
         ? await supabase.from('modules').select('id, cohort_id').in('id', moduleIds)
         : { data: [] };
       const moduleMap = new Map((modules ?? []).map((m) => [m.id, m.cohort_id]));
 
-      const cohortIds = Array.from(new Set((modules ?? []).map((m) => m.cohort_id)));
+      const directCohortIds = assignments.map((a) => (a as { cohort_id?: string }).cohort_id).filter(Boolean) as string[];
+      const cohortIds = Array.from(new Set([...directCohortIds, ...(modules ?? []).map((m) => m.cohort_id).filter(Boolean)]));
       let cohortsData: { id: string; title?: string; name?: string }[] = [];
       if (cohortIds.length) {
         const res = await supabase.from('cohorts').select('id, title').in('id', cohortIds);
@@ -350,15 +351,16 @@ export async function getAssignmentCohortMap(): Promise<Map<string, AssignmentCo
 
       const map = new Map<string, AssignmentCohortMapItem>();
       for (const a of assignments) {
-        const moduleId = lessonMap.get(a.lesson_id);
-        const cohortId = moduleId ? moduleMap.get(moduleId) : undefined;
-        const cohortName = cohortId ? cohortMap.get(cohortId) || 'Cohort' : 'Cohort';
-        map.set(a.id, {
-          assignmentId: a.id,
-          assignmentTitle: a.title,
-          assignmentInstructions: a.instructions,
-          assignmentDeadline: a.deadline,
-          cohortId: cohortId || '',
+        const aRecord = a as { id: string; lesson_id: string; cohort_id?: string | null; title: string; instructions?: string | null; description?: string | null; deadline: string | null };
+        const moduleId = lessonMap.get(aRecord.lesson_id);
+        const resolvedCohortId = aRecord.cohort_id || (moduleId ? moduleMap.get(moduleId) : undefined);
+        const cohortName = resolvedCohortId ? cohortMap.get(resolvedCohortId) || 'Cohort' : 'Cohort';
+        map.set(aRecord.id, {
+          assignmentId: aRecord.id,
+          assignmentTitle: aRecord.title,
+          assignmentInstructions: aRecord.instructions ?? aRecord.description ?? null,
+          assignmentDeadline: aRecord.deadline,
+          cohortId: resolvedCohortId || '',
           cohortName,
         });
       }

@@ -22,6 +22,13 @@ import {
   duplicateLesson,
   getSecureAssetUrl,
   getLessonResourceDownloadUrl,
+  listAssignments,
+  listAssignmentsByLesson,
+  listAllAssignments,
+  createAssignment,
+  updateAssignment,
+  deleteAssignment,
+  normalizeAssignmentRow,
 } from '../../lib/courseService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -1037,5 +1044,378 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
       ).rejects.toThrow('UNAUTHORIZED');
     });
   });
+
+  describe('Assignment Authoring, Dual-Column Sync & Cohort Scoping', () => {
+    it('normalizeAssignmentRow mirrors instructions and description and retains cohort_id', () => {
+      const fromInstructions = normalizeAssignmentRow({
+        id: 'assign-1',
+        lesson_id: 'lesson-1',
+        cohort_id: 'cohort-1',
+        module_id: 'module-1',
+        title: 'Color Grading Challenge',
+        instructions: 'Deliver a teal-and-orange grade with balanced skin tones',
+        description: null,
+        deadline: '2026-10-15T23:59:59Z',
+      });
+
+      expect(fromInstructions.instructions).toBe('Deliver a teal-and-orange grade with balanced skin tones');
+      expect(fromInstructions.description).toBe('Deliver a teal-and-orange grade with balanced skin tones');
+      expect(fromInstructions.cohort_id).toBe('cohort-1');
+      expect(fromInstructions.module_id).toBe('module-1');
+
+      const fromDescription = normalizeAssignmentRow({
+        id: 'assign-2',
+        lesson_id: 'lesson-2',
+        cohort_id: 'cohort-2',
+        title: 'Sound Design Challenge',
+        instructions: null,
+        description: 'Design Foley sound effects for 30s fight scene',
+        deadline: null,
+      });
+
+      expect(fromDescription.instructions).toBe('Design Foley sound effects for 30s fight scene');
+      expect(fromDescription.description).toBe('Design Foley sound effects for 30s fight scene');
+      expect(fromDescription.cohort_id).toBe('cohort-2');
+    });
+
+    it('createAssignment creates assignment with explicit cohort_id and dual instructions/description payload', async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'assign-created-1',
+              cohort_id: 'cohort-alpha',
+              module_id: 'module-1',
+              lesson_id: 'lesson-1',
+              title: 'Multi-Cam Editing',
+              instructions: 'Sync 4 cameras via audio waveform and cut multicam sequence',
+              description: 'Sync 4 cameras via audio waveform and cut multicam sequence',
+              deadline: '2026-11-01T23:59:59Z',
+              created_at: '2026-09-28T12:00:00Z',
+            },
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'assignments') {
+          return { insert: mockInsert };
+        }
+        return { select: vi.fn() };
+      });
+
+      const assignment = await createAssignment({
+        lesson_id: 'lesson-1',
+        cohort_id: 'cohort-alpha',
+        title: 'Multi-Cam Editing',
+        instructions: 'Sync 4 cameras via audio waveform and cut multicam sequence',
+        deadline: '2026-11-01T23:59:59Z',
+      });
+
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lesson_id: 'lesson-1',
+          cohort_id: 'cohort-alpha',
+          title: 'Multi-Cam Editing',
+          instructions: 'Sync 4 cameras via audio waveform and cut multicam sequence',
+          description: 'Sync 4 cameras via audio waveform and cut multicam sequence',
+          deadline: '2026-11-01T23:59:59Z',
+        })
+      );
+      expect(assignment.id).toBe('assign-created-1');
+      expect(assignment.cohort_id).toBe('cohort-alpha');
+      expect(assignment.instructions).toBe('Sync 4 cameras via audio waveform and cut multicam sequence');
+      expect(assignment.description).toBe('Sync 4 cameras via audio waveform and cut multicam sequence');
+    });
+
+    it('createAssignment auto-derives cohort_id and module_id from parent lesson if omitted by caller', async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'assign-auto-cohort-1',
+              cohort_id: 'cohort-derived-99',
+              module_id: 'mod-parent-10',
+              lesson_id: 'lesson-with-parent',
+              title: 'Pacing Challenge',
+              instructions: 'Cut a 60s trailer',
+              description: 'Cut a 60s trailer',
+              deadline: null,
+              created_at: '2026-09-28T12:00:00Z',
+            },
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'lessons') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'lesson-with-parent',
+                    module_id: 'mod-parent-10',
+                    modules: { cohort_id: 'cohort-derived-99' },
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'assignments') {
+          return { insert: mockInsert };
+        }
+        return { select: vi.fn() };
+      });
+
+      const assignment = await createAssignment({
+        lesson_id: 'lesson-with-parent',
+        title: 'Pacing Challenge',
+        instructions: 'Cut a 60s trailer',
+      });
+
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lesson_id: 'lesson-with-parent',
+          cohort_id: 'cohort-derived-99',
+          module_id: 'mod-parent-10',
+          title: 'Pacing Challenge',
+          instructions: 'Cut a 60s trailer',
+          description: 'Cut a 60s trailer',
+        })
+      );
+      expect(assignment.cohort_id).toBe('cohort-derived-99');
+    });
+
+    it('createAssignment falls back to legacy description schema if instructions column is missing', async () => {
+      let callCount = 0;
+      const mockInsert = vi.fn().mockImplementation((payload: Record<string, unknown>) => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { code: '42703', message: 'column "instructions" of relation "assignments" does not exist' },
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'assign-legacy-1',
+                cohort_id: 'cohort-leg',
+                lesson_id: payload.lesson_id,
+                title: payload.title,
+                description: payload.description,
+                deadline: payload.deadline,
+                created_at: '2026-09-28T12:00:00Z',
+              },
+              error: null,
+            }),
+          }),
+        };
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'assignments') {
+          return { insert: mockInsert };
+        }
+        return { select: vi.fn() };
+      });
+
+      const assignment = await createAssignment({
+        lesson_id: 'lesson-legacy',
+        cohort_id: 'cohort-leg',
+        title: 'Dialogue Clean-up',
+        instructions: 'Remove plosives and hiss from lavalier track',
+      });
+
+      expect(callCount).toBe(2);
+      expect(assignment.id).toBe('assign-legacy-1');
+      expect(assignment.instructions).toBe('Remove plosives and hiss from lavalier track');
+      expect(assignment.description).toBe('Remove plosives and hiss from lavalier track');
+    });
+
+    it('updateAssignment updates assignment with cohort_id and synced description/instructions', async () => {
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'assign-update-1',
+                cohort_id: 'cohort-updated',
+                module_id: 'mod-1',
+                lesson_id: 'lesson-1',
+                title: 'Updated Assignment Title',
+                instructions: 'Updated directions',
+                description: 'Updated directions',
+                deadline: '2026-12-01T00:00:00Z',
+                created_at: '2026-09-28T12:00:00Z',
+              },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'assignments') {
+          return { update: mockUpdate };
+        }
+        return { select: vi.fn() };
+      });
+
+      const updated = await updateAssignment('assign-update-1', {
+        cohort_id: 'cohort-updated',
+        title: 'Updated Assignment Title',
+        instructions: 'Updated directions',
+        deadline: '2026-12-01T00:00:00Z',
+      });
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cohort_id: 'cohort-updated',
+          title: 'Updated Assignment Title',
+          instructions: 'Updated directions',
+          description: 'Updated directions',
+          deadline: '2026-12-01T00:00:00Z',
+        })
+      );
+      expect(updated.title).toBe('Updated Assignment Title');
+      expect(updated.cohort_id).toBe('cohort-updated');
+    });
+
+    it('listAssignments queries by cohort_id directly and normalizes items', async () => {
+      const mockSelect = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'assign-fast-1',
+                cohort_id: 'cohort-query-1',
+                module_id: 'mod-1',
+                lesson_id: 'lesson-1',
+                title: 'Direct Query Assignment',
+                description: 'Description from canonical schema',
+                instructions: null,
+                deadline: '2026-11-15T00:00:00Z',
+                created_at: '2026-09-28T12:00:00Z',
+              },
+            ],
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'assignments') {
+          return { select: mockSelect };
+        }
+        return { select: vi.fn() };
+      });
+
+      const list = await listAssignments('cohort-query-1');
+
+      expect(mockSelect).toHaveBeenCalled();
+      expect(list).toHaveLength(1);
+      expect(list[0].id).toBe('assign-fast-1');
+      expect(list[0].instructions).toBe('Description from canonical schema');
+      expect(list[0].description).toBe('Description from canonical schema');
+      expect(list[0].cohort_id).toBe('cohort-query-1');
+    });
+
+    it('listAssignmentsByLesson queries by lesson_id and normalizes dual-columns', async () => {
+      const mockSelect = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'assign-lesson-1',
+                cohort_id: 'cohort-1',
+                lesson_id: 'lesson-target',
+                title: 'Lesson Assignment',
+                description: 'Lesson instructions',
+                instructions: null,
+                deadline: null,
+                created_at: '2026-09-28T12:00:00Z',
+              },
+            ],
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'assignments') {
+          return { select: mockSelect };
+        }
+        return { select: vi.fn() };
+      });
+
+      const list = await listAssignmentsByLesson('lesson-target');
+      expect(list).toHaveLength(1);
+      expect(list[0].id).toBe('assign-lesson-1');
+      expect(list[0].instructions).toBe('Lesson instructions');
+      expect(list[0].description).toBe('Lesson instructions');
+    });
+
+    it('listAllAssignments retrieves all assignments with descending created_at', async () => {
+      const mockSelect = vi.fn().mockReturnValue({
+        order: vi.fn().mockResolvedValue({
+          data: [
+            {
+              id: 'assign-all-1',
+              cohort_id: 'cohort-1',
+              lesson_id: 'lesson-1',
+              title: 'All Assignments 1',
+              instructions: 'Instructions 1',
+              deadline: null,
+              created_at: '2026-09-28T12:00:00Z',
+            },
+          ],
+          error: null,
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'assignments') {
+          return { select: mockSelect };
+        }
+        return { select: vi.fn() };
+      });
+
+      const all = await listAllAssignments();
+      expect(all).toHaveLength(1);
+      expect(all[0].title).toBe('All Assignments 1');
+      expect(all[0].description).toBe('Instructions 1');
+    });
+
+    it('deleteAssignment deletes assignment by ID', async () => {
+      const mockDelete = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({
+          data: null,
+          error: null,
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'assignments') {
+          return { delete: mockDelete };
+        }
+        return { select: vi.fn() };
+      });
+
+      await deleteAssignment('assign-del-1');
+      expect(mockDelete).toHaveBeenCalled();
+    });
+  });
 });
+
 
