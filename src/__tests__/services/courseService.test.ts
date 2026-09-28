@@ -17,6 +17,9 @@ import {
   duplicateModule,
   updateModuleStatus,
   listModules,
+  deleteLesson,
+  reorderLessons,
+  duplicateLesson,
 } from '../../lib/courseService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -79,6 +82,121 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
         }),
         expect.anything()
       );
+    });
+
+    it('rejects completion in fallback mode when effective watch percentage is below 80% for video lesson', async () => {
+      // Simulate RPC unavailable
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: null,
+        error: { code: '42883', message: 'function verify_and_complete_lesson does not exist' },
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'lessons') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { id: 'lesson-vid-1', title: 'Premiere Pro Cuts', video_url: 'https://vimeo.com/12345', duration_minutes: 10 },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'lesson_progress') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { watch_percentage: 45, completed: false },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            upsert: vi.fn().mockResolvedValue({ data: null, error: null }),
+          };
+        }
+        return {};
+      });
+
+      await expect(
+        markLessonComplete('user-1', 'lesson-vid-1', true, { watchPercentage: 45 })
+      ).rejects.toThrow('At least 80% is required before marking it complete');
+    });
+
+    it('allows completion in fallback mode when effective watch percentage is >= 80% for video lesson', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: null,
+        error: { code: '42883', message: 'function verify_and_complete_lesson does not exist' },
+      });
+
+      const mockUpsert = vi.fn().mockResolvedValue({ data: null, error: null });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'lessons') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { id: 'lesson-vid-2', title: 'Audio Ducking', video_url: 'https://vimeo.com/54321', duration_minutes: 15 },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'lesson_progress') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { watch_percentage: 85, completed: false },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            upsert: mockUpsert,
+          };
+        }
+        return {};
+      });
+
+      await expect(
+        markLessonComplete('user-1', 'lesson-vid-2', true, { watchPercentage: 85 })
+      ).resolves.not.toThrow();
+
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: 'user-1',
+          lesson_id: 'lesson-vid-2',
+          completed: true,
+          watch_percentage: 85,
+        }),
+        expect.anything()
+      );
+    });
+
+    it('does not fraudulently default watchPercentage to 100 when options are omitted', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: { success: false, reason: 'You have watched 0% of the video. At least 80% is required.' },
+        error: null,
+      });
+
+      await expect(
+        markLessonComplete('user-1', 'lesson-vid-1', true)
+      ).rejects.toThrow('At least 80% is required');
+
+      expect(supabase.rpc).toHaveBeenCalledWith('verify_and_complete_lesson', {
+        p_user_id: 'user-1',
+        p_lesson_id: 'lesson-vid-1',
+        p_watch_percentage: 0,
+        p_position_seconds: 0,
+      });
     });
   });
 
@@ -737,6 +855,60 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
       expect(list).toHaveLength(1);
       expect(list[0].title).toBe('Module 1');
       expect(list[0].lessons).toHaveLength(1);
+    });
+
+    it('reorders lessons using canonical atomic RPC reorder_lessons', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: { success: true, count: 2 },
+        error: null,
+      });
+
+      await reorderLessons('mod-1', ['less-2', 'less-1']);
+
+      expect(supabase.rpc).toHaveBeenCalledWith('reorder_lessons', {
+        p_lesson_ids: ['less-2', 'less-1'],
+        p_module_id: 'mod-1',
+      });
+    });
+
+    it('duplicates lesson using atomic RPC duplicate_lesson', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: {
+          id: 'less-copy-1',
+          module_id: 'mod-1',
+          title: 'Color Wheels (Copy)',
+          description: 'Desc',
+          video_url: 'https://vimeo.com/999',
+          duration_minutes: 12,
+          position: 3,
+          status: 'draft',
+        },
+        error: null,
+      });
+
+      const copy = await duplicateLesson('less-orig-1');
+
+      expect(supabase.rpc).toHaveBeenCalledWith('duplicate_lesson', {
+        p_lesson_id: 'less-orig-1',
+      });
+      expect(copy.id).toBe('less-copy-1');
+      expect(copy.title).toBe('Color Wheels (Copy)');
+      expect(copy.status).toBe('draft');
+    });
+
+    it('safely deletes or archives lesson using admin_delete_lesson RPC', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: { success: true, action: 'archived', message: 'Preserved learner submissions.' },
+        error: null,
+      });
+
+      const res = await deleteLesson('less-1', { force: false });
+
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_delete_lesson', {
+        p_lesson_id: 'less-1',
+        p_force: false,
+      });
+      expect(res.action).toBe('archived');
     });
   });
 });

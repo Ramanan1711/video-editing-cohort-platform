@@ -63,7 +63,7 @@ import {
   listCohorts,
   listCourses,
   listModules,
-  reorderLesson,
+  reorderLessons,
   reorderModules,
   type Assignment,
   type Cohort,
@@ -737,18 +737,18 @@ export function AdminCourses() {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= sortedLessons.length) return;
 
-    const otherLesson = sortedLessons[targetIndex];
+    const reordered = [...sortedLessons];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+
     try {
-      await Promise.all([
-        reorderLesson(currentLesson.id, otherLesson.position),
-        reorderLesson(otherLesson.id, currentLesson.position),
-      ]);
+      await reorderLessons(currentModule.id, reordered.map((l) => l.id));
       void logAuditEvent({
         actor_id: user?.id,
         action: 'lesson.reordered',
         entity_type: 'lesson',
         entity_id: currentLesson.id,
-        metadata: { title: currentLesson.title, direction },
+        metadata: { title: currentLesson.title, direction, new_position: targetIndex + 1 },
       });
       const msg = `Moved lesson "${currentLesson.title}" ${direction}.`;
       setSuccess(msg);

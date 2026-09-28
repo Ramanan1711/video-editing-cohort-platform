@@ -440,12 +440,15 @@ export async function markLessonComplete(
   options?: { watchPercentage?: number; positionSeconds?: number }
 ) {
   if (completed) {
+    const watchPercentage = options?.watchPercentage !== undefined ? Math.round(options.watchPercentage) : 0;
+    const positionSeconds = options?.positionSeconds !== undefined ? Math.round(options.positionSeconds) : 0;
+
     try {
       const { data: rpcRes, error: rpcErr } = await supabase.rpc('verify_and_complete_lesson', {
         p_user_id: userId,
         p_lesson_id: lessonId,
-        p_watch_percentage: Math.round(options?.watchPercentage ?? 100),
-        p_position_seconds: Math.round(options?.positionSeconds ?? 0),
+        p_watch_percentage: watchPercentage,
+        p_position_seconds: positionSeconds,
       });
 
       if (!rpcErr && rpcRes) {
@@ -456,10 +459,39 @@ export async function markLessonComplete(
         return;
       }
     } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes('80%')) {
+      if (err instanceof Error && (err.message.includes('80%') || err.message.includes('threshold') || err.message.includes('watched'))) {
         throw err;
       }
       console.warn('verify_and_complete_lesson RPC fallback:', err);
+    }
+
+    // Resilient fallback: verify against lesson video status and recorded progress
+    const { data: lessonData } = await supabase
+      .from('lessons')
+      .select('id, title, video_url, duration_minutes')
+      .eq('id', lessonId)
+      .maybeSingle();
+
+    const hasVideo = Boolean(lessonData?.video_url && lessonData.video_url.trim() !== '');
+
+    if (hasVideo) {
+      const { data: existingProgress } = await supabase
+        .from('lesson_progress')
+        .select('watch_percentage, completed')
+        .eq('user_id', userId)
+        .eq('lesson_id', lessonId)
+        .maybeSingle();
+
+      const effectiveWatchPct = Math.max(
+        existingProgress?.watch_percentage ?? 0,
+        options?.watchPercentage ?? 0
+      );
+
+      if (effectiveWatchPct < 80 && !existingProgress?.completed) {
+        throw new Error(
+          `You have watched ${Math.round(effectiveWatchPct)}% of this video lesson. At least 80% is required before marking it complete.`
+        );
+      }
     }
   }
 
@@ -474,7 +506,7 @@ export async function markLessonComplete(
     },
     { onConflict: 'user_id,lesson_id' }
   );
-  if (error) throw error;
+  if (error) throw parseDatabaseError(error);
 }
 
 export async function updateLessonWatchProgress(
@@ -940,11 +972,27 @@ export async function updateLesson(id: string, input: Omit<LessonInput, 'module_
   return { ...(res.data as Lesson), status: res.data.status ?? 'published' };
 }
 
-export async function deleteLesson(id: string) {
+export async function deleteLesson(id: string, options?: { force?: boolean }): Promise<{ success: boolean; action: 'deleted' | 'archived'; message?: string }> {
   queryCache.invalidate('curriculum');
   queryCache.invalidate('cohorts');
-  const { error } = await supabase.from('lessons').delete().eq('id', id);
-  if (error) throw error;
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc('admin_delete_lesson', {
+    p_lesson_id: id,
+    p_force: options?.force ?? false,
+  });
+
+  if (!rpcError && rpcData) {
+    return rpcData as { success: boolean; action: 'deleted' | 'archived'; message?: string };
+  }
+
+  if (rpcError && (rpcError.code === '42883' || rpcError.message.includes('admin_delete_lesson'))) {
+    const { error } = await supabase.from('lessons').delete().eq('id', id);
+    if (error) throw parseDatabaseError(error);
+    return { success: true, action: 'deleted' };
+  }
+
+  if (rpcError) throw parseDatabaseError(rpcError);
+  return { success: true, action: 'deleted' };
 }
 
 export async function reorderModules(
@@ -993,11 +1041,39 @@ export async function updateModuleStatus(
   if (error) throw parseDatabaseError(error);
 }
 
+export async function reorderLessons(
+  moduleId: string,
+  lessonIds: string[]
+): Promise<void> {
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
+
+  if (!lessonIds.length) return;
+
+  const { error: rpcError } = await supabase.rpc('reorder_lessons', {
+    p_lesson_ids: lessonIds,
+    p_module_id: moduleId,
+  });
+
+  if (!rpcError) return;
+
+  if (rpcError.code === '42883' || rpcError.message.includes('reorder_lessons')) {
+    await Promise.all(
+      lessonIds.map((id, index) =>
+        supabase.from('lessons').update({ position: index + 1 }).eq('id', id)
+      )
+    );
+    return;
+  }
+
+  throw parseDatabaseError(rpcError);
+}
+
 export async function reorderLesson(lessonId: string, newPosition: number): Promise<void> {
   queryCache.invalidate('curriculum');
   queryCache.invalidate('cohorts');
   const { error } = await supabase.from('lessons').update({ position: newPosition }).eq('id', lessonId);
-  if (error) throw error;
+  if (error) throw parseDatabaseError(error);
 }
 
 export async function updateLessonStatus(
@@ -1095,57 +1171,84 @@ export function subscribeToUserSubmissions(
 }
 
 export async function duplicateLesson(lessonId: string): Promise<Lesson> {
-  const { data: original, error } = await supabase
-    .from('lessons')
-    .select('module_id, title, description, video_url, duration_minutes, position, status')
-    .eq('id', lessonId)
-    .single();
-  if (error) throw error;
+  queryCache.invalidate('curriculum');
+  queryCache.invalidate('cohorts');
 
-  const { data: newLesson, error: createError } = await supabase
-    .from('lessons')
-    .insert({
-      module_id: original.module_id,
-      title: `${original.title} (Copy)`,
-      description: original.description,
-      video_url: original.video_url,
-      duration_minutes: original.duration_minutes,
-      position: (original.position || 0) + 1,
-      status: 'draft',
-    })
-    .select('id, module_id, title, description, video_url, duration_minutes, position, status')
-    .single();
-  if (createError) throw createError;
+  // 1. Try atomic server RPC
+  const { data: rpcData, error: rpcError } = await supabase.rpc('duplicate_lesson', {
+    p_lesson_id: lessonId,
+  });
 
-  // Duplicate resources
-  const { data: resources } = await supabase
-    .from('lesson_resources')
-    .select('name, url, visibility, resource_type, file_size')
-    .eq('lesson_id', lessonId);
-
-  if (resources && resources.length > 0) {
-    await supabase.from('lesson_resources').insert(
-      resources.map((r) => ({ ...r, lesson_id: newLesson.id }))
-    );
+  if (!rpcError && rpcData) {
+    return {
+      id: rpcData.id ?? rpcData.lesson_id,
+      module_id: rpcData.module_id,
+      title: rpcData.title,
+      description: rpcData.description,
+      video_url: rpcData.video_url,
+      duration_minutes: rpcData.duration_minutes,
+      position: rpcData.position,
+      status: rpcData.status ?? 'draft',
+    };
   }
 
-  // Duplicate assignment
-  const { data: assignment } = await supabase
-    .from('assignments')
-    .select('title, instructions, deadline')
-    .eq('lesson_id', lessonId)
-    .maybeSingle();
+  // 2. Client fallback if RPC is not deployed
+  if (rpcError && (rpcError.code === '42883' || rpcError.message.includes('duplicate_lesson'))) {
+    const { data: original, error } = await supabase
+      .from('lessons')
+      .select('module_id, title, description, video_url, duration_minutes, position, status')
+      .eq('id', lessonId)
+      .single();
+    if (error) throw parseDatabaseError(error);
 
-  if (assignment) {
-    await supabase.from('assignments').insert({
-      lesson_id: newLesson.id,
-      title: `${assignment.title} (Copy)`,
-      instructions: assignment.instructions,
-      deadline: assignment.deadline,
-    });
+    const { data: newLesson, error: createError } = await supabase
+      .from('lessons')
+      .insert({
+        module_id: original.module_id,
+        title: `${original.title} (Copy)`,
+        description: original.description,
+        video_url: original.video_url,
+        duration_minutes: original.duration_minutes,
+        position: (original.position || 0) + 1,
+        status: 'draft',
+      })
+      .select('id, module_id, title, description, video_url, duration_minutes, position, status')
+      .single();
+    if (createError) throw parseDatabaseError(createError);
+
+    // Duplicate resources
+    const { data: resources } = await supabase
+      .from('lesson_resources')
+      .select('name, url, visibility, resource_type, file_size')
+      .eq('lesson_id', lessonId);
+
+    if (resources && resources.length > 0) {
+      await supabase.from('lesson_resources').insert(
+        resources.map((r) => ({ ...r, lesson_id: newLesson.id }))
+      );
+    }
+
+    // Duplicate assignment
+    const { data: assignment } = await supabase
+      .from('assignments')
+      .select('title, instructions, deadline')
+      .eq('lesson_id', lessonId)
+      .maybeSingle();
+
+    if (assignment) {
+      await supabase.from('assignments').insert({
+        lesson_id: newLesson.id,
+        title: `${assignment.title} (Copy)`,
+        instructions: assignment.instructions,
+        deadline: assignment.deadline,
+      });
+    }
+
+    return newLesson as Lesson;
   }
 
-  return newLesson as Lesson;
+  if (rpcError) throw parseDatabaseError(rpcError);
+  throw new Error('Failed to duplicate lesson.');
 }
 
 export async function duplicateModule(moduleId: string): Promise<Module> {
