@@ -1,24 +1,2044 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowRight, Check, ChevronDown, Clock3, Film, Flame, MessageCircle, Play, Quote, Star, Users } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowRight,
+  Award,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  Code2,
+  Download,
+  FileText,
+  Flame,
+  MessageCircle,
+  Play,
+  QrCode,
+  Quote,
+  Shield,
+  Sparkles,
+  Star,
+  Trophy,
+  Video,
+  X,
+  Zap,
+} from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { SiteFooter } from '../components/SiteFooter';
 import { SiteHeader } from '../components/SiteHeader';
 
-const roadmap = [{ week: '01', title: 'Find your rhythm', text: 'Build a repeatable editing workflow, organize your tools, and stop losing hours to busywork.' }, { week: '02', title: 'Make it feel', text: 'Learn the choices behind pacing, sound design, transitions, and the invisible details clients notice.' }, { week: '03', title: 'Ship the cut', text: 'Turn briefs into polished edits with constraints, deadlines, and feedback that makes the work sharper.' }, { week: '04', title: 'Build your proof', text: 'Package your best work, tell the story behind it, and leave with a portfolio that opens conversations.' }];
-const faqs = [{ q: 'Is this for complete beginners?', a: 'Yes. You need curiosity and the willingness to practice. We meet you where you are, then give you a clear path forward.' }, { q: 'Which editing software do you teach?', a: 'The principles work everywhere. Our examples use Premiere Pro and DaVinci Resolve, but the workflow translates to any modern NLE.' }, { q: 'How much time should I set aside?', a: 'Plan for 5 to 7 focused hours each week: short lessons, one practical challenge, and a live feedback session.' }, { q: 'What happens after the 30 days?', a: 'You keep your course access, community, and portfolio. Alumni can join future critique rooms and weekly coworking sessions.' }];
-
 export function Home() {
+  const [selectedTrack, setSelectedTrack] = useState<'coding' | 'creative'>('creative');
+  const [activeSprintPhase, setActiveSprintPhase] = useState<'p1' | 'p2' | 'p3'>('p1');
+  const [selectedDayDetail, setSelectedDayDetail] = useState<number>(4);
+  const [projectRate, setProjectRate] = useState<number>(500);
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
-  return <div className="overflow-hidden bg-[#f6f7f9] text-slate-900"><SiteHeader /><main>
-    <section className="relative isolate min-h-[720px] overflow-hidden bg-[#f6f7f9] pt-32"><div className="absolute -right-40 top-8 -z-10 size-[520px] rounded-full bg-orange-200/40 blur-3xl" /><div className="absolute left-[-15%] top-[42%] -z-10 h-80 w-80 rounded-full bg-amber-100/60 blur-3xl" /><div className="mx-auto grid max-w-7xl items-center gap-16 px-5 pb-20 lg:grid-cols-[1fr_0.9fr] lg:px-8 lg:pb-28"><div><div className="mb-6 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-orange-700"><span className="size-1.5 rounded-full bg-orange-500" /> The next cohort opens soon</div><h1 className="max-w-3xl text-5xl font-black leading-[0.98] tracking-[-0.05em] text-slate-950 sm:text-7xl">Stop watching tutorials.<br /><span className="text-orange-500">Start making cuts.</span></h1><p className="mt-7 max-w-xl text-lg leading-8 text-slate-500">A 30-day creative sprint for editors who want better work, stronger taste, and a body of proof they are proud to send to clients.</p><div className="mt-9 flex flex-col gap-3 sm:flex-row"><Button href="/register" withArrow>Save my seat</Button><Button href="#how-it-works" variant="secondary"><Play size={16} fill="currentColor" /> See how it works</Button></div><div className="mt-9 flex items-center gap-4"><div className="flex -space-x-2">{['bg-orange-300', 'bg-slate-300', 'bg-amber-300', 'bg-slate-400'].map((color) => <span key={color} className={`size-8 rounded-full border-2 border-[#f6f7f9] ${color}`} />)}</div><p className="text-sm text-slate-500"><strong className="text-slate-900">1,200+ editors</strong> are already in the room</p></div></div><div className="relative"><div className="absolute -inset-5 rounded-[2rem] border border-orange-200/60 bg-orange-100/30 rotate-3" /><Card className="relative overflow-hidden border-slate-200 shadow-2xl shadow-slate-900/10"><div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Today in the studio</span><span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600"><span className="size-2 rounded-full bg-emerald-500" /> Live</span></div><div className="bg-slate-950 p-5"><div className="relative aspect-[1.25] overflow-hidden rounded-xl bg-gradient-to-br from-orange-400 via-orange-600 to-slate-950 p-5"><div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(135deg, transparent 45%, rgba(255,255,255,.4) 46%, transparent 47%)', backgroundSize: '28px 28px' }} /><div className="relative flex h-full flex-col justify-between text-white"><div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em]"><span>Cut / Craft</span><span>01:28:42</span></div><div><p className="max-w-xs text-3xl font-black leading-none tracking-tight">Make the moment<br />land.</p><div className="mt-5 h-1 w-24 rounded-full bg-white/60" /></div><div className="flex items-end justify-between"><span className="text-xs font-bold text-white/70">Live edit review · Week 03</span><div className="flex size-12 items-center justify-center rounded-full bg-white text-slate-950"><Play size={18} fill="currentColor" /></div></div></div></div></div><div className="grid grid-cols-3 divide-x divide-slate-100 p-5"><div className="px-2"><p className="text-xl font-black text-slate-950">30</p><p className="text-xs text-slate-400">days to ship</p></div><div className="px-4"><p className="text-xl font-black text-slate-950">04</p><p className="text-xs text-slate-400">live reviews</p></div><div className="px-4"><p className="text-xl font-black text-slate-950">∞</p><p className="text-xs text-slate-400">ways to grow</p></div></div></Card></div></div></section>
-    <section className="border-y border-slate-200 bg-white"><div className="mx-auto grid max-w-7xl gap-8 px-5 py-7 sm:grid-cols-3 lg:px-8"><div className="flex gap-3"><Flame className="text-orange-500" size={21} /><div><p className="text-sm font-black text-slate-950">Practice with a point</p><p className="mt-1 text-sm text-slate-500">Tiny daily reps become serious skill.</p></div></div><div className="flex gap-3"><MessageCircle className="text-orange-500" size={21} /><div><p className="text-sm font-black text-slate-950">Feedback that moves you</p><p className="mt-1 text-sm text-slate-500">No vague “looks good” comments.</p></div></div><div className="flex gap-3"><Users className="text-orange-500" size={21} /><div><p className="text-sm font-black text-slate-950">A room that gets it</p><p className="mt-1 text-sm text-slate-500">Build alongside people who care.</p></div></div></div></section>
-    <section id="how-it-works" className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><div className="max-w-xl"><p className="eyebrow">The studio model</p><h2 className="section-title">Less passive learning.<br />More finished work.</h2><p className="section-copy">Every part of the cohort is designed to get you from “I should practice” to “here is what I made.”</p></div><div className="mt-14 grid gap-5 md:grid-cols-3"><Card className="p-7"><span className="number-badge">01</span><Film className="mt-12 text-orange-500" size={28} /><h3 className="mt-5 text-xl font-black">Learn the move</h3><p className="mt-3 text-sm leading-6 text-slate-500">Short, focused lessons break down the decisions behind edits you want to make.</p></Card><Card className="!bg-slate-950 p-7 text-white"><span className="number-badge dark">02</span><Clock3 className="mt-12 text-orange-400" size={28} /><h3 className="mt-5 text-xl font-black">Do the rep</h3><p className="mt-3 text-sm leading-6 text-slate-400">Daily challenges make the lesson tangible and keep your momentum visible.</p></Card><Card className="p-7"><span className="number-badge">03</span><Star className="mt-12 text-orange-500" size={28} /><h3 className="mt-5 text-xl font-black">Get sharper</h3><p className="mt-3 text-sm leading-6 text-slate-500">Share your work, receive specific notes, and learn to see your own next edit.</p></Card></div></section>
-    <section id="roadmap" className="bg-slate-950 py-24 text-white"><div className="mx-auto max-w-7xl px-5 lg:px-8"><div className="flex flex-col justify-between gap-6 md:flex-row md:items-end"><div><p className="eyebrow orange">The 30-day roadmap</p><h2 className="section-title light">A month that leaves<br />a mark.</h2></div><p className="max-w-sm text-sm leading-6 text-slate-400">Four weeks. Four creative shifts. One finished portfolio piece that proves you can do the work.</p></div><div className="mt-16 grid gap-0 border-t border-slate-800 md:grid-cols-4">{roadmap.map((item) => <div key={item.week} className="border-b border-slate-800 py-7 md:border-b-0 md:border-r md:px-6 md:first:pl-0"><p className="text-sm font-black text-orange-400">WEEK {item.week}</p><h3 className="mt-8 text-xl font-black">{item.title}</h3><p className="mt-3 text-sm leading-6 text-slate-400">{item.text}</p><ArrowRight className="mt-8 text-slate-600" size={18} /></div>)}</div></div></section>
-    <section className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><div className="grid items-center gap-14 lg:grid-cols-[0.8fr_1.2fr]"><div><p className="eyebrow">Built for momentum</p><h2 className="section-title">Your progress<br />should feel visible.</h2><p className="section-copy">A quiet dashboard for loud progress. Keep your streak alive, see the next lesson, and know exactly what to work on today.</p><Button href="/register" className="mt-7" withArrow>Enter the studio</Button></div><Card className="overflow-hidden bg-[#fff9f2] p-6 sm:p-8"><div className="flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-orange-600">Your level up board</p><h3 className="mt-2 text-2xl font-black text-slate-950">Week 2 · Build a feeling</h3></div><span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-orange-600">4 day streak</span></div><div className="mt-9 grid grid-cols-7 gap-2 sm:gap-3">{Array.from({ length: 28 }, (_, index) => <div key={index} className={`aspect-square rounded-md sm:rounded-lg ${index < 11 ? 'bg-orange-500' : index < 17 ? 'bg-orange-200' : 'bg-white'}`} />)}</div><div className="mt-8 flex items-center justify-between border-t border-orange-200 pt-5 text-sm"><span className="font-bold text-slate-700">EDIT for 20 minutes</span><span className="flex items-center gap-1 font-black text-emerald-600"><Check size={16} /> +20 points</span></div></Card></div></section>
-    <section className="bg-orange-500 py-24"><div className="mx-auto max-w-7xl px-5 lg:px-8"><div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end"><div><Quote className="text-orange-200" size={42} /><p className="mt-7 max-w-xl text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl">“I stopped collecting tutorials and finally finished something I could show people.”</p><p className="mt-6 text-sm font-bold text-orange-100">Maya R. · Cohort 08</p></div><div className="grid gap-4 sm:grid-cols-2"><Card className="!border-orange-400 !bg-orange-400/50 p-5 text-white"><p className="text-3xl font-black">92%</p><p className="mt-2 text-sm text-orange-100">of members finish their capstone</p></Card><Card className="!border-orange-400 !bg-orange-400/50 p-5 text-white"><p className="text-3xl font-black">4.9/5</p><p className="mt-2 text-sm text-orange-100">average member rating</p></Card></div></div></div></section>
-    <section id="pricing" className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><div className="text-center"><p className="eyebrow">One clear investment</p><h2 className="section-title">Your next 30 days,<br />well spent.</h2><p className="section-copy mx-auto">Everything you need to make better work and build the habit to keep making it.</p></div><Card className="mx-auto mt-12 max-w-2xl overflow-hidden border-orange-300 shadow-xl shadow-orange-100"><div className="grid gap-8 p-7 sm:grid-cols-[1fr_auto] sm:p-10"><div><span className="rounded-full bg-orange-100 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-orange-700">Founding cohort</span><h3 className="mt-5 text-2xl font-black text-slate-950">30 days inside Cut / Craft</h3><div className="mt-6 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">{['Full course + lesson player', 'Daily habit challenges', 'Weekly live critique room', 'Private community access', 'Portfolio capstone project', 'Lifetime alumni access'].map((item) => <span key={item} className="flex items-center gap-2"><Check className="text-emerald-500" size={16} />{item}</span>)}</div></div><div className="flex flex-col justify-between sm:items-end"><div><span className="text-sm text-slate-400 line-through">$249</span><p className="text-4xl font-black text-slate-950">$149</p><p className="text-xs text-slate-400">one-time payment</p></div><Button href="/register" className="mt-6" withArrow>Join the cohort</Button></div></div></Card></section>
-    <section id="faq" className="border-t border-slate-200 bg-white py-24"><div className="mx-auto max-w-3xl px-5 lg:px-8"><div className="text-center"><p className="eyebrow">Good questions</p><h2 className="section-title">Before you make<br />the jump.</h2></div><div className="mt-12 divide-y divide-slate-200 border-y border-slate-200">{faqs.map((faq, index) => <div key={faq.q} className="py-5"><button onClick={() => setFaqOpen(faqOpen === index ? null : index)} className="flex w-full items-center justify-between gap-5 text-left text-base font-black text-slate-950"><span>{faq.q}</span><ChevronDown className={`shrink-0 transition ${faqOpen === index ? 'rotate-180 text-orange-500' : 'text-slate-400'}`} size={19} /></button>{faqOpen === index && <p className="max-w-2xl pt-3 text-sm leading-6 text-slate-500">{faq.a}</p>}</div>)}</div></div></section>
-    <section className="bg-slate-950 px-5 py-20 text-center"><p className="eyebrow orange">Your next cut starts here</p><h2 className="mx-auto mt-4 max-w-2xl text-4xl font-black tracking-tight text-white sm:text-5xl">Make something worth watching.</h2><Button href="/register" className="mt-8" withArrow>Join the next cohort</Button><a href="#" className="mx-auto mt-6 flex w-fit items-center gap-2 text-sm font-bold text-slate-400 hover:text-white">Back to top <ArrowDown className="rotate-180" size={16} /></a></section>
-  </main><SiteFooter /></div>;
+  const [activeChatScenario, setActiveChatScenario] = useState<'code' | 'video' | 'nudge'>('video');
+  const [activeTransformation, setActiveTransformation] = useState<'creative' | 'coding'>('creative');
+
+  const full15Days = [
+    {
+      day: 1,
+      phase: 1,
+      track: 'both',
+      title: 'Production Setup & First Kinetic Cut / Repo Init',
+      deliverable: 'GitHub Repository with CI preview / Google Drive Kinetic Cut',
+      tool: 'Premiere Pro / VS Code + Git',
+      time: '2h',
+      desc: 'Set up strict folder architecture, import 4K raw footage or initialize TypeScript boilerplate, and ship your first functional piece before midnight.',
+      rubricPoints: 'Clean folder/file structure, strict linter / project setup, on-time submission.',
+    },
+    {
+      day: 2,
+      phase: 1,
+      track: 'both',
+      title: 'Pacing, J/L Cuts & Reactive State Management',
+      deliverable: '30-second retention timeline / Interactive State Component',
+      tool: 'DaVinci Resolve / React 19',
+      time: '2.5h',
+      desc: 'Learn the invisible mechanics of timing: audio lead-ins, micro-transitions, and component state pipelines that keep user attention locked.',
+      rubricPoints: 'Seamless audio bridge across cuts, zero state desync, fluid interaction.',
+    },
+    {
+      day: 3,
+      phase: 1,
+      track: 'both',
+      title: 'Dynamic Typography & Kinetic Motion Systems',
+      deliverable: 'Kinetic title sequence / Reusable Animated UI Elements',
+      tool: 'After Effects / Tailwind CSS',
+      time: '2h',
+      desc: 'Craft animated typography with custom bezier easing curves and responsive design standards that stand out on any screen size.',
+      rubricPoints: 'Bezier acceleration curves, responsive typography hierarchy, typography contrast.',
+    },
+    {
+      day: 4,
+      phase: 1,
+      track: 'both',
+      title: 'B-Roll Rhythm & Database Backend Integration',
+      deliverable: 'Speed-ramped secondary edit / Supabase Auth & RLS Tables',
+      tool: 'Premiere Pro / Supabase',
+      time: '2.5h',
+      desc: 'Seamlessly layer secondary footage with match-cuts, or architect relational database tables protected by strict Row-Level Security rules.',
+      rubricPoints: 'Visual storytelling flow, secure DB schema policies, zero leaked credentials.',
+    },
+    {
+      day: 5,
+      phase: 1,
+      track: 'both',
+      title: 'Multi-Track Sound Design & Phase 1 Evaluation',
+      deliverable: 'Submixed audio timeline / Working Full-Stack CRUD API',
+      tool: 'Audition / REST APIs',
+      time: '3h',
+      desc: 'First major milestone checkpoint. Layer sound risers, whooshes, ambient textures, or ship tested API endpoints for mentor review.',
+      rubricPoints: '-14 LUFS loudness mastering, error-handled HTTP status codes, unit tested.',
+    },
+    {
+      day: 6,
+      phase: 2,
+      track: 'both',
+      title: 'Color Grading Science & Server-Side Optimization',
+      deliverable: 'Rec.709 balanced grade / Next.js Server Components',
+      tool: 'DaVinci Resolve / Next.js',
+      time: '2.5h',
+      desc: 'Understand color primaries, skin-tone vector scopes, and server-side rendering to eliminate visual artifacts and network latencies.',
+      rubricPoints: 'Accurate skin tones on vectorscope, zero layout shift, sub-second TTFB.',
+    },
+    {
+      day: 7,
+      phase: 2,
+      track: 'both',
+      title: 'Narrative Arc & Complex State Workflows',
+      deliverable: '60s story cut / Multi-step Form & Telemetry Hook',
+      tool: 'Premiere Pro / TypeScript',
+      time: '2.5h',
+      desc: 'Build emotional momentum using 3-act narrative pacing or create type-safe asynchronous state machines that handle edge cases cleanly.',
+      rubricPoints: 'Hook-Hold-Payoff pacing, strict TS types without any, resilient state.',
+    },
+    {
+      day: 8,
+      phase: 2,
+      track: 'both',
+      title: 'Visual Effects & Third-Party API Integrations',
+      deliverable: 'Composited motion cut / WhatsApp API Webhook Service',
+      tool: 'After Effects / Node.js',
+      time: '2.5h',
+      desc: 'Execute clean rotoscoping and planar tracking, or build an automated WhatsApp dispatch and webhook listener service.',
+      rubricPoints: 'Flawless edge matte refinement, verified webhook signature validation.',
+    },
+    {
+      day: 9,
+      phase: 2,
+      track: 'both',
+      title: 'High-Retention Short Form (Reels & Mobile Web)',
+      deliverable: '9:16 viral retention edit / Mobile-first Responsive UI',
+      tool: 'CapCut Pro / Mobile CSS',
+      time: '2h',
+      desc: 'Optimize for mobile consumption habits: vertical viewport framing, touch gestures, and 3-second hook retention techniques.',
+      rubricPoints: '70%+ simulated watch time hook, thumb-zone ergonomics, 60fps animations.',
+    },
+    {
+      day: 10,
+      phase: 2,
+      track: 'both',
+      title: 'Halfway Live Review Room & Stress Testing',
+      deliverable: 'Live Mentor Pitch / End-to-End Test Suite',
+      tool: 'Zoom / Vitest + Cypress',
+      time: '3h',
+      desc: 'Join our halfway live masterclass workshop. Watch mentors tear down student projects in real time and run comprehensive code audits.',
+      rubricPoints: 'Live feedback implementation, >85% code branch test coverage.',
+    },
+    {
+      day: 11,
+      phase: 3,
+      track: 'both',
+      title: 'Commercial Capstone: Client Brief Kickoff',
+      deliverable: 'Approved project storyboard & Architecture Spec',
+      tool: 'Figma / Architecture Doc',
+      time: '2.5h',
+      desc: 'Receive your real-world client brief. Plan technical architecture or cinematic shot list for your crowning 15-day sprint capstone.',
+      rubricPoints: 'Comprehensive wireframes, modular system architecture diagram.',
+    },
+    {
+      day: 12,
+      phase: 3,
+      track: 'both',
+      title: 'Capstone Production: Deep Execution Day 1',
+      deliverable: 'Rough cut submission / Frontend Core Implementation',
+      tool: 'Full Suite',
+      time: '4h',
+      desc: 'Dedicated production sprint. Assemble full timeline or implement complete database connectivity with authenticated user routes.',
+      rubricPoints: 'Core user flows functional, complete rough assembly of timeline.',
+    },
+    {
+      day: 13,
+      phase: 3,
+      track: 'both',
+      title: 'Capstone Production: Deep Execution Day 2',
+      deliverable: 'Fine cut with sound / Production Deployment to Vercel',
+      tool: 'Full Suite',
+      time: '4h',
+      desc: 'Fine-tune every cut and transition, or deploy your web application to a live domain with custom SSL and performance monitoring.',
+      rubricPoints: 'Live production URL accessible, color mastered, audio submixed.',
+    },
+    {
+      day: 14,
+      phase: 3,
+      track: 'both',
+      title: 'The Polish & Peer Code / Timeline Audit',
+      deliverable: 'Final deliverables package & Loom walk-through',
+      tool: 'Loom / GitHub PR',
+      time: '2.5h',
+      desc: 'Submit your finished deliverable alongside a 3-minute video breakdown of technical decisions for final mentor audit.',
+      rubricPoints: 'Clear articulated rationale, zero console errors, zero dropped frames.',
+    },
+    {
+      day: 15,
+      phase: 3,
+      track: 'both',
+      title: 'Graduation, Verified Credential & Exit Referral',
+      deliverable: 'Digital Credential & LinkedIn Portfolio Release',
+      tool: 'ProCut Portal',
+      time: '1h',
+      desc: 'Receive your cryptographically signed Certificate of Completion and a personal Mentor Letter of Recommendation for hiring partners.',
+      rubricPoints: '15/15 days verified, credential published, talent directory listed.',
+    },
+  ];
+
+  const faqs = [
+    {
+      q: 'How does the 15-Day Internship model work?',
+      a: 'Each morning at 9:00 AM, a production-level challenge unlocks with a detailed brief and starter assets. You work on the task, submit your deliverable link (GitHub PR, Loom walkthrough, or Google Drive cut) before midnight, and receive structured feedback and grading from assigned mentors.',
+    },
+    {
+      q: 'Do I need prior experience in coding or video editing?',
+      a: 'We welcome motivated beginners and intermediate creators. Both the Coding and Creative tracks start with solid foundations on Day 1 and ramp up to production-grade portfolio deliverables by Day 15.',
+    },
+    {
+      q: 'How is WhatsApp integrated into the learning experience?',
+      a: 'ProCut Hub connects directly to your WhatsApp. You receive daily challenge drops, workshop reminders, and personalized inactivity alerts. Plus, you can click one button to open a direct WhatsApp chat with your mentor for real-time blocker resolution with an average reply time under 15 minutes.',
+    },
+    {
+      q: 'How much time do I need to commit each day?',
+      a: 'Plan for approximately 1.5 to 2.5 focused hours each day. The tasks are engineered to simulate real studio and software development deadlines without exhausting your schedule.',
+    },
+    {
+      q: 'What certificate and credentials do I graduate with?',
+      a: 'Upon successfully completing all 15 sprint tasks and passing mentor review, you receive a cryptographically verified Digital Internship Certificate and a personalized Mentor Letter of Recommendation to showcase on LinkedIn and your resume.',
+    },
+    {
+      q: 'Can I access the live workshops if I miss a stream?',
+      a: 'Yes! All live workshops and critique masterclasses are recorded in full high-definition and uploaded directly to your cohort workshops portal within 2 hours of the broadcast.',
+    },
+    {
+      q: 'What if I face an emergency or fall behind on a day?',
+      a: 'Our platform includes a built-in "Streak Freeze" grace pass. If you let your WhatsApp mentor know ahead of time, you can catch up during the designated Day 5 or Day 10 review buffer windows without failing the cohort requirements.',
+    },
+    {
+      q: 'Are the starter assets and code templates included in the fee?',
+      a: 'Yes! You receive instant access to over $1,200 worth of licensed 4K RAW cinema footage, 2,500+ sound effects, and production-ready Next.js / Supabase GitHub boilerplates with lifetime usage rights.',
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#f8f9fa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-orange-500 selection:text-white transition-colors">
+      <SiteHeader />
+
+      <main>
+        {/* ========================================================================= */}
+        {/* HERO SECTION */}
+        {/* ========================================================================= */}
+        <section className="relative overflow-hidden pt-12 pb-16 lg:pt-20 lg:pb-24">
+          {/* Subtle Ambient Gradient Glows */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 -z-10 h-[550px] w-full max-w-7xl">
+            <div className="absolute top-12 left-1/4 size-96 rounded-full bg-orange-400/15 blur-3xl" />
+            <div className="absolute top-20 right-1/4 size-96 rounded-full bg-amber-400/15 blur-3xl" />
+          </div>
+
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="flex flex-col items-center text-center">
+              {/* Trending Pill Badge */}
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-orange-200/90 dark:border-orange-900/60 bg-white dark:bg-slate-900 px-3.5 py-1.5 shadow-2xs">
+                <span className="flex size-2 rounded-full bg-orange-500 animate-ping" />
+                <span className="text-[11px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">
+                  15-Day Intensive Production Internship
+                </span>
+                <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
+                <span className="hidden sm:inline text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  Batch 15 Enrollments Open
+                </span>
+              </div>
+
+              {/* Main Headline */}
+              <h1 className="max-w-4xl text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-slate-950 dark:text-white leading-[1.05]">
+                Stop Watching Tutorials.{' '}
+                <span className="bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 bg-clip-text text-transparent">
+                  Start Shipping Production.
+                </span>
+              </h1>
+
+              {/* Subtitle */}
+              <p className="mt-6 max-w-2xl text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
+                An intensive 15-day sprint for aspiring developers and creative editors. Solve real production briefs daily, get 1-on-1 mentor guidance via WhatsApp, and graduate with a portfolio-grade project and accredited recommendation.
+              </p>
+
+              {/* CTA Buttons */}
+              <div className="mt-8 flex flex-col sm:flex-row items-center gap-3.5 w-full sm:w-auto">
+                <Button href="/register" size="lg" className="w-full sm:w-auto shadow-lg shadow-orange-500/25 justify-center">
+                  <span>Save My Seat in Cohort</span>
+                  <ArrowRight size={16} />
+                </Button>
+                <Button href="#sprint" variant="secondary" size="lg" className="w-full sm:w-auto justify-center">
+                  <Play size={15} className="text-orange-500" fill="currentColor" />
+                  <span>Explore 15-Day Roadmap</span>
+                </Button>
+              </div>
+
+              {/* Social Proof Avatars */}
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                <div className="flex -space-x-2">
+                  {['bg-orange-500 text-white', 'bg-blue-600 text-white', 'bg-emerald-600 text-white', 'bg-purple-600 text-white'].map((cls, i) => (
+                    <span
+                      key={i}
+                      className={`flex size-8 items-center justify-center rounded-full border-2 border-white dark:border-slate-950 font-black text-[10px] ${cls}`}
+                    >
+                      {['AK', 'MR', 'SK', 'TL'][i]}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <div className="flex text-amber-500">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} size={14} fill="currentColor" />
+                    ))}
+                  </div>
+                  <span className="font-bold text-slate-900 dark:text-white">4.9/5</span>
+                  <span>from 1,200+ certified interns</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Live Interactive Platform Mockup */}
+            <div className="mt-12 relative">
+              <div className="absolute -inset-1.5 rounded-3xl bg-gradient-to-r from-orange-500 to-amber-500 opacity-20 blur-xl" />
+              <div className="relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
+                {/* Mock Browser Header */}
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="size-3 rounded-full bg-red-400" />
+                    <span className="size-3 rounded-full bg-amber-400" />
+                    <span className="size-3 rounded-full bg-emerald-400" />
+                    <span className="ml-2 text-[11px] font-bold text-slate-400">
+                      procuthub.com/student/dashboard?tab=internship_sprint
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-400">
+                      <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live Mentor Active
+                    </span>
+                  </div>
+                </div>
+
+                {/* Mock Dashboard Body */}
+                <div className="p-5 sm:p-7 space-y-6">
+                  {/* Top Stats Banner */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current Day</p>
+                      <p className="text-base font-black text-slate-950 dark:text-white">Day 04 / 15</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Streak</p>
+                      <p className="text-base font-black text-orange-600 dark:text-orange-400">4 Days 🔥</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tasks Evaluated</p>
+                      <p className="text-base font-black text-emerald-600 dark:text-emerald-400">3 Accepted</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Mentor Score</p>
+                      <p className="text-base font-black text-slate-950 dark:text-white">96 / 100</p>
+                    </div>
+                  </div>
+
+                  {/* 15-Day Visual Mini Heatmap */}
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                    <div className="flex items-center justify-between text-xs font-bold mb-3">
+                      <span className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
+                        <Flame size={14} className="text-orange-500" />
+                        15-Day Sprint Heatmap
+                      </span>
+                      <span className="text-[11px] text-slate-400">27% Complete · On Track</span>
+                    </div>
+                    <div className="grid grid-cols-15 gap-1.5 sm:gap-2">
+                      {Array.from({ length: 15 }, (_, i) => i + 1).map((day) => {
+                        const isDone = day <= 3;
+                        const isCurrent = day === 4;
+                        return (
+                          <div
+                            key={day}
+                            className={`flex flex-col items-center gap-1 py-1.5 rounded-lg border text-center transition ${
+                              isDone
+                                ? 'bg-emerald-500 border-emerald-600 text-white shadow-2xs'
+                                : isCurrent
+                                ? 'bg-orange-500 border-orange-600 text-white animate-pulse'
+                                : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
+                            }`}
+                          >
+                            <span className="text-[9px] font-black">{day}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Active Task + WhatsApp Preview */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div className="lg:col-span-2 rounded-xl border border-orange-200 dark:border-orange-950 bg-orange-50/40 dark:bg-orange-950/20 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="rounded-md bg-orange-500 text-white px-2 py-0.5 text-[10px] font-black uppercase">
+                          Today's Production Task
+                        </span>
+                        <span className="text-xs font-bold text-orange-700 dark:text-orange-300 flex items-center gap-1">
+                          <Clock size={12} /> Deadline: 11:59 PM Tonight
+                        </span>
+                      </div>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                        Day 04: Component State &amp; Retention Speed Ramping
+                      </h3>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                        Implement fast timeline micro-transitions and publish your deliverable link for live mentor critique room review.
+                      </p>
+                      <div className="flex items-center gap-2 pt-2 border-t border-orange-100 dark:border-orange-900/60">
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                          Deliverable: GitHub PR or Google Drive Cut
+                        </span>
+                        <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-black text-orange-600">
+                          Submit Task <ArrowRight size={11} />
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* WhatsApp Co-pilot Snippet */}
+                    <div className="rounded-xl border border-emerald-200 dark:border-emerald-950 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex size-7 items-center justify-center rounded-full bg-[#25D366] text-white">
+                            <MessageCircle size={14} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black text-slate-900 dark:text-white leading-none">
+                              Mentor WhatsApp
+                            </p>
+                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                              Avg. reply 15 mins
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-700 dark:text-slate-300 italic bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800">
+                          "Great job on Day 3's typography! For Day 4, pay special attention to retention at the 7-second mark."
+                        </p>
+                      </div>
+                      <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                        <span>1-Click Mentor Chat Enabled</span>
+                        <CheckCircle2 size={12} />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scroll Down Hook */}
+            <div className="mt-12 flex flex-col items-center">
+              <a
+                href="#comparison"
+                className="group flex flex-col items-center gap-2 text-xs font-bold text-slate-400 hover:text-orange-600 transition"
+              >
+                <span>Scroll down to see the full 15-day transformation</span>
+                <span className="flex size-8 items-center justify-center rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-xs group-hover:border-orange-500 group-hover:text-orange-600 group-hover:translate-y-1 transition-all">
+                  <ArrowDown size={14} />
+                </span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* LIVE COHORT ACTIVITY TICKER (TRENDING SOCIAL FEED) */}
+        {/* ========================================================================= */}
+        <section className="border-y border-slate-200/80 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-900/60 py-4 overflow-hidden">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="flex size-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-black text-slate-950 dark:text-white uppercase tracking-wider text-[11px]">
+                  Live Cohort Pulse
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-6 overflow-x-auto text-[11px] scrollbar-none">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="font-bold text-orange-600">@vikram_dev</span>
+                  <span>shipped Day 07 REST API with Supabase RLS</span>
+                  <span className="text-slate-400 font-normal">· 3m ago</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="font-bold text-emerald-600">@maya_cuts</span>
+                  <span>scored 98/100 on 30s Kinetic Cut</span>
+                  <span className="text-slate-400 font-normal">· 7m ago</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="font-bold text-blue-600">Mentor Sarah</span>
+                  <span>answered WhatsApp blocker</span>
+                  <span className="text-slate-400 font-normal">· 11m ago</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="font-bold text-purple-600">Credential #891</span>
+                  <span>verified on LinkedIn</span>
+                  <span className="text-slate-400 font-normal">· 16m ago</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 1: THE CORE PROBLEM — TUTORIAL HELL VS PROCUT SPRINT */}
+        {/* ========================================================================= */}
+        <section id="comparison" className="py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-14">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+                The Real Difference
+              </p>
+              <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                Why 94% of Our Interns Finish (and Traditional Courses Fail)
+              </h2>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                Most online tutorials are passive entertainment. ProCut Hub turns education into a daily production discipline.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Old Way */}
+              <div className="rounded-3xl border border-red-200/80 dark:border-red-950/80 bg-red-50/30 dark:bg-red-950/10 p-7 sm:p-9 space-y-6">
+                <div className="flex items-center justify-between border-b border-red-100 dark:border-red-950/80 pb-4">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-red-600">The Usual Way</span>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white mt-1">Passive Tutorial Hell</h3>
+                  </div>
+                  <span className="flex size-10 items-center justify-center rounded-2xl bg-red-100 dark:bg-red-900/40 text-red-600">
+                    <X size={20} />
+                  </span>
+                </div>
+
+                <ul className="space-y-4 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                  <li className="flex items-start gap-3">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 mt-0.5 font-bold">✕</span>
+                    <span><strong>Endless Watching:</strong> 40+ hours of passive video lectures that you never actually apply.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 mt-0.5 font-bold">✕</span>
+                    <span><strong>Toy Projects:</strong> Generic "to-do apps" or copy-paste clips that recruiters immediately ignore.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 mt-0.5 font-bold">✕</span>
+                    <span><strong>Zero Accountability:</strong> Nobody notices when you stop logging in after Day 5.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 mt-0.5 font-bold">✕</span>
+                    <span><strong>Ghosted Support:</strong> Cluttered forums where your questions go unanswered for days.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 mt-0.5 font-bold">✕</span>
+                    <span><strong>Worthless Certificate:</strong> A PDF attendance certificate that holds no weight with employers.</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* The ProCut Way */}
+              <div className="rounded-3xl border border-emerald-300 dark:border-emerald-800 bg-gradient-to-br from-emerald-50/50 via-white to-orange-50/30 dark:from-emerald-950/20 dark:via-slate-900 dark:to-orange-950/10 p-7 sm:p-9 space-y-6 shadow-xl">
+                <div className="flex items-center justify-between border-b border-emerald-100 dark:border-emerald-900/60 pb-4">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-emerald-600">The ProCut Sprint</span>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white mt-1">15-Day Production Sprint</h3>
+                  </div>
+                  <span className="flex size-10 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-sm">
+                    <Check size={20} />
+                  </span>
+                </div>
+
+                <ul className="space-y-4 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
+                  <li className="flex items-start gap-3">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white mt-0.5 font-bold">✓</span>
+                    <span><strong>Daily Production Tasks:</strong> 15 real client briefs with 24-hour turnaround to build shipping stamina.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white mt-0.5 font-bold">✓</span>
+                    <span><strong>Portfolio-Grade Deliverables:</strong> Real GitHub PRs, live demo deployments, and broadcast commercial cuts.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white mt-0.5 font-bold">✓</span>
+                    <span><strong>WhatsApp Inactivity Nudges:</strong> Automated alerts if you risk breaking your streak.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white mt-0.5 font-bold">✓</span>
+                    <span><strong>Direct 1:1 WhatsApp Mentorship:</strong> Fast voice notes and blocker clearing directly from senior leads.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white mt-0.5 font-bold">✓</span>
+                    <span><strong>Accredited Credential &amp; LOR:</strong> Cryptographic verification link + personalized Letter of Recommendation.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 2: HOW IT WORKS — A DAY IN THE LIFE OF AN INTERN */}
+        {/* ========================================================================= */}
+        <section id="how-it-works" className="border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-16">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+                The Daily Rhythm
+              </p>
+              <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                A Day in the Life of a ProCut Intern
+              </h2>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                Here is exactly how your 24-hour cycle runs every day for 15 days. Designed for students and working professionals.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Step 1 */}
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-orange-100 dark:bg-orange-950/60 px-3 py-1 text-xs font-black text-orange-600 dark:text-orange-400">
+                    09:00 AM
+                  </span>
+                  <Sparkles size={18} className="text-orange-500" />
+                </div>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  1. The WhatsApp Challenge Drop
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Your phone buzzes. A concise 3-minute video brief and download link to today's raw assets arrive on WhatsApp and your student dashboard.
+                </p>
+                <div className="text-[11px] font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+                  Deliverable spec, starter repo, and grading rubric attached.
+                </div>
+              </Card>
+
+              {/* Step 2 */}
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-blue-100 dark:bg-blue-950/60 px-3 py-1 text-xs font-black text-blue-600 dark:text-blue-400">
+                    01:00 PM
+                  </span>
+                  <MessageCircle size={18} className="text-blue-500" />
+                </div>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  2. Midday Sync &amp; Blocker Triage
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Stuck on a tricky CSS state bug, an API auth failure, or a pacing drop-off? Ping your mentor 1-on-1 on WhatsApp for immediate voice-note guidance.
+                </p>
+                <div className="text-[11px] font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+                  Under 15-minute response SLA from lead engineers &amp; editors.
+                </div>
+              </Card>
+
+              {/* Step 3 */}
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-purple-100 dark:bg-purple-950/60 px-3 py-1 text-xs font-black text-purple-600 dark:text-purple-400">
+                    06:00 PM
+                  </span>
+                  <Code2 size={18} className="text-purple-500" />
+                </div>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  3. Deep Production Sprint
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Commit focused hours to implement the brief. Assemble your timeline, balance sound, write clean typed React components, and test edge cases.
+                </p>
+                <div className="text-[11px] font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+                  Real muscle memory built with industry tools.
+                </div>
+              </Card>
+
+              {/* Step 4 */}
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-amber-100 dark:bg-amber-950/60 px-3 py-1 text-xs font-black text-amber-600 dark:text-amber-400">
+                    09:00 PM
+                  </span>
+                  <Flame size={18} className="text-amber-500" />
+                </div>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  4. Inactivity Protection Ping
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Haven't submitted yet? Our automated system detects pending tasks and sends a WhatsApp encouragement alert so you don't break your 15-day streak.
+                </p>
+                <div className="text-[11px] font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+                  Accountability engine that drives our 94.2% completion rate.
+                </div>
+              </Card>
+
+              {/* Step 5 */}
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-red-100 dark:bg-red-950/60 px-3 py-1 text-xs font-black text-red-600 dark:text-red-400">
+                    11:59 PM
+                  </span>
+                  <Clock size={18} className="text-red-500" />
+                </div>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  5. Deliverable Submission Lock
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Submit your public GitHub PR URL, Vercel deployment link, or Google Drive / Frame.io video cut. Your daily streak lights up green.
+                </p>
+                <div className="text-[11px] font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+                  Verified timestamp recorded on your student transcript.
+                </div>
+              </Card>
+
+              {/* Step 6 */}
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-3 py-1 text-xs font-black text-emerald-600 dark:text-emerald-400">
+                    Next Morning
+                  </span>
+                  <Award size={18} className="text-emerald-500" />
+                </div>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  6. Scorecard &amp; Actionable Audit
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Wake up to an official score out of 100 with specific constructive notes on what went well and what micro-adjustments to apply today.
+                </p>
+                <div className="text-[11px] font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-3">
+                  Graded against real industry commercial hiring standards.
+                </div>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 3: THE 2 SPECIALIZED PRODUCTION TRACKS */}
+        {/* ========================================================================= */}
+        <section id="tracks" className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+                Specialized Disciplines
+              </p>
+              <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                Choose Your 15-Day Production Track
+              </h2>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                Both tracks share the same high-velocity 24-hour daily task structure and 1:1 WhatsApp mentorship.
+              </p>
+
+              {/* Track Selector Buttons */}
+              <div className="mt-8 inline-flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTrack('creative')}
+                  className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black transition cursor-pointer ${
+                    selectedTrack === 'creative'
+                      ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+                  }`}
+                >
+                  <Video size={16} />
+                  <span>Creative Video &amp; Kinetic Motion</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTrack('coding')}
+                  className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black transition cursor-pointer ${
+                    selectedTrack === 'coding'
+                      ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+                  }`}
+                >
+                  <Code2 size={16} />
+                  <span>Coding &amp; Full Stack Software</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Track Content Showcase */}
+            {selectedTrack === 'creative' ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+                  <div className="flex size-11 items-center justify-center rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-orange-600">
+                    <Play size={20} />
+                  </div>
+                  <h3 className="text-base font-black text-slate-950 dark:text-white">Kinetic Typography &amp; Motion</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Design modern animated captions, subtitle timing, bezier motion easing, and title cards that elevate brand storytelling.
+                  </p>
+                  <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <li className="flex items-center gap-2">✓ After Effects Bezier Curves</li>
+                    <li className="flex items-center gap-2">✓ Kinetic Caption Presets</li>
+                    <li className="flex items-center gap-2">✓ Title Transitions &amp; Match Cuts</li>
+                  </ul>
+                  <span className="inline-block text-[11px] font-bold text-orange-600 pt-2">Days 1–5 Deliverables →</span>
+                </Card>
+
+                <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+                  <div className="flex size-11 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600">
+                    <Flame size={20} />
+                  </div>
+                  <h3 className="text-base font-black text-slate-950 dark:text-white">Retention Curves &amp; Soundscapes</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Apply psychoacoustic sound design, whooshes, risers, and rapid J/L audio cuts that maintain 70%+ audience watch time.
+                  </p>
+                  <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <li className="flex items-center gap-2">✓ Multi-Track SFX Layering</li>
+                    <li className="flex items-center gap-2">✓ Color Primaries &amp; Skin Tone Scopes</li>
+                    <li className="flex items-center gap-2">✓ Short-Form Vertical Viral Framing</li>
+                  </ul>
+                  <span className="inline-block text-[11px] font-bold text-amber-600 pt-2">Days 6–10 Deliverables →</span>
+                </Card>
+
+                <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+                  <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600">
+                    <Award size={20} />
+                  </div>
+                  <h3 className="text-base font-black text-slate-950 dark:text-white">60s Commercial Capstone Reel</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Complete a broadcast-ready client edit with color primaries, LUT skin-tone balancing, and full audio master mix.
+                  </p>
+                  <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <li className="flex items-center gap-2">✓ Real Client Commercial Brief</li>
+                    <li className="flex items-center gap-2">✓ Mastered -14 LUFS Audio Delivery</li>
+                    <li className="flex items-center gap-2">✓ Loom Editorial Defense Video</li>
+                  </ul>
+                  <span className="inline-block text-[11px] font-bold text-emerald-600 pt-2">Days 11–15 Capstone →</span>
+                </Card>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+                  <div className="flex size-11 items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-600">
+                    <Code2 size={20} />
+                  </div>
+                  <h3 className="text-base font-black text-slate-950 dark:text-white">Modern React 19 &amp; TypeScript</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Build component state architectures with strict TypeScript typing, custom hooks, and zero-runtime Tailwind styling.
+                  </p>
+                  <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <li className="flex items-center gap-2">✓ Strict TS Types &amp; Generics</li>
+                    <li className="flex items-center gap-2">✓ Optimistic UI &amp; State Reducers</li>
+                    <li className="flex items-center gap-2">✓ Tailwind Component Systems</li>
+                  </ul>
+                  <span className="inline-block text-[11px] font-bold text-blue-600 pt-2">Days 1–5 Deliverables →</span>
+                </Card>
+
+                <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+                  <div className="flex size-11 items-center justify-center rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600">
+                    <Zap size={20} />
+                  </div>
+                  <h3 className="text-base font-black text-slate-950 dark:text-white">Supabase Backend &amp; Real-time APIs</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Design PostgreSQL relational schemas, write robust Row-Level Security policies, and integrate live WebSocket feeds.
+                  </p>
+                  <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <li className="flex items-center gap-2">✓ PostgreSQL Relations &amp; Foreign Keys</li>
+                    <li className="flex items-center gap-2">✓ Secure Row-Level Security Policies</li>
+                    <li className="flex items-center gap-2">✓ Live WebSocket Subscriptions</li>
+                  </ul>
+                  <span className="inline-block text-[11px] font-bold text-purple-600 pt-2">Days 6–10 Deliverables →</span>
+                </Card>
+
+                <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+                  <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600">
+                    <Award size={20} />
+                  </div>
+                  <h3 className="text-base font-black text-slate-950 dark:text-white">Full-Stack SaaS Capstone on Vercel</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Deploy a fully tested, production-grade web application with CI previews, unit test suites, and audited PR code.
+                  </p>
+                  <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <li className="flex items-center gap-2">✓ Production Custom Domain on Vercel</li>
+                    <li className="flex items-center gap-2">✓ Vitest &amp; Cypress End-to-End Suite</li>
+                    <li className="flex items-center gap-2">✓ GitHub PR Review &amp; Code Defense</li>
+                  </ul>
+                  <span className="inline-block text-[11px] font-bold text-emerald-600 pt-2">Days 11–15 Capstone →</span>
+                </Card>
+              </div>
+            )}
+
+            {/* 3-Phase Stepper Tabs for Sprints */}
+            <div className="mt-14 pt-12 border-t border-slate-200/80 dark:border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="text-lg font-black text-slate-950 dark:text-white">The 3 Progressive Sprint Phases</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Step by step from foundational momentum to industry-grade capstone proof.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSprintPhase('p1')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
+                      activeSprintPhase === 'p1' ? 'bg-orange-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Phase 1 (Days 1–5)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSprintPhase('p2')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
+                      activeSprintPhase === 'p2' ? 'bg-orange-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Phase 2 (Days 6–10)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSprintPhase('p3')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
+                      activeSprintPhase === 'p3' ? 'bg-orange-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Phase 3 (Days 11–15)
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                {activeSprintPhase === 'p1' ? (
+                  <>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <p className="font-black text-orange-600">Day 01–02: Workspace &amp; Mechanics</p>
+                      <p className="mt-1 text-slate-600 dark:text-slate-400">Clone repositories, configure shortcut mapping, and build muscle memory.</p>
+                    </div>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <p className="font-black text-orange-600">Day 03–04: Reactive Motion &amp; State</p>
+                      <p className="mt-1 text-slate-600 dark:text-slate-400">Keyframe typography or connect backend data flows with optimistic updates.</p>
+                    </div>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <p className="font-black text-orange-600">Day 05: Phase Checkpoint Audit</p>
+                      <p className="mt-1 text-slate-600 dark:text-slate-400">First formal mentor scoring (0–100) and written critique feedback.</p>
+                    </div>
+                  </>
+                ) : activeSprintPhase === 'p2' ? (
+                  <>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <p className="font-black text-orange-600">Day 06–07: Depth &amp; Subsystems</p>
+                      <p className="mt-1 text-slate-600 dark:text-slate-400">Complex sound design layers or multi-table PostgreSQL relational queries.</p>
+                    </div>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <p className="font-black text-orange-600">Day 08–09: Retention &amp; Mobile Web</p>
+                      <p className="mt-1 text-slate-600 dark:text-slate-400">Pacing drop-off prevention and high-performance mobile viewport responsiveness.</p>
+                    </div>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <p className="font-black text-orange-600">Day 10: Halfway Live Review</p>
+                      <p className="mt-1 text-slate-600 dark:text-slate-400">Live Zoom workshop with mentors tearing down student timelines &amp; code.</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <p className="font-black text-orange-600">Day 11–13: The Commercial Capstone</p>
+                      <p className="mt-1 text-slate-600 dark:text-slate-400">48-hour deep sprint turning real client briefs into a showcase deliverable.</p>
+                    </div>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <p className="font-black text-orange-600">Day 14: Final Polish &amp; Loom Audit</p>
+                      <p className="mt-1 text-slate-600 dark:text-slate-400">Submit video walkthrough explaining architectural &amp; editorial choices.</p>
+                    </div>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <p className="font-black text-orange-600">Day 15: Graduation &amp; LOR</p>
+                      <p className="mt-1 text-slate-600 dark:text-slate-400">Receive verified digital certificate and mentor recommendation letter.</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 4: COMPLETE 15-DAY DAILY ARCHITECTURE INSPECTOR */}
+        {/* ========================================================================= */}
+        <section id="sprint" className="border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+                  Full 15-Day Architecture
+                </p>
+                <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                  Inspect Every Single Day Before You Commit
+                </h2>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md leading-relaxed">
+                Click any day below to inspect the exact deliverable, tools used, grading focus, and expected time commitment.
+              </p>
+            </div>
+
+            {/* Day Selector Strip */}
+            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-15 gap-2 pb-4 overflow-x-auto">
+              {full15Days.map((d) => (
+                <button
+                  key={d.day}
+                  onClick={() => setSelectedDayDetail(d.day)}
+                  className={`flex flex-col items-center py-3 px-2 rounded-xl border transition cursor-pointer ${
+                    selectedDayDetail === d.day
+                      ? 'bg-orange-500 border-orange-600 text-white shadow-md scale-105'
+                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-orange-300'
+                  }`}
+                >
+                  <span className="text-[10px] uppercase font-bold opacity-75">Day</span>
+                  <span className="text-base font-black">{d.day.toString().padStart(2, '0')}</span>
+                  <span className="mt-1 size-1.5 rounded-full bg-current" />
+                </button>
+              ))}
+            </div>
+
+            {/* Selected Day Expanded Detail Card */}
+            {(() => {
+              const activeDay = full15Days.find((d) => d.day === selectedDayDetail) || full15Days[3];
+              return (
+                <Card className="mt-6 p-6 sm:p-8 border-orange-200 dark:border-orange-950 bg-slate-50/50 dark:bg-slate-950/60 shadow-md">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-200 dark:border-slate-800">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md bg-orange-100 dark:bg-orange-950/60 px-2.5 py-0.5 text-xs font-black uppercase text-orange-700 dark:text-orange-400">
+                          Day {activeDay.day.toString().padStart(2, '0')} · Phase {activeDay.phase}
+                        </span>
+                        <span className="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2 py-0.5 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                          {activeDay.time} sprint
+                        </span>
+                      </div>
+                      <h3 className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white">
+                        {activeDay.title}
+                      </h3>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right hidden sm:block">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tools Involved</p>
+                        <p className="text-xs font-black text-slate-900 dark:text-white">{activeDay.tool}</p>
+                      </div>
+                      <Button href="/register" size="sm">
+                        <span>Enroll Now</span>
+                        <ArrowRight size={13} />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-2 space-y-3">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">The Brief</h4>
+                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {activeDay.desc}
+                      </p>
+                      <div className="pt-2 flex items-center gap-2 text-xs font-bold text-slate-500">
+                        <Clock size={14} className="text-orange-500" />
+                        <span>24-Hour Submission Window (Due 11:59 PM)</span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-2">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-orange-600">Expected Deliverable</h4>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">
+                        {activeDay.deliverable}
+                      </p>
+                      <div className="border-t border-slate-100 dark:border-slate-800 pt-2 text-[11px] text-slate-500">
+                        <strong className="text-slate-700 dark:text-slate-300">Grading Focus: </strong>
+                        {activeDay.rubricPoints}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })()}
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 5: STARTER PACKS & ASSET VAULT INCLUDED ($1,200+ VALUE) */}
+        {/* ========================================================================= */}
+        <section id="assets" className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-16">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+                Turnkey Production Resources
+              </p>
+              <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                Everything You Need on Day 1 is Already Provided
+              </h2>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                No hunting for royalty-free music or configuring broken boilerplates. You get full access to our curated production assets vault.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-orange-600">
+                  <Video size={20} />
+                </div>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  4K RAW Cinema Footage
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Over 150GB of commercial footage shot on Sony FX3 and RED Digital Cinema, including interview multi-cams, B-roll, and drone plates.
+                </p>
+                <div className="text-[10px] font-black uppercase tracking-wider text-orange-600 pt-2">
+                  Commercial Rights Included
+                </div>
+              </Card>
+
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-600">
+                  <Code2 size={20} />
+                </div>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  Enterprise GitHub Starters
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Next.js 15, Tailwind, Supabase schemas with pre-built RLS policies, Vitest configuration, and automated GitHub Action CI/CD pipelines.
+                </p>
+                <div className="text-[10px] font-black uppercase tracking-wider text-blue-600 pt-2">
+                  1-Click Repo Template
+                </div>
+              </Card>
+
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600">
+                  <Download size={20} />
+                </div>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  2,500+ Licensed Sound FX
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  High-fidelity 24-bit 48kHz WAV audio files: cinematic whooshes, tech UI clicks, risers, bass drops, and ambient textures for pacing mastery.
+                </p>
+                <div className="text-[10px] font-black uppercase tracking-wider text-purple-600 pt-2">
+                  Permanent License
+                </div>
+              </Card>
+
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600">
+                  <FileText size={20} />
+                </div>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  Real Client Creative Briefs
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Realistic project specifications from Fintech startups, SaaS apps, and creator studios with acceptance criteria and brand style guides.
+                </p>
+                <div className="text-[10px] font-black uppercase tracking-wider text-emerald-600 pt-2">
+                  Real Production Briefs
+                </div>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 6: WHATSAPP MENTORSHIP ENGINE & INTERACTIVE CHAT SIMULATOR */}
+        {/* ========================================================================= */}
+        <section id="mentorship" className="py-20 lg:py-28 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-3 py-1 text-xs font-black text-emerald-800 dark:text-emerald-300 mb-4">
+                  <MessageCircle size={14} />
+                  <span>Real-Time Accountability</span>
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white leading-tight">
+                  A Senior Mentor in Your Pocket via WhatsApp.
+                </h2>
+                <p className="mt-4 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  No impersonal forums or ticket systems that take days to answer. With ProCut Hub, you communicate directly with an assigned lead engineer or senior video editor.
+                </p>
+
+                <div className="mt-8 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white mt-0.5">
+                      <Check size={13} />
+                    </span>
+                    <div>
+                      <p className="text-xs font-black text-slate-900 dark:text-white">Daily 9:00 AM Challenge Drops</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Receive today’s task brief and quick links directly on WhatsApp.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white mt-0.5">
+                      <Check size={13} />
+                    </span>
+                    <div>
+                      <p className="text-xs font-black text-slate-900 dark:text-white">Voice-Note Code &amp; Timeline Audits</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Mentors send 30-second voice notes pointing out exact timestamps and lines to refine.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white mt-0.5">
+                      <Check size={13} />
+                    </span>
+                    <div>
+                      <p className="text-xs font-black text-slate-900 dark:text-white">Proactive Inactivity Shield</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Our system detects if you’re falling behind and sends a friendly nudge to keep your streak alive.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scenario Toggle */}
+                <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">
+                    Test the WhatsApp Simulator:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveChatScenario('video')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                        activeChatScenario === 'video'
+                          ? 'bg-emerald-500 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      Pacing Critique
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveChatScenario('code')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                        activeChatScenario === 'code'
+                          ? 'bg-emerald-500 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      Code Bug Triage
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveChatScenario('nudge')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                        activeChatScenario === 'nudge'
+                          ? 'bg-emerald-500 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      Streak Inactivity Nudge
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chat Simulation Card */}
+              <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-6 shadow-xl space-y-4">
+                <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
+                  <div className="relative">
+                    <div className="flex size-10 items-center justify-center rounded-full bg-[#128C7E] text-white font-bold text-sm">
+                      PH
+                    </div>
+                    <span className="absolute bottom-0 right-0 size-3 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-slate-900" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-950 dark:text-white">ProCut Hub Mentor Desk</h3>
+                    <p className="text-[10px] text-emerald-600 font-bold">Online • Senior Lead Active</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-xs min-h-[220px] flex flex-col justify-center">
+                  {activeChatScenario === 'video' ? (
+                    <>
+                      <div className="rounded-xl rounded-tl-none bg-white dark:bg-slate-900 p-3 max-w-[85%] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                        <p className="font-bold text-[10px] text-slate-400 mb-1">9:00 AM • Challenge Drop</p>
+                        🚀 <strong>Day 06 is LIVE:</strong> Color Grading Primaries &amp; Skin Tones in Resolve. Starter 4K Sony RAW clip is in your portal!
+                      </div>
+                      <div className="ml-auto rounded-xl rounded-tr-none bg-orange-500 text-white p-3 max-w-[85%]">
+                        Hey mentor! My skin tones look a bit magenta under studio lights. What node should I adjust first?
+                      </div>
+                      <div className="rounded-xl rounded-tl-none bg-white dark:bg-slate-900 p-3 max-w-[85%] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                        <p className="font-bold text-[10px] text-emerald-600 mb-1">9:12 AM • Mentor Voice Note (0:24)</p>
+                        "Check your vector scope skin line. Drop node 2 hue-vs-hue slightly toward yellow (+4 degrees) and balance the offset wheel. You're super close!"
+                      </div>
+                    </>
+                  ) : activeChatScenario === 'code' ? (
+                    <>
+                      <div className="rounded-xl rounded-tl-none bg-white dark:bg-slate-900 p-3 max-w-[85%] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                        <p className="font-bold text-[10px] text-slate-400 mb-1">9:00 AM • Challenge Drop</p>
+                        ⚡ <strong>Day 04 is LIVE:</strong> Supabase PostgreSQL Row Level Security (RLS) tables. Ensure public reads are blocked.
+                      </div>
+                      <div className="ml-auto rounded-xl rounded-tr-none bg-orange-500 text-white p-3 max-w-[85%]">
+                        Getting a 403 on my insert mutation even though the user is authenticated in the session.
+                      </div>
+                      <div className="rounded-xl rounded-tl-none bg-white dark:bg-slate-900 p-3 max-w-[85%] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                        <p className="font-bold text-[10px] text-emerald-600 mb-1">9:14 AM • Mentor Reply</p>
+                        "Check your WITH CHECK clause on the policy: ensure `auth.uid() = user_id`. If `user_id` is null on payload insert, Postgres drops the row!"
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="rounded-xl rounded-tl-none bg-white dark:bg-slate-900 p-3 max-w-[85%] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                        <p className="font-bold text-[10px] text-amber-500 mb-1">8:30 PM • Automated Streak Shield</p>
+                        ⚠️ <strong>Hey Alex!</strong> Your 6-Day Streak is at risk. Day 07 deadline is in 3.5 hours (11:59 PM). Need any blocker cleared before submitting?
+                      </div>
+                      <div className="ml-auto rounded-xl rounded-tr-none bg-orange-500 text-white p-3 max-w-[85%]">
+                        Thanks for the ping! Just finishing up the final audio export now. Submitting in 20 mins!
+                      </div>
+                      <div className="rounded-xl rounded-tl-none bg-white dark:bg-slate-900 p-3 max-w-[85%] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                        <p className="font-bold text-[10px] text-emerald-600 mb-1">8:52 PM • System Confirmation</p>
+                        ✅ Submission received! Streak preserved: <strong>7 Days Strong 🔥</strong>.
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 7: AUTOMATED MONITORING & PROOF-OF-WORK RUBRIC */}
+        {/* ========================================================================= */}
+        <section id="rubric" className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-16">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+                Rigorous Evaluation Standards
+              </p>
+              <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                How Your Work is Monitored &amp; Scored
+              </h2>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                We don't do pass/fail quizzes. Every submission is evaluated against our 5-pillar industry rubric by human mentors.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <Card className="p-5 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <span className="text-2xl font-black text-orange-600">01</span>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white">Technical Execution</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Does the code work without runtime bugs? Are video cuts placed on exact musical beats and retention cues?
+                </p>
+              </Card>
+
+              <Card className="p-5 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <span className="text-2xl font-black text-orange-600">02</span>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white">Cleanliness &amp; Polish</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Zero lint errors, modular React components, and mastered audio submix without clipped waveforms.
+                </p>
+              </Card>
+
+              <Card className="p-5 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <span className="text-2xl font-black text-orange-600">03</span>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white">Timeliness Discipline</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Submitted before 11:59 PM deadline. Builds the muscle memory required in real client agencies.
+                </p>
+              </Card>
+
+              <Card className="p-5 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <span className="text-2xl font-black text-orange-600">04</span>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white">Commercial Viability</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Would a paying client accept this deliverable? Does it solve the real business goal of the brief?
+                </p>
+              </Card>
+
+              <Card className="p-5 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <span className="text-2xl font-black text-orange-600">05</span>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white">Documentation &amp; Loom</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Clear GitHub PR description or short Loom video walk-through explaining technical tradeoffs.
+                </p>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 8: GAMIFICATION, STREAKS & LEVEL UP SYSTEM */}
+        {/* ========================================================================= */}
+        <section className="border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div className="space-y-6">
+                <div className="inline-flex items-center gap-2 rounded-full bg-orange-100 dark:bg-orange-950/60 px-3 py-1 text-xs font-black text-orange-700 dark:text-orange-400">
+                  <Trophy size={14} />
+                  <span>The Psychology of Finishing</span>
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white leading-tight">
+                  Gamified Daily Sprints That Make Quitting Impossible.
+                </h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  We engineered ProCut Hub around positive momentum. Daily streaks, XP points, and cohort leaderboards keep your adrenaline high until Day 15.
+                </p>
+
+                <div className="space-y-4 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-white font-bold">
+                      🔥
+                    </span>
+                    <div>
+                      <strong className="text-slate-950 dark:text-white">The 15-Day Flame Streak:</strong>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Submit every day to protect your unbroken streak. Earn the coveted 15/15 Finisher Badge.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white font-bold">
+                      ⚡
+                    </span>
+                    <div>
+                      <strong className="text-slate-950 dark:text-white">Early Bird XP Multiplier:</strong>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Submitting before 8:00 PM grants a 1.5x XP bonus, placing your work higher on the mentor review queue.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-purple-500 text-white font-bold">
+                      🛡️
+                    </span>
+                    <div>
+                      <strong className="text-slate-950 dark:text-white">Emergency Streak Freeze:</strong>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Life happens. Every student gets 1 emergency streak shield to safeguard their record during emergencies.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Gamification Dashboard Mock */}
+              <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-6 sm:p-8 space-y-6 shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-2xl bg-orange-500 text-white font-black text-sm">
+                      15
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-900 dark:text-white">Batch 15 Leaderboard</p>
+                      <p className="text-[10px] text-slate-400">Live cohort rankings</p>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-400">
+                    Top 5% Intern
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {[
+                    { rank: 1, name: 'Kavya S.', track: 'Full Stack', xp: '2,940 XP', streak: '12d 🔥' },
+                    { rank: 2, name: 'Rahul V.', track: 'Video Edit', xp: '2,890 XP', streak: '12d 🔥' },
+                    { rank: 3, name: 'Alex Harrison (You)', track: 'Full Stack', xp: '2,850 XP', streak: '12d 🔥' },
+                  ].map((user) => (
+                    <div
+                      key={user.rank}
+                      className={`flex items-center justify-between p-3 rounded-xl border text-xs ${
+                        user.rank === 3
+                          ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-950/20'
+                          : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="font-black text-slate-400 w-4">#{user.rank}</span>
+                        <div>
+                          <p className="font-black text-slate-900 dark:text-white">{user.name}</p>
+                          <p className="text-[10px] text-slate-400">{user.track}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-orange-600">{user.xp}</p>
+                        <p className="text-[10px] text-slate-500">{user.streak}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 9: LIVE WORKSHOPS & CRITIQUE ROOMS */}
+        {/* ========================================================================= */}
+        <section id="workshops" className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-16">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+                Live Interactive Masterclasses
+              </p>
+              <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                Live Critique Rooms &amp; Stage Refactorings
+              </h2>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                In addition to daily tasks, join live group critique sessions where mentors audit real student timelines and codebases on Zoom.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+                <span className="rounded-md bg-blue-100 dark:bg-blue-950/60 px-2 py-0.5 text-[10px] font-black uppercase text-blue-600">
+                  Every Saturday 6:00 PM
+                </span>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  Live Project Teardowns &amp; Hot Seat
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Volunteers share their screens. Mentors pull apart the timeline cut or inspect the React component tree in real-time.
+                </p>
+                <div className="text-[11px] font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-3">
+                  Full 4K recording uploaded within 2 hours.
+                </div>
+              </Card>
+
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+                <span className="rounded-md bg-purple-100 dark:bg-purple-950/60 px-2 py-0.5 text-[10px] font-black uppercase text-purple-600">
+                  Mid-Sprint Day 10
+                </span>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  Architecture &amp; Sound Masterclass
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Deep-dive into advanced topics: multi-tenant database partitioning, psychoacoustic sound submixes, and color primary transforms.
+                </p>
+                <div className="text-[11px] font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-3">
+                  Interactive Q&amp;A directly with guest directors.
+                </div>
+              </Card>
+
+              <Card className="p-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+                <span className="rounded-md bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-600">
+                  Sprint Day 15
+                </span>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">
+                  Capstone Demo Day &amp; Recruiter Pitch
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Graduates present their crowning 15-day capstones to our partner network of startup founders and agency creative directors.
+                </p>
+                <div className="text-[11px] font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-3">
+                  Direct fast-track interview opportunities.
+                </div>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 10: BATTLE-TESTED TECH STACK WALL */}
+        {/* ========================================================================= */}
+        <section className="border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 py-16">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8 text-center">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
+              Battle-Tested Industry Ecosystem
+            </p>
+            <h3 className="mt-2 text-xl sm:text-2xl font-black text-slate-950 dark:text-white">
+              The Modern Production Stack You Will Master
+            </h3>
+
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4 max-w-4xl mx-auto">
+              {[
+                'React 19',
+                'TypeScript',
+                'Next.js 15',
+                'Tailwind CSS',
+                'Supabase',
+                'PostgreSQL',
+                'Git & GitHub',
+                'Vercel CI/CD',
+                'Adobe Premiere Pro',
+                'DaVinci Resolve Studio',
+                'Adobe After Effects',
+                'Adobe Audition SFX',
+                'Figma UI',
+                'Loom Video',
+                'WhatsApp Business API',
+              ].map((tool) => (
+                <span
+                  key={tool}
+                  className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-2 text-xs font-black text-slate-800 dark:text-slate-200 shadow-2xs hover:border-orange-500 hover:text-orange-600 transition"
+                >
+                  {tool}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 11: BEFORE VS AFTER TRANSFORMATION SHOWCASE */}
+        {/* ========================================================================= */}
+        <section className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-14">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+                Tangible Outcomes
+              </p>
+              <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                Your Proof-of-Work: Day 0 vs. Day 15
+              </h2>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                See the concrete leap in quality, velocity, and professionalism our graduates achieve in just 15 days.
+              </p>
+
+              <div className="mt-6 inline-flex rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTransformation('creative')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-black cursor-pointer transition ${
+                    activeTransformation === 'creative' ? 'bg-orange-500 text-white' : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Video Editing Track
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTransformation('coding')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-black cursor-pointer transition ${
+                    activeTransformation === 'coding' ? 'bg-orange-500 text-white' : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Full Stack Coding Track
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Day 0 */}
+              <Card className="p-7 sm:p-9 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-400">Day 00: Starting Point</span>
+                  <span className="text-xs font-bold text-red-500">Amateur &amp; Unstructured</span>
+                </div>
+                {activeTransformation === 'creative' ? (
+                  <ul className="space-y-3 text-xs text-slate-600 dark:text-slate-400">
+                    <li className="flex items-start gap-2">✕ Messy timeline with unorganized clip layers and random filenames.</li>
+                    <li className="flex items-start gap-2">✕ Jarring audio transitions and flat background music without risers.</li>
+                    <li className="flex items-start gap-2">✕ Generic default subtitle fonts that look amateur on mobile feeds.</li>
+                    <li className="flex items-start gap-2">✕ 30% audience retention drop in the first 5 seconds.</li>
+                  </ul>
+                ) : (
+                  <ul className="space-y-3 text-xs text-slate-600 dark:text-slate-400">
+                    <li className="flex items-start gap-2">✕ Scattered "to-do app" code copied from YouTube with zero tests.</li>
+                    <li className="flex items-start gap-2">✕ Unprotected API endpoints with exposed database keys.</li>
+                    <li className="flex items-start gap-2">✕ Heavy reliance on `any` types that cause silent runtime crashes.</li>
+                    <li className="flex items-start gap-2">✕ No live domain — only runs locally on `localhost:3000`.</li>
+                  </ul>
+                )}
+              </Card>
+
+              {/* Day 15 */}
+              <Card className="p-7 sm:p-9 border-emerald-300 dark:border-emerald-800 bg-white dark:bg-slate-900 space-y-4 shadow-lg">
+                <div className="flex items-center justify-between border-b border-emerald-100 dark:border-emerald-900/60 pb-3">
+                  <span className="text-xs font-black uppercase tracking-wider text-emerald-600">Day 15: ProCut Graduate</span>
+                  <span className="text-xs font-bold text-emerald-500">Production-Grade Proof</span>
+                </div>
+                {activeTransformation === 'creative' ? (
+                  <ul className="space-y-3 text-xs text-slate-700 dark:text-slate-300">
+                    <li className="flex items-start gap-2">✓ Strict folder scaffolding with colored track lanes and labeled J/L cuts.</li>
+                    <li className="flex items-start gap-2">✓ Mastered -14 LUFS sound mix with custom whoosh and riser accents.</li>
+                    <li className="flex items-start gap-2">✓ Custom bezier-curved kinetic typography that pops on vertical viewports.</li>
+                    <li className="flex items-start gap-2">✓ Verified 70%+ watch-time retention rate on commercial portfolio edits.</li>
+                  </ul>
+                ) : (
+                  <ul className="space-y-3 text-xs text-slate-700 dark:text-slate-300">
+                    <li className="flex items-start gap-2">✓ Production SaaS deployed on custom domain with SSL and CI previews.</li>
+                    <li className="flex items-start gap-2">✓ PostgreSQL database protected with strict Row-Level Security policies.</li>
+                    <li className="flex items-start gap-2">✓ Strict TypeScript architecture with zero build warnings and clean hooks.</li>
+                    <li className="flex items-start gap-2">✓ Comprehensive Vitest test suite and verified GitHub pull requests.</li>
+                  </ul>
+                )}
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 12: VERIFIED CREDENTIAL & MENTOR RECOMMENDATION SHOWCASE */}
+        {/* ========================================================================= */}
+        <section id="credentials" className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-950 py-20 lg:py-28 text-white">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div className="space-y-6">
+                <div className="inline-flex items-center gap-2 rounded-full bg-amber-400/10 border border-amber-400/20 px-3 py-1 text-xs font-black text-amber-300">
+                  <Award size={14} />
+                  <span>Proof of Competence</span>
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-tight">
+                  A Verifiable Credential That Employers Actually Respect.
+                </h2>
+                <p className="text-sm text-slate-400 leading-relaxed">
+                  Anyone can fake watching videos. Nobody can fake 15 days of verified daily submissions and mentor reviews.
+                </p>
+
+                <div className="space-y-3.5 text-xs sm:text-sm text-slate-300">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                    <span><strong>Cryptographic Verification:</strong> Each certificate includes a unique verification URL and QR code for recruiter validation.</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                    <span><strong>Mentor Letter of Recommendation:</strong> Detailed assessment of your problem-solving, work ethic, and timeline discipline.</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                    <span><strong>LinkedIn 1-Click Credential:</strong> Display your verified internship certificate directly on your professional profile.</span>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <Button href="/register" withArrow>
+                    Earn Your Credential
+                  </Button>
+                </div>
+              </div>
+
+              {/* Realistic Certificate Mockup */}
+              <div className="relative">
+                <div className="absolute -inset-2 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 opacity-20 blur-2xl" />
+                <div className="relative rounded-2xl border border-amber-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-7 sm:p-9 shadow-2xl text-slate-100 space-y-6">
+                  <div className="flex items-start justify-between border-b border-slate-800 pb-5">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-400">
+                        ProCut Hub · Verified Credential
+                      </span>
+                      <h3 className="text-lg font-black text-white mt-1">
+                        Certificate of Internship Completion
+                      </h3>
+                    </div>
+                    <div className="flex size-11 items-center justify-center rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-400">
+                      <Award size={24} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 text-center py-4">
+                    <p className="text-xs text-slate-400 uppercase tracking-widest">This acknowledges that</p>
+                    <p className="text-2xl font-black text-white tracking-tight">Alex Harrison</p>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                      has successfully satisfied all 15 production deliverables, passed mentor audits, and graduated with distinction in
+                    </p>
+                    <p className="text-sm font-black text-orange-400">Full Stack &amp; Creative Production Track (Batch 15)</p>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-slate-800 pt-5 text-xs text-slate-400">
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-slate-500">Credential ID</p>
+                      <p className="font-mono text-xs text-slate-300">PCH-2026-9842-VERIFIED</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <QrCode size={26} className="text-amber-400" />
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-emerald-400">✓ Cryptographically Signed</p>
+                        <p className="text-[9px] text-slate-500">Scan to verify</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 13: HIRING PARTNER PIPELINE */}
+        {/* ========================================================================= */}
+        <section className="border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8 text-center">
+            <div className="max-w-2xl mx-auto space-y-3">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+                Industry Talent Network
+              </p>
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                40+ Studios &amp; Startups Hire Directly From Our Graduates
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                Founders and agency creative leads prefer ProCut interns because they have already proven they can ship production code and edits under 24-hour constraints.
+              </p>
+            </div>
+
+            <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto">
+              {[
+                { name: 'Kite Creative Agency', type: 'Production Studio', hired: '14 Interns' },
+                { name: 'PulseScale SaaS', type: 'B2B Software', hired: '9 Interns' },
+                { name: 'MotionLab Studios', type: 'VFX & Ads', hired: '18 Interns' },
+                { name: 'FinForge Systems', type: 'Fintech Web', hired: '11 Interns' },
+              ].map((company) => (
+                <div
+                  key={company.name}
+                  className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 p-5 text-left space-y-1 shadow-2xs"
+                >
+                  <p className="text-xs font-black text-slate-950 dark:text-white">{company.name}</p>
+                  <p className="text-[11px] text-slate-400">{company.type}</p>
+                  <p className="text-[11px] font-black text-emerald-600 pt-2">✓ Hired {company.hired}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 14: INTERACTIVE FREELANCE & SALARY ROI CALCULATOR */}
+        {/* ========================================================================= */}
+        <section className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-20 lg:py-28">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="max-w-2xl mx-auto text-center mb-12">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+                Interactive Career Calculator
+              </p>
+              <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                Calculate Your Return on 15 Days of Proof-of-Work
+              </h2>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                When you graduate with verified code repositories or finished commercial cuts, your market value changes immediately.
+              </p>
+            </div>
+
+            <Card className="max-w-3xl mx-auto p-7 sm:p-10 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg">
+              <div className="space-y-6">
+                <div>
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                    <span>Expected Client Project Fee / Milestone Rate:</span>
+                    <span className="text-lg font-black text-orange-600 dark:text-orange-400">
+                      ${projectRate} USD
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="150"
+                    max="2500"
+                    step="50"
+                    value={projectRate}
+                    onChange={(e) => setProjectRate(Number(e.target.value))}
+                    className="w-full accent-orange-500 h-2 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-bold">
+                    <span>$150 (Entry Freelancer)</span>
+                    <span>$1,000 (Junior Pro)</span>
+                    <span>$2,500+ (Production Lead)</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-200 dark:border-slate-800 text-center">
+                  <div className="rounded-xl bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200/80 dark:border-slate-800">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cohort Investment</p>
+                    <p className="text-xl font-black text-slate-950 dark:text-white mt-1">$149</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">One-time fee</p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200/80 dark:border-slate-800">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Time to Break Even</p>
+                    <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+                      {projectRate >= 149 ? '1 Single Project' : '2 Projects'}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">&lt; 1 week of freelance work</p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200/80 dark:border-slate-800">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Est. 90-Day ROI</p>
+                    <p className="text-xl font-black text-orange-600 dark:text-orange-400 mt-1">
+                      {Math.round(((projectRate * 3 - 149) / 149) * 100)}%
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Based on 3 client deliverables</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 15: WALL OF LOVE / STUDENT REVIEWS */}
+        {/* ========================================================================= */}
+        <section className="bg-gradient-to-br from-orange-500 to-amber-600 py-20 text-white">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1 space-y-4">
+                <Quote size={36} className="text-white/40" />
+                <h2 className="text-3xl font-black tracking-tight text-white leading-tight">
+                  "I finally finished work I am proud to send to clients."
+                </h2>
+                <p className="text-xs text-orange-100 leading-relaxed">
+                  Real stories from software developers and video editors who completed the 15-day sprint.
+                </p>
+              </div>
+
+              <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Card className="bg-white/10 backdrop-blur-md border-white/20 p-6 text-white space-y-3">
+                  <div className="flex text-amber-300">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} size={14} fill="currentColor" />
+                    ))}
+                  </div>
+                  <p className="text-xs leading-relaxed text-orange-50">
+                    "The 15-day structure is genius. You don't have time to procrastinate. The WhatsApp support helped me unblock a tricky Supabase auth bug in 10 minutes."
+                  </p>
+                  <div>
+                    <p className="text-xs font-black text-white">Arun K.</p>
+                    <p className="text-[10px] text-orange-200">Full Stack Intern · Batch 12</p>
+                  </div>
+                </Card>
+
+                <Card className="bg-white/10 backdrop-blur-md border-white/20 p-6 text-white space-y-3">
+                  <div className="flex text-amber-300">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} size={14} fill="currentColor" />
+                    ))}
+                  </div>
+                  <p className="text-xs leading-relaxed text-orange-50">
+                    "My cuts went from boring and amateur to having real commercial rhythm. The mentor critique room showed me mistakes I was making for 2 years."
+                  </p>
+                  <div>
+                    <p className="text-xs font-black text-white">Pooja M.</p>
+                    <p className="text-[10px] text-orange-200">Video Editing Intern · Batch 14</p>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 16: PRICING & FOUNDING PASS */}
+        {/* ========================================================================= */}
+        <section id="pricing" className="py-20 lg:py-28 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8 text-center">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+              Transparent Enrollment
+            </p>
+            <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+              One Clear Investment. Full 15-Day Access.
+            </h2>
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 max-w-xl mx-auto">
+              Everything you need to ship daily work, receive continuous feedback, and graduate with an industry credential.
+            </p>
+
+            <Card className="mx-auto mt-12 max-w-2xl overflow-hidden border-orange-300 dark:border-orange-900 bg-slate-50/50 dark:bg-slate-950/60 shadow-xl text-left">
+              <div className="grid gap-8 p-7 sm:grid-cols-[1fr_auto] sm:p-10">
+                <div>
+                  <span className="rounded-full bg-orange-100 dark:bg-orange-950/60 px-3 py-1 text-xs font-black uppercase tracking-wider text-orange-700 dark:text-orange-300">
+                    15-Day Sprint Pass
+                  </span>
+                  <h3 className="mt-4 text-2xl font-black text-slate-950 dark:text-white">
+                    Full Cohort Membership
+                  </h3>
+                  <div className="mt-6 grid gap-3 text-xs text-slate-600 dark:text-slate-300 sm:grid-cols-2">
+                    {[
+                      '15 Daily Production Challenges',
+                      '1-on-1 WhatsApp Mentor Support',
+                      'Weekly Live Masterclass Workshops',
+                      'Verified Digital Certificate',
+                      'Mentor Letter of Recommendation',
+                      'Community Board & Peer Network',
+                      'Downloadable Starter Project Assets',
+                      'Lifetime Access to Course Replays',
+                    ].map((item) => (
+                      <span key={item} className="flex items-center gap-2">
+                        <Check className="text-emerald-500 shrink-0" size={15} />
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col justify-between sm:items-end border-t sm:border-t-0 sm:border-l border-slate-200 dark:border-slate-800 pt-6 sm:pt-0 sm:pl-8">
+                  <div>
+                    <span className="text-xs text-slate-400 line-through">$249</span>
+                    <p className="text-4xl font-black text-slate-950 dark:text-white">$149</p>
+                    <p className="text-[11px] text-slate-400">One-time payment</p>
+                  </div>
+                  <Button href="/register" className="mt-6 w-full justify-center" withArrow>
+                    Save My Seat
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 px-7 sm:px-10 flex items-center justify-between text-xs text-slate-500">
+                <span className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
+                  <Shield size={14} className="text-emerald-500" />
+                  100% 5-Day Money-Back Guarantee
+                </span>
+                <span>Zero questions asked</span>
+              </div>
+            </Card>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 17: FAQ ACCORDION */}
+        {/* ========================================================================= */}
+        <section id="faq" className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-20 lg:py-28">
+          <div className="mx-auto max-w-3xl px-5 lg:px-8">
+            <div className="text-center">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-500">
+                Frequently Answered
+              </p>
+              <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white">
+                Everything You Need to Know
+              </h2>
+            </div>
+
+            <div className="mt-12 divide-y divide-slate-200 dark:divide-slate-800 border-y border-slate-200 dark:border-slate-800">
+              {faqs.map((faq, index) => (
+                <div key={faq.q} className="py-5">
+                  <button
+                    onClick={() => setFaqOpen(faqOpen === index ? null : index)}
+                    className="flex w-full items-center justify-between gap-5 text-left text-sm font-black text-slate-950 dark:text-white hover:text-orange-600 transition"
+                  >
+                    <span>{faq.q}</span>
+                    <ChevronDown
+                      className={`shrink-0 transition-transform ${
+                        faqOpen === index ? 'rotate-180 text-orange-500' : 'text-slate-400'
+                      }`}
+                      size={18}
+                    />
+                  </button>
+                  {faqOpen === index && (
+                    <p className="mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                      {faq.a}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 18: FINAL HIGH-URGENCY LAUNCHPAD */}
+        {/* ========================================================================= */}
+        <section className="bg-slate-950 px-5 py-24 text-center text-white relative overflow-hidden">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-96 rounded-full bg-orange-600/10 blur-3xl pointer-events-none" />
+          <div className="relative z-10 max-w-3xl mx-auto space-y-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-500">
+              15 Days From Now
+            </p>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-tight text-white leading-tight">
+              You Could Have a Finished Portfolio and Verified Credential.
+            </h2>
+            <p className="text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
+              Join the next intensive cohort. Experience the power of daily production constraints, real WhatsApp mentorship, and peer momentum.
+            </p>
+            <div className="pt-6">
+              <Button href="/register" size="lg" withArrow className="shadow-lg shadow-orange-500/20">
+                Join Next 15-Day Cohort
+              </Button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <SiteFooter />
+    </div>
+  );
 }
