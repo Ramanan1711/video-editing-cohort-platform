@@ -120,6 +120,7 @@ export interface AdminEscalationAlert {
 }
 
 export interface AdminExecutiveMetrics {
+  timeframe: '7d' | '30d' | '90d' | 'all';
   enrollmentConversionRate: number;
   courseCompletionRate: number;
   overallChurnRatePct: number;
@@ -360,19 +361,7 @@ export async function getAdminStats(): Promise<AdminStats> {
   return queryCache.getOrFetch(
     'admin_stats',
     async () => {
-      const [
-        usersRes,
-        studentsRes,
-        mentorsRes,
-        adminsRes,
-        cohortsRes,
-        enrollmentsRes,
-        postsRes,
-        pendingSubRes,
-        reviewedSubRes,
-        announcementsRes,
-        sessionsRes,
-      ] = await Promise.all([
+      const results = await Promise.allSettled([
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student'),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'mentor'),
@@ -386,18 +375,26 @@ export async function getAdminStats(): Promise<AdminStats> {
         supabase.from('live_sessions').select('id', { count: 'exact', head: true }),
       ]);
 
+      const countOf = (i: number): number => {
+        const item = results[i];
+        if (item.status === 'fulfilled' && !item.value.error && typeof item.value.count === 'number') {
+          return item.value.count;
+        }
+        return 0;
+      };
+
       return {
-        users: usersRes.count ?? 0,
-        students: studentsRes.count ?? 0,
-        mentors: mentorsRes.count ?? 0,
-        admins: adminsRes.count ?? 0,
-        cohorts: cohortsRes.count ?? 0,
-        enrollments: enrollmentsRes.count ?? 0,
-        posts: postsRes.count ?? 0,
-        pendingSubmissions: pendingSubRes.count ?? 0,
-        reviewedSubmissions: reviewedSubRes.count ?? 0,
-        announcements: announcementsRes.count ?? 0,
-        sessions: sessionsRes.count ?? 0,
+        users: countOf(0),
+        students: countOf(1),
+        mentors: countOf(2),
+        admins: countOf(3),
+        cohorts: countOf(4),
+        enrollments: countOf(5),
+        posts: countOf(6),
+        pendingSubmissions: countOf(7),
+        reviewedSubmissions: countOf(8),
+        announcements: countOf(9),
+        sessions: countOf(10),
       };
     },
     60_000,
@@ -405,17 +402,19 @@ export async function getAdminStats(): Promise<AdminStats> {
   );
 }
 
-export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics> {
+export async function getAdminExecutiveMetrics(
+  timeframe: '7d' | '30d' | '90d' | 'all' = '30d'
+): Promise<AdminExecutiveMetrics> {
   const [
-    { data: profiles },
-    { data: enrollments },
-    { data: cohorts },
-    { data: submissions },
-    { data: progressRows },
-    { data: feedbackRows },
-    { data: rawModules },
-    { data: rawLessons },
-  ] = await Promise.all([
+    profilesSettled,
+    enrollmentsSettled,
+    cohortsSettled,
+    submissionsSettled,
+    progressRowsSettled,
+    feedbackRowsSettled,
+    rawModulesSettled,
+    rawLessonsSettled,
+  ] = await Promise.allSettled([
     supabase.from('profiles').select('id, full_name, email, role, admin_role, status, created_at'),
     supabase.from('enrollments').select('user_id, cohort_id, status, created_at'),
     (async () => {
@@ -426,9 +425,22 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
     supabase.from('submissions').select('id, student_id, assignment_id, status, created_at'),
     supabase.from('lesson_progress').select('user_id, lesson_id, completed, completed_at'),
     supabase.from('feedback').select('submission_id, mentor_id, created_at'),
-    supabase.from('modules').select('id, cohort_id, title, position, lessons(id)').order('position'),
+    (async () => {
+      const res = await supabase.from('modules').select('id, cohort_id, title, position, lessons(id)').order('position');
+      if (!res.error && res.data) return res;
+      return supabase.from('modules').select('id, cohort_id, title, position').order('position');
+    })(),
     supabase.from('lessons').select('id, module_id, title, status'),
   ]);
+
+  const profiles = profilesSettled.status === 'fulfilled' && !profilesSettled.value.error ? (profilesSettled.value.data as any[] ?? []) : [];
+  const enrollments = enrollmentsSettled.status === 'fulfilled' && !enrollmentsSettled.value.error ? (enrollmentsSettled.value.data as any[] ?? []) : [];
+  const cohorts = cohortsSettled.status === 'fulfilled' && !cohortsSettled.value.error ? (cohortsSettled.value.data as any[] ?? []) : [];
+  const submissions = submissionsSettled.status === 'fulfilled' && !submissionsSettled.value.error ? (submissionsSettled.value.data as any[] ?? []) : [];
+  const progressRows = progressRowsSettled.status === 'fulfilled' && !progressRowsSettled.value.error ? (progressRowsSettled.value.data as any[] ?? []) : [];
+  const feedbackRows = feedbackRowsSettled.status === 'fulfilled' && !feedbackRowsSettled.value.error ? (feedbackRowsSettled.value.data as any[] ?? []) : [];
+  const rawModules = rawModulesSettled.status === 'fulfilled' && !rawModulesSettled.value.error ? (rawModulesSettled.value.data as any[] ?? []) : [];
+  const rawLessons = rawLessonsSettled.status === 'fulfilled' && !rawLessonsSettled.value.error ? (rawLessonsSettled.value.data as any[] ?? []) : [];
 
   const totalUsers = profiles?.length || 0;
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
@@ -633,8 +645,10 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
     position: number;
     lessons?: Array<{ id: string }>;
   }>).map((m) => {
-    const modLessons = m.lessons || [];
-    const lessonIds = new Set(modLessons.map((l) => l.id));
+    const modLessons = (m.lessons && m.lessons.length > 0)
+      ? m.lessons
+      : (rawLessons ?? []).filter((l: any) => l.module_id === m.id);
+    const lessonIds = new Set(modLessons.map((l: any) => l.id));
     const totalStudents = uniqueEnrolledStudents || 1;
 
     const completedStudentCount = enrolledStudentIds.filter((sId) => {
@@ -736,6 +750,7 @@ export async function getAdminExecutiveMetrics(): Promise<AdminExecutiveMetrics>
   }
 
   return {
+    timeframe,
     enrollmentConversionRate: conversionRate,
     courseCompletionRate,
     overallChurnRatePct,
@@ -1384,6 +1399,68 @@ export async function exportSubmissionsCSV(cohortId?: string): Promise<string> {
   return [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
 }
 
+export function exportExecutiveReportCSV(metrics: AdminExecutiveMetrics): string {
+  const lines: string[] = [];
+  lines.push(`"CUT / CRAFT — EXECUTIVE PLATFORM REPORT"`);
+  lines.push(`"Generated At: ${new Date().toISOString()}","Timeframe: ${metrics.timeframe.toUpperCase()}"`);
+  lines.push('');
+  lines.push('--- EXECUTIVE KPI OVERVIEW ---');
+  lines.push('Metric,Value,Unit');
+  lines.push(`Enrollment Conversion Rate,${metrics.enrollmentConversionRate},%`);
+  lines.push(`Course Completion Rate,${metrics.courseCompletionRate},%`);
+  lines.push(`Overall Cohort Churn Rate,${metrics.overallChurnRatePct},%`);
+  lines.push(`Active Users (7 Days),${metrics.activeUsers7d},Learners`);
+  lines.push(`Active Users (30 Days),${metrics.activeUsers30d},Learners`);
+  lines.push(`Active Users (90 Days),${metrics.activeUsers90d},Learners`);
+  lines.push(`Average Mentor Review Turnaround,${metrics.avgMentorReviewHours ?? 'N/A'},Hours`);
+  lines.push(`Learners At Dropout Risk,${metrics.dropoutRiskCount},Students`);
+  lines.push('');
+  lines.push('--- REVIEW SLA AGING BREAKDOWN ---');
+  lines.push('SLA Window,Pending Submissions');
+  lines.push(`< 12 Hours,${metrics.reviewAging.lessThan12h}`);
+  lines.push(`12 - 24 Hours,${metrics.reviewAging.between12and24h}`);
+  lines.push(`24 - 48 Hours,${metrics.reviewAging.between24and48h}`);
+  lines.push(`> 48 Hours (Overdue),${metrics.reviewAging.over48h}`);
+  lines.push('');
+  lines.push('--- COHORT PERFORMANCE & CHURN ANALYSIS ---');
+  lines.push('Cohort ID,Cohort Name,Capacity,Enrolled,Fill Rate %,Completed,Dropped,Churn Rate %,Status');
+  metrics.cohortComparisons.forEach((c) => {
+    const churn = metrics.cohortChurn.find((ch) => ch.cohortId === c.id);
+    lines.push(
+      `"${c.id}","${c.name.replace(/"/g, '""')}",${c.capacity},${c.enrolledCount},${c.fillPct}%,${c.completionPct}%,${churn?.droppedCount ?? 0},${churn?.churnRatePct ?? 0}%,"${c.status}"`
+    );
+  });
+  lines.push('');
+  lines.push('--- MENTOR PERFORMANCE & SLA AUDIT ---');
+  lines.push('Mentor Name,Email,Reviews Conducted,Average Turnaround (Hours),Resubmission Rate %');
+  metrics.mentorLeaderboard.forEach((m) => {
+    lines.push(
+      `"${m.mentorName.replace(/"/g, '""')}","${m.mentorEmail.replace(/"/g, '""')}",${m.reviewsCount},${m.avgTurnaroundHours ?? 'N/A'},${m.resubmissionRatePct}%`
+    );
+  });
+  lines.push('');
+  lines.push('--- CURRICULUM FUNNEL VELOCITY ---');
+  lines.push('Position,Module Title,Lessons Count,Completion Rate %,Stalled Student Count');
+  metrics.curriculumDropOff.forEach((m) => {
+    lines.push(`${m.position},"${m.moduleTitle.replace(/"/g, '""')}",${m.lessonCount},${m.completionRatePct}%,${m.stalledStudentCount}`);
+  });
+
+  return lines.join('\n');
+}
+
+export function exportAtRiskLearnersCSV(learners: AtRiskLearner[]): string {
+  const header = ['Student Name', 'Email', 'Cohort', 'Days Inactive', 'Pending Revisions', 'Risk Factor'];
+  const rows = learners.map((l) => [
+    `"${l.studentName.replace(/"/g, '""')}"`,
+    `"${l.studentEmail.replace(/"/g, '""')}"`,
+    `"${l.cohortName.replace(/"/g, '""')}"`,
+    l.daysInactive,
+    l.resubmissionsCount,
+    `"${l.riskReason.replace(/_/g, ' ')}"`,
+  ]);
+  return [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+}
+
 export function getBulkEnrollmentTemplateCSV(): string {
   return `email,full_name\neditor.one@example.com,Alex Turner\neditor.two@example.com,Sarah Connor\neditor.three@example.com,Michael Corleone\n`;
 }
@@ -1646,23 +1723,32 @@ export interface MentorCohortAssignment {
 
 export async function listMentorCohortAssignments(): Promise<MentorCohortAssignment[]> {
   try {
-    const { data: assignments, error } = await supabase
+    let res: any = await supabase
       .from('mentor_cohorts')
-      .select('id, mentor_id, cohort_id, assigned_at')
-      .order('assigned_at', { ascending: false });
+      .select('id, mentor_id, cohort_id, created_at')
+      .order('created_at', { ascending: false });
 
-    if (error) {
-      if (error.code === '42P01' || error.message.includes('mentor_cohorts')) {
-        console.warn('mentor_cohorts table not yet migrated, returning empty assignments:', error.message);
+    if (res.error && res.error.message.includes('created_at')) {
+      res = await supabase
+        .from('mentor_cohorts')
+        .select('id, mentor_id, cohort_id, assigned_at')
+        .order('assigned_at', { ascending: false });
+    }
+
+    if (res.error) {
+      if (res.error.code === '42P01' || res.error.message.includes('mentor_cohorts')) {
+        console.warn('mentor_cohorts table not yet migrated, returning empty assignments:', res.error.message);
         return [];
       }
-      console.error('mentor_cohorts query failed:', error);
-      throw error;
+      console.warn('mentor_cohorts query warning:', res.error.message);
+      return [];
     }
+
+    const assignments = res.data;
     if (!assignments || assignments.length === 0) return [];
 
-    const mentorIds = Array.from(new Set(assignments.map((a) => a.mentor_id)));
-    const cohortIds = Array.from(new Set(assignments.map((a) => a.cohort_id)));
+    const mentorIds = Array.from(new Set(assignments.map((a: any) => a.mentor_id)));
+    const cohortIds = Array.from(new Set(assignments.map((a: any) => a.cohort_id)));
 
     const [{ data: profiles }, { data: cohorts }] = await Promise.all([
       mentorIds.length ? supabase.from('profiles').select('id, full_name, email').in('id', mentorIds) : { data: [] },
@@ -1670,28 +1756,23 @@ export async function listMentorCohortAssignments(): Promise<MentorCohortAssignm
     ]);
 
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-    const cohortMap = new Map((cohorts ?? []).map((c) => [c.id, c.title || 'Cohort']));
+    const cohortMap = new Map(((cohorts as any[]) ?? []).map((c: any) => [c.id, c.title || c.name || 'Cohort']));
 
-    return assignments.map((a) => {
+    return assignments.map((a: any) => {
       const p = profileMap.get(a.mentor_id);
       const cName = cohortMap.get(a.cohort_id);
       return {
         id: a.id,
         mentor_id: a.mentor_id,
         cohort_id: a.cohort_id,
-        assigned_at: a.assigned_at,
+        assigned_at: a.assigned_at || a.created_at || new Date().toISOString(),
         mentor: p ? { full_name: p.full_name || 'Mentor', email: p.email } : undefined,
         cohort: cName ? { name: cName } : undefined,
       };
     });
   } catch (err: unknown) {
-    const errorObj = err as { code?: string; message?: string } | undefined;
-    if (errorObj?.code === '42P01' || errorObj?.message?.includes('mentor_cohorts')) {
-      console.warn('mentor_cohorts table not yet migrated:', errorObj.message);
-      return [];
-    }
-    console.error('Unable to load mentor cohort assignments:', err);
-    throw err;
+    console.warn('Unable to load mentor cohort assignments:', err);
+    return [];
   }
 }
 
@@ -1700,10 +1781,19 @@ export async function assignMentorToCohort(
   cohortId: string,
   actorId?: string | null
 ): Promise<void> {
-  const { error } = await supabase.from('mentor_cohorts').upsert(
-    { mentor_id: mentorId, cohort_id: cohortId, assigned_at: new Date().toISOString() },
+  const timestamp = new Date().toISOString();
+  let { error } = await supabase.from('mentor_cohorts').upsert(
+    { mentor_id: mentorId, cohort_id: cohortId, created_at: timestamp },
     { onConflict: 'mentor_id,cohort_id' }
   );
+
+  if (error && error.message.includes('created_at')) {
+    const res = await supabase.from('mentor_cohorts').upsert(
+      { mentor_id: mentorId, cohort_id: cohortId, assigned_at: timestamp },
+      { onConflict: 'mentor_id,cohort_id' }
+    );
+    error = res.error;
+  }
   if (error) throw error;
 
   void logAuditEvent({

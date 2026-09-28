@@ -68,6 +68,8 @@ import {
   enrollUserInCohort,
   exportAuditLogsCSV,
   exportEnrollmentsCSV,
+  exportExecutiveReportCSV,
+  exportAtRiskLearnersCSV,
   exportSubmissionsCSV,
   exportUsersCSV,
   getAdminExecutiveMetrics,
@@ -236,6 +238,11 @@ export function AdminOperations() {
   const [launchGateReport, setLaunchGateReport] = useState<LaunchGateReport | null>(null);
   const [auditingGate, setAuditingGate] = useState(false);
 
+  const [selectedTimeframe, setSelectedTimeframe] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
+  const [exportingExecutiveReport, setExportingExecutiveReport] = useState(false);
+  const [exportingAtRiskReport, setExportingAtRiskReport] = useState(false);
+  const [updatingTimeframe, setUpdatingTimeframe] = useState(false);
+
   const canManageRoles = hasAdminPermission(profile?.admin_role, 'manage_roles');
   const canManageStatus = hasAdminPermission(profile?.admin_role, 'manage_user_status');
   const canManageEnrollments = hasAdminPermission(profile?.admin_role, 'manage_enrollments');
@@ -248,7 +255,8 @@ export function AdminOperations() {
   useEffect(() => {
     if (profile?.role !== 'admin') return;
     let active = true;
-    Promise.all([
+
+    Promise.allSettled([
       getAdminStats(),
       listUsers(),
       listCohorts(),
@@ -256,33 +264,36 @@ export function AdminOperations() {
       listAnnouncements(),
       listLiveSessions(),
       listCommunityPostsWithAuthors(),
-      getAdminExecutiveMetrics(),
-      listAuditLogs({ limit: 100 }),
+      getAdminExecutiveMetrics(selectedTimeframe),
+      canViewAuditLogs ? listAuditLogs({ limit: 100 }) : Promise.resolve([]),
       listMentorCohortAssignments(),
     ])
-      .then(([
-        nextStats,
-        nextUsers,
-        nextCohorts,
-        nextEnrollments,
-        nextAnnouncements,
-        nextSessions,
-        nextPosts,
-        nextMetrics,
-        nextLogs,
-        nextMentorAssignments,
-      ]) => {
+      .then((results) => {
         if (!active) return;
-        setStats(nextStats);
-        setUsers(nextUsers);
-        setCohorts(nextCohorts);
-        setEnrollments(nextEnrollments);
-        setAnnouncements(nextAnnouncements);
-        setSessions(nextSessions);
-        setPosts(nextPosts);
-        setExecMetrics(nextMetrics);
-        setAuditLogs(nextLogs);
-        setMentorAssignments(nextMentorAssignments);
+        const [
+          nextStats,
+          nextUsers,
+          nextCohorts,
+          nextEnrollments,
+          nextAnnouncements,
+          nextSessions,
+          nextPosts,
+          nextMetrics,
+          nextLogs,
+          nextMentorAssignments,
+        ] = results;
+
+        if (nextStats.status === 'fulfilled') setStats(nextStats.value);
+        if (nextUsers.status === 'fulfilled') setUsers(nextUsers.value);
+        if (nextCohorts.status === 'fulfilled') setCohorts(nextCohorts.value);
+        if (nextEnrollments.status === 'fulfilled') setEnrollments(nextEnrollments.value);
+        if (nextAnnouncements.status === 'fulfilled') setAnnouncements(nextAnnouncements.value);
+        if (nextSessions.status === 'fulfilled') setSessions(nextSessions.value);
+        if (nextPosts.status === 'fulfilled') setPosts(nextPosts.value);
+        if (nextMetrics.status === 'fulfilled') setExecMetrics(nextMetrics.value);
+        if (nextLogs.status === 'fulfilled') setAuditLogs(nextLogs.value);
+        if (nextMentorAssignments.status === 'fulfilled') setMentorAssignments(nextMentorAssignments.value);
+
         setError(null);
         setAppError(null);
       })
@@ -302,7 +313,66 @@ export function AdminOperations() {
     return () => {
       active = false;
     };
-  }, [profile?.role, reloadTrigger]);
+  }, [profile?.role, reloadTrigger, canViewAuditLogs]);
+
+  const handleTimeframeChange = async (tf: '7d' | '30d' | '90d' | 'all') => {
+    setSelectedTimeframe(tf);
+    setUpdatingTimeframe(true);
+    try {
+      const updatedMetrics = await getAdminExecutiveMetrics(tf);
+      setExecMetrics(updatedMetrics);
+    } catch (err) {
+      console.warn('Failed to update timeframe metrics:', err);
+    } finally {
+      setUpdatingTimeframe(false);
+    }
+  };
+
+  const handleExportExecutiveReport = () => {
+    if (!execMetrics) return;
+    setExportingExecutiveReport(true);
+    try {
+      const csv = exportExecutiveReportCSV(execMetrics);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `executive-platform-report-${selectedTimeframe}-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setSuccess('Executive platform report CSV exported successfully.');
+      toast.success('Executive platform report exported.');
+    } catch {
+      toast.error('Failed to export executive report');
+    } finally {
+      setExportingExecutiveReport(false);
+    }
+  };
+
+  const handleExportAtRiskLearners = () => {
+    if (!execMetrics || !execMetrics.atRiskLearners.length) return;
+    setExportingAtRiskReport(true);
+    try {
+      const csv = exportAtRiskLearnersCSV(execMetrics.atRiskLearners);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `at-risk-learners-${selectedTimeframe}-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setSuccess('At-risk student roster CSV exported successfully.');
+      toast.success('At-risk student roster exported.');
+    } catch {
+      toast.error('Failed to export at-risk student roster');
+    } finally {
+      setExportingAtRiskReport(false);
+    }
+  };
 
   const handleRetry = () => {
     setRetrying(true);
@@ -1562,6 +1632,56 @@ export function AdminOperations() {
         {/* TAB: EXECUTIVE INSIGHTS & ATTRITION DRILLDOWN */}
         {tab === 'insights' && (
           <div className="space-y-8">
+            {/* Executive Reporting Header & Controls */}
+            <Card className="p-5 border-slate-200">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs font-bold text-xs">
+                      <TrendingUp size={15} />
+                    </span>
+                    <h2 className="text-base font-black text-slate-950">Executive Reporting & Analytics System</h2>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Comprehensive platform report tracking cohort attrition, mentor review SLAs, curriculum friction, and retention metrics.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Timeframe Switcher */}
+                  <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-bold">
+                    {(['7d', '30d', '90d', 'all'] as const).map((tf) => (
+                      <button
+                        key={tf}
+                        type="button"
+                        onClick={() => handleTimeframeChange(tf)}
+                        disabled={updatingTimeframe}
+                        className={`rounded-lg px-3 py-1.5 transition text-[11px] font-bold ${
+                          selectedTimeframe === tf
+                            ? 'bg-white text-slate-900 shadow-2xs'
+                            : 'text-slate-500 hover:text-slate-900'
+                        }`}
+                      >
+                        {tf === '7d' ? '7 Days' : tf === '30d' ? '30 Days' : tf === '90d' ? '90 Days' : 'All Time'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Export Executive Report CSV */}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleExportExecutiveReport}
+                    loading={exportingExecutiveReport}
+                    className="flex items-center gap-1.5 text-xs font-bold"
+                  >
+                    <Download size={13} />
+                    <span>Export Full Report (CSV)</span>
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
             {/* Insights KPI Row */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Card className="p-4 border-slate-200">
@@ -1645,6 +1765,19 @@ export function AdminOperations() {
                     Learners showing inactivity or friction patterns requiring mentor or administrative check-ins.
                   </p>
                 </div>
+
+                {Boolean(execMetrics?.atRiskLearners.length) && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleExportAtRiskLearners}
+                    loading={exportingAtRiskReport}
+                    className="flex items-center gap-1.5 text-xs font-bold shrink-0"
+                  >
+                    <Download size={13} />
+                    <span>Export At-Risk Roster (CSV)</span>
+                  </Button>
+                )}
               </div>
 
               <div className="mt-4 overflow-x-auto">
