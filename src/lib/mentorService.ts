@@ -973,17 +973,63 @@ export async function submitDetailedReview(
       p_comments: comments.trim() || null,
     });
 
-    if (v1Error) throw v1Error;
-
-    // Best-effort update of private notes
-    if (privateNotes) {
-      await supabase
-        .from('submissions')
-        .update({ private_notes: privateNotes.trim() })
-        .eq('id', submissionId);
+    if (!v1Error) {
+      // Best-effort update of private notes
+      if (privateNotes) {
+        await supabase
+          .from('submissions')
+          .update({ private_notes: privateNotes.trim() })
+          .eq('id', submissionId);
+      }
+      queryCache.invalidate('stats');
+      queryCache.invalidate('submissions');
+      return;
     }
-    queryCache.invalidate('stats');
-    queryCache.invalidate('submissions');
+
+    // Direct table fallback if RPC migration is pending
+    if (
+      v1Error.code === 'PGRST202' ||
+      v1Error.message.includes('review_submission') ||
+      v1Error.message.includes('schema cache') ||
+      v1Error.message.includes('function')
+    ) {
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData?.user?.id;
+      if (!currentUserId) {
+        throw new Error('Authentication required to review submission.');
+      }
+
+      const { error: fbErr } = await supabase.from('feedback').insert({
+        submission_id: submissionId,
+        mentor_id: currentUserId,
+        comment: comments?.trim() || null,
+        comments: comments?.trim() || null,
+        rubric: rubric || {},
+        rubric_scores: rubric || {},
+        timestamped_notes: timestampedNotes || [],
+        private_notes: privateNotes?.trim() || null,
+      });
+      if (fbErr) throw fbErr;
+
+      const subUpdate: Record<string, unknown> = {
+        status,
+        updated_at: new Date().toISOString(),
+      };
+      if (privateNotes) {
+        subUpdate.private_notes = privateNotes.trim();
+      }
+      const { error: subErr } = await supabase
+        .from('submissions')
+        .update(subUpdate)
+        .eq('id', submissionId);
+      if (subErr) throw subErr;
+
+      queryCache.invalidate('stats');
+      queryCache.invalidate('submissions');
+      return;
+    }
+
+    throw v1Error;
   } catch (err) {
     console.error('Error in submitDetailedReview:', err);
     throw new Error(err instanceof Error ? err.message : 'Unable to submit review.', { cause: err });

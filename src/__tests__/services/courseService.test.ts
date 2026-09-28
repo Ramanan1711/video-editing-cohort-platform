@@ -32,6 +32,7 @@ import {
   normalizeSubmissionStatus,
   listMySubmissions,
   listSubmissionVersions,
+  reviewSubmission,
 } from '../../lib/courseService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -41,6 +42,9 @@ vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     from: vi.fn(),
     rpc: vi.fn(),
+    auth: {
+      getUser: vi.fn(),
+    },
     storage: {
       from: (...args: unknown[]) => mockStorageFrom(...args),
     },
@@ -559,6 +563,59 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
       expect(versions[1].version).toBe(1);
       expect(versions[1].version_number).toBe(1);
       expect(versions[1].notes).toBe('Initial rough cut');
+    });
+
+    it('reviewSubmission executes review_submission RPC with normalized status', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: null,
+        error: null,
+      });
+
+      await reviewSubmission('sub-1', 'reviewed', 'Great cut!');
+
+      expect(supabase.rpc).toHaveBeenCalledWith('review_submission', {
+        p_submission_id: 'sub-1',
+        p_status: 'reviewed',
+        p_comments: 'Great cut!',
+      });
+    });
+
+    it('reviewSubmission falls back to direct table inserts/updates when RPC is unavailable', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: null,
+        error: { code: 'PGRST202', message: 'function does not exist' },
+      });
+
+      const mockInsert = vi.fn().mockResolvedValue({ data: null, error: null });
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'feedback') return { insert: mockInsert };
+        if (table === 'submissions') return { update: mockUpdate };
+        return {};
+      });
+
+      (supabase.auth.getUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: { user: { id: 'mentor-author-1' } },
+        error: null,
+      });
+
+      await reviewSubmission('sub-42', 'resubmit', 'Needs trim at end.');
+
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          submission_id: 'sub-42',
+          mentor_id: 'mentor-author-1',
+          comment: 'Needs trim at end.',
+        })
+      );
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'resubmit',
+        })
+      );
     });
   });
 

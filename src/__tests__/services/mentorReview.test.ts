@@ -13,6 +13,9 @@ vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     from: vi.fn(),
     rpc: vi.fn(),
+    auth: {
+      getUser: vi.fn(),
+    },
   },
 }));
 
@@ -240,6 +243,54 @@ describe('Mentor Review, SLA & Scoping Suite', () => {
         p_status: 'resubmit',
         p_comments: 'Pacing drags in scene 3; trim by 8 seconds.',
       });
+    });
+
+    it('falls back to direct table inserts when both review_submission_v2 and review_submission are missing', async () => {
+      const mockRpc = vi.fn().mockImplementation(() =>
+        Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'function does not exist' } })
+      );
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockRpc);
+
+      const mockInsert = vi.fn().mockResolvedValue({ data: null, error: null });
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      });
+
+      const mockFrom = vi.fn().mockImplementation((table: string) => {
+        if (table === 'feedback') {
+          return { insert: mockInsert };
+        }
+        if (table === 'submissions') {
+          return { update: mockUpdate };
+        }
+        return {};
+      });
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockFrom);
+
+      (supabase.auth.getUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: { user: { id: 'mentor-1' } },
+        error: null,
+      });
+
+      await submitDetailedReview(
+        'sub-3',
+        'reviewed',
+        'Approved via direct fallback.',
+        { storytelling: 5, pacing: 5, audio: 5, color: 5, technical: 5 }
+      );
+
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          submission_id: 'sub-3',
+          mentor_id: 'mentor-1',
+          comment: 'Approved via direct fallback.',
+        })
+      );
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'reviewed',
+        })
+      );
     });
   });
 

@@ -2444,25 +2444,53 @@ export async function reviewSubmission(
   status: Extract<Submission['status'], 'reviewed' | 'resubmit'>,
   feedback: string
 ): Promise<void> {
+  const normStatus = normalizeSubmissionStatus(status);
   const { error } = await supabase.rpc('review_submission', {
     p_submission_id: id,
-    p_status: status,
+    p_status: normStatus,
     p_comments: feedback.trim() || null,
   });
 
-  if (error) {
-    if (
-      error.code === 'PGRST202' ||
-      error.message.includes('review_submission') ||
-      error.message.includes('schema cache')
-    ) {
-      throw new Error(
-        'Database function "review_submission" not found. Please run the updated supabase/mentor_access_and_rbac.sql script in Supabase SQL Editor.'
-      );
+  if (!error) return;
+
+  // Resilient Direct Table Fallback (if RPC is pending in database migration)
+  if (
+    error.code === 'PGRST202' ||
+    error.message.includes('review_submission') ||
+    error.message.includes('schema cache') ||
+    error.message.includes('function')
+  ) {
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUserId = userData?.user?.id;
+    if (!currentUserId) {
+      throw new Error('Authentication required to review submission.');
     }
 
-    throw new Error(error.message || 'Unable to review submission.');
+    // Insert feedback record
+    const { error: fbErr } = await supabase.from('feedback').insert({
+      submission_id: id,
+      mentor_id: currentUserId,
+      comment: feedback.trim() || null,
+      comments: feedback.trim() || null,
+      rubric: {},
+      timestamped_notes: [],
+    });
+    if (fbErr) throw fbErr;
+
+    // Update submission status
+    const { error: subErr } = await supabase
+      .from('submissions')
+      .update({
+        status: normStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+    if (subErr) throw subErr;
+
+    return;
   }
+
+  throw new Error(error.message || 'Unable to review submission.');
 }
 
 async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise<Submission[]> {
