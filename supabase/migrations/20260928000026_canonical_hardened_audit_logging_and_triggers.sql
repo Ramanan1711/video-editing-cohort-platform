@@ -490,7 +490,7 @@ begin
         'student_id', new.student_id,
         'grade', new.grade,
         'composite_score', new.composite_score,
-        'lor_recommended', new.lor_recommended,
+        'lor_eligible', new.lor_eligible,
         'status', new.status
       ),
       auth.uid()
@@ -507,11 +507,11 @@ begin
           'student_id', new.student_id,
           'grade', new.grade,
           'composite_score', new.composite_score,
-          'lor_recommended', new.lor_recommended
+          'lor_eligible', new.lor_eligible
         ),
         auth.uid()
       );
-    elsif (old.grade is distinct from new.grade or old.lor_recommended is distinct from new.lor_recommended) then
+    elsif (old.grade is distinct from new.grade or old.lor_eligible is distinct from new.lor_eligible) then
       perform public.log_audit_event(
         'internship_report.updated',
         'internship_report',
@@ -521,7 +521,7 @@ begin
           'student_id', new.student_id,
           'old_grade', old.grade,
           'new_grade', new.grade,
-          'lor_recommended', new.lor_recommended
+          'lor_eligible', new.lor_eligible
         ),
         auth.uid()
       );
