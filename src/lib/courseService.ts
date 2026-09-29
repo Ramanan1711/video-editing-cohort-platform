@@ -216,6 +216,12 @@ export interface CertificateEligibilityResult {
   total_lessons?: number;
   approved_assignments?: number;
   total_assignments?: number;
+  completed_challenges?: number;
+  total_challenges?: number;
+  attended_sessions?: number;
+  total_sessions?: number;
+  attendance_rate_pct?: number;
+  min_attendance_pct?: number;
 }
 
 export interface CalendarEvent {
@@ -2951,6 +2957,7 @@ export async function verifyCertificateEligibility(
   studentId: string,
   cohortId: string
 ): Promise<CertificateEligibilityResult> {
+  // 1. Try authoritative PostgreSQL RPC
   try {
     const { data, error } = await supabase.rpc('verify_and_issue_certificate', {
       p_student_id: studentId,
@@ -2964,20 +2971,36 @@ export async function verifyCertificateEligibility(
     console.warn('RPC verify_and_issue_certificate unavailable, running client fallback:', err);
   }
 
-  // Client-side fallback check
+  // 2. Authoritative Client-side Fallback Check (Checking All 4 Pillars)
   try {
-    const [modulesRes, progressRes, cohortAssigns, subsRes] = await Promise.all([
+    const nowIso = new Date().toISOString();
+    const [
+      modulesRes,
+      progressRes,
+      cohortAssigns,
+      subsRes,
+      cohortRowRes,
+      challengesRes,
+      challengeSubsRes,
+      heldSessionsRes,
+      attendanceRes,
+    ] = await Promise.all([
       supabase.from('modules').select('id, lessons(id, video_url)').eq('cohort_id', cohortId),
       supabase.from('lesson_progress').select('lesson_id, completed, watch_percentage').eq('user_id', studentId),
       listAssignments(cohortId),
       supabase.from('submissions').select('assignment_id, status').eq('student_id', studentId).in('status', ['reviewed', 'accepted', 'approved']),
+      supabase.from('cohorts').select('sprint_duration_days').eq('id', cohortId).maybeSingle(),
+      supabase.from('daily_challenges').select('id, day_number').eq('cohort_id', cohortId),
+      supabase.from('daily_challenge_submissions').select('challenge_id, status').eq('user_id', studentId).eq('status', 'accepted'),
+      supabase.from('live_sessions').select('id').or(`cohort_id.eq.${cohortId},cohort_id.is.null`).lte('starts_at', nowIso),
+      supabase.from('session_attendance').select('session_id, status').eq('student_id', studentId).in('status', ['present', 'late', 'excused']),
     ]);
 
+    // Pillar 1: Lessons
     const allLessons = (modulesRes.data ?? []).flatMap((m) => ((m.lessons as Array<{ id: string; video_url?: string }>) ?? []));
     const allLessonIds = allLessons.map((l) => l.id);
     const progressMap = new Map((progressRes.data ?? []).map((p) => [p.lesson_id, p]));
 
-    // Enforce 80% watch progress or completed
     const completedLessons = allLessons.filter((l) => {
       const prog = progressMap.get(l.id);
       if (!prog) return false;
@@ -2988,14 +3011,34 @@ export async function verifyCertificateEligibility(
       return Boolean(prog.completed);
     }).length;
 
+    const isLessonsComplete = allLessonIds.length === 0 || completedLessons >= allLessonIds.length;
+
+    // Pillar 2: Assignments
     const totalAssigns = cohortAssigns.length;
     const approvedAssignIds = new Set((subsRes.data ?? []).map((s) => s.assignment_id));
     const approvedAssigns = cohortAssigns.filter((a) => approvedAssignIds.has(a.id)).length;
-
-    const isLessonsComplete = allLessonIds.length === 0 || completedLessons >= allLessonIds.length;
     const isAssignsComplete = totalAssigns === 0 || approvedAssigns >= totalAssigns;
 
-    if (isLessonsComplete && isAssignsComplete) {
+    // Pillar 3: Dynamic Sprint Challenges
+    const challenges = challengesRes.data ?? [];
+    const maxChallengeDay = challenges.length > 0 ? Math.max(...challenges.map((c) => c.day_number)) : 0;
+    const configuredSprintDays = (cohortRowRes.data as { sprint_duration_days?: number } | null)?.sprint_duration_days || 15;
+    const effectiveSprintDays = Math.max(configuredSprintDays, maxChallengeDay, 1);
+    const completedChallenges = (challengeSubsRes.data ?? []).length;
+    const isChallengesComplete = challenges.length === 0 || completedChallenges >= effectiveSprintDays;
+
+    // Pillar 4: Live Workshop Attendance
+    const heldSessions = heldSessionsRes.data ?? [];
+    const totalSessions = heldSessions.length;
+    const heldSessionIdSet = new Set(heldSessions.map((s) => s.id));
+    const attendedSessions = (attendanceRes.data ?? []).filter((a) => heldSessionIdSet.has(a.session_id)).length;
+    const attendanceRatePct = totalSessions > 0 ? Math.round((attendedSessions / totalSessions) * 1000) / 10 : 100.0;
+    const minAttendancePct = 75.0;
+    const isAttendanceComplete = totalSessions === 0 || attendanceRatePct >= minAttendancePct;
+
+    const isAllComplete = isLessonsComplete && isAssignsComplete && isChallengesComplete && isAttendanceComplete;
+
+    if (isAllComplete) {
       // Check existing certificate in database
       const { data: certRow } = await supabase
         .from('certificates')
@@ -3014,6 +3057,12 @@ export async function verifyCertificateEligibility(
           total_lessons: allLessonIds.length,
           approved_assignments: approvedAssigns,
           total_assignments: totalAssigns,
+          completed_challenges: completedChallenges,
+          total_challenges: effectiveSprintDays,
+          attended_sessions: attendedSessions,
+          total_sessions: totalSessions,
+          attendance_rate_pct: attendanceRatePct,
+          min_attendance_pct: minAttendancePct,
         };
       }
 
@@ -3027,7 +3076,14 @@ export async function verifyCertificateEligibility(
           cohort_id: cohortId,
           metadata: {
             total_lessons: allLessonIds.length,
+            completed_lessons: completedLessons,
             total_assignments: totalAssigns,
+            approved_assignments: approvedAssigns,
+            total_challenges: effectiveSprintDays,
+            completed_challenges: completedChallenges,
+            total_sessions: totalSessions,
+            attended_sessions: attendedSessions,
+            attendance_rate_pct: attendanceRatePct,
             verified_by: 'system',
           },
         })
@@ -3035,6 +3091,13 @@ export async function verifyCertificateEligibility(
         .single();
 
       if (!insertErr && newCert) {
+        // Update enrollment status to completed
+        await supabase
+          .from('enrollments')
+          .update({ status: 'completed' })
+          .eq('user_id', studentId)
+          .eq('cohort_id', cohortId);
+
         return {
           eligible: true,
           already_issued: false,
@@ -3044,29 +3107,42 @@ export async function verifyCertificateEligibility(
           total_lessons: allLessonIds.length,
           approved_assignments: approvedAssigns,
           total_assignments: totalAssigns,
+          completed_challenges: completedChallenges,
+          total_challenges: effectiveSprintDays,
+          attended_sessions: attendedSessions,
+          total_sessions: totalSessions,
+          attendance_rate_pct: attendanceRatePct,
+          min_attendance_pct: minAttendancePct,
         };
       }
-
-      return {
-        eligible: false,
-        reason: 'Curriculum requirements met. Official certificate issuance is pending database verification.',
-        completed_lessons: completedLessons,
-        total_lessons: allLessonIds.length,
-        approved_assignments: approvedAssigns,
-        total_assignments: totalAssigns,
-      };
-    } else {
-      return {
-        eligible: false,
-        reason: !isLessonsComplete
-          ? `${allLessonIds.length - completedLessons} required lesson(s) not completed (≥80% watch verification required).`
-          : `${totalAssigns - approvedAssigns} assignment(s) not reviewed or approved yet.`,
-        completed_lessons: completedLessons,
-        total_lessons: allLessonIds.length,
-        approved_assignments: approvedAssigns,
-        total_assignments: totalAssigns,
-      };
     }
+
+    // Determine specific failure reason
+    let reason = 'Graduation requirements incomplete.';
+    if (!isLessonsComplete) {
+      reason = `${allLessonIds.length - completedLessons} required lesson(s) not completed (≥80% watch verification required).`;
+    } else if (!isAssignsComplete) {
+      reason = `${totalAssigns - approvedAssigns} assignment(s) not reviewed or approved by mentor.`;
+    } else if (!isChallengesComplete) {
+      reason = `${effectiveSprintDays - completedChallenges} sprint challenge(s) not completed or accepted.`;
+    } else if (!isAttendanceComplete) {
+      reason = `Live workshop attendance is ${attendanceRatePct}% (${attendedSessions} of ${totalSessions} sessions attended). Minimum ${minAttendancePct}% required.`;
+    }
+
+    return {
+      eligible: false,
+      reason,
+      completed_lessons: completedLessons,
+      total_lessons: allLessonIds.length,
+      approved_assignments: approvedAssigns,
+      total_assignments: totalAssigns,
+      completed_challenges: completedChallenges,
+      total_challenges: effectiveSprintDays,
+      attended_sessions: attendedSessions,
+      total_sessions: totalSessions,
+      attendance_rate_pct: attendanceRatePct,
+      min_attendance_pct: minAttendancePct,
+    };
   } catch (fallbackErr) {
     return {
       eligible: false,
@@ -3260,6 +3336,13 @@ export interface StudentUnifiedProgress {
     streak_days: number;
     average_score: number | null;
   };
+  attendance?: {
+    total_sessions: number;
+    attended_sessions: number;
+    attendance_rate_pct: number;
+    min_attendance_pct: number;
+    is_passed: boolean;
+  };
   overall: {
     composite_percent: number;
     total_milestones: number;
@@ -3321,7 +3404,7 @@ export async function getStudentUnifiedProgress(
 
     if (subs) {
       submittedAssignments = subs.length;
-      approvedAssignments = subs.filter((s) => s.status === 'reviewed').length;
+      approvedAssignments = subs.filter((s) => s.status === 'reviewed' || s.status === 'approved' || s.status === 'accepted').length;
     }
   } catch {
     // fallback
@@ -3331,9 +3414,46 @@ export async function getStudentUnifiedProgress(
   const effectiveSprintDays = sprintData.totalDays || 15;
   const sprintPercent = sprintData.progressPercent || 0;
 
-  const totalMilestones = totalLessons + totalAssignments + (sprintData.days.length > 0 ? effectiveSprintDays : 0);
-  const completedMilestones = completedLessons + approvedAssignments + (sprintData.days.length > 0 ? sprintData.completedCount : 0);
+  // Live session attendance metrics
+  let totalSessions = 0;
+  let attendedSessions = 0;
+  let attendanceRatePct = 100.0;
+  let isAttendancePassed = true;
+  try {
+    const nowIso = new Date().toISOString();
+    const { data: heldSessions } = await supabase
+      .from('live_sessions')
+      .select('id')
+      .or(`cohort_id.eq.${cohortId},cohort_id.is.null`)
+      .lte('starts_at', nowIso);
+
+    totalSessions = heldSessions?.length ?? 0;
+    if (totalSessions > 0) {
+      const heldSessionIds = heldSessions!.map((s) => s.id);
+      const { data: attData } = await supabase
+        .from('session_attendance')
+        .select('session_id')
+        .eq('student_id', userId)
+        .in('session_id', heldSessionIds)
+        .in('status', ['present', 'late', 'excused']);
+
+      attendedSessions = attData?.length ?? 0;
+      attendanceRatePct = Math.round((attendedSessions / totalSessions) * 1000) / 10;
+      isAttendancePassed = attendanceRatePct >= 75.0;
+    }
+  } catch {
+    // attendance query fallback
+  }
+
+  const totalMilestones = totalLessons + totalAssignments + (sprintData.days.length > 0 ? effectiveSprintDays : 0) + totalSessions;
+  const completedMilestones = completedLessons + approvedAssignments + (sprintData.days.length > 0 ? sprintData.completedCount : 0) + attendedSessions;
   const compositePercent = totalMilestones > 0 ? Math.min(100, Math.round((completedMilestones / totalMilestones) * 100)) : 0;
+
+  const isEligibleForCert =
+    curriculumPercent >= 100 &&
+    (totalAssignments === 0 || approvedAssignments >= totalAssignments) &&
+    (sprintData.days.length === 0 || sprintData.completedCount >= effectiveSprintDays) &&
+    isAttendancePassed;
 
   return {
     student_id: userId,
@@ -3364,12 +3484,19 @@ export async function getStudentUnifiedProgress(
       streak_days: sprintData.streakCount,
       average_score: sprintData.overallScore,
     },
+    attendance: {
+      total_sessions: totalSessions,
+      attended_sessions: attendedSessions,
+      attendance_rate_pct: attendanceRatePct,
+      min_attendance_pct: 75.0,
+      is_passed: isAttendancePassed,
+    },
     overall: {
       composite_percent: compositePercent,
       total_milestones: totalMilestones,
       completed_milestones: completedMilestones,
       is_completed: compositePercent >= 100,
-      eligible_for_certificate: compositePercent >= 100,
+      eligible_for_certificate: isEligibleForCert,
       has_certificate: false,
     },
   };

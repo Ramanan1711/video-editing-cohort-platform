@@ -11,6 +11,8 @@ import {
   XCircle,
   BookOpen,
   FileCheck2,
+  Flame,
+  Video,
   X,
 } from 'lucide-react';
 import { Button } from './ui/Button';
@@ -197,6 +199,56 @@ export function CertificateModal({
                 </span>
                 {(eligibility.approved_assignments ?? 0) >= (eligibility.total_assignments ?? 1) &&
                 (eligibility.total_assignments ?? 0) > 0 ? (
+                  <CheckCircle2 size={16} className="text-emerald-400" />
+                ) : (
+                  <XCircle size={16} className="text-rose-400" />
+                )}
+              </div>
+            </div>
+
+            {/* Daily Sprint Challenges Requirement */}
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2.5">
+                <Flame size={16} className="text-orange-400" />
+                <div>
+                  <span>Production Sprint Challenges</span>
+                  <p className="text-[10px] text-slate-400">All daily drills completed &amp; accepted</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-medium text-slate-300">
+                  {eligibility.completed_challenges ?? 0} / {eligibility.total_challenges ?? 0}
+                </span>
+                {(eligibility.total_challenges ?? 0) === 0 ||
+                (eligibility.completed_challenges ?? 0) >= (eligibility.total_challenges ?? 1) ? (
+                  <CheckCircle2 size={16} className="text-emerald-400" />
+                ) : (
+                  <XCircle size={16} className="text-rose-400" />
+                )}
+              </div>
+            </div>
+
+            {/* Live Workshop Attendance Requirement */}
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2.5">
+                <Video size={16} className="text-blue-400" />
+                <div>
+                  <span>Live Workshop Attendance</span>
+                  <p className="text-[10px] text-slate-400">
+                    {(eligibility.total_sessions ?? 0) > 0
+                      ? `≥${eligibility.min_attendance_pct ?? 75}% attendance required`
+                      : 'No live sessions scheduled'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-medium text-slate-300">
+                  {(eligibility.total_sessions ?? 0) > 0
+                    ? `${eligibility.attended_sessions ?? 0}/${eligibility.total_sessions} (${eligibility.attendance_rate_pct ?? 0}%)`
+                    : '100%'}
+                </span>
+                {(eligibility.total_sessions ?? 0) === 0 ||
+                (eligibility.attendance_rate_pct ?? 0) >= (eligibility.min_attendance_pct ?? 75) ? (
                   <CheckCircle2 size={16} className="text-emerald-400" />
                 ) : (
                   <XCircle size={16} className="text-rose-400" />
@@ -634,6 +686,30 @@ export function CertificateModal({
               <div className="mt-2.5 inline-block rounded-xl border border-amber-300 bg-amber-50 px-5 py-1.5 shadow-2xs">
                 <span className="font-extrabold text-xs sm:text-sm text-slate-950">{cohortName}</span>
               </div>
+
+              {/* 4-Pillar Verification Summary */}
+              {eligibility && (
+                <div className="mx-auto mt-3 max-w-lg grid grid-cols-4 gap-2 text-center text-[8px] sm:text-[9px] text-slate-600">
+                  <div className="rounded-lg bg-amber-50/80 border border-amber-200/60 py-1 px-1.5 shadow-2xs">
+                    <span className="block text-[8px] uppercase tracking-wider text-slate-400 font-bold">Curriculum</span>
+                    <span className="font-extrabold text-slate-900">{eligibility.completed_lessons ?? 0} Lessons</span>
+                  </div>
+                  <div className="rounded-lg bg-amber-50/80 border border-amber-200/60 py-1 px-1.5 shadow-2xs">
+                    <span className="block text-[8px] uppercase tracking-wider text-slate-400 font-bold">Projects</span>
+                    <span className="font-extrabold text-slate-900">{eligibility.approved_assignments ?? 0} Passed</span>
+                  </div>
+                  <div className="rounded-lg bg-amber-50/80 border border-amber-200/60 py-1 px-1.5 shadow-2xs">
+                    <span className="block text-[8px] uppercase tracking-wider text-slate-400 font-bold">Sprint Drills</span>
+                    <span className="font-extrabold text-slate-900">{eligibility.completed_challenges ?? 0} Accepted</span>
+                  </div>
+                  <div className="rounded-lg bg-amber-50/80 border border-amber-200/60 py-1 px-1.5 shadow-2xs">
+                    <span className="block text-[8px] uppercase tracking-wider text-slate-400 font-bold">Attendance</span>
+                    <span className="font-extrabold text-slate-900">
+                      {(eligibility.total_sessions ?? 0) > 0 ? `${eligibility.attendance_rate_pct ?? 0}%` : '100%'}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Bottom Row: Signatures & Gold Seal */}
