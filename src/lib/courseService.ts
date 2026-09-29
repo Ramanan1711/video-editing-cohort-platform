@@ -1885,7 +1885,8 @@ export async function uploadCourseAsset(file: File, folder = 'lessons'): Promise
     contentType,
   });
   if (error) throw error;
-  return supabase.storage.from('course-assets').getPublicUrl(path).data.publicUrl;
+  // Return the canonical private storage reference rather than a public CDN URL
+  return `course-assets/${path}`;
 }
 
 export async function uploadSubmissionFile(userId: string, file: File): Promise<string> {
@@ -1906,7 +1907,7 @@ export async function uploadSubmissionFile(userId: string, file: File): Promise<
   }
 
   // The 'submissions' bucket is strictly private. Generate a signed expiring URL for immediate access
-  // or return the storage path identifier to prevent public URL exposure.
+  // or return the canonical private storage path reference.
   const { data: signedData, error: signedError } = await supabase.storage
     .from('submissions')
     .createSignedUrl(path, 86400); // 24-hour expiration
@@ -1922,6 +1923,7 @@ export async function uploadSubmissionFile(userId: string, file: File): Promise<
 /**
  * Resolves a secure, time-limited signed URL for private student submission files.
  * External submission links (YouTube, Vimeo, Frame.io, Google Drive) are preserved as-is.
+ * Fails closed with an explicit error if URL signing fails for private storage.
  */
 export async function getSecureSubmissionUrl(fileUrl: string, expiresIn = 3600): Promise<string> {
   if (!fileUrl) return '';
@@ -1948,25 +1950,27 @@ export async function getSecureSubmissionUrl(fileUrl: string, expiresIn = 3600):
   objectPath = objectPath.split('?')[0].split('#')[0];
   objectPath = decodeURIComponent(objectPath);
 
-  try {
-    const { data, error } = await supabase.storage
-      .from('submissions')
-      .createSignedUrl(objectPath, expiresIn);
-
-    if (!error && data?.signedUrl) {
-      return data.signedUrl;
-    }
-  } catch (err) {
-    console.warn('Could not create signed URL for submission:', err);
+  if (!objectPath || !objectPath.trim()) {
+    throw new Error('Invalid submission storage path.');
   }
 
-  // Fallback to original URL during migration or offline mode
-  return fileUrl;
+  const { data, error } = await supabase.storage
+    .from('submissions')
+    .createSignedUrl(objectPath, expiresIn);
+
+  if (error || !data?.signedUrl) {
+    throw new Error(
+      error?.message || 'Failed to generate secure signed URL for submission: access denied or file unavailable.'
+    );
+  }
+
+  return data.signedUrl;
 }
 
 /**
  * Resolves a secure, time-limited signed URL for private course assets or lesson downloads.
  * External URLs are returned as-is.
+ * Fails closed with an explicit error if URL signing fails for private storage.
  */
 export async function getSecureAssetUrl(fileUrl: string, expiresIn = 3600): Promise<string> {
   if (!fileUrl) return '';
@@ -1974,7 +1978,9 @@ export async function getSecureAssetUrl(fileUrl: string, expiresIn = 3600): Prom
   const isSupabaseStorage =
     fileUrl.includes('/storage/v1/object/') ||
     fileUrl.startsWith('course-assets/') ||
-    fileUrl.includes('course-assets');
+    fileUrl.includes('course-assets') ||
+    fileUrl.startsWith('lessons/') ||
+    fileUrl.startsWith('resources/');
 
   if (!isSupabaseStorage && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
     return fileUrl;
@@ -1990,82 +1996,56 @@ export async function getSecureAssetUrl(fileUrl: string, expiresIn = 3600): Prom
   objectPath = objectPath.split('?')[0].split('#')[0];
   objectPath = decodeURIComponent(objectPath);
 
-  try {
-    const { data, error } = await supabase.storage
-      .from('course-assets')
-      .createSignedUrl(objectPath, expiresIn);
-
-    if (!error && data?.signedUrl) {
-      return data.signedUrl;
-    }
-  } catch (err) {
-    console.warn('Could not create signed URL for course asset:', err);
+  if (!objectPath || !objectPath.trim()) {
+    throw new Error('Invalid course asset storage path.');
   }
 
-  return fileUrl;
+  const { data, error } = await supabase.storage
+    .from('course-assets')
+    .createSignedUrl(objectPath, expiresIn);
+
+  if (error || !data?.signedUrl) {
+    throw new Error(
+      error?.message || 'Failed to generate secure signed URL for course asset: access denied or file unavailable.'
+    );
+  }
+
+  return data.signedUrl;
 }
 
 /**
  * Validates access entitlements and returns a secure, time-limited signed download URL
  * for a lesson resource. Enforces enrollment and completion rules via server-side RPC.
+ * Fails closed without falling back to raw URLs if authorization or entitlement fails.
  */
 export async function getLessonResourceDownloadUrl(
   resourceId: string,
   fallbackUrl?: string,
   expiresIn = 3600
 ): Promise<string> {
-  if (!resourceId && fallbackUrl) {
-    return getSecureAssetUrl(fallbackUrl, expiresIn);
-  }
-  if (!resourceId) return '';
-
-  try {
-    const { data, error } = await supabase.rpc('get_lesson_resource_download_url', {
-      p_resource_id: resourceId,
-    });
-
-    if (error) {
-      const errMsg = error.message || '';
-      if (
-        errMsg.includes('LOCKED_RESOURCE') ||
-        errMsg.includes('UNAUTHORIZED') ||
-        errMsg.includes('UNAUTHENTICATED')
-      ) {
-        throw new Error(errMsg);
-      }
-      if (fallbackUrl) {
-        return getSecureAssetUrl(fallbackUrl, expiresIn);
-      }
-      throw new Error(errMsg || 'Failed to resolve download URL.');
-    }
-
-    const payload = data as { url?: string } | null;
-    const targetUrl = payload?.url || fallbackUrl;
-    if (!targetUrl) {
-      throw new Error('No download URL available for this resource.');
-    }
-
-    return getSecureAssetUrl(targetUrl, expiresIn);
-  } catch (err: unknown) {
-    const msg =
-      err instanceof Error
-        ? err.message
-        : typeof err === 'object' && err !== null && 'message' in err
-        ? String((err as { message: unknown }).message)
-        : String(err);
-
-    if (
-      msg.includes('LOCKED_RESOURCE') ||
-      msg.includes('UNAUTHORIZED') ||
-      msg.includes('UNAUTHENTICATED')
-    ) {
-      throw err instanceof Error ? err : new Error(msg);
-    }
+  if (!resourceId) {
     if (fallbackUrl) {
       return getSecureAssetUrl(fallbackUrl, expiresIn);
     }
-    throw err instanceof Error ? err : new Error(msg);
+    return '';
   }
+
+  const { data, error } = await supabase.rpc('get_lesson_resource_download_url', {
+    p_resource_id: resourceId,
+  });
+
+  if (error) {
+    const errMsg = error.message || 'Failed to resolve download URL.';
+    throw new Error(errMsg);
+  }
+
+  const payload = data as { url?: string } | null;
+  const targetUrl = payload?.url;
+  if (!targetUrl) {
+    throw new Error('No download URL available for this resource.');
+  }
+
+  return getSecureAssetUrl(targetUrl, expiresIn);
 }
 
 // Student Submissions & Resubmissions

@@ -356,8 +356,10 @@ export async function uploadCommunityMedia(file: File): Promise<{
       contentType: file.type || undefined,
     });
     if (!error) {
-      const publicUrl = supabase.storage.from('course-assets').getPublicUrl(path).data.publicUrl;
-      return { url: publicUrl, type, name: file.name };
+      const { data: signed } = await supabase.storage
+        .from('course-assets')
+        .createSignedUrl(path, 86400 * 7);
+      return { url: signed?.signedUrl || `course-assets/${path}`, type, name: file.name };
     }
   } catch {
     // Handled by local preview fallback

@@ -631,7 +631,12 @@ export function ReviewSubmissions() {
           <div className="space-y-8">
             {pagedSubmissions.map((submission) => {
               const fileType = detectResourceType(submission.file_url);
-              const resolvedUrl = secureUrls[submission.id] || submission.file_url;
+              const isExternalSubmission =
+                submission.file_url.startsWith('http') &&
+                !submission.file_url.includes('supabase.co') &&
+                !submission.file_url.includes('/storage/v1/object/') &&
+                !submission.file_url.startsWith('submissions/');
+              const resolvedUrl = secureUrls[submission.id] || (isExternalSubmission ? submission.file_url : '');
               const isResubmission = Boolean(
                 submission.detailed_feedback_history?.length && submission.detailed_feedback_history.length > 1
               );

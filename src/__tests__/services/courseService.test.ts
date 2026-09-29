@@ -21,6 +21,8 @@ import {
   reorderLessons,
   duplicateLesson,
   getSecureAssetUrl,
+  getSecureSubmissionUrl,
+  uploadCourseAsset,
   getLessonResourceDownloadUrl,
   listAssignments,
   listAssignmentsByLesson,
@@ -1241,6 +1243,79 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
       await expect(
         getLessonResourceDownloadUrl('res-unauth-1', 'course-assets/resources/locked.zip')
       ).rejects.toThrow('UNAUTHORIZED');
+    });
+
+    it('fails closed and throws an error if URL signing fails for private course asset (never returns raw storage URL)', async () => {
+      const createSignedUrlMock = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Object not found or access denied' },
+      });
+      mockStorageFrom.mockReturnValue({
+        createSignedUrl: createSignedUrlMock,
+      });
+
+      const rawStorageUrl = 'course-assets/resources/restricted-file.zip';
+      await expect(getSecureAssetUrl(rawStorageUrl, 1800)).rejects.toThrow(
+        'Object not found or access denied'
+      );
+      expect(mockStorageFrom).toHaveBeenCalledWith('course-assets');
+      expect(createSignedUrlMock).toHaveBeenCalledWith('resources/restricted-file.zip', 1800);
+    });
+
+    it('uploadCourseAsset saves file and returns canonical private storage path instead of public CDN URL', async () => {
+      const uploadMock = vi.fn().mockResolvedValue({ error: null });
+      mockStorageFrom.mockReturnValue({
+        upload: uploadMock,
+      });
+
+      const file = new File(['mock content'], 'intro-lesson.mp4', { type: 'video/mp4' });
+      const pathResult = await uploadCourseAsset(file, 'lessons');
+
+      expect(mockStorageFrom).toHaveBeenCalledWith('course-assets');
+      expect(uploadMock).toHaveBeenCalledWith(
+        expect.stringMatching(/^lessons\/[0-9a-f-]+-intro-lesson\.mp4$/),
+        file,
+        expect.objectContaining({ upsert: false, contentType: 'video/mp4' })
+      );
+      expect(pathResult).toMatch(/^course-assets\/lessons\/[0-9a-f-]+-intro-lesson\.mp4$/);
+      expect(pathResult).not.toContain('/storage/v1/object/public/');
+    });
+
+    it('getSecureSubmissionUrl preserves external links (YouTube, Vimeo, Google Drive)', async () => {
+      const youtubeUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+      const result = await getSecureSubmissionUrl(youtubeUrl);
+      expect(result).toBe(youtubeUrl);
+      expect(mockStorageFrom).not.toHaveBeenCalled();
+    });
+
+    it('getSecureSubmissionUrl generates signed URL for private submissions bucket', async () => {
+      const createSignedUrlMock = vi.fn().mockResolvedValue({
+        data: { signedUrl: 'https://test.supabase.co/storage/v1/object/sign/submissions/user-1/submission.mp4?token=signed' },
+        error: null,
+      });
+      mockStorageFrom.mockReturnValue({
+        createSignedUrl: createSignedUrlMock,
+      });
+
+      const result = await getSecureSubmissionUrl('submissions/user-1/submission.mp4', 3600);
+      expect(mockStorageFrom).toHaveBeenCalledWith('submissions');
+      expect(createSignedUrlMock).toHaveBeenCalledWith('user-1/submission.mp4', 3600);
+      expect(result).toBe('https://test.supabase.co/storage/v1/object/sign/submissions/user-1/submission.mp4?token=signed');
+    });
+
+    it('getSecureSubmissionUrl fails closed and throws an error if URL signing fails (never returns raw storage path)', async () => {
+      const createSignedUrlMock = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Access denied: not authorized' },
+      });
+      mockStorageFrom.mockReturnValue({
+        createSignedUrl: createSignedUrlMock,
+      });
+
+      await expect(
+        getSecureSubmissionUrl('submissions/other-user/secret-cut.mp4', 3600)
+      ).rejects.toThrow('Access denied: not authorized');
+      expect(mockStorageFrom).toHaveBeenCalledWith('submissions');
     });
   });
 

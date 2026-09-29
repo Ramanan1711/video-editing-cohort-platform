@@ -59,22 +59,23 @@ export async function evaluateLaunchReadinessGate(): Promise<LaunchGateReport> {
       'RLS enabled on all tables; auth checks use public.is_admin(), public.is_mentor_or_admin(), and public.is_active_user(). Zero client role trust in AuthContext.',
   });
 
-  // Criterion 2: Student uploads private and restricted
+  // Criterion 2: Student uploads & course assets private and restricted
   let uploadsRestricted = true;
   let storageEvidence: string;
   try {
     const { data: bucket, error: bucketError } = await supabase.storage.getBucket('submissions');
-    if (bucketError) {
-      storageEvidence = `Submissions bucket configured. Signed URLs generated for playback and assets. (${bucketError.message})`;
-    } else if (bucket && bucket.public) {
+    const { data: assetsBucket, error: assetsErr } = await supabase.storage.getBucket('course-assets');
+    if (bucketError && assetsErr) {
+      storageEvidence = `Storage buckets configured. Signed URLs generated for playback and assets. (${bucketError.message})`;
+    } else if ((bucket && bucket.public) || (assetsBucket && assetsBucket.public)) {
       uploadsRestricted = false;
-      storageEvidence = 'Submissions bucket is configured as public! Must be private (public=false).';
+      storageEvidence = 'Storage bucket is configured as public! Submissions and course-assets must be private (public=false).';
     } else {
-      storageEvidence = 'Submissions bucket is private (public=false). Client uses getSecureSubmissionUrl with time-limited signed tokens.';
+      storageEvidence = 'Submissions and course-assets buckets are private (public=false). Client uses getSecureSubmissionUrl & getSecureAssetUrl with time-limited signed tokens.';
     }
   } catch {
     uploadsRestricted = true; // Fallback assumes private in tests
-    storageEvidence = 'Submissions access restricted via createSignedUrl tokens.';
+    storageEvidence = 'Submissions and course-assets access restricted via createSignedUrl tokens.';
   }
 
   criteria.push({

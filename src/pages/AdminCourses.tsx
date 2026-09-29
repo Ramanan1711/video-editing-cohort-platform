@@ -1836,13 +1836,13 @@ export function AdminCourses() {
                                                               <a
                                                                 href={res.url}
                                                                 onClick={async (e) => {
-                                                                  if (res.url.includes('course-assets')) {
+                                                                  if (res.url.includes('course-assets') || res.url.startsWith('resources/') || res.url.startsWith('lessons/')) {
                                                                     e.preventDefault();
                                                                     try {
                                                                       const signed = await getSecureAssetUrl(res.url);
                                                                       window.open(signed, '_blank', 'noopener,noreferrer');
-                                                                    } catch {
-                                                                      window.open(res.url, '_blank', 'noopener,noreferrer');
+                                                                    } catch (err: unknown) {
+                                                                      alert(err instanceof Error ? err.message : 'Could not open secure course asset.');
                                                                     }
                                                                   }
                                                                 }}
