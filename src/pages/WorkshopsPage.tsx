@@ -14,6 +14,8 @@ import {
   Plus,
   Trash2,
   Loader2,
+  Users,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { CommunityTopNav } from '../components/community/CommunityTopNav';
@@ -26,6 +28,11 @@ import {
   createLiveSession,
   deleteLiveSession,
 } from '../lib/adminService';
+import {
+  checkInToSession,
+  getStudentAttendanceHistory,
+} from '../lib/attendanceService';
+import { AttendanceRosterModal } from '../components/attendance/AttendanceRosterModal';
 
 interface WorkshopItem {
   id: string;
@@ -70,6 +77,11 @@ export function WorkshopsPage() {
     meeting_url: '',
     description: '',
   });
+
+  // Attendance modal and check-in state
+  const [attendanceWorkshop, setAttendanceWorkshop] = useState<WorkshopItem | null>(null);
+  const [checkedInIds, setCheckedInIds] = useState<Set<string>>(new Set());
+  const [checkingInId, setCheckingInId] = useState<string | null>(null);
 
   const loadLiveSessions = async () => {
     try {
@@ -137,7 +149,28 @@ export function WorkshopsPage() {
 
   useEffect(() => {
     void loadLiveSessions();
-  }, []);
+    if (user?.id) {
+      void getStudentAttendanceHistory(user.id).then((history) => {
+        const attended = new Set(
+          history.filter((h) => h.status === 'present' || h.status === 'late').map((h) => h.session_id)
+        );
+        setCheckedInIds(attended);
+      });
+    }
+  }, [user?.id]);
+
+  const handleCheckIn = async (workshopId: string) => {
+    if (!user) return;
+    try {
+      setCheckingInId(workshopId);
+      await checkInToSession(workshopId);
+      setCheckedInIds((prev) => new Set([...prev, workshopId]));
+    } catch (err) {
+      console.error('Check-in error:', err);
+    } finally {
+      setCheckingInId(null);
+    }
+  };
 
   // Filter workshops by sub-tab and optional date range
   const filteredWorkshops = useMemo(() => {
@@ -176,6 +209,9 @@ export function WorkshopsPage() {
   }, [filteredWorkshops]);
 
   const handleJoinOrWatch = (workshop: WorkshopItem) => {
+    if (user && !canManageSessions && activeSubTab === 'upcoming') {
+      void handleCheckIn(workshop.id);
+    }
     if (workshop.meetingUrl) {
       window.open(workshop.meetingUrl, '_blank', 'noopener,noreferrer');
     }
@@ -486,8 +522,40 @@ export function WorkshopsPage() {
                         </div>
                       </div>
 
-                      {/* Right: Join Button & More Options */}
-                      <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                      {/* Right: Attendance Check-In / Roster / Join Button & More Options */}
+                      <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
+                        {/* Student Attendance Check In */}
+                        {!canManageSessions && activeSubTab === 'upcoming' && (
+                          checkedInIds.has(workshop.id) ? (
+                            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                              <CheckCircle2 size={12} className="text-emerald-500" />
+                              Attended
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={checkingInId === workshop.id}
+                              onClick={() => handleCheckIn(workshop.id)}
+                              className="flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-600 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300 transition"
+                            >
+                              {checkingInId === workshop.id ? <Loader2 size={12} className="animate-spin" /> : null}
+                              Check In
+                            </button>
+                          )
+                        )}
+
+                        {/* Mentor / Admin Roster Button */}
+                        {canManageSessions && (
+                          <button
+                            type="button"
+                            onClick={() => setAttendanceWorkshop(workshop)}
+                            className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-orange-300 hover:text-orange-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 transition shadow-2xs"
+                          >
+                            <Users size={13} className="text-orange-500" />
+                            <span>Roster</span>
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => handleJoinOrWatch(workshop)}
@@ -553,6 +621,19 @@ export function WorkshopsPage() {
                                 <Info size={14} />
                                 <span>View session info</span>
                               </button>
+                              {canManageSessions && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAttendanceWorkshop(workshop);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                                >
+                                  <Users size={14} className="text-orange-500" />
+                                  <span>Attendance Roster</span>
+                                </button>
+                              )}
                               {canManageSessions && (
                                 <button
                                   type="button"
@@ -816,6 +897,16 @@ export function WorkshopsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Attendance Roster Modal */}
+      {attendanceWorkshop && (
+        <AttendanceRosterModal
+          sessionId={attendanceWorkshop.id}
+          sessionTitle={attendanceWorkshop.title}
+          sessionStartsAt={attendanceWorkshop.dateStr}
+          onClose={() => setAttendanceWorkshop(null)}
+        />
       )}
 
       {/* Level Up Modal */}

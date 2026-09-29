@@ -50,6 +50,7 @@ import { useToast } from '../context/useToast';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import { AdminNotificationCenter } from '../components/AdminNotificationCenter';
 import { TopRightControls } from '../components/TopRightControls';
+import { AttendanceRosterModal } from '../components/attendance/AttendanceRosterModal';
 import {
   hasAdminPermission,
   ROLE_LABELS,
@@ -213,6 +214,7 @@ export function AdminOperations() {
   const [sessionInput, setSessionInput] = useState({ title: '', description: '', starts_at: '', meeting_url: '' });
   const [editingSession, setEditingSession] = useState<LiveSession | null>(null);
   const [savingSession, setSavingSession] = useState(false);
+  const [attendanceSession, setAttendanceSession] = useState<LiveSession | null>(null);
 
   const [nowTimestamp] = useState(() => Date.now());
 
@@ -3162,7 +3164,16 @@ export function AdminOperations() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setAttendanceSession(item)}
+                              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:border-orange-300 hover:text-orange-600 transition"
+                              title="View & manage attendance roster"
+                            >
+                              <Users size={13} className="text-orange-500" />
+                              <span>Roster</span>
+                            </button>
                             <button
                               onClick={() => {
                                 setEditingSession(item);
@@ -3931,6 +3942,16 @@ export function AdminOperations() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Live Session Attendance Roster Modal */}
+        {attendanceSession && (
+          <AttendanceRosterModal
+            sessionId={attendanceSession.id}
+            sessionTitle={attendanceSession.title}
+            sessionStartsAt={attendanceSession.starts_at}
+            onClose={() => setAttendanceSession(null)}
+          />
         )}
         </>
         )}
