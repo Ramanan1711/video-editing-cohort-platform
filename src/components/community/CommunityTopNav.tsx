@@ -10,7 +10,6 @@ import {
   LayoutGrid,
   Moon,
   Sun,
-  Bell,
   Sparkles,
   LogOut,
   Menu,
@@ -24,6 +23,7 @@ import {
 import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
 import { UserProfileDropdown } from '../UserProfileDropdown';
+import { NotificationCenter } from '../NotificationCenter';
 
 export type TopNavTab = 'community' | 'messages' | 'levelup' | 'workshops' | 'courses';
 
@@ -40,11 +40,11 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   activeTab,
   onTabChange,
   unreadMessagesCount = 2,
-  unreadNotificationsCount = 10,
+  unreadNotificationsCount: _unreadNotificationsCount = 10,
   onOpenLevelUpModal: _onOpenLevelUpModal,
   onOpenWorkshopsModal: _onOpenWorkshopsModal,
 }) => {
-  const { profile, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
 
@@ -206,18 +206,8 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
             {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
           </button>
 
-          {/* Notifications Bell */}
-          <button
-            title="Notifications"
-            className="relative rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition"
-          >
-            <Bell size={18} />
-            {unreadNotificationsCount > 0 && (
-              <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-orange-500 text-[9px] font-black text-white ring-2 ring-white dark:ring-slate-900">
-                {unreadNotificationsCount > 9 ? '10' : unreadNotificationsCount}
-              </span>
-            )}
-          </button>
+          {/* Notifications Center */}
+          {user && <NotificationCenter userId={user.id} />}
 
           {/* User Profile Avatar Dropdown */}
           <UserProfileDropdown />

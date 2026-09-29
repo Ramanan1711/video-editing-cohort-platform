@@ -1,7 +1,9 @@
 import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '../context/useTheme';
+import { useAuth } from '../context/useAuth';
 import { UserProfileDropdown } from './UserProfileDropdown';
+import { NotificationCenter } from './NotificationCenter';
 
 interface TopRightControlsProps {
   showThemeToggle?: boolean;
@@ -11,9 +13,11 @@ export const TopRightControls: React.FC<TopRightControlsProps> = ({
   showThemeToggle = true,
 }) => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user } = useAuth();
 
   return (
     <div className="flex items-center gap-2.5 sm:gap-3">
+      {user && <NotificationCenter userId={user.id} />}
       {showThemeToggle && (
         <button
           onClick={toggleTheme}

@@ -90,6 +90,7 @@ import { StateFallback } from '../components/ui/StateFallback';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import { SprintChallengeTracker } from '../components/internship/SprintChallengeTracker';
 import { WhatsAppSupportWidget } from '../components/internship/WhatsAppSupportWidget';
+import { NotificationCenter } from '../components/NotificationCenter';
 import { getStudentSprintDays, type InternshipDayStatus } from '../lib/internshipService';
 
 const emptyCourse: StudentCourseData = { cohort: null, modules: [], progress: [], enrolledCohorts: [] };
@@ -1098,6 +1099,7 @@ export function StudentDashboard() {
               <span className="text-xs font-bold text-slate-500 hidden sm:inline">
                 {course.cohort?.name}
               </span>
+              {user && <NotificationCenter userId={user.id} />}
               <button
                 type="button"
                 onClick={() => setAchievementsModalOpen(true)}

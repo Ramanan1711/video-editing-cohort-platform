@@ -10,11 +10,11 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import {
-  listStudentNotifications,
-  markAllNotificationsRead,
-  markNotificationRead,
-  type StudentNotification,
-} from '../lib/courseService';
+  listUserNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+} from '../lib/notificationService';
+import type { StudentNotification } from '../lib/courseService';
 
 interface NotificationCenterProps {
   userId: string;
@@ -33,7 +33,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
   useEffect(() => {
     if (!userId) return;
     let active = true;
-    listStudentNotifications(userId)
+    listUserNotifications(userId)
       .then((items) => {
         if (active) setNotifications(items);
       })
@@ -45,8 +45,9 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
       });
 
     // Realtime notification sync on authoritative 'notifications' table
+    const channelName = `notifications-live-${userId}-${Math.random().toString(36).slice(2, 8)}`;
     const channel = supabase
-      .channel(`notifications-live-${userId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -88,7 +89,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
 
   const refreshNotifications = () => {
     setLoading(true);
-    listStudentNotifications(userId)
+    listUserNotifications(userId)
       .then((items) => setNotifications(items))
       .catch((err: unknown) => console.warn('Failed to load notifications:', err))
       .finally(() => setLoading(false));
@@ -147,7 +148,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
 
   const handleMarkAsRead = async (id: string) => {
     try {
-      await markNotificationRead(id);
+      await markNotificationAsRead(id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
       );
@@ -160,7 +161,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
     if (unreadCount === 0) return;
     try {
       setActionLoading(true);
-      await markAllNotificationsRead(userId);
+      await markAllNotificationsAsRead(userId);
       setNotifications((prev) =>
         prev.map((n) => ({ ...n, read_at: n.read_at || new Date().toISOString() }))
       );
