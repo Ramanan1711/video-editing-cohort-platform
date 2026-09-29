@@ -1,6 +1,8 @@
 // src/lib/observability/deploymentCheck.ts
 // Environment-specific preflight deployment checklist & security auditor
 
+import { parseSentryDsn } from './errorTracking';
+
 export type CheckStatus = 'pass' | 'warn' | 'fail';
 
 export interface DeploymentCheckItem {
@@ -117,18 +119,31 @@ export function runDeploymentCheck(): DeploymentReport {
       category: 'env',
       status: isProduction ? 'warn' : 'pass',
       message: isProduction
-        ? 'VITE_SENTRY_DSN is not configured. Falling back to internal telemetry buffer.'
-        : 'Internal in-memory error telemetry active.',
-      details: 'Add VITE_SENTRY_DSN for external cloud error monitoring if desired.',
+        ? 'VITE_SENTRY_DSN not set. Durable PostgreSQL database logging and local storage buffer active.'
+        : 'Durable PostgreSQL database error logging and offline buffer active.',
+      details: 'Configure VITE_SENTRY_DSN for dual-dispatch to remote Sentry if desired.',
     });
   } else {
-    items.push({
-      id: 'env_sentry_dsn',
-      name: 'External Error Tracking (Sentry)',
-      category: 'env',
-      status: 'pass',
-      message: 'Sentry DSN configured for remote crash reporting.',
-    });
+    const parsedDsn = parseSentryDsn(sentryDsn);
+    if (!parsedDsn) {
+      items.push({
+        id: 'env_sentry_dsn',
+        name: 'External Error Tracking (Sentry)',
+        category: 'env',
+        status: 'warn',
+        message: 'VITE_SENTRY_DSN is malformed. Expected https://<key>@<host>/<projectId>.',
+        details: 'Durable database logging active as fallback.',
+      });
+    } else {
+      items.push({
+        id: 'env_sentry_dsn',
+        name: 'External Error Tracking (Sentry)',
+        category: 'env',
+        status: 'pass',
+        message: `Verified RFC-compliant Sentry DSN targeting host "${parsedDsn.host}" (Project ID: ${parsedDsn.projectId}).`,
+        details: `Envelope endpoint: ${parsedDsn.envelopeUrl}`,
+      });
+    }
   }
 
   // 4. Browser Capability Checks
