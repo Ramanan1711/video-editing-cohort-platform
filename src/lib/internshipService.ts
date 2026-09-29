@@ -48,6 +48,8 @@ export interface InternMonitoringRecord {
   whatsappOptIn: boolean;
   streakDays: number;
   completedDaysCount: number;
+  totalDays?: number;
+  completionPercentage?: number;
   pendingReviewsCount: number;
   lastActiveAt: string | null;
   riskStatus: 'on_track' | 'at_risk' | 'critical';
@@ -471,7 +473,7 @@ export async function gradeDailyChallenge(
 }
 
 /**
- * Compute student 15-day sprint progress
+ * Compute student sprint progress with dynamic sprint duration
  */
 export async function getStudentSprintDays(
   userId: string,
@@ -479,13 +481,36 @@ export async function getStudentSprintDays(
 ): Promise<{
   days: InternshipDayStatus[];
   completedCount: number;
+  totalDays: number;
   streakCount: number;
   overallScore: number | null;
+  progressPercent: number;
 }> {
-  const [challenges, submissions] = await Promise.all([
+  const fetchCohortDuration = async (): Promise<number | null> => {
+    try {
+      const query = supabase.from('cohorts').select('sprint_duration_days');
+      if (typeof query?.eq === 'function') {
+        const eqQuery = query.eq('id', cohortId);
+        if (typeof eqQuery?.maybeSingle === 'function') {
+          const res = await eqQuery.maybeSingle();
+          return (res?.data as { sprint_duration_days?: number } | null)?.sprint_duration_days ?? null;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const [configuredDays, challenges, submissions] = await Promise.all([
+    fetchCohortDuration(),
     listDailyChallenges(cohortId),
     listMyDailySubmissions(userId),
   ]);
+
+  const maxChallengeDay = challenges.length > 0 ? Math.max(...challenges.map((c) => c.day_number)) : 0;
+  const configuredSprintDays = configuredDays || 15;
+  const totalDays = Math.max(configuredSprintDays, maxChallengeDay, 1);
 
   const submissionMap = new Map(submissions.map((s) => [s.challenge_id, s]));
 
@@ -495,7 +520,7 @@ export async function getStudentSprintDays(
 
   const days: InternshipDayStatus[] = [];
 
-  for (let i = 1; i <= 15; i++) {
+  for (let i = 1; i <= totalDays; i++) {
     const ch = challenges.find((c) => c.day_number === i) || null;
     const sub = ch ? submissionMap.get(ch.id) || null : null;
 
@@ -530,14 +555,17 @@ export async function getStudentSprintDays(
     });
   }
 
-  const streakCount = completedCount > 0 ? Math.min(completedCount, 15) : 0;
+  const streakCount = completedCount > 0 ? Math.min(completedCount, totalDays) : 0;
   const overallScore = scoredCount > 0 ? Math.round(totalScore / scoredCount) : null;
+  const progressPercent = Math.min(100, Math.round((completedCount / totalDays) * 100));
 
   return {
     days,
     completedCount,
+    totalDays,
     streakCount,
     overallScore,
+    progressPercent,
   };
 }
 
@@ -545,11 +573,30 @@ export async function getStudentSprintDays(
  * Telemetry monitoring for mentors across all enrolled cohort interns
  */
 export async function listCohortInternsMonitoring(cohortId: string): Promise<InternMonitoringRecord[]> {
-  // 1. Fetch cohort enrollments
-  const { data: enrollments, error: enrollError } = await supabase
-    .from('enrollments')
-    .select('user_id, status, created_at, profiles(id, full_name, email, whatsapp_number, whatsapp_opt_in)')
-    .eq('cohort_id', cohortId);
+  const fetchCohortDuration = async (): Promise<number | null> => {
+    try {
+      const query = supabase.from('cohorts').select('sprint_duration_days');
+      if (typeof query?.eq === 'function') {
+        const eqQuery = query.eq('id', cohortId);
+        if (typeof eqQuery?.maybeSingle === 'function') {
+          const res = await eqQuery.maybeSingle();
+          return (res?.data as { sprint_duration_days?: number } | null)?.sprint_duration_days ?? null;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  // 1. Fetch cohort enrollments & duration
+  const [configuredDays, { data: enrollments, error: enrollError }] = await Promise.all([
+    fetchCohortDuration(),
+    supabase
+      .from('enrollments')
+      .select('user_id, status, created_at, profiles(id, full_name, email, whatsapp_number, whatsapp_opt_in)')
+      .eq('cohort_id', cohortId),
+  ]);
 
   if (enrollError || !enrollments || enrollments.length === 0) {
     return [];
@@ -560,6 +607,10 @@ export async function listCohortInternsMonitoring(cohortId: string): Promise<Int
     .from('daily_challenges')
     .select('id, day_number')
     .eq('cohort_id', cohortId);
+
+  const maxChallengeDay = challenges && challenges.length > 0 ? Math.max(...challenges.map((c) => c.day_number)) : 0;
+  const configuredSprintDays = configuredDays || 15;
+  const totalDays = Math.max(configuredSprintDays, maxChallengeDay, 1);
 
   const challengeMap = new Map((challenges || []).map((c) => [c.id, c.day_number]));
 
@@ -583,7 +634,7 @@ export async function listCohortInternsMonitoring(cohortId: string): Promise<Int
     let completedCount = 0;
     let pendingCount = 0;
 
-    for (let day = 1; day <= 15; day++) {
+    for (let day = 1; day <= totalDays; day++) {
       const sub = userSubs.find((s) => challengeMap.get(s.challenge_id) === day);
       if (sub) {
         if (sub.status === 'accepted') {
@@ -601,9 +652,11 @@ export async function listCohortInternsMonitoring(cohortId: string): Promise<Int
     let riskStatus: 'on_track' | 'at_risk' | 'critical' = 'on_track';
     if (completedCount === 0 && userSubs.length === 0) {
       riskStatus = 'critical';
-    } else if (completedCount < 3) {
+    } else if (completedCount < Math.max(1, Math.floor(totalDays * 0.2))) {
       riskStatus = 'at_risk';
     }
+
+    const completionPercentage = Math.min(100, Math.round((completedCount / totalDays) * 100));
 
     return {
       userId: enr.user_id,
@@ -613,6 +666,8 @@ export async function listCohortInternsMonitoring(cohortId: string): Promise<Int
       whatsappOptIn: p?.whatsapp_opt_in ?? true,
       streakDays: Math.max(1, completedCount),
       completedDaysCount: completedCount,
+      totalDays,
+      completionPercentage,
       pendingReviewsCount: pendingCount,
       lastActiveAt: userSubs[0]?.submitted_at || null,
       riskStatus,

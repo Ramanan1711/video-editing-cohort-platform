@@ -34,6 +34,7 @@ interface SprintChallengeTrackerProps {
   studentName: string;
   sprintDays: InternshipDayStatus[];
   completedCount: number;
+  totalDays?: number;
   streakCount: number;
   overallScore: number | null;
   onRefresh: () => void;
@@ -47,6 +48,7 @@ export function SprintChallengeTracker({
   studentName,
   sprintDays,
   completedCount,
+  totalDays,
   streakCount,
   overallScore,
   onRefresh,
@@ -59,14 +61,18 @@ export function SprintChallengeTracker({
   const [submitting, setSubmitting] = useState(false);
   const [activePhaseFilter, setActivePhaseFilter] = useState<'all' | 'phase1' | 'phase2' | 'phase3'>('all');
 
-  const progressPercent = Math.min(100, Math.round((completedCount / 15) * 100));
+  const effectiveTotalDays = totalDays || sprintDays.length || 15;
+  const progressPercent = Math.min(100, Math.round((completedCount / effectiveTotalDays) * 100));
+
+  const p1End = Math.max(1, Math.floor(effectiveTotalDays / 3));
+  const p2End = Math.max(p1End + 1, Math.floor((effectiveTotalDays * 2) / 3));
 
   const filteredDays = useMemo(() => {
-    if (activePhaseFilter === 'phase1') return sprintDays.filter((d) => d.dayNumber <= 5);
-    if (activePhaseFilter === 'phase2') return sprintDays.filter((d) => d.dayNumber > 5 && d.dayNumber <= 10);
-    if (activePhaseFilter === 'phase3') return sprintDays.filter((d) => d.dayNumber > 10);
+    if (activePhaseFilter === 'phase1') return sprintDays.filter((d) => d.dayNumber <= p1End);
+    if (activePhaseFilter === 'phase2') return sprintDays.filter((d) => d.dayNumber > p1End && d.dayNumber <= p2End);
+    if (activePhaseFilter === 'phase3') return sprintDays.filter((d) => d.dayNumber > p2End);
     return sprintDays;
-  }, [sprintDays, activePhaseFilter]);
+  }, [sprintDays, activePhaseFilter, p1End, p2End]);
 
   const handleOpenDay = (day: InternshipDayStatus) => {
     setSelectedDay(day);
@@ -149,13 +155,13 @@ export function SprintChallengeTracker({
 
   return (
     <div className="space-y-6">
-      {/* 15-Day Sprint Hero Banner */}
+      {/* Dynamic Sprint Hero Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-orange-200/80 bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-6 text-white shadow-md">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-white/20 px-3 py-0.5 text-[11px] font-black uppercase tracking-wider backdrop-blur-sm">
-                15-Day Production Sprint
+                {effectiveTotalDays}-Day Production Sprint
               </span>
               <span className="rounded-full bg-amber-300/30 px-3 py-0.5 text-[11px] font-black uppercase tracking-wider text-amber-100 backdrop-blur-sm">
                 {cohortName || 'Intensive Cohort'}
@@ -165,7 +171,7 @@ export function SprintChallengeTracker({
               Ship Daily Tasks. Earn Your Verified Credential.
             </h2>
             <p className="text-xs sm:text-sm text-orange-100 max-w-2xl leading-relaxed">
-              Every day unlocks a hands-on production challenge with strict 24-hour turnaround. Complete all 15 tasks to pass mentor peer review and receive your industry-ready Certificate of Completion.
+              Every day unlocks a hands-on production challenge with strict 24-hour turnaround. Complete all {effectiveTotalDays} tasks to pass mentor peer review and receive your industry-ready Certificate of Completion.
             </p>
           </div>
 
@@ -189,7 +195,7 @@ export function SprintChallengeTracker({
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-orange-200">Completed</p>
-                <p className="text-lg font-black text-white">{completedCount} / 15</p>
+                <p className="text-lg font-black text-white">{completedCount} / {effectiveTotalDays}</p>
               </div>
             </div>
 
@@ -213,7 +219,7 @@ export function SprintChallengeTracker({
         <div className="mt-5 space-y-1.5">
           <div className="flex items-center justify-between text-xs font-bold text-orange-100">
             <span>Sprint Progress ({progressPercent}%)</span>
-            <span>{15 - completedCount} days remaining</span>
+            <span>{Math.max(0, effectiveTotalDays - completedCount)} days remaining</span>
           </div>
           <div className="h-3 w-full overflow-hidden rounded-full bg-black/20 p-0.5">
             <div
@@ -235,7 +241,7 @@ export function SprintChallengeTracker({
                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
             }`}
           >
-            All 15 Days
+            All {effectiveTotalDays} Days
           </button>
           <button
             onClick={() => setActivePhaseFilter('phase1')}
@@ -245,7 +251,7 @@ export function SprintChallengeTracker({
                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
             }`}
           >
-            Phase 1: Foundations (Days 1–5)
+            Phase 1: Foundations (Days 1–{p1End})
           </button>
           <button
             onClick={() => setActivePhaseFilter('phase2')}
@@ -255,7 +261,7 @@ export function SprintChallengeTracker({
                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
             }`}
           >
-            Phase 2: Core Execution (Days 6–10)
+            Phase 2: Core Execution (Days {p1End + 1}–{p2End})
           </button>
           <button
             onClick={() => setActivePhaseFilter('phase3')}
@@ -265,7 +271,7 @@ export function SprintChallengeTracker({
                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
             }`}
           >
-            Phase 3: Capstone &amp; Review (Days 11–15)
+            Phase 3: Capstone &amp; Review (Days {p2End + 1}–{effectiveTotalDays})
           </button>
         </div>
 

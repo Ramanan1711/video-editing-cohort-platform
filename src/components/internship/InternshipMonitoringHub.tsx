@@ -66,7 +66,8 @@ export function InternshipMonitoringHub({
     const atRisk = interns.filter((i) => i.riskStatus === 'at_risk').length;
     const critical = interns.filter((i) => i.riskStatus === 'critical').length;
     const totalCompletedDays = interns.reduce((acc, i) => acc + i.completedDaysCount, 0);
-    const avgCompletion = total > 0 ? Math.round((totalCompletedDays / (total * 15)) * 100) : 0;
+    const maxSprintDays = interns[0]?.totalDays || 15;
+    const avgCompletion = total > 0 && maxSprintDays > 0 ? Math.round((totalCompletedDays / (total * maxSprintDays)) * 100) : 0;
 
     return { total, onTrack, atRisk, critical, avgCompletion };
   }, [interns]);
@@ -84,7 +85,8 @@ export function InternshipMonitoringHub({
   const handleSendWhatsAppNudge = async (intern: InternMonitoringRecord) => {
     const phone = intern.phone || '919876543210';
     const resumeUrl = window.location.origin + '/student/dashboard?tab=internship_sprint';
-    const nextDay = Math.min(15, intern.completedDaysCount + 1);
+    const internTotalDays = intern.totalDays || 15;
+    const nextDay = Math.min(internTotalDays, intern.completedDaysCount + 1);
     const message = formatWhatsAppInactivityNudge(intern.fullName, nextDay, resumeUrl);
 
     try {
@@ -227,7 +229,7 @@ export function InternshipMonitoringHub({
               <tr>
                 <th className="px-4 py-3.5">Intern</th>
                 <th className="px-4 py-3.5">WhatsApp</th>
-                <th className="px-4 py-3.5">15-Day Heatmap Progress</th>
+                <th className="px-4 py-3.5">Sprint Heatmap Progress</th>
                 <th className="px-4 py-3.5">Streak</th>
                 <th className="px-4 py-3.5">Risk Status</th>
                 <th className="px-4 py-3.5 text-right">Quick Nudge</th>
@@ -268,10 +270,10 @@ export function InternshipMonitoringHub({
                       )}
                     </td>
 
-                    {/* 15-Day Visual Mini Heatmap */}
+                    {/* Dynamic Visual Mini Heatmap */}
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1">
-                        {Array.from({ length: 15 }, (_, i) => i + 1).map((day) => {
+                        {Array.from({ length: intern.totalDays || 15 }, (_, i) => i + 1).map((day) => {
                           const status = intern.dayStatuses[day] || 'locked';
                           let bg = 'bg-slate-200 dark:bg-slate-800';
                           let title = `Day ${day}: Locked`;
@@ -295,7 +297,7 @@ export function InternshipMonitoringHub({
                           );
                         })}
                         <span className="ml-2 font-black text-slate-700 dark:text-slate-300 text-[11px]">
-                          {intern.completedDaysCount}/15
+                          {intern.completedDaysCount}/{intern.totalDays || 15}
                         </span>
                       </div>
                     </td>

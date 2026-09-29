@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { parseDatabaseError } from './errorHandling';
 import { queryCache } from './queryCache';
+import { getStudentSprintDays } from './internshipService';
 
 export interface Course {
   id: string;
@@ -3224,4 +3225,152 @@ export async function listStudentCalendarEvents(
     console.warn('Failed to load calendar events:', err);
     return [];
   }
+}
+
+// ============================================================================
+// 19. Authoritative Unified Progress Tracking Subsystem
+// ============================================================================
+
+export interface StudentUnifiedProgress {
+  student_id: string;
+  cohort_id: string;
+  enrollment: {
+    is_enrolled: boolean;
+    status: string;
+  };
+  curriculum: {
+    total_lessons: number;
+    completed_lessons: number;
+    percent: number;
+    total_watch_seconds: number;
+  };
+  assignments: {
+    total_assignments: number;
+    submitted_assignments: number;
+    approved_assignments: number;
+    percent: number;
+  };
+  sprint_challenges: {
+    configured_sprint_days: number;
+    effective_sprint_days: number;
+    total_challenges: number;
+    submitted_challenges: number;
+    completed_challenges: number;
+    percent: number;
+    streak_days: number;
+    average_score: number | null;
+  };
+  overall: {
+    composite_percent: number;
+    total_milestones: number;
+    completed_milestones: number;
+    is_completed: boolean;
+    eligible_for_certificate: boolean;
+    has_certificate: boolean;
+    certificate_number?: string | null;
+    certificate_issued_at?: string | null;
+  };
+}
+
+export async function getStudentUnifiedProgress(
+  userId: string,
+  cohortId: string
+): Promise<StudentUnifiedProgress> {
+  // 1. Try authoritative PostgreSQL RPC
+  try {
+    const { data, error } = await supabase.rpc('get_student_unified_progress', {
+      p_student_id: userId,
+      p_cohort_id: cohortId,
+    });
+
+    if (!error && data) {
+      return data as StudentUnifiedProgress;
+    }
+  } catch (rpcErr) {
+    console.warn('get_student_unified_progress RPC error, falling back:', rpcErr);
+  }
+
+  // 2. Client-side fallback aggregation
+  const [courseData, assignments, sprintData] = await Promise.all([
+    getStudentCourseData(userId, cohortId).catch(() => ({ cohort: null, modules: [], progress: [], enrolledCohorts: [] })),
+    listAssignments(cohortId).catch(() => []),
+    getStudentSprintDays(userId, cohortId).catch(() => ({
+      days: [],
+      completedCount: 0,
+      totalDays: 15,
+      streakCount: 0,
+      overallScore: null,
+      progressPercent: 0,
+    })),
+  ]);
+
+  const allLessons = courseData.modules.flatMap((m) => m.lessons);
+  const totalLessons = allLessons.length;
+  const completedLessons = courseData.progress.filter((p) => p.completed).length;
+  const curriculumPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+  const totalAssignments = assignments.length;
+  let approvedAssignments = 0;
+  let submittedAssignments = 0;
+  try {
+    const { data: subs } = await supabase
+      .from('submissions')
+      .select('assignment_id, status')
+      .eq('student_id', userId)
+      .in('assignment_id', assignments.map((a) => a.id));
+
+    if (subs) {
+      submittedAssignments = subs.length;
+      approvedAssignments = subs.filter((s) => s.status === 'reviewed').length;
+    }
+  } catch {
+    // fallback
+  }
+
+  const assignmentPercent = totalAssignments > 0 ? Math.round((approvedAssignments / totalAssignments) * 100) : 0;
+  const effectiveSprintDays = sprintData.totalDays || 15;
+  const sprintPercent = sprintData.progressPercent || 0;
+
+  const totalMilestones = totalLessons + totalAssignments + (sprintData.days.length > 0 ? effectiveSprintDays : 0);
+  const completedMilestones = completedLessons + approvedAssignments + (sprintData.days.length > 0 ? sprintData.completedCount : 0);
+  const compositePercent = totalMilestones > 0 ? Math.min(100, Math.round((completedMilestones / totalMilestones) * 100)) : 0;
+
+  return {
+    student_id: userId,
+    cohort_id: cohortId,
+    enrollment: {
+      is_enrolled: Boolean(courseData.cohort),
+      status: 'active',
+    },
+    curriculum: {
+      total_lessons: totalLessons,
+      completed_lessons: completedLessons,
+      percent: curriculumPercent,
+      total_watch_seconds: 0,
+    },
+    assignments: {
+      total_assignments: totalAssignments,
+      submitted_assignments: submittedAssignments,
+      approved_assignments: approvedAssignments,
+      percent: assignmentPercent,
+    },
+    sprint_challenges: {
+      configured_sprint_days: effectiveSprintDays,
+      effective_sprint_days: effectiveSprintDays,
+      total_challenges: sprintData.days.length,
+      submitted_challenges: sprintData.completedCount,
+      completed_challenges: sprintData.completedCount,
+      percent: sprintPercent,
+      streak_days: sprintData.streakCount,
+      average_score: sprintData.overallScore,
+    },
+    overall: {
+      composite_percent: compositePercent,
+      total_milestones: totalMilestones,
+      completed_milestones: completedMilestones,
+      is_completed: compositePercent >= 100,
+      eligible_for_certificate: compositePercent >= 100,
+      has_certificate: false,
+    },
+  };
 }

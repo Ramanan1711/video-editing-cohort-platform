@@ -1341,11 +1341,13 @@ export function MilestonePanel({
   completedCount,
   totalLessons,
   onViewCertificate,
+  label = 'lessons complete',
 }: {
   progressPercent: number;
   completedCount: number;
   totalLessons: number;
   onViewCertificate?: () => void;
+  label?: string;
 }) {
   const complete = progressPercent === 100 && totalLessons > 0;
   return (
@@ -1361,7 +1363,7 @@ export function MilestonePanel({
           <p className="mt-2 text-sm text-slate-600">
             {complete
               ? 'Your verified certificate and portfolio review are ready to download.'
-              : `${completedCount} of ${totalLessons} lessons complete. Keep the streak alive.`}
+              : `${completedCount} of ${totalLessons} ${label}. Keep the streak alive.`}
           </p>
         </div>
         {complete ? (

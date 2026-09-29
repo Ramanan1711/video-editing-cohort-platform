@@ -57,6 +57,7 @@ import {
   markLessonComplete,
   parseVideoUrl,
   updateLessonWatchProgress,
+  getStudentUnifiedProgress,
   type Assignment,
   type Cohort,
   type Lesson,
@@ -65,6 +66,7 @@ import {
   type StudentAnnouncement,
   type StudentCourseData,
   type StudentLiveSession,
+  type StudentUnifiedProgress,
   type Submission,
 } from '../lib/courseService';
 import {
@@ -127,6 +129,8 @@ export function StudentDashboard() {
   });
   const [sprintDays, setSprintDays] = useState<InternshipDayStatus[]>([]);
   const [sprintCompletedCount, setSprintCompletedCount] = useState(0);
+  const [totalSprintDays, setTotalSprintDays] = useState(15);
+  const [unifiedProgress, setUnifiedProgress] = useState<StudentUnifiedProgress | null>(null);
   const [sprintStreak, setSprintStreak] = useState(0);
   const [sprintScore, setSprintScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -260,18 +264,23 @@ export function StudentDashboard() {
 
         setFailedSections(partialErrors);
 
-        // Fetch 15-day internship sprint progress
+        // Fetch dynamic internship sprint progress and unified composite progress
         if (courseRes.value.cohort) {
           try {
-            const sprintData = await getStudentSprintDays(userId, courseRes.value.cohort.id);
+            const [sprintData, progressData] = await Promise.all([
+              getStudentSprintDays(userId, courseRes.value.cohort.id),
+              getStudentUnifiedProgress(userId, courseRes.value.cohort.id),
+            ]);
             if (active) {
               setSprintDays(sprintData.days);
               setSprintCompletedCount(sprintData.completedCount);
               setSprintStreak(sprintData.streakCount);
               setSprintScore(sprintData.overallScore);
+              setTotalSprintDays(sprintData.totalDays || 15);
+              setUnifiedProgress(progressData);
             }
           } catch (sprintErr) {
-            console.warn('Failed to load sprint progress:', sprintErr);
+            console.warn('Failed to load sprint or unified progress:', sprintErr);
           }
         }
 
@@ -351,9 +360,11 @@ export function StudentDashboard() {
 
       const lecturesCount = cohortLessons.length;
 
-      // Real progress
+      // Real progress (using authoritative composite progress for active cohort)
       let computedProgress = 0;
-      if (isEnrolled && lecturesCount > 0) {
+      if (isCurrentActive && unifiedProgress) {
+        computedProgress = unifiedProgress.overall.composite_percent;
+      } else if (isEnrolled && lecturesCount > 0) {
         const completed = cohortLessons.filter((l) => completedLessonIdSet.has(l.id)).length;
         computedProgress = Math.round((completed / lecturesCount) * 100);
       } else if (isCurrentActive && progressPercent > 0) {
@@ -418,6 +429,7 @@ export function StudentDashboard() {
     allModules,
     allLessons,
     progressPercent,
+    unifiedProgress,
   ]);
 
   const filteredCatalogCourses = useMemo(() => {
@@ -1146,25 +1158,53 @@ export function StudentDashboard() {
           {/* Overall Progress Widget */}
           <div className="border-b border-slate-100 px-6 py-4">
             <div className="mb-2 flex justify-between text-xs font-bold">
-              <span className="text-slate-500">Overall Progress</span>
-              <span className="text-orange-600">{progressPercent}%</span>
+              <span className="text-slate-500">Overall Track Progress</span>
+              <span className="text-orange-600">
+                {unifiedProgress ? unifiedProgress.overall.composite_percent : progressPercent}%
+              </span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-slate-100">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
+                style={{ width: `${unifiedProgress ? unifiedProgress.overall.composite_percent : progressPercent}%` }}
               />
             </div>
             <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 font-medium">
               <span>
-                {completedCount} of {allLessons.length} lessons complete
+                {unifiedProgress
+                  ? `${unifiedProgress.overall.completed_milestones} of ${unifiedProgress.overall.total_milestones} milestones complete`
+                  : `${completedCount} of ${allLessons.length} lessons complete`}
               </span>
-              {progressPercent === 100 && allLessons.length > 0 && (
+              {(unifiedProgress ? unifiedProgress.overall.is_completed : progressPercent === 100 && allLessons.length > 0) && (
                 <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
                   <Award size={13} /> Completed
                 </span>
               )}
             </div>
+
+            {/* Unified 3-Pillar Breakdown */}
+            {unifiedProgress && (
+              <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-3 gap-1.5 text-center text-[10px]">
+                <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
+                  <div className="text-slate-400 font-semibold">Lessons</div>
+                  <div className="font-extrabold text-slate-800">
+                    {unifiedProgress.curriculum.completed_lessons}/{unifiedProgress.curriculum.total_lessons}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
+                  <div className="text-slate-400 font-semibold">Tasks</div>
+                  <div className="font-extrabold text-slate-800">
+                    {unifiedProgress.assignments.approved_assignments}/{unifiedProgress.assignments.total_assignments}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
+                  <div className="text-slate-400 font-semibold">Sprint</div>
+                  <div className="font-extrabold text-orange-600">
+                    {unifiedProgress.sprint_challenges.completed_challenges}/{unifiedProgress.sprint_challenges.effective_sprint_days}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Lesson Search Bar */}
@@ -1556,7 +1596,7 @@ export function StudentDashboard() {
               )
             ) : (
               <>
-                {/* 15-Day Sprint High-Priority Notification Banner */}
+                {/* Dynamic Sprint High-Priority Notification Banner */}
                 {course.cohort && (
                   <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 p-4 shadow-2xs">
                     <div className="flex items-center gap-3">
@@ -1566,15 +1606,15 @@ export function StudentDashboard() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-black uppercase tracking-wider text-orange-600">
-                            15-Day Internship Track
+                            {totalSprintDays}-Day Internship Track
                           </span>
                           <span className="rounded-full bg-orange-200/80 px-2 py-0.2 text-[9px] font-extrabold text-orange-900">
-                            Day {Math.min(15, sprintCompletedCount + 1)} of 15
+                            Day {Math.min(totalSprintDays, sprintCompletedCount + 1)} of {totalSprintDays}
                           </span>
                         </div>
                         <p className="text-xs font-black text-slate-900">
-                          {sprintCompletedCount >= 15
-                            ? 'All 15 Sprint challenges completed! Awaiting final graduation certification.'
+                          {sprintCompletedCount >= totalSprintDays
+                            ? `All ${totalSprintDays} Sprint challenges completed! Awaiting final graduation certification.`
                             : `Today's production task is live! Complete and submit your deliverable for mentor critique.`}
                         </p>
                       </div>
@@ -1588,7 +1628,7 @@ export function StudentDashboard() {
                       }}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 px-3.5 py-2 text-xs font-black text-white shadow-sm transition shrink-0"
                     >
-                      <span>Open 15-Day Sprint</span>
+                      <span>Open {totalSprintDays}-Day Sprint</span>
                       <ChevronRight size={14} />
                     </button>
                   </div>
@@ -1627,9 +1667,9 @@ export function StudentDashboard() {
                     }`}
                   >
                     <Flame size={16} className={activeTab === 'internship_sprint' ? 'text-orange-500' : 'text-slate-400'} />
-                    <span>15-Day Sprint</span>
+                    <span>Sprint Track</span>
                     <span className="rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-[10px] font-black">
-                      {sprintCompletedCount}/15
+                      {sprintCompletedCount}/{totalSprintDays}
                     </span>
                   </button>
 
@@ -1724,7 +1764,7 @@ export function StudentDashboard() {
                   </button>
                 </div>
 
-                {/* TAB: 15-Day Production Sprint */}
+                {/* TAB: Dynamic Production Sprint */}
                 {activeTab === 'internship_sprint' && course.cohort && user && (
                   <SprintChallengeTracker
                     cohortId={course.cohort.id}
@@ -1735,6 +1775,7 @@ export function StudentDashboard() {
                     completedCount={sprintCompletedCount}
                     streakCount={sprintStreak}
                     overallScore={sprintScore}
+                    totalDays={totalSprintDays}
                     onRefresh={() => setRefreshKey((k) => k + 1)}
                   />
                 )}
@@ -1789,9 +1830,10 @@ export function StudentDashboard() {
                     </div>
 
                     <MilestonePanel
-                      progressPercent={progressPercent}
-                      completedCount={completedCount}
-                      totalLessons={allLessons.length}
+                      progressPercent={unifiedProgress ? unifiedProgress.overall.composite_percent : progressPercent}
+                      completedCount={unifiedProgress ? unifiedProgress.overall.completed_milestones : completedCount}
+                      totalLessons={unifiedProgress ? unifiedProgress.overall.total_milestones : allLessons.length}
+                      label={unifiedProgress ? 'program milestones complete' : 'lessons complete'}
                       onViewCertificate={() => setCertificateModalOpen(true)}
                     />
                   </div>
@@ -2174,7 +2216,7 @@ export function StudentDashboard() {
           userId={user.id}
           studentName={profile?.full_name || 'Student'}
           cohortName={course.cohort?.name}
-          currentDay={Math.min(15, sprintCompletedCount + 1)}
+          currentDay={Math.min(totalSprintDays, sprintCompletedCount + 1)}
           initialPhone={profile?.whatsapp_number || ''}
         />
       )}
