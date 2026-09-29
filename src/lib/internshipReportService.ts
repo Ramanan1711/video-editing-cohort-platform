@@ -530,7 +530,9 @@ export async function publishInternshipReport(reportId: string): Promise<Interns
     await supabase.from('notifications').insert({
       user_id: data.student_id,
       title: 'Official Internship Report Card Published',
+      body: 'Your mentor has finalized and published your performance report and evaluation.',
       message: 'Your mentor has finalized and published your performance report and evaluation.',
+      category: 'internship_report_published',
       type: 'internship_report_published',
       action_url: '/student/dashboard?tab=internship_report',
     });

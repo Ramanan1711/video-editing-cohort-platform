@@ -35,7 +35,68 @@ create index if not exists idx_notifications_user_unread on public.notifications
 create index if not exists idx_notifications_created_at on public.notifications(created_at desc);
 create index if not exists idx_notifications_category on public.notifications(category);
 
--- 2. Authoritative Single-Recipient Dispatcher RPC
+-- Dual column compatibility on notifications
+alter table public.notifications add column if not exists message text;
+alter table public.notifications add column if not exists type text;
+alter table public.notifications add column if not exists metadata jsonb default '{}'::jsonb;
+
+-- 2. Authoritative 6-Argument Dispatcher RPC with Metadata Payload
+create or replace function public.dispatch_notification(
+  p_user_id uuid,
+  p_title text,
+  p_body text,
+  p_category text,
+  p_action_url text,
+  p_metadata jsonb
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_notif_id uuid;
+  v_clean_title text;
+  v_clean_body text;
+  v_clean_category text;
+begin
+  if p_user_id is null or length(trim(coalesce(p_title, ''))) = 0 then
+    return null;
+  end if;
+
+  v_clean_title := trim(p_title);
+  v_clean_body := trim(coalesce(p_body, ''));
+  v_clean_category := coalesce(nullif(trim(p_category), ''), 'system');
+
+  insert into public.notifications (
+    user_id,
+    title,
+    body,
+    message,
+    category,
+    type,
+    action_url,
+    metadata,
+    created_at
+  )
+  values (
+    p_user_id,
+    v_clean_title,
+    v_clean_body,
+    v_clean_body,
+    v_clean_category,
+    v_clean_category,
+    p_action_url,
+    coalesce(p_metadata, '{}'::jsonb),
+    now()
+  )
+  returning id into v_notif_id;
+
+  return v_notif_id;
+end;
+$$;
+
+-- 2b. Authoritative 5-Argument Dispatcher RPC (Forwards to 6-arg version with empty metadata)
 create or replace function public.dispatch_notification(
   p_user_id uuid,
   p_title text,
@@ -48,36 +109,20 @@ language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  v_notif_id uuid;
 begin
-  if p_user_id is null or length(trim(coalesce(p_title, ''))) = 0 then
-    return null;
-  end if;
-
-  insert into public.notifications (
-    user_id,
-    title,
-    body,
-    category,
-    action_url,
-    created_at
-  )
-  values (
+  return public.dispatch_notification(
     p_user_id,
-    trim(p_title),
-    trim(coalesce(p_body, '')),
-    coalesce(p_category, 'system'),
+    p_title,
+    p_body,
+    p_category,
     p_action_url,
-    now()
-  )
-  returning id into v_notif_id;
-
-  return v_notif_id;
+    '{}'::jsonb
+  );
 end;
 $$;
 
-grant execute on function public.dispatch_notification(uuid, text, text, text, text) to authenticated;
+grant execute on function public.dispatch_notification(uuid, text, text, text, text, jsonb) to authenticated, anon;
+grant execute on function public.dispatch_notification(uuid, text, text, text, text) to authenticated, anon;
 
 -- 3. Cohort-Scoped Broadcast Dispatcher RPC
 create or replace function public.send_cohort_notification(
