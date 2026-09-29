@@ -216,7 +216,7 @@ export async function generateInternshipReport(
     (attendancePct * 0.15)
   );
 
-  let grade: InternshipReport['grade'] = 'Incomplete';
+  let grade: InternshipReport['grade'];
   if (completedDrills < sprintDays * 0.5) {
     grade = 'Incomplete';
   } else if (compositeScore >= 90) {

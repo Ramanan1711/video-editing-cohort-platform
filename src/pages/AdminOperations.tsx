@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity,
@@ -351,7 +351,7 @@ export function AdminOperations() {
     return () => {
       active = false;
     };
-  }, [profile?.role, reloadTrigger, canViewAuditLogs]);
+  }, [profile?.role, reloadTrigger, canViewAuditLogs, canModerateCommunity, selectedTimeframe]);
 
   const handleTimeframeChange = async (tf: '7d' | '30d' | '90d' | 'all') => {
     setSelectedTimeframe(tf);
@@ -471,7 +471,7 @@ export function AdminOperations() {
     }
   };
 
-  const handleLoadErrorTelemetry = async () => {
+  const handleLoadErrorTelemetry = useCallback(async () => {
     setErrorLogsLoading(true);
     try {
       const [logs, stats] = await Promise.all([
@@ -488,7 +488,7 @@ export function AdminOperations() {
     } finally {
       setErrorLogsLoading(false);
     }
-  };
+  }, [errorLevelFilter, errorSearch]);
 
   const handleTestSentryConnection = async () => {
     setSentryTesting(true);
@@ -579,7 +579,7 @@ export function AdminOperations() {
     return () => {
       active = false;
     };
-  }, [tab, toast]);
+  }, [tab, toast, handleLoadErrorTelemetry]);
 
   // --- USER ACTIONS ---
   const handleRoleChange = async (targetUser: UserProfile, newRole: 'student' | 'mentor') => {

@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:rls": "vitest run src/__tests__/database/liveDatabaseRLS.integration.test.ts",
+    "verify": "npm run lint && npm run build && npm test",
     "preview": "vite preview"
   },
   "dependencies": {

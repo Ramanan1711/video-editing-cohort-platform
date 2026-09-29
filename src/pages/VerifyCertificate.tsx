@@ -54,7 +54,7 @@ export function VerifyCertificate() {
         if (isSubscribed) {
           setResult(cert);
         }
-      } catch (err) {
+      } catch (_err) {
         if (isSubscribed) {
           setResult({
             valid: false,

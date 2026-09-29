@@ -3266,7 +3266,7 @@ export async function getPublicCertificate(certificateNumber: string): Promise<P
       issued_at: certRow.issued_at,
       metadata: (certRow.metadata || {}) as PublicCertificate['metadata'],
     };
-  } catch (fallbackErr) {
+  } catch (_fallbackErr) {
     return {
       valid: false,
       error: 'An unexpected error occurred while verifying the certificate credential.',

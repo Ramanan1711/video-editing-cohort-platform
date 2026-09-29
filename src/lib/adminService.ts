@@ -1155,7 +1155,7 @@ export async function bulkUpdateUserStatus(
 async function getCohortNameMap(cohortIds: string[]): Promise<Map<string, string>> {
   if (!cohortIds.length) return new Map();
   // In Supabase schema, the cohort column is 'title'. Try 'title' first, fallback to 'name'.
-  let list: any[] = [];
+  let list: Array<{ id: string; title?: string; name?: string }>;
   const { data: titleData, error: titleErr } = await supabase
     .from('cohorts')
     .select('id, title')
