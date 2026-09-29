@@ -560,6 +560,7 @@ export async function getAdminExecutiveMetrics(
     feedbackRowsSettled,
     rawModulesSettled,
     rawLessonsSettled,
+    assignmentsSettled,
   ] = await Promise.allSettled([
     supabase.from('profiles').select('id, full_name, email, role, admin_role, status, created_at'),
     supabase.from('enrollments').select('user_id, cohort_id, status, created_at'),
@@ -577,6 +578,7 @@ export async function getAdminExecutiveMetrics(
       return supabase.from('modules').select('id, cohort_id, title, position').order('position');
     })(),
     supabase.from('lessons').select('id, module_id, title, status'),
+    supabase.from('assignments').select('id, cohort_id'),
   ]);
 
   const profiles = profilesSettled.status === 'fulfilled' && !profilesSettled.value.error ? (profilesSettled.value.data as any[] ?? []) : [];
@@ -587,6 +589,7 @@ export async function getAdminExecutiveMetrics(
   const feedbackRows = feedbackRowsSettled.status === 'fulfilled' && !feedbackRowsSettled.value.error ? (feedbackRowsSettled.value.data as any[] ?? []) : [];
   const rawModules = rawModulesSettled.status === 'fulfilled' && !rawModulesSettled.value.error ? (rawModulesSettled.value.data as any[] ?? []) : [];
   const rawLessons = rawLessonsSettled.status === 'fulfilled' && !rawLessonsSettled.value.error ? (rawLessonsSettled.value.data as any[] ?? []) : [];
+  const assignments = assignmentsSettled.status === 'fulfilled' && !assignmentsSettled.value.error ? (assignmentsSettled.value.data as any[] ?? []) : [];
 
   const totalUsers = profiles?.length || 0;
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
@@ -712,9 +715,13 @@ export async function getAdminExecutiveMetrics(
       const student = profileMap.get(sId);
       const studentCohortId = studentCohortMap.get(sId) || '';
       const cohortName = cohortMap.get(studentCohortId) || 'Cohort';
+      const studentEnrollment = (enrollments ?? []).find((e) => e.user_id === sId);
+      const enrollmentTime = studentEnrollment?.created_at ? new Date(studentEnrollment.created_at).getTime() : 0;
       const daysInactive = lastTime
         ? Math.max(1, Math.floor((now - lastTime) / (1000 * 60 * 60 * 24)))
-        : 14;
+        : enrollmentTime
+        ? Math.max(1, Math.floor((now - enrollmentTime) / (1000 * 60 * 60 * 24)))
+        : 7;
 
       atRiskLearners.push({
         studentId: sId,
@@ -768,6 +775,14 @@ export async function getAdminExecutiveMetrics(
       churnRatePct,
     });
 
+    const cohortAssignments = (assignments ?? []).filter((a: any) => a.cohort_id === c.id);
+    const expectedSubmissions = cohortAssignments.length * enrolledCount;
+    const cohortAssignmentIds = new Set(cohortAssignments.map((a: any) => a.id));
+    const cohortSubsCount = (submissions ?? []).filter((s: any) => cohortAssignmentIds.has(s.assignment_id)).length;
+    const submissionRatePct = expectedSubmissions > 0
+      ? Math.round((cohortSubsCount / expectedSubmissions) * 100)
+      : (enrolledCount > 0 && cohortAssignments.length === 0 ? 100 : 0);
+
     return {
       id: c.id,
       name: cohortTitle,
@@ -775,7 +790,7 @@ export async function getAdminExecutiveMetrics(
       enrolledCount,
       fillPct,
       completionPct,
-      submissionRatePct: enrolledCount > 0 ? 85 : 0,
+      submissionRatePct,
       status: c.status || 'published',
       visibility: c.visibility || 'public',
     };
@@ -818,6 +833,17 @@ export async function getAdminExecutiveMetrics(
   }).sort((a, b) => a.position - b.position);
 
   // Mentor Leaderboard
+  const fullSubmissionMap = new Map((submissions ?? []).map((s: any) => [s.id, s]));
+  const mentorResubmitMap = new Map<string, number>();
+  for (const fb of feedbackRows ?? []) {
+    if (fb.mentor_id) {
+      const sub = fullSubmissionMap.get(fb.submission_id);
+      if (sub && (sub.status === 'resubmit' || sub.status === 'resubmit_requested' || sub.status === 'needs_work')) {
+        mentorResubmitMap.set(fb.mentor_id, (mentorResubmitMap.get(fb.mentor_id) || 0) + 1);
+      }
+    }
+  }
+
   const mentorUsers = (profiles ?? []).filter((p) => p.role === 'mentor' || p.role === 'admin');
   const mentorLeaderboard: MentorPerformanceMetric[] = mentorUsers.map((m) => {
     const revCount = mentorReviewsMap.get(m.id) || 0;
@@ -827,13 +853,16 @@ export async function getAdminExecutiveMetrics(
         ? Math.round((diffs.reduce((a, b) => a + b, 0) / diffs.length) * 10) / 10
         : null;
 
+    const mentorResubmits = mentorResubmitMap.get(m.id) || 0;
+    const resubmissionRatePct = revCount > 0 ? Math.round((mentorResubmits / revCount) * 100) : 0;
+
     return {
       mentorId: m.id,
       mentorName: m.full_name || 'Mentor',
       mentorEmail: m.email || '',
       reviewsCount: revCount,
       avgTurnaroundHours: avgHours,
-      resubmissionRatePct: revCount > 0 ? 15 : 0,
+      resubmissionRatePct,
     };
   });
 

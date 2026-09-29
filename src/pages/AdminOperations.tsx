@@ -109,7 +109,12 @@ import {
 import { listCohorts, type Cohort } from '../lib/courseService';
 import { runSystemHealthCheck, type SystemHealthReport } from '../lib/observability/healthCheck';
 import { alertManager, type OperationalAlert } from '../lib/observability/alerts';
-import { getPlatformAnalytics, type PlatformAnalytics } from '../lib/observability/analytics';
+import {
+  getPlatformAnalytics,
+  getCohortReportingBaseline,
+  type PlatformAnalytics,
+  type CohortReportingBaseline,
+} from '../lib/observability/analytics';
 import { runDeploymentCheck, type DeploymentReport, type DeploymentCheckItem } from '../lib/observability/deploymentCheck';
 import { evaluateLaunchReadinessGate, type LaunchGateReport } from '../lib/observability/launchReadinessGate';
 import {
@@ -252,6 +257,8 @@ export function AdminOperations() {
   const [alerts, setAlerts] = useState<OperationalAlert[]>([]);
   const [platformAnalytics, setPlatformAnalytics] = useState<PlatformAnalytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsCohortFilter, setAnalyticsCohortFilter] = useState<string>('all');
+  const [cohortBaseline, setCohortBaseline] = useState<CohortReportingBaseline | null>(null);
   const [deploymentReport, setDeploymentReport] = useState<DeploymentReport | null>(null);
   const [launchGateReport, setLaunchGateReport] = useState<LaunchGateReport | null>(null);
   const [auditingGate, setAuditingGate] = useState(false);
@@ -422,14 +429,17 @@ export function AdminOperations() {
     setHealthChecking(true);
     setAnalyticsLoading(true);
     try {
-      const [health, analytics, deployment, gate] = await Promise.all([
+      const selectedCohort = analyticsCohortFilter === 'all' ? undefined : analyticsCohortFilter;
+      const [health, analytics, baseline, deployment, gate] = await Promise.all([
         runSystemHealthCheck(),
-        getPlatformAnalytics(),
+        getPlatformAnalytics(true, selectedCohort),
+        selectedCohort ? getCohortReportingBaseline(selectedCohort, true) : Promise.resolve(null),
         Promise.resolve(runDeploymentCheck()),
         evaluateLaunchReadinessGate(),
       ]);
       setHealthReport(health);
       setPlatformAnalytics(analytics);
+      setCohortBaseline(baseline);
       setDeploymentReport(deployment);
       setLaunchGateReport(gate);
       void handleLoadErrorTelemetry();
@@ -438,6 +448,25 @@ export function AdminOperations() {
       toast.error(parsed.message, 'Failed to refresh operations data');
     } finally {
       setHealthChecking(false);
+      setAnalyticsLoading(false);
+    }
+  };
+
+  const handleAnalyticsCohortChange = async (cohortId: string) => {
+    setAnalyticsCohortFilter(cohortId);
+    setAnalyticsLoading(true);
+    try {
+      const selected = cohortId === 'all' ? undefined : cohortId;
+      const [analytics, baseline] = await Promise.all([
+        getPlatformAnalytics(true, selected),
+        selected ? getCohortReportingBaseline(selected, true) : Promise.resolve(null),
+      ]);
+      setPlatformAnalytics(analytics);
+      setCohortBaseline(baseline);
+    } catch (err) {
+      const parsed = parseDatabaseError(err);
+      toast.error(parsed.message, 'Failed to update cohort analytics');
+    } finally {
       setAnalyticsLoading(false);
     }
   };
@@ -3983,14 +4012,91 @@ export function AdminOperations() {
 
             {/* Application SaaS Telemetry Analytics */}
             <div>
-              <div className="mb-3">
-                <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                  <TrendingUp size={16} className="text-orange-500" /> SaaS Telemetry &amp; Learning Analytics
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Calculated metrics covering user activation, completion velocities, assignment SLA, and cohort retention.
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                    <TrendingUp size={16} className="text-orange-500" /> SaaS Telemetry &amp; Learning Analytics
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Authoritative metrics covering user activation, completion velocities, assignment SLA, and cohort retention.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-500">Scope:</span>
+                  <select
+                    value={analyticsCohortFilter}
+                    onChange={(e) => void handleAnalyticsCohortChange(e.target.value)}
+                    disabled={analyticsLoading}
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800 shadow-2xs focus:border-orange-500 focus:outline-hidden"
+                  >
+                    <option value="all">Platform-Wide (All Cohorts)</option>
+                    {cohorts.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title || c.name || 'Cohort'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
+              {/* Authoritative Cohort Reporting Baseline Card */}
+              {cohortBaseline && (
+                <Card className="p-4 mb-4 border-orange-200 bg-linear-to-r from-orange-50/50 to-amber-50/30">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-orange-100 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-orange-600 px-2 py-0.5 text-[10px] font-black uppercase text-white tracking-wider">
+                          Authoritative Baseline
+                        </span>
+                        <h4 className="text-sm font-bold text-slate-900">{cohortBaseline.cohortName}</h4>
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                          {cohortBaseline.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Authoritative server-side reporting baseline with verified syllabus watch, assignment SLAs, and attendance.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs font-medium text-slate-600">
+                      <div>Capacity: <strong className="text-slate-900">{cohortBaseline.enrollment.totalEnrolled} / {cohortBaseline.capacity}</strong> ({cohortBaseline.enrollment.fillRatePct}%)</div>
+                      <div>At-Risk: <strong className="text-amber-700 font-bold">{cohortBaseline.atRiskStudentsCount}</strong></div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-center text-xs">
+                    <div className="rounded-lg bg-white p-2.5 shadow-3xs border border-orange-100">
+                      <span className="block text-[10px] text-slate-400 font-bold uppercase">Retention</span>
+                      <strong className="text-base font-black text-emerald-600">{cohortBaseline.enrollment.retentionRatePct}%</strong>
+                      <span className="block text-[10px] text-slate-400">{cohortBaseline.enrollment.activeCount} active · {cohortBaseline.enrollment.droppedCount} dropped</span>
+                    </div>
+                    <div className="rounded-lg bg-white p-2.5 shadow-3xs border border-orange-100">
+                      <span className="block text-[10px] text-slate-400 font-bold uppercase">Curriculum Watch</span>
+                      <strong className="text-base font-black text-slate-900">{cohortBaseline.curriculum.completionRatePct}%</strong>
+                      <span className="block text-[10px] text-slate-400">{cohortBaseline.curriculum.completedLessons} done · {cohortBaseline.curriculum.avgWatchPercentage}% avg watch</span>
+                    </div>
+                    <div className="rounded-lg bg-white p-2.5 shadow-3xs border border-orange-100">
+                      <span className="block text-[10px] text-slate-400 font-bold uppercase">Submissions Rate</span>
+                      <strong className="text-base font-black text-slate-900">{cohortBaseline.submissions.submissionRatePct}%</strong>
+                      <span className="block text-[10px] text-slate-400">{cohortBaseline.submissions.actualSubmissions} of {cohortBaseline.submissions.expectedSubmissions} exp.</span>
+                    </div>
+                    <div className="rounded-lg bg-white p-2.5 shadow-3xs border border-orange-100">
+                      <span className="block text-[10px] text-slate-400 font-bold uppercase">On-Time Rate</span>
+                      <strong className="text-base font-black text-purple-600">{cohortBaseline.submissions.onTimeRatePct}%</strong>
+                      <span className="block text-[10px] text-slate-400">{cohortBaseline.submissions.onTimeSubmissions} on-time · {cohortBaseline.submissions.lateSubmissions} late</span>
+                    </div>
+                    <div className="rounded-lg bg-white p-2.5 shadow-3xs border border-orange-100">
+                      <span className="block text-[10px] text-slate-400 font-bold uppercase">Review SLA &lt;24h</span>
+                      <strong className="text-base font-black text-orange-600">{cohortBaseline.reviewSla.slaComplianceRatePct}%</strong>
+                      <span className="block text-[10px] text-slate-400">{cohortBaseline.reviewSla.avgTurnaroundHours}h avg turnaround</span>
+                    </div>
+                    <div className="rounded-lg bg-white p-2.5 shadow-3xs border border-orange-100">
+                      <span className="block text-[10px] text-slate-400 font-bold uppercase">Attendance</span>
+                      <strong className="text-base font-black text-blue-600">{cohortBaseline.attendance.attendanceRatePct}%</strong>
+                      <span className="block text-[10px] text-slate-400">{cohortBaseline.attendance.liveSessionsCount} workshops</span>
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Active Users */}
