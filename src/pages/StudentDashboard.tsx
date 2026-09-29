@@ -85,6 +85,7 @@ import {
   MilestonePanel,
 } from '../components/StudentFlowPanels';
 import { CertificateModal } from '../components/CertificateModal';
+import { InternshipReportModal } from '../components/internship/InternshipReportModal';
 import { StudentCalendar } from '../components/StudentCalendar';
 import { CommunityBoard } from '../components/CommunityBoard';
 import { Button } from '../components/ui/Button';
@@ -138,6 +139,7 @@ export function StudentDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [discoveryModalOpen, setDiscoveryModalOpen] = useState(false);
   const [certificateModalOpen, setCertificateModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(() => searchParams.get('tab') === 'internship_report');
   const [achievementsModalOpen, setAchievementsModalOpen] = useState(false);
   const [lessonSearchQuery, setLessonSearchQuery] = useState('');
   const [collapsedModuleIds, setCollapsedModuleIds] = useState<Set<string>>(new Set());
@@ -1835,6 +1837,7 @@ export function StudentDashboard() {
                       totalLessons={unifiedProgress ? unifiedProgress.overall.total_milestones : allLessons.length}
                       label={unifiedProgress ? 'program milestones complete' : 'lessons complete'}
                       onViewCertificate={() => setCertificateModalOpen(true)}
+                      onViewReportCard={() => setReportModalOpen(true)}
                     />
                   </div>
                 )}
@@ -2063,6 +2066,19 @@ export function StudentDashboard() {
           cohortName={course.cohort.name}
           cohortId={course.cohort.id}
           studentId={user.id}
+        />
+      )}
+
+      {/* Formal Internship Report Card Modal */}
+      {user && course.cohort && (
+        <InternshipReportModal
+          isOpen={reportModalOpen}
+          onClose={() => setReportModalOpen(false)}
+          cohortId={course.cohort.id}
+          cohortName={course.cohort.name}
+          studentId={user.id}
+          studentName={profile?.full_name || 'Student'}
+          canEdit={false}
         />
       )}
 

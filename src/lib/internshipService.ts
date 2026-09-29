@@ -676,3 +676,6 @@ export async function listCohortInternsMonitoring(cohortId: string): Promise<Int
   });
 }
 
+// Re-export formal internship report models & functions
+export * from './internshipReportService';
+

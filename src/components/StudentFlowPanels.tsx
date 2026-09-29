@@ -1341,12 +1341,14 @@ export function MilestonePanel({
   completedCount,
   totalLessons,
   onViewCertificate,
+  onViewReportCard,
   label = 'lessons complete',
 }: {
   progressPercent: number;
   completedCount: number;
   totalLessons: number;
   onViewCertificate?: () => void;
+  onViewReportCard?: () => void;
   label?: string;
 }) {
   const complete = progressPercent === 100 && totalLessons > 0;
@@ -1362,12 +1364,12 @@ export function MilestonePanel({
           </h2>
           <p className="mt-2 text-sm text-slate-600">
             {complete
-              ? 'Your verified certificate and portfolio review are ready to download.'
+              ? 'Your verified certificate and official internship evaluation report are ready.'
               : `${completedCount} of ${totalLessons} ${label}. Keep the streak alive.`}
           </p>
         </div>
         {complete ? (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={onViewCertificate}
               className="flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:bg-orange-600"
@@ -1375,10 +1377,30 @@ export function MilestonePanel({
               <Award size={18} className="text-orange-400" />
               <span>View Official Certificate</span>
             </button>
+            {onViewReportCard && (
+              <button
+                onClick={onViewReportCard}
+                className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-800 shadow-xs transition hover:bg-slate-50"
+              >
+                <FileText size={18} className="text-orange-500" />
+                <span>Internship Report Card</span>
+              </button>
+            )}
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-orange-600 font-bold text-sm">
-            <Sparkles size={20} /> Keep going
+          <div className="flex items-center gap-3">
+            {onViewReportCard && (
+              <button
+                onClick={onViewReportCard}
+                className="flex items-center gap-2 rounded-xl border border-orange-200 bg-white/80 px-4 py-2 text-xs font-bold text-slate-800 transition hover:bg-white"
+              >
+                <FileText size={15} className="text-orange-500" />
+                <span>View Evaluation Dossier</span>
+              </button>
+            )}
+            <div className="flex items-center gap-2 text-orange-600 font-bold text-sm">
+              <Sparkles size={20} /> Keep going
+            </div>
           </div>
         )}
       </div>

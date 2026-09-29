@@ -11,6 +11,7 @@ import {
   Send,
   Video,
   X,
+  Award,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -22,6 +23,7 @@ import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/useToast';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import { InternshipMonitoringHub } from '../components/internship/InternshipMonitoringHub';
+import { InternshipReportModal } from '../components/internship/InternshipReportModal';
 import { Flame, MessageCircle, Users } from 'lucide-react';
 import {
   getMentorAssignedCohorts,
@@ -57,6 +59,7 @@ export function MentorStudents() {
   const [messageStudent, setMessageStudent] = useState<MentorStudentProgress | null>(null);
   const [messageBody, setMessageBody] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [viewingReportStudent, setViewingReportStudent] = useState<MentorStudentProgress | null>(null);
 
   const isMentorOrAdmin = profile?.role === 'mentor' || profile?.role === 'admin';
 
@@ -602,7 +605,14 @@ export function MentorStudents() {
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setViewingReportStudent(selectedStudent)}
+              >
+                <Award size={13} /> Formal Internship Report
+              </Button>
               <Button
                 variant="secondary"
                 size="sm"
@@ -656,6 +666,19 @@ export function MentorStudents() {
             </form>
           </Card>
         </div>
+      )}
+
+      {/* Formal Internship Report Modal */}
+      {viewingReportStudent && (
+        <InternshipReportModal
+          isOpen={Boolean(viewingReportStudent)}
+          onClose={() => setViewingReportStudent(null)}
+          cohortId={viewingReportStudent.cohort_id}
+          cohortName={viewingReportStudent.cohort_name}
+          studentId={viewingReportStudent.student_id}
+          studentName={viewingReportStudent.student_name}
+          canEdit={true}
+        />
       )}
     </div>
   );

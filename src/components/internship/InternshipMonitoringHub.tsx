@@ -9,13 +9,23 @@ import {
   Search,
   ShieldAlert,
   Users,
+  Download,
+  FileText,
 } from 'lucide-react';
 import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
 import { useToast } from '../../context/useToast';
 import {
   listCohortInternsMonitoring,
   type InternMonitoringRecord,
 } from '../../lib/internshipService';
+import {
+  listCohortInternshipReports,
+  generateInternshipReport,
+  exportCohortInternshipReportsCSV,
+  type InternshipReport,
+} from '../../lib/internshipReportService';
+import { InternshipReportModal } from './InternshipReportModal';
 import {
   formatWhatsAppInactivityNudge,
   generateWhatsAppClickToChatUrl,
@@ -39,17 +49,63 @@ export function InternshipMonitoringHub({
   const [searchQuery, setSearchQuery] = useState('');
   const [riskFilter, setRiskFilter] = useState<'all' | 'on_track' | 'at_risk' | 'critical'>('all');
   const [sendingNudgeId, setSendingNudgeId] = useState<string | null>(null);
+  const [reports, setReports] = useState<InternshipReport[]>([]);
+  const [selectedReportIntern, setSelectedReportIntern] = useState<{ id: string; name: string } | null>(null);
+  const [bulkGenerating, setBulkGenerating] = useState(false);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await listCohortInternsMonitoring(cohortId);
-      setInterns(data);
+      const [internsData, reportsData] = await Promise.all([
+        listCohortInternsMonitoring(cohortId),
+        listCohortInternshipReports(cohortId),
+      ]);
+      setInterns(internsData);
+      setReports(reportsData);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load monitoring telemetry';
       toast.error(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const reportsByStudentId = useMemo(() => {
+    return new Map(reports.map((r) => [r.student_id, r]));
+  }, [reports]);
+
+  const handleExportReportsCSV = () => {
+    if (reports.length === 0) {
+      toast.error('No formal internship reports generated yet. Click "Generate Reports" first.');
+      return;
+    }
+    const csvContent = exportCohortInternshipReportsCSV(_cohortName, reports);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `cohort-internship-evaluation-reports-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Cohort internship evaluation reports exported as CSV.');
+  };
+
+  const handleBulkGenerateReports = async () => {
+    if (interns.length === 0) return;
+    try {
+      setBulkGenerating(true);
+      toast.info(`Generating formal evaluation reports for ${interns.length} interns...`);
+      const generatedList = await Promise.all(
+        interns.map((i) => generateInternshipReport(cohortId, i.userId, _mentorId))
+      );
+      setReports(generatedList);
+      toast.success(`Generated ${generatedList.length} formal internship reports!`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to bulk generate reports';
+      toast.error(msg);
+    } finally {
+      setBulkGenerating(false);
     }
   };
 
@@ -200,7 +256,29 @@ export function InternshipMonitoringHub({
           </button>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleBulkGenerateReports}
+            disabled={bulkGenerating || interns.length === 0}
+            className="text-xs"
+          >
+            <RefreshCw size={13} className={bulkGenerating ? 'animate-spin' : ''} />
+            <span>{bulkGenerating ? 'Generating...' : 'Bulk Generate Reports'}</span>
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleExportReportsCSV}
+            disabled={reports.length === 0}
+            className="text-xs"
+          >
+            <Download size={13} />
+            <span>Export Reports (CSV)</span>
+          </Button>
+
           <div className="relative">
             <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
             <input
@@ -208,7 +286,7 @@ export function InternshipMonitoringHub({
               placeholder="Filter by intern name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-56 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 pl-9 pr-3 text-xs text-slate-900 dark:text-white outline-none focus:border-orange-500"
+              className="w-48 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 pl-9 pr-3 text-xs text-slate-900 dark:text-white outline-none focus:border-orange-500"
             />
           </div>
           <button
@@ -232,20 +310,21 @@ export function InternshipMonitoringHub({
                 <th className="px-4 py-3.5">Sprint Heatmap Progress</th>
                 <th className="px-4 py-3.5">Streak</th>
                 <th className="px-4 py-3.5">Risk Status</th>
+                <th className="px-4 py-3.5">Formal Report</th>
                 <th className="px-4 py-3.5 text-right">Quick Nudge</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-400">
+                  <td colSpan={7} className="p-8 text-center text-slate-400">
                     <RefreshCw size={20} className="mx-auto mb-2 animate-spin text-orange-500" />
                     Loading cohort intern telemetry...
                   </td>
                 </tr>
               ) : filteredInterns.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-400">
+                  <td colSpan={7} className="p-8 text-center text-slate-400">
                     No interns found matching criteria.
                   </td>
                 </tr>
@@ -325,6 +404,41 @@ export function InternshipMonitoringHub({
                       )}
                     </td>
 
+                    <td className="px-4 py-3.5">
+                      {(() => {
+                        const rep = reportsByStudentId.get(intern.userId);
+                        if (rep) {
+                          return (
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-black text-xs text-orange-500">
+                                {rep.grade} ({rep.composite_score}%)
+                              </span>
+                              {rep.lor_eligible && (
+                                <span className="rounded bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 px-1.5 py-0.5 text-[9px] font-bold">
+                                  LOR
+                                </span>
+                              )}
+                              <button
+                                onClick={() => setSelectedReportIntern({ id: intern.userId, name: intern.fullName })}
+                                className="text-[11px] font-bold text-slate-500 hover:text-orange-600 transition underline underline-offset-2"
+                              >
+                                View
+                              </button>
+                            </div>
+                          );
+                        }
+                        return (
+                          <button
+                            onClick={() => setSelectedReportIntern({ id: intern.userId, name: intern.fullName })}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-500 transition"
+                          >
+                            <FileText size={12} />
+                            <span>Generate</span>
+                          </button>
+                        );
+                      })()}
+                    </td>
+
                     <td className="px-4 py-3.5 text-right">
                       <button
                         type="button"
@@ -344,6 +458,30 @@ export function InternshipMonitoringHub({
           </table>
         </div>
       </Card>
+
+      {/* Internship Report Dossier Modal */}
+      {selectedReportIntern && (
+        <InternshipReportModal
+          isOpen={Boolean(selectedReportIntern)}
+          onClose={() => setSelectedReportIntern(null)}
+          cohortId={cohortId}
+          cohortName={_cohortName}
+          studentId={selectedReportIntern.id}
+          studentName={selectedReportIntern.name}
+          canEdit={true}
+          onReportUpdated={(updated) => {
+            setReports((prev) => {
+              const idx = prev.findIndex((r) => r.id === updated.id);
+              if (idx >= 0) {
+                const next = [...prev];
+                next[idx] = updated;
+                return next;
+              }
+              return [...prev, updated];
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
