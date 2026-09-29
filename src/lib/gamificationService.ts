@@ -441,8 +441,8 @@ export async function fetchEnrolledLeaderboard(
     // Fallback: If no enrollments are found in database, check for registered student profiles
     if (userIds.length === 0) {
       const { data: studentProfiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, role')
+        .from('public_profiles')
+        .select('id, full_name, role')
         .limit(50);
       if (studentProfiles && studentProfiles.length > 0) {
         userIds = studentProfiles.map((p) => p.id);
@@ -461,7 +461,7 @@ export async function fetchEnrolledLeaderboard(
       { data: progressRows },
       { data: submissionsRows },
     ] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, role').in('id', userIds),
+      supabase.from('public_profiles').select('id, full_name, role').in('id', userIds),
       enrolledCohortIds.length
         ? supabase.from('cohorts').select('id, title').in('id', enrolledCohortIds)
         : supabase.from('cohorts').select('id, title'),

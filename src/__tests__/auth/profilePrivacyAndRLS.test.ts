@@ -196,6 +196,118 @@ describe('User Profiles Privacy & Contact Fields Protection', () => {
       expect(error?.code).toBe('42501');
       expect(error?.message).toContain('Only Super Administrators');
     });
+
+    it('blocks self-registration insert from escalating role to admin or mentor', async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: null,
+            error: {
+              message: 'new row violates row-level security policy for table "profiles"',
+              code: '42501',
+            },
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        insert: mockInsert,
+      });
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+          id: 'new-user-id',
+          role: 'admin',
+          admin_role: 'super_admin',
+        })
+        .select()
+        .single();
+
+      expect(data).toBeNull();
+      expect(error?.code).toBe('42501');
+      expect(error?.message).toContain('row-level security policy');
+    });
+  });
+
+  describe('Daily Challenges & Submissions Security Policies', () => {
+    it('blocks students from self-grading or self-accepting daily challenges', async () => {
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: {
+                message: 'Unauthorized: Students cannot grade or alter challenge scores.',
+                code: '42501',
+              },
+            }),
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        update: mockUpdate,
+      });
+
+      const { data, error } = await supabase
+        .from('daily_challenge_submissions')
+        .update({
+          score: 100,
+          status: 'accepted',
+          reviewed_by: 'student-attacker-id',
+        })
+        .eq('id', 'sub-1')
+        .select()
+        .single();
+
+      expect(data).toBeNull();
+      expect(error?.code).toBe('42501');
+      expect(error?.message).toContain('Students cannot grade or alter challenge scores');
+    });
+
+    it('allows cohort mentors to grade and review daily challenge submissions', async () => {
+      const mockGraded = {
+        id: 'sub-1',
+        challenge_id: 'ch-1',
+        user_id: 'student-1',
+        score: 95,
+        status: 'accepted',
+        mentor_feedback: 'Excellent kinetic cuts and pacing!',
+        reviewed_by: 'mentor-1',
+      };
+
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: mockGraded,
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        update: mockUpdate,
+      });
+
+      const { data, error } = await supabase
+        .from('daily_challenge_submissions')
+        .update({
+          score: 95,
+          status: 'accepted',
+          mentor_feedback: 'Excellent kinetic cuts and pacing!',
+          reviewed_by: 'mentor-1',
+        })
+        .eq('id', 'sub-1')
+        .select()
+        .single();
+
+      expect(error).toBeNull();
+      expect(data?.status).toBe('accepted');
+      expect(data?.score).toBe(95);
+    });
   });
 });
 

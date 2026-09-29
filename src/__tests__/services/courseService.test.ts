@@ -1855,7 +1855,7 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
           };
         }
 
-        if (table === 'profiles') {
+        if (table === 'profiles' || table === 'public_profiles') {
           return {
             select: vi.fn().mockReturnValue({
               in: vi.fn().mockResolvedValue({
@@ -1957,7 +1957,7 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
           };
         }
 
-        if (table === 'profiles') {
+        if (table === 'profiles' || table === 'public_profiles') {
           return {
             select: vi.fn().mockReturnValue({
               in: vi.fn().mockResolvedValue({

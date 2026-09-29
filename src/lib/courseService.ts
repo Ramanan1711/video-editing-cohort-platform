@@ -2574,9 +2574,22 @@ async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise
         .order('created_at', { ascending: true });
 
       const replyAuthorIds = Array.from(new Set((replies ?? []).map((r) => r.author_id)));
-      const { data: replyProfiles } = replyAuthorIds.length
-        ? await supabase.from('profiles').select('id, full_name, role').in('id', replyAuthorIds)
-        : { data: [] };
+      let replyProfiles: Array<{ id: string; full_name: string | null; role: string }> = [];
+      if (replyAuthorIds.length) {
+        const { data: pubData, error: pubErr } = await supabase
+          .from('public_profiles')
+          .select('id, full_name, role')
+          .in('id', replyAuthorIds);
+        if (!pubErr && pubData) {
+          replyProfiles = pubData as typeof replyProfiles;
+        } else {
+          const { data: fallbackProfiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, role')
+            .in('id', replyAuthorIds);
+          replyProfiles = (fallbackProfiles ?? []) as typeof replyProfiles;
+        }
+      }
       const replyProfileMap = new Map((replyProfiles ?? []).map((p) => [p.id, p]));
 
       for (const r of replies ?? []) {
@@ -2934,9 +2947,22 @@ export async function listFeedbackReplies(feedbackId: string): Promise<FeedbackR
     if (!data || data.length === 0) return [];
 
     const authorIds = Array.from(new Set(data.map((r) => r.author_id)));
-    const { data: profiles } = authorIds.length
-      ? await supabase.from('profiles').select('id, full_name, role').in('id', authorIds)
-      : { data: [] };
+    let profiles: Array<{ id: string; full_name: string | null; role: string }> = [];
+    if (authorIds.length) {
+      const { data: pubData, error: pubErr } = await supabase
+        .from('public_profiles')
+        .select('id, full_name, role')
+        .in('id', authorIds);
+      if (!pubErr && pubData) {
+        profiles = pubData as typeof profiles;
+      } else {
+        const { data: fallbackProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, role')
+          .in('id', authorIds);
+        profiles = (fallbackProfiles ?? []) as typeof profiles;
+      }
+    }
 
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
