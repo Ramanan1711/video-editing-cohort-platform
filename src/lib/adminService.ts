@@ -160,6 +160,9 @@ export interface AuditLog {
   } | null;
   actor_name?: string;
   actor_email?: string;
+  actor_role?: string;
+  ip_address?: string | null;
+  user_agent?: string | null;
 }
 
 export interface AdminAnnouncement {
@@ -243,6 +246,22 @@ export async function logAuditEvent(
   const finalEntityId = isObj ? (actorIdOrOptions.entityId ?? actorIdOrOptions.entity_id ?? null) : (entityId ?? null);
   const finalMetadata = isObj ? (actorIdOrOptions.metadata ?? {}) : metadata;
 
+  // 1. Authoritative RPC call (enforces actor attribution verification)
+  try {
+    const { error: rpcError } = await supabase.rpc('log_audit_event', {
+      p_action: finalAction,
+      p_entity_type: finalEntityType,
+      p_entity_id: finalEntityId ? String(finalEntityId) : null,
+      p_metadata: finalMetadata || {},
+      p_actor_id: actor_id || null,
+    });
+
+    if (!rpcError) return;
+  } catch (err) {
+    console.warn('RPC log_audit_event fallback:', err);
+  }
+
+  // 2. Direct table insert fallback
   try {
     await supabase.from('audit_logs').insert({
       actor_id,
@@ -253,7 +272,7 @@ export async function logAuditEvent(
       created_at: new Date().toISOString(),
     });
   } catch (err) {
-    console.warn('Could not record audit log:', err);
+    console.warn('Could not record audit log via table fallback:', err);
   }
 }
 
@@ -263,6 +282,50 @@ export async function listAuditLogs(
 ): Promise<AuditLog[]> {
   const limit = typeof limitOrOptions === 'number' ? limitOrOptions : (limitOrOptions?.limit ?? 50);
   const actionFilter = typeof limitOrOptions === 'object' ? limitOrOptions.actionFilter : actionFilterParam;
+
+  // 1. Authoritative RPC query (single query with actor resolution)
+  try {
+    const { data: rpcLogs, error: rpcErr } = await supabase.rpc('get_security_audit_logs', {
+      p_limit: limit,
+      p_offset: 0,
+      p_action: actionFilter && actionFilter !== 'all' ? actionFilter : null,
+    });
+
+    if (!rpcErr && Array.isArray(rpcLogs)) {
+      return (rpcLogs as Array<{
+        id: string;
+        actor_id: string | null;
+        actor_name: string | null;
+        actor_email: string | null;
+        actor_role: string | null;
+        action: string;
+        entity_type: string;
+        entity_id: string | null;
+        metadata: Record<string, unknown>;
+        ip_address: string | null;
+        user_agent: string | null;
+        created_at: string;
+      }>).map((l) => ({
+        id: l.id,
+        actor_id: l.actor_id,
+        action: l.action,
+        entity_type: l.entity_type,
+        entity_id: l.entity_id,
+        metadata: (l.metadata || {}) as Record<string, unknown>,
+        created_at: l.created_at,
+        actor_name: l.actor_name || 'System',
+        actor_email: l.actor_email || '',
+        actor_role: l.actor_role || '',
+        ip_address: l.ip_address || null,
+        user_agent: l.user_agent || null,
+        actor: l.actor_name ? { full_name: l.actor_name, email: l.actor_email } : null,
+      }));
+    }
+  } catch (err) {
+    console.warn('RPC get_security_audit_logs fallback:', err);
+  }
+
+  // 2. Direct Table Query Fallback
   try {
     let query = supabase
       .from('audit_logs')
@@ -314,6 +377,53 @@ export async function listAuditLogsPaged(
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
+  // 1. Authoritative RPC query
+  try {
+    const { data: rpcLogs, error: rpcErr } = await supabase.rpc('get_security_audit_logs', {
+      p_limit: pageSize,
+      p_offset: from,
+      p_action: params.actionFilter && params.actionFilter !== 'all' ? params.actionFilter : null,
+    });
+
+    if (!rpcErr && Array.isArray(rpcLogs)) {
+      const totalCount = rpcLogs.length > 0 ? Number(rpcLogs[0].total_count || rpcLogs.length) : 0;
+      const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+      const populatedLogs: AuditLog[] = (rpcLogs as Array<{
+        id: string;
+        actor_id: string | null;
+        actor_name: string | null;
+        actor_email: string | null;
+        actor_role: string | null;
+        action: string;
+        entity_type: string;
+        entity_id: string | null;
+        metadata: Record<string, unknown>;
+        ip_address: string | null;
+        user_agent: string | null;
+        created_at: string;
+      }>).map((l) => ({
+        id: l.id,
+        actor_id: l.actor_id,
+        action: l.action,
+        entity_type: l.entity_type,
+        entity_id: l.entity_id,
+        metadata: (l.metadata || {}) as Record<string, unknown>,
+        created_at: l.created_at,
+        actor_name: l.actor_name || 'System',
+        actor_email: l.actor_email || '',
+        actor_role: l.actor_role || '',
+        ip_address: l.ip_address || null,
+        user_agent: l.user_agent || null,
+        actor: l.actor_name ? { full_name: l.actor_name, email: l.actor_email } : null,
+      }));
+
+      return { data: populatedLogs, totalCount, totalPages, page, pageSize };
+    }
+  } catch (err) {
+    console.warn('RPC get_security_audit_logs fallback:', err);
+  }
+
+  // 2. Direct Table Query Fallback
   try {
     let query = supabase
       .from('audit_logs')
@@ -363,6 +473,30 @@ export async function listAuditLogsPaged(
     console.error('audit_logs query failed:', err);
     throw err;
   }
+}
+
+export interface AuditLogStats {
+  total_events: number;
+  today_events: number;
+  action_breakdown: Record<string, number>;
+}
+
+export async function getAuditLogStats(): Promise<AuditLogStats> {
+  try {
+    const { data, error } = await supabase.rpc('get_audit_log_stats');
+    if (!error && data) {
+      return data as AuditLogStats;
+    }
+  } catch (err) {
+    console.warn('RPC get_audit_log_stats fallback:', err);
+  }
+
+  const { count: total } = await supabase.from('audit_logs').select('*', { count: 'exact', head: true });
+  return {
+    total_events: total ?? 0,
+    today_events: 0,
+    action_breakdown: {},
+  };
 }
 
 // ============================================================================

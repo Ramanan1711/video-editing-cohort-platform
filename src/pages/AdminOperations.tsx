@@ -3488,6 +3488,9 @@ export function AdminOperations() {
                   <option value="announcement">Announcements</option>
                   <option value="session">Live Sessions</option>
                   <option value="post">Moderation</option>
+                  <option value="certificate">Certificates</option>
+                  <option value="internship_report">Internship Reports</option>
+                  <option value="submission">Submissions &amp; Grading</option>
                 </select>
 
                 <Button
@@ -3528,7 +3531,10 @@ export function AdminOperations() {
                           })}
                         </td>
                         <td className="py-3 px-3 text-slate-900 font-bold whitespace-nowrap">
-                          {log.actor?.full_name || log.actor?.email || (log.actor_id ? log.actor_id.slice(0, 8) : 'System')}
+                          <div>{log.actor?.full_name || log.actor_name || (log.actor_id ? log.actor_id.slice(0, 8) : 'System')}</div>
+                          {log.actor_role && (
+                            <span className="text-[10px] text-slate-400 font-mono capitalize block">{log.actor_role}</span>
+                          )}
                         </td>
                         <td className="py-3 px-3">
                           <AuditActionBadge action={log.action} />
