@@ -33,6 +33,9 @@ import {
   listMySubmissions,
   listSubmissionVersions,
   reviewSubmission,
+  addFeedbackReply,
+  listFeedbackReplies,
+  markFeedbackRead,
 } from '../../lib/courseService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -1610,6 +1613,334 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
 
       await deleteAssignment('assign-del-1');
       expect(mockDelete).toHaveBeenCalled();
+    });
+  });
+
+  describe('Feedback Schema Reconciliation, Replies & Read Tracking', () => {
+    it('listMySubmissions falls back to comment column if comments column fails', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'submissions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: 'sub-legacy-1',
+                      assignment_id: 'assign-1',
+                      student_id: 'student-1',
+                      file_url: 'https://cdn.cutcraft.com/sub1.mp4',
+                      status: 'reviewed',
+                      created_at: '2026-09-28T10:00:00Z',
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === 'feedback') {
+          return {
+            select: vi.fn().mockImplementation((columns: string) => {
+              // If querying enhanced columns (with comments) or legacy comments, simulate missing column error
+              if (columns.includes('comments')) {
+                return {
+                  in: vi.fn().mockReturnValue({
+                    order: vi.fn().mockResolvedValue({
+                      data: null,
+                      error: { message: 'column "comments" does not exist' },
+                    }),
+                  }),
+                };
+              }
+              // Fallback query requesting 'comment' column
+              if (columns.includes('comment')) {
+                return {
+                  in: vi.fn().mockReturnValue({
+                    order: vi.fn().mockResolvedValue({
+                      data: [
+                        {
+                          id: 'fb-legacy-1',
+                          submission_id: 'sub-legacy-1',
+                          mentor_id: 'mentor-1',
+                          comment: 'Excellent sound balance and smooth cut.',
+                          created_at: '2026-09-28T11:00:00Z',
+                        },
+                      ],
+                      error: null,
+                    }),
+                  }),
+                };
+              }
+              return { in: vi.fn().mockReturnValue({ order: vi.fn().mockResolvedValue({ data: [], error: null }) }) };
+            }),
+          };
+        }
+
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: [{ id: 'mentor-1', full_name: 'Mentor Sarah' }],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        if (table === 'feedback_replies') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+
+        return {};
+      });
+
+      const subs = await listMySubmissions('student-1');
+      expect(subs).toHaveLength(1);
+      expect(subs[0].feedback).toBe('Excellent sound balance and smooth cut.');
+      expect(subs[0].feedback_history).toHaveLength(1);
+      expect(subs[0].feedback_history![0].comments).toBe('Excellent sound balance and smooth cut.');
+      expect(subs[0].feedback_history![0].mentor_name).toBe('Mentor Sarah');
+    });
+
+    it('listMySubmissions loads and binds replies from feedback_replies table', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'submissions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: 'sub-thread-1',
+                      assignment_id: 'assign-1',
+                      student_id: 'student-1',
+                      file_url: 'https://cdn.cutcraft.com/sub2.mp4',
+                      status: 'resubmit',
+                      created_at: '2026-09-28T10:00:00Z',
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === 'feedback') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: 'fb-thread-1',
+                      submission_id: 'sub-thread-1',
+                      mentor_id: 'mentor-1',
+                      comments: 'Pacing slows down significantly between 01:10 and 01:45.',
+                      rubric: { pacing: 3, story: 4 },
+                      timestamped_notes: [{ timestamp: '01:15', note: 'Cut away earlier' }],
+                      student_read_at: null,
+                      created_at: '2026-09-28T11:00:00Z',
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === 'feedback_replies') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: 'reply-1',
+                      feedback_id: 'fb-thread-1',
+                      author_id: 'student-1',
+                      message: 'Got it! Trimming that dialogue pause now.',
+                      created_at: '2026-09-28T11:30:00Z',
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  { id: 'mentor-1', full_name: 'Mentor Dave', role: 'mentor' },
+                  { id: 'student-1', full_name: 'Alice Student', role: 'student' },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        return {};
+      });
+
+      const subs = await listMySubmissions('student-1');
+      expect(subs).toHaveLength(1);
+      const history = subs[0].feedback_history!;
+      expect(history).toHaveLength(1);
+      expect(history[0].replies).toHaveLength(1);
+      expect(history[0].replies![0].message).toBe('Got it! Trimming that dialogue pause now.');
+      expect(history[0].replies![0].author_name).toBe('Alice Student');
+    });
+
+    it('addFeedbackReply inserts new reply and returns hydrated author info', async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'rep-new-1',
+              feedback_id: 'fb-123',
+              author_id: 'user-alice',
+              message: 'Thanks for the critique!',
+              created_at: '2026-09-28T12:00:00Z',
+            },
+            error: null,
+          }),
+        }),
+      });
+
+      const mockProfileQuery = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: { full_name: 'Alice Wonder', role: 'student' },
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'feedback_replies') {
+          return { insert: mockInsert };
+        }
+        if (table === 'profiles') {
+          return { select: mockProfileQuery };
+        }
+        return {};
+      });
+
+      const result = await addFeedbackReply('fb-123', 'user-alice', 'Thanks for the critique!');
+      expect(mockInsert).toHaveBeenCalledWith({
+        feedback_id: 'fb-123',
+        author_id: 'user-alice',
+        message: 'Thanks for the critique!',
+      });
+      expect(result.id).toBe('rep-new-1');
+      expect(result.author_name).toBe('Alice Wonder');
+      expect(result.author_role).toBe('student');
+    });
+
+    it('listFeedbackReplies returns all thread replies formatted with authors', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'feedback_replies') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: 'rep-1',
+                      feedback_id: 'fb-thread-2',
+                      author_id: 'mentor-1',
+                      message: 'Check clip alignment at 00:32.',
+                      created_at: '2026-09-28T10:00:00Z',
+                    },
+                    {
+                      id: 'rep-2',
+                      feedback_id: 'fb-thread-2',
+                      author_id: 'student-1',
+                      message: 'Aligned and re-uploaded!',
+                      created_at: '2026-09-28T10:15:00Z',
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  { id: 'mentor-1', full_name: 'Coach Rick', role: 'mentor' },
+                  { id: 'student-1', full_name: 'Sam Student', role: 'student' },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        return {};
+      });
+
+      const replies = await listFeedbackReplies('fb-thread-2');
+      expect(replies).toHaveLength(2);
+      expect(replies[0].author_name).toBe('Coach Rick');
+      expect(replies[1].author_name).toBe('Sam Student');
+      expect(replies[1].message).toBe('Aligned and re-uploaded!');
+    });
+
+    it('markFeedbackRead calls RPC and falls back to table update if RPC fails', async () => {
+      // 1. Successful RPC path
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: null,
+        error: null,
+      });
+
+      await markFeedbackRead('fb-read-1');
+      expect(supabase.rpc).toHaveBeenCalledWith('mark_feedback_as_read', {
+        p_feedback_id: 'fb-read-1',
+      });
+
+      // 2. RPC failure path -> direct table fallback
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: null,
+        error: { message: 'function mark_feedback_as_read does not exist' },
+      });
+
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'feedback') {
+          return { update: mockUpdate };
+        }
+        return {};
+      });
+
+      await markFeedbackRead('fb-read-2');
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          student_read_at: expect.any(String),
+        })
+      );
     });
   });
 });

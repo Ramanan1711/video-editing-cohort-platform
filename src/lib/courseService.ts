@@ -2506,7 +2506,8 @@ async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise
     enhancedError &&
     (enhancedError.message.includes('rubric') ||
       enhancedError.message.includes('timestamped_notes') ||
-      enhancedError.message.includes('student_read_at'))
+      enhancedError.message.includes('student_read_at') ||
+      enhancedError.message.includes('comments'))
   ) {
     const { data: midData, error: midError } = await supabase
       .from('feedback')
@@ -2515,12 +2516,23 @@ async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise
       .order('created_at', { ascending: false });
 
     if (midError) {
-      const { data: legacyData } = await supabase
+      const { data: legacyData, error: legacyError } = await supabase
         .from('feedback')
         .select('id, submission_id, mentor_id, comments, created_at')
         .in('submission_id', submissions.map((submission) => submission.id))
         .order('created_at', { ascending: false });
-      feedbackData = legacyData;
+
+      if (legacyError) {
+        // Fallback to baseline canonical schema where column was 'comment'
+        const { data: commentData } = await supabase
+          .from('feedback')
+          .select('id, submission_id, mentor_id, comment, created_at')
+          .in('submission_id', submissions.map((submission) => submission.id))
+          .order('created_at', { ascending: false });
+        feedbackData = commentData;
+      } else {
+        feedbackData = legacyData;
+      }
     } else {
       feedbackData = midData;
     }
@@ -2571,12 +2583,17 @@ async function addFeedback(submissions: Omit<Submission, 'feedback'>[]): Promise
   }
 
   for (const item of feedbackData ?? []) {
+    const raw = item as Record<string, unknown>;
+    const commentText = (raw.comments as string) ?? (raw.comment as string) ?? '';
     if (!feedbackBySubmission.has(item.submission_id)) {
-      feedbackBySubmission.set(item.submission_id, item.comments);
+      feedbackBySubmission.set(item.submission_id, commentText);
     }
     const current = historyBySubmission.get(item.submission_id) || [];
     current.push({
       ...(item as FeedbackItem),
+      comments: commentText,
+      rubric: (raw.rubric as FeedbackItem['rubric']) || (raw.rubric_scores as FeedbackItem['rubric']) || {},
+      timestamped_notes: Array.isArray(raw.timestamped_notes) ? raw.timestamped_notes : [],
       mentor_name: mentorMap.get(item.mentor_id) || 'Mentor',
       replies: repliesByFeedback.get(item.id) || [],
     });

@@ -440,34 +440,48 @@ export async function listDetailedMentorSubmissions(
   const submissionIds = rawSubmissions.map((s) => s.id);
   const studentIds = Array.from(new Set(rawSubmissions.map((s) => s.student_id)));
 
-  const [{ data: profiles }, { data: feedbackData }] = await Promise.all([
-    studentIds.length ? supabase.from('profiles').select('id, full_name, email').in('id', studentIds) : { data: [] },
-    submissionIds.length
-      ? supabase
-          .from('feedback')
-          .select('id, submission_id, mentor_id, comments, rubric, timestamped_notes, private_notes, created_at')
-          .in('submission_id', submissionIds)
-          .order('created_at', { ascending: false })
-      : { data: [] },
-  ]);
+  let feedbackData: Record<string, unknown>[] = [];
+  if (submissionIds.length) {
+    const { data: fbData, error: fbErr } = await supabase
+      .from('feedback')
+      .select('id, submission_id, mentor_id, comments, rubric, timestamped_notes, private_notes, created_at')
+      .in('submission_id', submissionIds)
+      .order('created_at', { ascending: false });
+
+    if (fbErr) {
+      const { data: fallbackFb } = await supabase
+        .from('feedback')
+        .select('id, submission_id, mentor_id, comment, created_at')
+        .in('submission_id', submissionIds)
+        .order('created_at', { ascending: false });
+      feedbackData = (fallbackFb as Record<string, unknown>[]) || [];
+    } else {
+      feedbackData = (fbData as Record<string, unknown>[]) || [];
+    }
+  }
+
+  const { data: profiles } = studentIds.length
+    ? await supabase.from('profiles').select('id, full_name, email').in('id', studentIds)
+    : { data: [] };
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
   // Map feedback
   const feedbackBySub = new Map<string, DetailedFeedbackItem[]>();
   for (const f of feedbackData ?? []) {
-    const list = feedbackBySub.get(f.submission_id) || [];
+    const list = feedbackBySub.get(f.submission_id as string) || [];
+    const commentText = (f.comments as string) ?? (f.comment as string) ?? '';
     list.push({
-      id: f.id,
-      submission_id: f.submission_id,
-      mentor_id: f.mentor_id,
-      comments: f.comments,
-      rubric: f.rubric || {},
+      id: f.id as string,
+      submission_id: f.submission_id as string,
+      mentor_id: f.mentor_id as string,
+      comments: commentText,
+      rubric: (f.rubric as RubricScore) || (f.rubric_scores as RubricScore) || {},
       timestamped_notes: Array.isArray(f.timestamped_notes) ? f.timestamped_notes : [],
-      private_notes: f.private_notes || null,
-      created_at: f.created_at,
+      private_notes: (f.private_notes as string) || null,
+      created_at: f.created_at as string,
     });
-    feedbackBySub.set(f.submission_id, list);
+    feedbackBySub.set(f.submission_id as string, list);
   }
 
   const detailedList: DetailedMentorSubmission[] = [];
