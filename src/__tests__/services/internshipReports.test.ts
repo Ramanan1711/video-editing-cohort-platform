@@ -317,6 +317,116 @@ describe('Formal Internship Reports Service', () => {
     });
   });
 
+  describe('query methods', () => {
+    it('retrieves single student internship report', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'internship_reports') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: {
+                      id: 'rep-single',
+                      cohort_id: 'c1',
+                      student_id: 's1',
+                      composite_score: 94,
+                      grade: 'A+',
+                      profiles: { full_name: 'Jordan', email: 'jordan@test.com' },
+                      cohorts: { name: 'Cohort Beta' },
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn().mockReturnThis() };
+      });
+
+      const report = await getStudentInternshipReport('c1', 's1');
+      expect(report).not.toBeNull();
+      expect(report?.student_name).toBe('Jordan');
+      expect(report?.cohort_name).toBe('Cohort Beta');
+      expect(report?.grade).toBe('A+');
+    });
+
+    it('lists cohort internship reports sorted by score', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'internship_reports') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: 'rep-1',
+                      cohort_id: 'c1',
+                      student_id: 's1',
+                      composite_score: 95,
+                      profiles: { full_name: 'Intern 1', email: 'i1@test.com' },
+                      cohorts: { name: 'Cohort Alpha' },
+                    },
+                    {
+                      id: 'rep-2',
+                      cohort_id: 'c1',
+                      student_id: 's2',
+                      composite_score: 88,
+                      profiles: { full_name: 'Intern 2', email: 'i2@test.com' },
+                      cohorts: { name: 'Cohort Alpha' },
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn().mockReturnThis() };
+      });
+
+      const reports = await listCohortInternshipReports('c1');
+      expect(reports).toHaveLength(2);
+      expect(reports[0].student_name).toBe('Intern 1');
+      expect(reports[1].student_name).toBe('Intern 2');
+    });
+
+    it('fetches cohort executive summary via RPC', async () => {
+      const mockSummary = {
+        cohort_id: 'c1',
+        cohort_name: 'Alpha Cohort',
+        total_enrolled: 10,
+        reports_generated: 10,
+        published_count: 8,
+        avg_composite_score: 87.5,
+        lor_eligible_count: 5,
+        grade_distribution: {
+          A_plus: 3,
+          A: 2,
+          B_plus: 2,
+          B: 1,
+          C: 1,
+          Incomplete: 1,
+        },
+        reports: [],
+      };
+
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: mockSummary,
+        error: null,
+      });
+
+      const summary = await getCohortInternshipReportSummary('c1');
+      expect(supabase.rpc).toHaveBeenCalledWith('get_cohort_internship_report_summary', {
+        p_cohort_id: 'c1',
+      });
+      expect(summary.cohort_name).toBe('Alpha Cohort');
+      expect(summary.avg_composite_score).toBe(87.5);
+      expect(summary.lor_eligible_count).toBe(5);
+    });
+  });
+
   describe('exportCohortInternshipReportsCSV', () => {
     it('exports correctly structured CSV string with header row', () => {
       const mockReports = [
