@@ -158,6 +158,9 @@ export interface AuditLog {
 
 export interface AdminAnnouncement {
   id: string;
+  author_id?: string;
+  cohort_id?: string | null;
+  cohort_name?: string | null;
   title: string;
   body: string;
   published: boolean;
@@ -1500,9 +1503,20 @@ export async function updateCohortSettings(
 export async function listAnnouncements(): Promise<AdminAnnouncement[]> {
   const { data, error } = await supabase
     .from('announcements')
-    .select('id, title, body, published, created_at')
+    .select('id, author_id, cohort_id, title, body, published, created_at')
     .order('created_at', { ascending: false });
-  if (error) throw error;
+
+  if (error) {
+    if (error.code === '42703' || error.message.includes('cohort_id')) {
+      const fb = await supabase
+        .from('announcements')
+        .select('id, author_id, title, body, published, created_at')
+        .order('created_at', { ascending: false });
+      if (fb.error) throw fb.error;
+      return (fb.data ?? []) as AdminAnnouncement[];
+    }
+    throw error;
+  }
   return (data ?? []) as AdminAnnouncement[];
 }
 
@@ -1516,11 +1530,29 @@ export async function listAnnouncementsPaged(
 
   const { data, count, error } = await supabase
     .from('announcements')
-    .select('id, title, body, published, created_at', { count: 'exact' })
+    .select('id, author_id, cohort_id, title, body, published, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to);
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === '42703' || error.message.includes('cohort_id')) {
+      const fb = await supabase
+        .from('announcements')
+        .select('id, author_id, title, body, published, created_at', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      if (fb.error) throw fb.error;
+      const totalCount = fb.count ?? 0;
+      return {
+        data: (fb.data ?? []) as AdminAnnouncement[],
+        totalCount,
+        totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+        page,
+        pageSize,
+      };
+    }
+    throw error;
+  }
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
@@ -1536,16 +1568,18 @@ export async function listAnnouncementsPaged(
 export async function createAnnouncement(
   authorId: string,
   title: string,
-  body: string
+  body: string,
+  cohortId?: string | null
 ): Promise<AdminAnnouncement> {
   queryCache.invalidate('admin');
   queryCache.invalidate('announcements');
   queryCache.invalidate('stats');
 
-  // 1. Attempt validated server-side RPC (verifies author role, input length, and emits audit event)
+  // 1. Attempt validated server-side RPC (authoritative permission, length validation, cohort dispatch, audit log)
   const { data: rpcData, error: rpcError } = await supabase.rpc('publish_announcement', {
     p_title: title,
     p_body: body,
+    p_cohort_id: cohortId || null,
     p_published: true,
   });
 
@@ -1553,24 +1587,63 @@ export async function createAnnouncement(
     return rpcData as AdminAnnouncement;
   }
 
-  if (rpcError && (rpcError.code !== '42883' && !rpcError.message.includes('publish_announcement'))) {
+  // If RPC parameter mismatch with legacy 3-param signature and cohortId is null, attempt fallback RPC
+  if (rpcError && (rpcError.code === '42883' || rpcError.message.includes('publish_announcement'))) {
+    if (!cohortId) {
+      const fallbackRpc = await supabase.rpc('publish_announcement', {
+        p_title: title,
+        p_body: body,
+        p_published: true,
+      });
+      if (!fallbackRpc.error && fallbackRpc.data) {
+        return fallbackRpc.data as AdminAnnouncement;
+      }
+    }
+  } else if (rpcError) {
     throw rpcError;
+  }
+
+  // 2. Direct table insert fallback if RPC is not deployed in current environment
+  const payload: Record<string, unknown> = {
+    author_id: authorId,
+    title,
+    body,
+    published: true,
+  };
+  if (cohortId) {
+    payload.cohort_id = cohortId;
   }
 
   const { data, error } = await supabase
     .from('announcements')
-    .insert({ author_id: authorId, title, body, published: true })
-    .select('id, title, body, published, created_at')
+    .insert(payload)
+    .select('id, author_id, cohort_id, title, body, published, created_at')
     .single();
-  if (error) throw error;
 
-  void logAuditEvent(authorId, 'announcement.created', 'announcement', data.id, { title });
+  if (error) {
+    if (error.code === '42703' || error.message.includes('cohort_id')) {
+      const fb = await supabase
+        .from('announcements')
+        .insert({ author_id: authorId, title, body, published: true })
+        .select('id, author_id, title, body, published, created_at')
+        .single();
+      if (fb.error) throw fb.error;
+      void logAuditEvent(authorId, 'announcement.created', 'announcement', fb.data.id, { title });
+      return fb.data as AdminAnnouncement;
+    }
+    throw error;
+  }
+
+  void logAuditEvent(authorId, 'announcement.created', 'announcement', data.id, {
+    title,
+    cohort_id: cohortId || null,
+  });
   return data as AdminAnnouncement;
 }
 
 export async function updateAnnouncement(
   id: string,
-  input: { title?: string; body?: string; published?: boolean },
+  input: { title?: string; body?: string; cohort_id?: string | null; published?: boolean },
   actorId?: string
 ): Promise<AdminAnnouncement> {
   queryCache.invalidate('admin');
@@ -1580,9 +1653,25 @@ export async function updateAnnouncement(
     .from('announcements')
     .update(input)
     .eq('id', id)
-    .select('id, title, body, published, created_at')
+    .select('id, author_id, cohort_id, title, body, published, created_at')
     .single();
-  if (error) throw error;
+
+  if (error) {
+    if (error.code === '42703' || error.message.includes('cohort_id')) {
+      const sanitized = { ...input };
+      delete sanitized.cohort_id;
+      const fb = await supabase
+        .from('announcements')
+        .update(sanitized)
+        .eq('id', id)
+        .select('id, author_id, title, body, published, created_at')
+        .single();
+      if (fb.error) throw fb.error;
+      void logAuditEvent(actorId || null, 'announcement.updated', 'announcement', id, input);
+      return fb.data as AdminAnnouncement;
+    }
+    throw error;
+  }
 
   void logAuditEvent(actorId || null, 'announcement.updated', 'announcement', id, input);
   return data as AdminAnnouncement;

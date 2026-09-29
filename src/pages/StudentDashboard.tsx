@@ -199,7 +199,7 @@ export function StudentDashboard() {
           getStudentCourseData(userId, selectedCohortId ?? undefined),
           listMySubmissions(userId),
           listStudentLiveSessions(),
-          listStudentAnnouncements(),
+          listStudentAnnouncements(selectedCohortId ?? undefined),
           listAssignments(selectedCohortId ?? undefined),
           listCohorts(),
           listModules(),
@@ -1930,7 +1930,22 @@ export function StudentDashboard() {
                                 <span className="flex size-7 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
                                   <Megaphone size={14} />
                                 </span>
-                                <h3 className="text-base font-black text-slate-950">{announcement.title}</h3>
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-base font-black text-slate-950">{announcement.title}</h3>
+                                    {announcement.cohort_id ? (
+                                      <span className="rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                                        {allCohorts.find((c) => c.id === announcement.cohort_id)?.name ||
+                                          allCohorts.find((c) => c.id === announcement.cohort_id)?.title ||
+                                          'Cohort Announcement'}
+                                      </span>
+                                    ) : (
+                                      <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                        Platform Broadcast
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                               <span className="text-xs font-semibold text-slate-400">
                                 {new Date(announcement.created_at).toLocaleDateString([], {

@@ -251,6 +251,7 @@ export interface StudentNotification {
 
 export interface StudentAnnouncement {
   id: string;
+  cohort_id?: string | null;
   title: string;
   body: string;
   created_at: string;
@@ -2629,14 +2630,31 @@ export async function markFeedbackRead(feedbackId: string): Promise<void> {
 }
 
 // Student Announcements
-export async function listStudentAnnouncements(): Promise<StudentAnnouncement[]> {
-  const { data, error } = await supabase
+export async function listStudentAnnouncements(cohortId?: string | null): Promise<StudentAnnouncement[]> {
+  let query = supabase
     .from('announcements')
-    .select('id, title, body, created_at')
+    .select('id, cohort_id, title, body, created_at')
     .eq('published', true)
     .order('created_at', { ascending: false });
 
+  if (cohortId) {
+    // When a cohort is selected, retrieve announcements targeted to that cohort or platform broadcasts (cohort_id is null)
+    query = query.or(`cohort_id.is.null,cohort_id.eq.${cohortId}`);
+  }
+
+  const { data, error } = await query;
+
   if (error) {
+    if (error.code === '42703' || error.message.includes('cohort_id')) {
+      const fb = await supabase
+        .from('announcements')
+        .select('id, title, body, created_at')
+        .eq('published', true)
+        .order('created_at', { ascending: false });
+      if (!fb.error && fb.data) {
+        return fb.data as StudentAnnouncement[];
+      }
+    }
     if (error.code === '42P01' || error.message.includes('announcements')) {
       console.warn('Announcements table not yet migrated, returning empty list');
       return [];

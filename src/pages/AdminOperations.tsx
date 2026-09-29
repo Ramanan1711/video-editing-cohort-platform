@@ -206,7 +206,11 @@ export function AdminOperations() {
   const [assigningMentor, setAssigningMentor] = useState(false);
 
   // Announcement state
-  const [announcementInput, setAnnouncementInput] = useState({ title: '', body: '' });
+  const [announcementInput, setAnnouncementInput] = useState<{ title: string; body: string; cohort_id: string }>({
+    title: '',
+    body: '',
+    cohort_id: '',
+  });
   const [editingAnnouncement, setEditingAnnouncement] = useState<AdminAnnouncement | null>(null);
   const [savingAnnouncement, setSavingAnnouncement] = useState(false);
 
@@ -896,17 +900,27 @@ export function AdminOperations() {
     setSavingAnnouncement(true);
     setError(null);
     try {
+      const cohortId = announcementInput.cohort_id.trim() ? announcementInput.cohort_id.trim() : null;
       if (editingAnnouncement) {
-        const updated = await updateAnnouncement(editingAnnouncement.id, announcementInput);
+        const updated = await updateAnnouncement(editingAnnouncement.id, {
+          title: announcementInput.title,
+          body: announcementInput.body,
+          cohort_id: cohortId,
+        });
         setAnnouncements((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
         setSuccess('Announcement updated successfully.');
         setEditingAnnouncement(null);
       } else {
-        const created = await createAnnouncement(user.id, announcementInput.title, announcementInput.body);
+        const created = await createAnnouncement(
+          user.id,
+          announcementInput.title,
+          announcementInput.body,
+          cohortId
+        );
         setAnnouncements((prev) => [created, ...prev]);
         setSuccess('Announcement broadcasted successfully.');
       }
-      setAnnouncementInput({ title: '', body: '' });
+      setAnnouncementInput({ title: '', body: '', cohort_id: '' });
       void getAdminStats().then(setStats);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save announcement.');
@@ -2927,6 +2941,22 @@ export function AdminOperations() {
 
               <form onSubmit={handleSaveAnnouncement} className="mt-5 space-y-4">
                 <label className="block text-xs font-bold text-slate-700">
+                  Target Audience / Cohort
+                  <select
+                    value={announcementInput.cohort_id}
+                    onChange={(e) => setAnnouncementInput({ ...announcementInput, cohort_id: e.target.value })}
+                    className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs outline-none focus:border-orange-400"
+                  >
+                    <option value="">All Cohorts (Platform Broadcast)</option>
+                    {cohorts.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name || c.title || 'Untitled Cohort'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-xs font-bold text-slate-700">
                   Announcement Title
                   <input
                     type="text"
@@ -2958,7 +2988,7 @@ export function AdminOperations() {
                       size="sm"
                       onClick={() => {
                         setEditingAnnouncement(null);
-                        setAnnouncementInput({ title: '', body: '' });
+                        setAnnouncementInput({ title: '', body: '', cohort_id: '' });
                       }}
                     >
                       Cancel Edit
@@ -2981,7 +3011,20 @@ export function AdminOperations() {
                     <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <strong className="text-sm font-bold text-slate-900">{item.title}</strong>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <strong className="text-sm font-bold text-slate-900">{item.title}</strong>
+                            {item.cohort_id ? (
+                              <span className="rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                                {cohorts.find((c) => c.id === item.cohort_id)?.name ||
+                                  cohorts.find((c) => c.id === item.cohort_id)?.title ||
+                                  'Targeted Cohort'}
+                              </span>
+                            ) : (
+                              <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                Platform Broadcast
+                              </span>
+                            )}
+                          </div>
                           <p className="mt-1 text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{item.body}</p>
                           <p className="mt-2 text-[10px] text-slate-400">
                             Published {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -2992,7 +3035,11 @@ export function AdminOperations() {
                           <button
                             onClick={() => {
                               setEditingAnnouncement(item);
-                              setAnnouncementInput({ title: item.title, body: item.body });
+                              setAnnouncementInput({
+                                title: item.title,
+                                body: item.body,
+                                cohort_id: item.cohort_id || '',
+                              });
                             }}
                             className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-700"
                             title="Edit announcement"
