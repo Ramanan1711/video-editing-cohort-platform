@@ -117,7 +117,7 @@ begin
     if auth.uid() is not null then
         v_actual_user_id := auth.uid();
         if not v_caller_is_admin or v_user_email is null then
-            select email, coalesce(p.role, 'student')
+            select u.email::text, coalesce(p.role, 'student')
             into v_user_email, v_user_role
             from auth.users u
             left join public.profiles p on p.id = u.id
@@ -242,7 +242,7 @@ begin
         e.resolved,
         e.resolved_at,
         e.resolved_by,
-        u.email as resolver_email,
+        u.email::text as resolver_email,
         e.created_at
     from public.app_error_logs e
     left join auth.users u on u.id = e.resolved_by

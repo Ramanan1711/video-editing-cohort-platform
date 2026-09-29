@@ -247,11 +247,11 @@ begin
   if auth.uid() is not null then
     select (
       public.has_admin_permission('view_audit_logs') or
-      (role = 'admin' and (admin_role = 'super_admin' or admin_role is null))
+      (prof.role = 'admin' and (prof.admin_role = 'super_admin' or prof.admin_role is null))
     )
     into v_authorized
-    from public.profiles
-    where id = auth.uid();
+    from public.profiles prof
+    where prof.id = auth.uid();
   end if;
 
   if not coalesce(v_authorized, false) then
@@ -329,11 +329,11 @@ begin
   if auth.uid() is not null then
     select (
       public.has_admin_permission('view_audit_logs') or
-      (role = 'admin' and (admin_role = 'super_admin' or admin_role is null))
+      (prof.role = 'admin' and (prof.admin_role = 'super_admin' or prof.admin_role is null))
     )
     into v_authorized
-    from public.profiles
-    where id = auth.uid();
+    from public.profiles prof
+    where prof.id = auth.uid();
   end if;
 
   if not coalesce(v_authorized, false) then
