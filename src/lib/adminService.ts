@@ -4,6 +4,12 @@ import type { AdminSubRole } from './adminPermissions';
 export type { AdminSubRole } from './adminPermissions';
 import type { EnrollmentStatus } from './courseService';
 export type { EnrollmentStatus } from './courseService';
+import {
+  listCommunityReports,
+  resolveCommunityReport,
+  type CommunityReport,
+} from './communityService';
+export type { CommunityReport } from './communityService';
 
 export interface PagedResult<T> {
   data: T[];
@@ -1801,6 +1807,22 @@ export async function deleteCommunityComment(id: string, actorId?: string): Prom
   if (error) throw error;
 
   void logAuditEvent(actorId || null, 'community.comment_deleted', 'comment', id, {});
+}
+
+export async function listAdminCommunityReports(
+  status?: 'pending' | 'resolved' | 'dismissed'
+): Promise<CommunityReport[]> {
+  return listCommunityReports(status);
+}
+
+export async function resolveAdminCommunityReport(
+  reportId: string,
+  status: 'resolved' | 'dismissed',
+  actorId?: string,
+  notes?: string
+): Promise<void> {
+  await resolveCommunityReport(reportId, status, notes);
+  void logAuditEvent(actorId || null, `community.report_${status}`, 'report', reportId, { notes });
 }
 
 // ============================================================================

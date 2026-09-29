@@ -427,6 +427,11 @@ export async function addCommunityComment(
   };
 }
 
+export async function deleteCommunityComment(commentId: string): Promise<void> {
+  const { error } = await supabase.from('community_comments').delete().eq('id', commentId);
+  if (error) throw error;
+}
+
 export async function togglePostReaction(
   postId: string,
   userId: string,
@@ -458,12 +463,35 @@ export async function togglePostReaction(
   }
 }
 
+export interface CommunityReport {
+  id: string;
+  post_id: string;
+  reporter_id: string;
+  reason: string;
+  status: 'pending' | 'resolved' | 'dismissed';
+  resolution_notes?: string | null;
+  resolved_by?: string | null;
+  resolved_at?: string | null;
+  created_at: string;
+  post_title?: string | null;
+  post_body?: string;
+  reporter_name?: string;
+  reporter_email?: string;
+}
+
 export async function reportCommunityPost(
   postId: string,
   reporterId: string,
   reason: string
 ): Promise<void> {
   try {
+    const { error: rpcErr } = await supabase.rpc('report_community_post', {
+      p_post_id: postId,
+      p_reason: reason.trim(),
+    });
+
+    if (!rpcErr) return;
+
     const { error } = await supabase.from('community_reports').insert({
       post_id: postId,
       reporter_id: reporterId,
@@ -471,15 +499,111 @@ export async function reportCommunityPost(
     });
     if (error) throw error;
   } catch (err) {
-    console.warn('community_reports table unavailable, logging report intent:', err);
+    console.warn('community_reports submission failed:', err);
+    throw err;
   }
+}
+
+export async function listCommunityReports(
+  status?: 'pending' | 'resolved' | 'dismissed'
+): Promise<CommunityReport[]> {
+  try {
+    let query = supabase
+      .from('community_reports')
+      .select('id, post_id, reporter_id, reason, status, resolution_notes, resolved_by, resolved_at, created_at')
+      .order('created_at', { ascending: false });
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data || data.length === 0) return [];
+
+    const postIds = Array.from(new Set(data.map((r) => r.post_id)));
+    const reporterIds = Array.from(new Set(data.map((r) => r.reporter_id)));
+
+    const [{ data: posts }, { data: profiles }] = await Promise.all([
+      postIds.length
+        ? supabase.from('community_posts').select('id, title, body').in('id', postIds)
+        : Promise.resolve({ data: [] }),
+      reporterIds.length
+        ? supabase.from('profiles').select('id, full_name, email').in('id', reporterIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const postMap = new Map((posts ?? []).map((p) => [p.id, p]));
+    const profileMap = new Map((profiles ?? []).map((pr) => [pr.id, pr]));
+
+    return data.map((r) => {
+      const p = postMap.get(r.post_id);
+      const rep = profileMap.get(r.reporter_id);
+      return {
+        ...r,
+        post_title: p?.title || null,
+        post_body: p?.body || '',
+        reporter_name: rep?.full_name || 'Anonymous User',
+        reporter_email: rep?.email || '',
+      };
+    });
+  } catch (err) {
+    console.warn('Failed to load community reports:', err);
+    return [];
+  }
+}
+
+export async function resolveCommunityReport(
+  reportId: string,
+  status: 'resolved' | 'dismissed',
+  notes?: string
+): Promise<void> {
+  const { error: rpcErr } = await supabase.rpc('resolve_community_report', {
+    p_report_id: reportId,
+    p_status: status,
+    p_notes: notes || null,
+  });
+
+  if (!rpcErr) return;
+
+  const { error } = await supabase
+    .from('community_reports')
+    .update({
+      status,
+      resolution_notes: notes || null,
+      resolved_at: new Date().toISOString(),
+    })
+    .eq('id', reportId);
+
+  if (error) throw error;
+}
+
+export async function moderateCommunityPostStatus(
+  postId: string,
+  moderationStatus: 'published' | 'flagged' | 'hidden'
+): Promise<void> {
+  const { error: rpcErr } = await supabase.rpc('moderate_community_post', {
+    p_post_id: postId,
+    p_status: moderationStatus,
+  });
+
+  if (!rpcErr) return;
+
+  const { error } = await supabase
+    .from('community_posts')
+    .update({ moderation_status: moderationStatus })
+    .eq('id', postId);
+
+  if (error) throw error;
 }
 
 export function subscribeToCohortCommunity(
   cohortId?: string | null,
   onUpdate?: () => void
 ): () => void {
-  const channelName = cohortId ? `cohort-community-${cohortId}` : 'cohort-community-all';
+  const channelName = cohortId
+    ? `cohort-comm-${cohortId}-${Math.random().toString(36).slice(2, 8)}`
+    : `cohort-comm-all-${Math.random().toString(36).slice(2, 8)}`;
   const channel = supabase
     .channel(channelName)
     .on(
