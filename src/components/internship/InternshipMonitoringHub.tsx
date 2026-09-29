@@ -26,10 +26,11 @@ import {
   type InternshipReport,
 } from '../../lib/internshipReportService';
 import { InternshipReportModal } from './InternshipReportModal';
+import { WhatsAppMonitoringModal } from './WhatsAppMonitoringModal';
 import {
   formatWhatsAppInactivityNudge,
   generateWhatsAppClickToChatUrl,
-  sendWhatsAppNotification,
+  dispatchWhatsAppMessage,
 } from '../../lib/whatsappService';
 
 interface InternshipMonitoringHubProps {
@@ -40,7 +41,7 @@ interface InternshipMonitoringHubProps {
 
 export function InternshipMonitoringHub({
   cohortId,
-  cohortName: _cohortName,
+  cohortName,
   mentorId: _mentorId,
 }: InternshipMonitoringHubProps) {
   const toast = useToast();
@@ -52,6 +53,7 @@ export function InternshipMonitoringHub({
   const [reports, setReports] = useState<InternshipReport[]>([]);
   const [selectedReportIntern, setSelectedReportIntern] = useState<{ id: string; name: string } | null>(null);
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [showWhatsAppHub, setShowWhatsAppHub] = useState(false);
 
   const loadData = async () => {
     try {
@@ -79,7 +81,7 @@ export function InternshipMonitoringHub({
       toast.error('No formal internship reports generated yet. Click "Generate Reports" first.');
       return;
     }
-    const csvContent = exportCohortInternshipReportsCSV(_cohortName, reports);
+    const csvContent = exportCohortInternshipReportsCSV(cohortName, reports);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -147,10 +149,21 @@ export function InternshipMonitoringHub({
 
     try {
       setSendingNudgeId(intern.userId);
-      await sendWhatsAppNotification(intern.userId, phone, 'inactivity_nudge', message);
+      const result = await dispatchWhatsAppMessage({
+        userId: intern.userId,
+        cohortId,
+        phone,
+        eventType: 'inactivity_nudge',
+        message,
+      });
+
       const url = generateWhatsAppClickToChatUrl(phone, message);
       window.open(url, '_blank', 'noopener,noreferrer');
-      toast.success(`WhatsApp nudge dispatched to ${intern.fullName}!`);
+      if (result.success) {
+        toast.success(`Automated WhatsApp nudge dispatched to ${intern.fullName}!`);
+      } else {
+        toast.info(`Click-to-chat fallback opened for ${intern.fullName}`);
+      }
     } catch {
       toast.error('Failed to dispatch WhatsApp reminder');
     } finally {
@@ -277,6 +290,16 @@ export function InternshipMonitoringHub({
           >
             <Download size={13} />
             <span>Export Reports (CSV)</span>
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowWhatsAppHub(true)}
+            className="text-xs"
+          >
+            <MessageCircle size={13} className="text-emerald-500" />
+            <span>WhatsApp Delivery Hub</span>
           </Button>
 
           <div className="relative">
@@ -465,7 +488,7 @@ export function InternshipMonitoringHub({
           isOpen={Boolean(selectedReportIntern)}
           onClose={() => setSelectedReportIntern(null)}
           cohortId={cohortId}
-          cohortName={_cohortName}
+          cohortName={cohortName}
           studentId={selectedReportIntern.id}
           studentName={selectedReportIntern.name}
           canEdit={true}
@@ -480,6 +503,15 @@ export function InternshipMonitoringHub({
               return [...prev, updated];
             });
           }}
+        />
+      )}
+
+      {showWhatsAppHub && (
+        <WhatsAppMonitoringModal
+          isOpen={showWhatsAppHub}
+          onClose={() => setShowWhatsAppHub(false)}
+          cohortId={cohortId}
+          cohortName={cohortName}
         />
       )}
     </div>
