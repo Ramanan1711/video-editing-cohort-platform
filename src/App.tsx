@@ -21,6 +21,7 @@ import { CommunityHub } from './pages/CommunityHub';
 import { WorkshopsPage } from './pages/WorkshopsPage';
 import { WorkspaceShell } from './components/WorkspaceShell';
 import { Unauthorized } from './pages/Unauthorized';
+import { VerifyCertificate } from './pages/VerifyCertificate';
 
 // Initialize production observability & error tracking
 initErrorTracking();
@@ -40,6 +41,9 @@ export function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
+            <Route path="/verify-certificate" element={<VerifyCertificate />} />
+            <Route path="/credentials/:certificateNumber" element={<VerifyCertificate />} />
+            <Route path="/credentials" element={<VerifyCertificate />} />
             <Route path="/" element={<Home />} />
             
             {/* Protected Student / Mentor Routes */}

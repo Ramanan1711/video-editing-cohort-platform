@@ -14,6 +14,7 @@ import {
   Flame,
   Video,
   X,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { verifyCertificateEligibility, type CertificateEligibilityResult } from '../lib/courseService';
@@ -82,22 +83,17 @@ export function CertificateModal({
         day: 'numeric',
       });
 
-  const credentialId =
-    eligibility?.certificate_number ||
-    `CC-${cohortId.replace(/-/g, '').slice(0, 6).toUpperCase()}-${studentId
-      .replace(/-/g, '')
-      .slice(0, 6)
-      .toUpperCase()}`;
+  const credentialId = eligibility?.certificate_number || null;
 
   // Add certificate print class to body when modal is open and eligible
   useEffect(() => {
-    if (isOpen && eligibility?.eligible && !verifying) {
+    if (isOpen && eligibility?.eligible && credentialId && !verifying) {
       document.body.classList.add('certificate-modal-open');
       return () => {
         document.body.classList.remove('certificate-modal-open');
       };
     }
-  }, [isOpen, eligibility?.eligible, verifying]);
+  }, [isOpen, eligibility?.eligible, credentialId, verifying]);
 
   if (!isOpen) return null;
 
@@ -268,12 +264,37 @@ export function CertificateModal({
     );
   }
 
+  if (eligibility?.eligible && !credentialId) {
+    return createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in">
+        <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 text-center text-white shadow-2xl">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 rounded-xl p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400">
+            <LoaderCircle size={28} className="animate-spin" />
+          </div>
+          <h3 className="text-lg font-bold">Registering Credential</h3>
+          <p className="mt-2 text-sm text-slate-400">
+            All 4 graduation criteria verified! Persisting your authentic certificate into the ledger...
+          </p>
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
   const handlePrint = () => {
     window.print();
   };
 
   // High-Resolution 2400x1700 PNG Image Generator
   const handleDownloadImage = () => {
+    if (!credentialId) return;
     const canvas = document.createElement('canvas');
     canvas.width = 2400;
     canvas.height = 1700;
@@ -502,7 +523,7 @@ export function CertificateModal({
     ctx.fillText(`Issue Date: ${dateStr}`, 180, 1475);
 
     ctx.textAlign = 'center';
-    ctx.fillText('Verify authentic credential at cutcraft.studio/credentials', 1200, 1475);
+    ctx.fillText('Verify authentic credential at cutcraft.studio/verify-certificate', 1200, 1475);
 
     ctx.textAlign = 'right';
     ctx.font = 'bold 22px monospace';
@@ -589,6 +610,18 @@ export function CertificateModal({
           </div>
 
           <div className="flex items-center gap-2">
+            {credentialId && (
+              <a
+                href={`/verify-certificate?id=${encodeURIComponent(credentialId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/20 transition"
+              >
+                <ExternalLink size={14} />
+                <span>Verify Online</span>
+              </a>
+            )}
+
             <Button
               variant="secondary"
               size="sm"
@@ -771,11 +804,21 @@ export function CertificateModal({
               <span>
                 Issue Date: <strong className="text-slate-600">{dateStr}</strong>
               </span>
-              <span className="hidden sm:inline text-slate-400">
-                Verify authentic credential at cutcraft.studio/credentials
-              </span>
+              <a
+                href={credentialId ? `/verify-certificate?id=${encodeURIComponent(credentialId)}` : '/verify-certificate'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:inline text-slate-500 hover:text-orange-600 transition underline underline-offset-2"
+              >
+                Verify authentic credential at cutcraft.studio/verify-certificate
+              </a>
               <span>
-                Credential ID: <code className="font-mono font-bold text-slate-700">{credentialId}</code>
+                Credential ID:{' '}
+                {credentialId ? (
+                  <code className="font-mono font-bold text-slate-700">{credentialId}</code>
+                ) : (
+                  <span className="font-medium text-amber-600">Pending Issuance</span>
+                )}
               </span>
             </div>
           </div>

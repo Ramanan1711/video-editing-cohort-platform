@@ -224,6 +224,30 @@ export interface CertificateEligibilityResult {
   min_attendance_pct?: number;
 }
 
+export interface PublicCertificate {
+  valid: boolean;
+  certificate_number?: string;
+  student_id?: string;
+  student_name?: string;
+  cohort_id?: string;
+  cohort_name?: string;
+  issued_at?: string;
+  metadata?: {
+    total_lessons?: number;
+    completed_lessons?: number;
+    total_assignments?: number;
+    approved_assignments?: number;
+    total_challenges?: number;
+    completed_challenges?: number;
+    total_sessions?: number;
+    attended_sessions?: number;
+    attendance_rate_pct?: number;
+    min_attendance_pct?: number;
+    verified_by?: string;
+  };
+  error?: string;
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -3114,6 +3138,22 @@ export async function verifyCertificateEligibility(
           attendance_rate_pct: attendanceRatePct,
           min_attendance_pct: minAttendancePct,
         };
+      } else {
+        console.error('Failed to persist verified certificate:', insertErr);
+        return {
+          eligible: false,
+          reason: 'Graduation criteria verified, but certificate issuance persistence failed. Please retry.',
+          completed_lessons: completedLessons,
+          total_lessons: allLessonIds.length,
+          approved_assignments: approvedAssigns,
+          total_assignments: totalAssigns,
+          completed_challenges: completedChallenges,
+          total_challenges: effectiveSprintDays,
+          attended_sessions: attendedSessions,
+          total_sessions: totalSessions,
+          attendance_rate_pct: attendanceRatePct,
+          min_attendance_pct: minAttendancePct,
+        };
       }
     }
 
@@ -3147,6 +3187,83 @@ export async function verifyCertificateEligibility(
     return {
       eligible: false,
       reason: fallbackErr instanceof Error ? fallbackErr.message : 'Failed to verify certificate eligibility.',
+    };
+  }
+}
+
+// ==============================================================================
+// Authoritative Public Certificate Verification
+// ==============================================================================
+export async function getPublicCertificate(certificateNumber: string): Promise<PublicCertificate> {
+  const cleanNumber = (certificateNumber || '').trim();
+  if (!cleanNumber) {
+    return {
+      valid: false,
+      error: 'Please provide a valid certificate number.',
+    };
+  }
+
+  // 1. Try authoritative RPC verify_certificate_authenticity
+  try {
+    const { data, error } = await supabase.rpc('verify_certificate_authenticity', {
+      p_certificate_number: cleanNumber,
+    });
+    if (!error && data) {
+      return data as PublicCertificate;
+    }
+  } catch (err) {
+    console.warn('RPC verify_certificate_authenticity unavailable, falling back:', err);
+  }
+
+  // 2. Try alias get_public_certificate
+  try {
+    const { data, error } = await supabase.rpc('get_public_certificate', {
+      p_certificate_number: cleanNumber,
+    });
+    if (!error && data) {
+      return data as PublicCertificate;
+    }
+  } catch {
+    // Proceed to direct query fallback
+  }
+
+  // 3. Fallback direct table query
+  try {
+    const { data: certRow, error: certErr } = await supabase
+      .from('certificates')
+      .select('id, certificate_number, student_id, cohort_id, issued_at, metadata')
+      .ilike('certificate_number', cleanNumber)
+      .maybeSingle();
+
+    if (certErr || !certRow) {
+      return {
+        valid: false,
+        error: 'Certificate not found. The provided certificate number is invalid or has not been issued.',
+      };
+    }
+
+    const [profileRes, cohortRes] = await Promise.all([
+      supabase.from('profiles').select('full_name').eq('id', certRow.student_id).maybeSingle(),
+      supabase.from('cohorts').select('name, title').eq('id', certRow.cohort_id).maybeSingle(),
+    ]);
+
+    const studentName = profileRes?.data?.full_name || 'Verified Graduate';
+    const cohortName = cohortRes?.data?.name || cohortRes?.data?.title || 'Creative Editing Cohort';
+
+    return {
+      valid: true,
+      certificate_number: certRow.certificate_number,
+      student_id: certRow.student_id,
+      student_name: studentName,
+      cohort_id: certRow.cohort_id,
+      cohort_name: cohortName,
+      issued_at: certRow.issued_at,
+      metadata: (certRow.metadata || {}) as PublicCertificate['metadata'],
+    };
+  } catch (fallbackErr) {
+    return {
+      valid: false,
+      error: 'An unexpected error occurred while verifying the certificate credential.',
     };
   }
 }
