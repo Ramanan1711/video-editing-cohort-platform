@@ -4,9 +4,31 @@ This directory represents the **single authoritative source of truth** for all d
 
 ---
 
-## 1. Canonical Sequential Migration Order
+## 1. Single-Step Automated Database Bootstrap
 
-When bootstrapping a fresh environment or applying updates to staging/production, execute migrations in this exact numerical order. **Do not run legacy ad-hoc scripts in `supabase/` directly**, as they are now consolidated into these 4 canonical files:
+For fresh environments (local development, staging, or production), **you no longer need to execute individual migration files manually**. Use the automated bootstrap:
+
+```bash
+# 1. Verify and generate consolidated idempotent schema (bootstrap_complete_schema.sql)
+npm run migrations:bundle
+
+# 2. Check target database health and table scorecard
+npm run db:bootstrap
+```
+
+### Direct Database Execution Options:
+- **Supabase Dashboard SQL Editor (Recommended)**:
+  Open `supabase/bootstrap_complete_schema.sql` and run it in the Supabase SQL editor. It is 100% idempotent and provisions all 28 tables, views, triggers, RLS policies, and RPCs in the correct dependency order.
+- **Supabase CLI**:
+  `supabase db push`
+- **Direct PostgreSQL Connection**:
+  `psql "$DATABASE_URL" -f supabase/bootstrap_complete_schema.sql`
+
+---
+
+## 2. Canonical Sequential Migration Order
+
+When applying incremental patches to existing environments, the 39 sequential migrations must run in this exact numerical order:
 
 | Order | Migration File | Scope & Production Security Enforcements |
 |---|---|---|

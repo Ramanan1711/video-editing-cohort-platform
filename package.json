@@ -10,6 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rls": "vitest run src/__tests__/database/liveDatabaseRLS.integration.test.ts",
+    "migrations:verify": "node scripts/verify-and-bundle-migrations.ts",
+    "migrations:bundle": "node scripts/verify-and-bundle-migrations.ts --write",
+    "db:bootstrap": "node scripts/bootstrap-database.ts",
     "verify": "npm run lint && npm run build && npm test",
     "preview": "vite preview"
   },

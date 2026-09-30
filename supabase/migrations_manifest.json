@@ -1,0 +1,598 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-09-30T04:51:32.762Z",
+  "migrationCount": 39,
+  "migrations": [
+    {
+      "order": 1,
+      "filename": "20260921000001_core_schema.sql",
+      "sha256": "9fe9c094e71aeb6b223e95e49c414c4380ba730a65b39f0fdc8ba44eebc6b1f4",
+      "sizeBytes": 7138,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "profiles",
+        "cohorts",
+        "enrollments",
+        "modules",
+        "lessons",
+        "lesson_progress",
+        "lesson_resources",
+        "assignments",
+        "submissions",
+        "feedback",
+        "announcements",
+        "live_sessions",
+        "notifications"
+      ],
+      "rpcDefinitions": []
+    },
+    {
+      "order": 2,
+      "filename": "20260921000002_rbac_and_cohort_scoping.sql",
+      "sha256": "d3db38972a53f8d7db846b1e76eba0a67842beea5f08924336929c62b41dd2b9",
+      "sizeBytes": 3277,
+      "hasSecurityDefinerWithoutSearchPath": true,
+      "tableCreations": [
+        "mentor_cohorts"
+      ],
+      "rpcDefinitions": [
+        "is_admin",
+        "is_mentor_or_admin",
+        "is_active_user",
+        "is_mentor_for_cohort",
+        "is_mentor_for_student"
+      ]
+    },
+    {
+      "order": 3,
+      "filename": "20260921000003_storage_and_hardening.sql",
+      "sha256": "fe6e8768786e777eb148855edcc2a9d906b8d77a1ef79db0620720f55fadef2e",
+      "sizeBytes": 26943,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "submission_versions"
+      ],
+      "rpcDefinitions": [
+        "trg_sync_lesson_resource_columns",
+        "trg_enforce_submission_integrity",
+        "trg_enforce_submission_insert_integrity",
+        "submit_student_assignment"
+      ]
+    },
+    {
+      "order": 4,
+      "filename": "20260921000004_data_integrity_and_audit.sql",
+      "sha256": "b0cea1d410f715533bfcb5c7a4cafee3ec3c5d566aad11c26bfc31484a2b7699",
+      "sizeBytes": 21798,
+      "hasSecurityDefinerWithoutSearchPath": true,
+      "tableCreations": [
+        "audit_logs"
+      ],
+      "rpcDefinitions": [
+        "log_audit_event",
+        "admin_update_user_role",
+        "admin_update_user_status",
+        "enroll_student_in_cohort",
+        "admin_delete_cohort",
+        "publish_announcement",
+        "fn_audit_profiles_trigger",
+        "fn_audit_cohorts_trigger",
+        "fn_audit_feedback_trigger"
+      ]
+    },
+    {
+      "order": 5,
+      "filename": "20260921000005_rls_policy_cleanup.sql",
+      "sha256": "421ed12706eafb2f44a6f16d0a40f580ba2f06a778a239f2970ee60d5cfabf4e",
+      "sizeBytes": 20880,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "submit_student_assignment",
+        "fn_audit_feedback_trigger"
+      ]
+    },
+    {
+      "order": 6,
+      "filename": "20260925000001_cohort_leaderboard_rls.sql",
+      "sha256": "4db71fddee55b361f5d858809f4648c3c80de046452fe483259b7c071fdedb63",
+      "sizeBytes": 11224,
+      "hasSecurityDefinerWithoutSearchPath": true,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "is_enrolled_in_cohort",
+        "enforce_single_active_enrollment",
+        "enroll_student_in_cohort",
+        "get_enrolled_cohort_leaderboard"
+      ]
+    },
+    {
+      "order": 7,
+      "filename": "20260925000002_internship_challenges_and_whatsapp.sql",
+      "sha256": "b52bced895385f768fd4db712547811bcb8a500e1524c234173e5105c29ecce4",
+      "sizeBytes": 6220,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "daily_challenges",
+        "daily_challenge_submissions",
+        "whatsapp_notifications_log"
+      ],
+      "rpcDefinitions": []
+    },
+    {
+      "order": 8,
+      "filename": "20260928000001_secure_profile_contact_fields.sql",
+      "sha256": "273990c59f48b03597736abad86a413676fd7dc540c938dbb971d7200f9320ba",
+      "sizeBytes": 4153,
+      "hasSecurityDefinerWithoutSearchPath": true,
+      "tableCreations": [
+        "mentor_cohorts"
+      ],
+      "rpcDefinitions": [
+        "is_admin",
+        "is_mentor_for_student",
+        "get_public_profiles"
+      ]
+    },
+    {
+      "order": 9,
+      "filename": "20260928000002_enforce_admin_subroles_and_protect_roles.sql",
+      "sha256": "3991cb1479765a979d4bc5ca09493b5eca60683369866d80526a6ebd1c2375a6",
+      "sizeBytes": 12838,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "has_admin_permission",
+        "fn_protect_profile_privilege_fields",
+        "admin_update_user_role",
+        "admin_update_user_status"
+      ]
+    },
+    {
+      "order": 10,
+      "filename": "20260928000003_admin_reporting_and_schema_resilience.sql",
+      "sha256": "fba0b56991aa6f5426ecd382e3a798ccd4dbeb6502628cae4b587908ccc71763",
+      "sizeBytes": 5614,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "mentor_cohorts"
+      ],
+      "rpcDefinitions": [
+        "get_admin_report_summary"
+      ]
+    },
+    {
+      "order": 11,
+      "filename": "20260928000004_canonical_mentor_review_rpc_and_kpis.sql",
+      "sha256": "648ca61bb1b7d50a15a971f02fa8fd76ad3b4de7c138d754e794a510f31ab7d3",
+      "sizeBytes": 9405,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "mentor_office_hours"
+      ],
+      "rpcDefinitions": [
+        "is_mentor_assigned_to_cohort",
+        "is_mentor_assigned_to_submission",
+        "review_submission_v2",
+        "review_submission"
+      ]
+    },
+    {
+      "order": 12,
+      "filename": "20260928000005_canonical_student_completion_and_challenges.sql",
+      "sha256": "1237461c4d3964134832f7d575603cf91563670a8131da60a6827da625bfe1a0",
+      "sizeBytes": 18229,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "certificates",
+        "student_study_reminders",
+        "daily_challenges",
+        "daily_challenge_submissions"
+      ],
+      "rpcDefinitions": [
+        "verify_and_complete_lesson",
+        "verify_and_issue_certificate",
+        "ensure_cohort_daily_challenges"
+      ]
+    },
+    {
+      "order": 13,
+      "filename": "20260928000006_canonical_cohorts_enrollments_mentor_mapping.sql",
+      "sha256": "bd427848c7a56ffeffc02b9b1e36c272034f7904f0db3d57f1fc14401a67bfe3",
+      "sizeBytes": 17707,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "cohorts",
+        "enrollments",
+        "mentor_cohorts"
+      ],
+      "rpcDefinitions": [
+        "sync_cohort_names_and_metadata",
+        "sync_enrollment_timestamps",
+        "sync_mentor_cohorts_timestamps",
+        "enroll_student_in_cohort"
+      ]
+    },
+    {
+      "order": 14,
+      "filename": "20260928000007_canonical_courses_entity_and_curriculum.sql",
+      "sha256": "8ea24b9660e4cdc887a78ff99507967780c2c37d4b5596308a48de2753750747",
+      "sizeBytes": 11949,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "courses"
+      ],
+      "rpcDefinitions": [
+        "sync_cohort_course_id",
+        "sync_module_course_id",
+        "clone_course_curriculum_to_cohort"
+      ]
+    },
+    {
+      "order": 15,
+      "filename": "20260928000008_canonical_modules_crud_and_ordering.sql",
+      "sha256": "d138fa2b1657601f92d241d96411a59de2f48abedfa5a83b181c6df854c313d3",
+      "sizeBytes": 15911,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "sync_modules_updated_at",
+        "reorder_modules",
+        "duplicate_module",
+        "admin_delete_module"
+      ]
+    },
+    {
+      "order": 16,
+      "filename": "20260928000009_canonical_lessons_watch_verification_and_crud.sql",
+      "sha256": "52a315faf562f3ded83f4f833e751d8fe8f3fb7b36fd2b8617060d6f82825dd2",
+      "sizeBytes": 18572,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "sync_lessons_updated_at",
+        "sync_lesson_progress_updated_at",
+        "enforce_lesson_completion_threshold",
+        "verify_and_complete_lesson",
+        "reorder_lessons",
+        "duplicate_lesson",
+        "admin_delete_lesson"
+      ]
+    },
+    {
+      "order": 17,
+      "filename": "20260928000010_canonical_lesson_resources_and_storage_privacy.sql",
+      "sha256": "ddb171ced97b2101a1480c81eeaf532ef724603ce0f986b3478fe9c042a8fca2",
+      "sizeBytes": 12552,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "can_access_course_asset",
+        "get_lesson_resource_download_url"
+      ]
+    },
+    {
+      "order": 18,
+      "filename": "20260928000011_canonical_lesson_progress_authoritative_verification.sql",
+      "sha256": "181fd3e007f171111cefb3c60b151fb13e5fab43f19804c6c653d3f0f02da1eb",
+      "sizeBytes": 19454,
+      "hasSecurityDefinerWithoutSearchPath": true,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "enforce_lesson_completion_threshold",
+        "record_lesson_watch_heartbeat",
+        "verify_and_complete_lesson",
+        "toggle_lesson_completion"
+      ]
+    },
+    {
+      "order": 19,
+      "filename": "20260928000012_canonical_assignments_cohort_scoping_and_instructions_sync.sql",
+      "sha256": "d44849e2765880555a3d50b3b6955ca4092185934a6ba12d2cc95c081b5834da",
+      "sizeBytes": 11383,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "sync_assignment_fields",
+        "is_admin",
+        "is_mentor_or_admin",
+        "is_mentor_for_cohort",
+        "is_enrolled_in_cohort",
+        "is_student_in_cohort"
+      ]
+    },
+    {
+      "order": 20,
+      "filename": "20260928000013_canonical_daily_challenges_crud_and_authoring.sql",
+      "sha256": "52cb66499edd61e584756413795d450bcabeff6cc07b18002d335c71d581ed86",
+      "sizeBytes": 10501,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "daily_challenges",
+        "daily_challenge_submissions"
+      ],
+      "rpcDefinitions": [
+        "ensure_cohort_daily_challenges",
+        "is_admin",
+        "is_mentor_or_admin"
+      ]
+    },
+    {
+      "order": 21,
+      "filename": "20260928000014_canonical_submissions_workflow_and_status_contract.sql",
+      "sha256": "1b3529a62b027da84b4dff3ac5b7f978fb7c67395f0322e7b088e1a80fa35efd",
+      "sizeBytes": 14781,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "trg_sync_submission_columns_insert",
+        "trg_enforce_submission_integrity",
+        "trg_sync_submission_versions_columns",
+        "submit_student_assignment"
+      ]
+    },
+    {
+      "order": 22,
+      "filename": "20260928000015_canonical_submission_review_and_feedback_rpcs.sql",
+      "sha256": "d820c8cf0331a8c9eaa6aaec80d1aa9f626e4a1e823d24be01c8cf327b54ddad",
+      "sizeBytes": 11965,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "is_mentor_assigned_to_cohort",
+        "is_mentor_assigned_to_submission",
+        "review_submission_v2",
+        "review_submission"
+      ]
+    },
+    {
+      "order": 23,
+      "filename": "20260928000016_canonical_feedback_schema_and_replies.sql",
+      "sha256": "29e51cd92b725a58084cb86ed527435c656d8f601765d4eea8311099a9ed0423",
+      "sizeBytes": 9772,
+      "hasSecurityDefinerWithoutSearchPath": true,
+      "tableCreations": [
+        "feedback_replies"
+      ],
+      "rpcDefinitions": [
+        "fn_sync_feedback_columns",
+        "mark_feedback_as_read"
+      ]
+    },
+    {
+      "order": 24,
+      "filename": "20260928000017_canonical_attendance_schema_and_reporting.sql",
+      "sha256": "cb9cb26e840b9ddd16e89ad3875dc9ec42dc9d507a3bb9d2d9c9f45f98f1e264",
+      "sizeBytes": 16821,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "live_sessions",
+        "session_attendance"
+      ],
+      "rpcDefinitions": [
+        "check_in_to_session",
+        "mark_student_attendance",
+        "bulk_mark_attendance",
+        "get_session_attendance_summary",
+        "get_cohort_attendance_report"
+      ]
+    },
+    {
+      "order": 25,
+      "filename": "20260928000018_canonical_announcements_security_and_cohort_targeting.sql",
+      "sha256": "b1d5d5716ee9e5e67c23a1c0196297a4e54e0692cc0ba97c36398b70aa717669",
+      "sizeBytes": 9641,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "announcements"
+      ],
+      "rpcDefinitions": [
+        "publish_announcement"
+      ]
+    },
+    {
+      "order": 26,
+      "filename": "20260928000019_canonical_notifications_event_dispatcher_and_cohort_scoping.sql",
+      "sha256": "325ea4a8f192175c49dd41c45077c52adbb47d6cb5ee7c2f4119fcebbed5cb32",
+      "sizeBytes": 15120,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "notifications"
+      ],
+      "rpcDefinitions": [
+        "dispatch_notification",
+        "send_cohort_notification",
+        "fn_notify_on_submission",
+        "fn_notify_on_feedback_reply",
+        "fn_notify_on_live_session"
+      ]
+    },
+    {
+      "order": 27,
+      "filename": "20260928000020_canonical_community_schema_reactions_reports_and_realtime.sql",
+      "sha256": "b780ddfc70e9ee7df7a99cd5fca8d2f825cc016d1881c64cd8d0901021212635",
+      "sizeBytes": 24519,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "community_posts",
+        "community_comments",
+        "community_reactions",
+        "community_reports",
+        "community_messages"
+      ],
+      "rpcDefinitions": [
+        "fn_sync_community_updated_at",
+        "fn_auto_flag_reported_post",
+        "report_community_post",
+        "resolve_community_report",
+        "moderate_community_post"
+      ]
+    },
+    {
+      "order": 28,
+      "filename": "20260928000021_canonical_unified_progress_and_dynamic_sprint_metrics.sql",
+      "sha256": "60bd6f70dcbfb449c90220d045f1df2306b2fb492384533378cac4f923bbeadc",
+      "sizeBytes": 15563,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "get_student_unified_progress",
+        "verify_and_issue_certificate"
+      ]
+    },
+    {
+      "order": 29,
+      "filename": "20260928000022_canonical_authoritative_completion_and_attendance_verification.sql",
+      "sha256": "6495facd72c621763c1c2d9848951a3ced34be89ae1fa8bce5909801e235dfab",
+      "sizeBytes": 18809,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "verify_and_issue_certificate",
+        "get_student_unified_progress"
+      ]
+    },
+    {
+      "order": 30,
+      "filename": "20260928000023_canonical_certificates_issuance_and_public_verification.sql",
+      "sha256": "c4706f4376fc57db7a98646ca54af40def9a88f427304549c28c89f6ef3a306c",
+      "sizeBytes": 4363,
+      "hasSecurityDefinerWithoutSearchPath": true,
+      "tableCreations": [
+        "certificates"
+      ],
+      "rpcDefinitions": [
+        "verify_certificate_authenticity",
+        "get_public_certificate"
+      ]
+    },
+    {
+      "order": 31,
+      "filename": "20260928000024_canonical_internship_reports_schema_and_rpcs.sql",
+      "sha256": "263df12c6e1414da39b9e1790829b0c831d7366023e6f4af8dd7dc81d47cedf1",
+      "sizeBytes": 19495,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "internship_reports"
+      ],
+      "rpcDefinitions": [
+        "generate_internship_report",
+        "get_cohort_internship_report_summary",
+        "publish_internship_report"
+      ]
+    },
+    {
+      "order": 32,
+      "filename": "20260928000025_canonical_whatsapp_provider_delivery_and_retries.sql",
+      "sha256": "a427b85f209f98fade03f276ad45dd10d22471c5630e259de24c261979c30a5f",
+      "sizeBytes": 14476,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "dispatch_whatsapp_message",
+        "update_whatsapp_delivery_status",
+        "record_whatsapp_retry_attempt",
+        "get_pending_whatsapp_retries",
+        "get_cohort_whatsapp_stats"
+      ]
+    },
+    {
+      "order": 33,
+      "filename": "20260928000026_canonical_hardened_audit_logging_and_triggers.sql",
+      "sha256": "d4a7efc3cb46a644d9af9ce72b2b57f6013b281e728d7588238d587921486d13",
+      "sizeBytes": 20626,
+      "hasSecurityDefinerWithoutSearchPath": true,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "fn_protect_audit_logs_immutability",
+        "log_audit_event",
+        "get_security_audit_logs",
+        "get_audit_log_stats",
+        "fn_audit_enrollments_trigger",
+        "fn_audit_certificates_trigger",
+        "fn_audit_internship_reports_trigger",
+        "fn_audit_submissions_trigger",
+        "fn_audit_challenge_submissions_trigger",
+        "fn_audit_community_reports_trigger",
+        "fn_audit_live_sessions_trigger"
+      ]
+    },
+    {
+      "order": 34,
+      "filename": "20260928000027_canonical_durable_error_logging_and_telemetry.sql",
+      "sha256": "2d380f2654184efbb126afdf236721e882c0e070e548a7f8f580a5626ca93828",
+      "sizeBytes": 10642,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "app_error_logs"
+      ],
+      "rpcDefinitions": [
+        "log_client_error",
+        "get_durable_error_logs",
+        "get_error_telemetry_stats",
+        "resolve_error_log"
+      ]
+    },
+    {
+      "order": 35,
+      "filename": "20260928000028_canonical_platform_analytics_and_cohort_reporting.sql",
+      "sha256": "5460c9cabc7f21b0d318d72903acc8d4ec9ee458dc0cfa11f621d56455a3b08e",
+      "sizeBytes": 23673,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "get_authoritative_platform_analytics",
+        "get_cohort_reporting_baseline",
+        "get_cohort_at_risk_students"
+      ]
+    },
+    {
+      "order": 36,
+      "filename": "20260928000029_fix_internship_reports_audit_trigger_and_lor_column.sql",
+      "sha256": "6d1893e2ecc5ad90c1f921d334cde3900514eed580f80d23203dd7f55c13bd10",
+      "sizeBytes": 4781,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "sync_internship_report_lor_columns",
+        "fn_audit_internship_reports_trigger"
+      ]
+    },
+    {
+      "order": 37,
+      "filename": "20260928000030_canonical_notifications_dispatch_metadata_and_dual_columns.sql",
+      "sha256": "6c9b6e5c7adb534729cfa15ec27b9b134b7f3504b07fbfa3292608f82932cd78",
+      "sizeBytes": 5065,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "sync_notification_columns",
+        "dispatch_notification"
+      ]
+    },
+    {
+      "order": 38,
+      "filename": "20260928000031_canonical_storage_security_and_signed_urls.sql",
+      "sha256": "eafbf4a1ac162fa00eea205e0390def38e697e7d8b0f4b0cb54814b789445fcd",
+      "sizeBytes": 10025,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "can_access_course_asset"
+      ]
+    },
+    {
+      "order": 39,
+      "filename": "20260928000032_canonical_security_hardening_profiles_and_challenges.sql",
+      "sha256": "29474d458c6305ee64c8b4e1d086ec6e7f18467c694663adb7bbbbded64f91e1",
+      "sizeBytes": 18211,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "fn_protect_profile_privilege_fields",
+        "get_public_profiles",
+        "fn_enforce_daily_challenge_submission_integrity"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+name: CI Pipeline & Quality Gate
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  code-quality-and-tests:
+    name: Lint, Build, Migrations & Test Suites
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Code Style & Linting (ESLint)
+        run: npm run lint
+
+      - name: Verify TypeScript Compilation & Production Bundle (Vite)
+        run: npm run build
+
+      - name: Verify Database Migrations Consistency & Bundle Integrity
+        run: node scripts/verify-and-bundle-migrations.ts
+
+      - name: Run Complete Vitest Test Suite (Unit, Component, Journey, RLS)
+        run: npm test
+        env:
+          VITE_SUPABASE_URL: "${{ secrets.VITE_SUPABASE_URL || 'https://mock-ci-instance.supabase.co' }}"
+          VITE_SUPABASE_ANON_KEY: "${{ secrets.VITE_SUPABASE_ANON_KEY || 'mock-ci-anon-key' }}"
+
+      - name: Run Authoritative Database & Row Level Security (RLS) Tests
+        run: npm run test:rls
+        env:
+          VITE_SUPABASE_URL: "${{ secrets.VITE_SUPABASE_URL || 'https://mock-ci-instance.supabase.co' }}"
+          VITE_SUPABASE_ANON_KEY: "${{ secrets.VITE_SUPABASE_ANON_KEY || 'mock-ci-anon-key' }}"
+
+  deployment-check:
+    name: Deployment Configuration & SPA Rewrites Verification
+    runs-on: ubuntu-latest
+    needs: [code-quality-and-tests]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Vercel Routing Configuration
+        run: |
+          if [ ! -f "vercel.json" ]; then
+            echo "Missing vercel.json configuration"
+            exit 1
+          fi
+          grep -q '"source": "/(.*)"' vercel.json || {
+            echo "vercel.json missing catch-all rewrite for SPA routing"
+            exit 1
+          }
+          echo "vercel.json SPA rewrite verified."
+
+      - name: Validate Environment Template
+        run: |
+          if [ ! -f ".env.example" ]; then
+            echo "Missing .env.example"
+            exit 1
+          fi
+          grep -q 'VITE_SUPABASE_URL' .env.example || exit 1
+          grep -q 'VITE_SUPABASE_ANON_KEY' .env.example || exit 1
+          echo ".env.example configuration keys verified."
+
