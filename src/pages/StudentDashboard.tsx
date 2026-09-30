@@ -47,6 +47,7 @@ import {
   getLessonResourceDownloadUrl,
   getSecureAssetUrl,
   getStudentCourseData,
+  isSecurableAsset,
   listAssignments,
   listCohorts,
   listLessonResources,
@@ -2255,7 +2256,7 @@ interface LessonPlayerProps {
   onWatchProgressUpdate?: (lessonId: string, watchPercentage: number, autoCompleted: boolean) => void;
 }
 
-function LessonPlayer({
+export function LessonPlayer({
   lesson,
   completed,
   onToggleComplete,
@@ -2278,19 +2279,39 @@ function LessonPlayer({
   const [showResumePrompt, setShowResumePrompt] = useState<boolean>(
     () => initialLastPositionSeconds > 10 && !completed
   );
+  const [isRefreshingStream, setIsRefreshingStream] = useState<boolean>(false);
+  const [streamError, setStreamError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastSyncTimeRef = useRef<number>(0);
+  const lastKnownTimeRef = useRef<number>(initialLastPositionSeconds || 0);
+  const signedAtRef = useRef<number>(Date.now());
+  const isRefreshingRef = useRef<boolean>(false);
+  const refreshAttemptsRef = useRef<number>(0);
+  const wasPlayingRef = useRef<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
+    setStreamError(null);
+    refreshAttemptsRef.current = 0;
+
     if (!lesson.video_url) {
       setResolvedVideoUrl(null);
       return;
     }
-    if (lesson.video_url.includes('course-assets')) {
-      void getSecureAssetUrl(lesson.video_url).then((signed) => {
-        if (isMounted) setResolvedVideoUrl(signed);
-      });
+    if (isSecurableAsset(lesson.video_url)) {
+      void getSecureAssetUrl(lesson.video_url)
+        .then((signed) => {
+          if (isMounted) {
+            signedAtRef.current = Date.now();
+            setResolvedVideoUrl(signed);
+          }
+        })
+        .catch((err) => {
+          if (isMounted) {
+            console.error('Initial secure asset resolution error:', err);
+            setStreamError('Could not authorize video stream access. Please refresh.');
+          }
+        });
     } else {
       setResolvedVideoUrl(lesson.video_url);
     }
@@ -2300,6 +2321,132 @@ function LessonPlayer({
   }, [lesson.video_url]);
 
   const videoMeta = parseVideoUrl(resolvedVideoUrl);
+
+  const refreshSignedUrl = useCallback(
+    async (resumeAt?: number, autoResume = true) => {
+      if (!lesson.video_url) return;
+      if (isRefreshingRef.current) return;
+      isRefreshingRef.current = true;
+      setIsRefreshingStream(true);
+
+      const targetPos =
+        resumeAt !== undefined
+          ? resumeAt
+          : videoRef.current
+          ? videoRef.current.currentTime
+          : lastKnownTimeRef.current;
+
+      try {
+        const freshSignedUrl = await getSecureAssetUrl(lesson.video_url, 3600);
+        signedAtRef.current = Date.now();
+        setResolvedVideoUrl(freshSignedUrl);
+        setStreamError(null);
+
+        if (videoRef.current) {
+          const vid = videoRef.current;
+          if (vid.src !== freshSignedUrl) {
+            vid.src = freshSignedUrl;
+          }
+          vid.load();
+
+          const restorePlayback = () => {
+            if (targetPos > 0) {
+              try {
+                vid.currentTime = targetPos;
+              } catch {
+                // Ignore if media not seekable yet
+              }
+            }
+            if (autoResume) {
+              vid.play().catch(() => {});
+            }
+          };
+
+          if (vid.readyState >= 1) {
+            restorePlayback();
+          } else {
+            vid.addEventListener('loadedmetadata', restorePlayback, { once: true });
+            vid.addEventListener('canplay', restorePlayback, { once: true });
+          }
+        }
+
+        toast.info('Video stream re-authenticated. Resuming playback...', 'Stream Renewed');
+      } catch (err: unknown) {
+        console.error('Failed to renew video signed URL:', err);
+        setStreamError('Playback session expired or chunk fetch failed (HTTP 403). Click below to reconnect.');
+      } finally {
+        isRefreshingRef.current = false;
+        setIsRefreshingStream(false);
+      }
+    },
+    [lesson.video_url, toast]
+  );
+
+  const handleVideoError = useCallback(async () => {
+    const currentVideo = videoRef.current;
+    const currentSrc = currentVideo?.src || resolvedVideoUrl || '';
+    const currentPos = currentVideo?.currentTime || lastKnownTimeRef.current;
+
+    const isSecurable = isSecurableAsset(lesson.video_url) || isSecurableAsset(currentSrc);
+    if (!isSecurable) {
+      setStreamError('Video could not be loaded. Please check your network connection.');
+      return;
+    }
+
+    if (refreshAttemptsRef.current >= 3) {
+      setStreamError('Playback session expired (HTTP 403) and auto-recovery failed. Click below to reconnect.');
+      return;
+    }
+
+    refreshAttemptsRef.current += 1;
+
+    // Check if chunk / range request returns 403 Forbidden
+    let is403 = false;
+    try {
+      if (currentSrc && (currentSrc.startsWith('http://') || currentSrc.startsWith('https://'))) {
+        const probeRes = await fetch(currentSrc, {
+          method: 'GET',
+          headers: { Range: 'bytes=0-0' },
+        });
+        if (probeRes.status === 403 || probeRes.status === 401) {
+          is403 = true;
+        }
+      }
+    } catch {
+      // In case of CORS or network error on probe, still attempt recovery for securable assets
+      is403 = true;
+    }
+
+    const elapsedMs = Date.now() - signedAtRef.current;
+    const isExpired = elapsedMs > 50 * 60 * 1000;
+
+    if (is403 || isExpired || isSecurable) {
+      await refreshSignedUrl(currentPos, wasPlayingRef.current || true);
+    }
+  }, [lesson.video_url, resolvedVideoUrl, refreshSignedUrl]);
+
+  const handlePlay = () => {
+    wasPlayingRef.current = true;
+    setStreamError(null);
+    const isSecurable = isSecurableAsset(lesson.video_url) || isSecurableAsset(resolvedVideoUrl);
+    // If paused for > 50 mins, proactively refresh before chunk request fails with 403
+    if (isSecurable && Date.now() - signedAtRef.current > 50 * 60 * 1000) {
+      const cur = videoRef.current ? videoRef.current.currentTime : lastKnownTimeRef.current;
+      void refreshSignedUrl(cur, true);
+    }
+  };
+
+  const handlePause = () => {
+    wasPlayingRef.current = false;
+    if (videoRef.current) {
+      lastKnownTimeRef.current = videoRef.current.currentTime;
+    }
+  };
+
+  const handlePlaying = () => {
+    refreshAttemptsRef.current = 0;
+    setStreamError(null);
+  };
 
   const handleDownloadResource = async (resource: LessonResource) => {
     setDownloadingResourceId(resource.id);
@@ -2351,6 +2498,7 @@ function LessonPlayer({
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
     const cur = videoRef.current.currentTime;
+    lastKnownTimeRef.current = cur;
     const dur = videoRef.current.duration;
     if (!dur || isNaN(dur)) return;
 
@@ -2376,6 +2524,7 @@ function LessonPlayer({
   const handleResumePlayback = () => {
     if (videoRef.current && initialLastPositionSeconds > 0) {
       videoRef.current.currentTime = initialLastPositionSeconds;
+      lastKnownTimeRef.current = initialLastPositionSeconds;
       void videoRef.current.play().catch(() => {});
     }
     setShowResumePrompt(false);
@@ -2430,15 +2579,63 @@ function LessonPlayer({
             allowFullScreen
           />
         ) : videoMeta.type === 'video' ? (
-          <video
-            ref={videoRef}
-            key={videoMeta.directUrl}
-            className="absolute inset-0 size-full object-contain bg-black"
-            controls
-            src={videoMeta.directUrl!}
-            onTimeUpdate={handleTimeUpdate}
-            onEnded={handleEnded}
-          />
+          <>
+            <video
+              ref={videoRef}
+              key={lesson.id}
+              className="absolute inset-0 size-full object-contain bg-black"
+              controls
+              src={videoMeta.directUrl!}
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={handleEnded}
+              onError={handleVideoError}
+              onPlay={handlePlay}
+              onPause={handlePause}
+              onPlaying={handlePlaying}
+            />
+
+            {/* In-place Re-authenticating / Refreshing Overlay */}
+            {isRefreshingStream && !streamError && (
+              <div
+                data-testid="video-reauthenticating-overlay"
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/75 backdrop-blur-xs text-white"
+              >
+                <RefreshCw size={28} className="animate-spin text-orange-400 mb-2" />
+                <p className="text-xs font-semibold text-slate-200">Re-authenticating secure stream...</p>
+                <p className="text-[11px] text-slate-400">
+                  Restoring playback from your last position...
+                </p>
+              </div>
+            )}
+
+            {/* Stream Error / Reconnect Fallback UI */}
+            {streamError && (
+              <div
+                data-testid="video-stream-error-overlay"
+                className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 p-6 text-center backdrop-blur-sm"
+              >
+                <div className="flex size-14 items-center justify-center rounded-2xl bg-orange-500/20 text-orange-400 mb-3">
+                  <RefreshCw size={24} className={isRefreshingStream ? 'animate-spin' : ''} />
+                </div>
+                <h4 className="text-base font-bold text-white">Playback Interrupted</h4>
+                <p className="mt-1 text-xs text-slate-300 max-w-sm mb-4">
+                  {streamError}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    refreshAttemptsRef.current = 0;
+                    void refreshSignedUrl(lastKnownTimeRef.current, true);
+                  }}
+                  disabled={isRefreshingStream}
+                  className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white hover:bg-orange-600 transition shadow-lg disabled:opacity-50"
+                >
+                  <RefreshCw size={14} className={isRefreshingStream ? 'animate-spin' : ''} />
+                  {isRefreshingStream ? 'Renewing Access...' : 'Reconnect Video Stream'}
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-orange-950/40 p-6 text-center">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-white/10 text-orange-400 backdrop-blur-md shadow-2xl mb-3">

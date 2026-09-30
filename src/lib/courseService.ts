@@ -1968,6 +1968,22 @@ export async function getSecureSubmissionUrl(fileUrl: string, expiresIn = 3600):
 }
 
 /**
+ * Checks whether an asset URL or storage path points to protected Supabase course assets
+ * or contains a time-limited signed token.
+ */
+export function isSecurableAsset(fileUrl: string | null | undefined): boolean {
+  if (!fileUrl) return false;
+  return (
+    fileUrl.includes('/storage/v1/object/') ||
+    fileUrl.startsWith('course-assets/') ||
+    fileUrl.includes('course-assets') ||
+    fileUrl.startsWith('lessons/') ||
+    fileUrl.startsWith('resources/') ||
+    fileUrl.includes('token=')
+  );
+}
+
+/**
  * Resolves a secure, time-limited signed URL for private course assets or lesson downloads.
  * External URLs are returned as-is.
  * Fails closed with an explicit error if URL signing fails for private storage.
@@ -1975,12 +1991,7 @@ export async function getSecureSubmissionUrl(fileUrl: string, expiresIn = 3600):
 export async function getSecureAssetUrl(fileUrl: string, expiresIn = 3600): Promise<string> {
   if (!fileUrl) return '';
 
-  const isSupabaseStorage =
-    fileUrl.includes('/storage/v1/object/') ||
-    fileUrl.startsWith('course-assets/') ||
-    fileUrl.includes('course-assets') ||
-    fileUrl.startsWith('lessons/') ||
-    fileUrl.startsWith('resources/');
+  const isSupabaseStorage = isSecurableAsset(fileUrl);
 
   if (!isSupabaseStorage && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
     return fileUrl;
@@ -1994,7 +2005,7 @@ export async function getSecureAssetUrl(fileUrl: string, expiresIn = 3600): Prom
   }
 
   objectPath = objectPath.split('?')[0].split('#')[0];
-  objectPath = decodeURIComponent(objectPath);
+  objectPath = decodeURIComponent(objectPath).replace(/^\/+/, '');
 
   if (!objectPath || !objectPath.trim()) {
     throw new Error('Invalid course asset storage path.');

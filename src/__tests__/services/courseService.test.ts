@@ -21,6 +21,7 @@ import {
   reorderLessons,
   duplicateLesson,
   getSecureAssetUrl,
+  isSecurableAsset,
   getSecureSubmissionUrl,
   uploadCourseAsset,
   getLessonResourceDownloadUrl,
@@ -1185,6 +1186,36 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
       expect(mockStorageFrom).toHaveBeenCalledWith('course-assets');
       expect(createSignedUrlMock).toHaveBeenCalledWith('resources/raw-footage.zip', 1800);
       expect(signed).toBe('https://test.supabase.co/storage/v1/object/sign/course-assets/resources/raw-footage.zip?token=xyz');
+    });
+
+    it('correctly identifies securable storage assets vs standard external links', () => {
+      expect(isSecurableAsset('course-assets/lessons/timeline-edit.mp4')).toBe(true);
+      expect(isSecurableAsset('lessons/color-grading.mp4')).toBe(true);
+      expect(isSecurableAsset('resources/presets.drp')).toBe(true);
+      expect(isSecurableAsset('https://xyz.supabase.co/storage/v1/object/public/course-assets/video.mp4')).toBe(true);
+      expect(isSecurableAsset('https://xyz.supabase.co/storage/v1/object/sign/course-assets/video.mp4?token=expired123')).toBe(true);
+      expect(isSecurableAsset('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(false);
+      expect(isSecurableAsset('https://vimeo.com/12345678')).toBe(false);
+      expect(isSecurableAsset('')).toBe(false);
+      expect(isSecurableAsset(null)).toBe(false);
+      expect(isSecurableAsset(undefined)).toBe(false);
+    });
+
+    it('strips expired tokens and re-signs video url cleanly when recovering expired signed URLs', async () => {
+      const createSignedUrlMock = vi.fn().mockResolvedValue({
+        data: { signedUrl: 'https://test.supabase.co/storage/v1/object/sign/course-assets/lessons/lesson-4.mp4?token=fresh_token_456' },
+        error: null,
+      });
+      mockStorageFrom.mockReturnValue({
+        createSignedUrl: createSignedUrlMock,
+      });
+
+      const expiredSignedUrl = 'https://test.supabase.co/storage/v1/object/sign/course-assets/lessons/lesson-4.mp4?token=old_expired_token#t=100';
+      const renewedUrl = await getSecureAssetUrl(expiredSignedUrl, 3600);
+
+      expect(mockStorageFrom).toHaveBeenCalledWith('course-assets');
+      expect(createSignedUrlMock).toHaveBeenCalledWith('lessons/lesson-4.mp4', 3600);
+      expect(renewedUrl).toBe('https://test.supabase.co/storage/v1/object/sign/course-assets/lessons/lesson-4.mp4?token=fresh_token_456');
     });
 
     it('resolves download URL via server-side entitlement RPC for enrolled students', async () => {
