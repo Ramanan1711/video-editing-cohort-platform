@@ -12,6 +12,8 @@ export interface DailyChallenge {
   track_type: 'coding' | 'non_coding' | 'general';
   submission_type: 'github_pr' | 'drive_link' | 'loom_video' | 'text' | 'file';
   deadline_hours: number;
+  is_published?: boolean;
+  unlocked_at?: string | null;
   created_at?: string;
 }
 
@@ -70,6 +72,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: true,
   },
   {
     day_number: 2,
@@ -80,6 +83,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: false,
   },
   {
     day_number: 3,
@@ -90,6 +94,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: false,
   },
   {
     day_number: 4,
@@ -100,6 +105,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: false,
   },
   {
     day_number: 5,
@@ -110,6 +116,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 48,
+    is_published: false,
   },
 
   // Sprint 2: Days 6-10 (Advanced Workflows & Commercial Polish)
@@ -122,6 +129,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: false,
   },
   {
     day_number: 7,
@@ -132,6 +140,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: false,
   },
   {
     day_number: 8,
@@ -142,6 +151,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: false,
   },
   {
     day_number: 9,
@@ -152,6 +162,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: false,
   },
   {
     day_number: 10,
@@ -162,6 +173,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 48,
+    is_published: false,
   },
 
   // Sprint 3: Days 11-15 (Capstone Project & Graduation Proof)
@@ -174,6 +186,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: false,
   },
   {
     day_number: 12,
@@ -184,6 +197,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: false,
   },
   {
     day_number: 13,
@@ -194,6 +208,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: false,
   },
   {
     day_number: 14,
@@ -204,6 +219,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'drive_link',
     deadline_hours: 24,
+    is_published: false,
   },
   {
     day_number: 15,
@@ -214,6 +230,7 @@ export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>
     track_type: 'general',
     submission_type: 'text',
     deadline_hours: 24,
+    is_published: false,
   },
 ];
 
@@ -276,7 +293,7 @@ export async function listDailyChallenges(cohortId: string): Promise<DailyChalle
  * Admin: Create a new daily challenge for a cohort
  */
 export async function createDailyChallenge(input: DailyChallengeInput): Promise<DailyChallenge> {
-  const payload = {
+  const payload: Record<string, unknown> = {
     cohort_id: input.cohort_id,
     day_number: input.day_number,
     title: input.title.trim(),
@@ -287,6 +304,16 @@ export async function createDailyChallenge(input: DailyChallengeInput): Promise<
     submission_type: input.submission_type || 'drive_link',
     deadline_hours: Number(input.deadline_hours) || 24,
   };
+
+  if (input.is_published !== undefined) {
+    payload.is_published = input.is_published;
+    if (input.is_published && !input.unlocked_at) {
+      payload.unlocked_at = new Date().toISOString();
+    }
+  }
+  if (input.unlocked_at !== undefined) {
+    payload.unlocked_at = input.unlocked_at;
+  }
 
   const { data, error } = await supabase
     .from('daily_challenges')
@@ -314,6 +341,11 @@ export async function updateDailyChallenge(
   if (input.track_type !== undefined) payload.track_type = input.track_type;
   if (input.submission_type !== undefined) payload.submission_type = input.submission_type;
   if (input.deadline_hours !== undefined) payload.deadline_hours = Number(input.deadline_hours);
+  if (input.is_published !== undefined) {
+    payload.is_published = input.is_published;
+    payload.unlocked_at = input.is_published ? new Date().toISOString() : null;
+  }
+  if (input.unlocked_at !== undefined) payload.unlocked_at = input.unlocked_at;
 
   const { data, error } = await supabase
     .from('daily_challenges')
@@ -324,6 +356,84 @@ export async function updateDailyChallenge(
 
   if (error) throw parseDatabaseError(error);
   return data as DailyChallenge;
+}
+
+/**
+ * Automatically unlocks scheduled daily challenges across all cohorts
+ * (Can be invoked via scheduled cron, Edge Function webhook, or client sync)
+ */
+export async function unlockScheduledDailyChallenges(): Promise<{
+  success: boolean;
+  total_unlocked: number;
+  day_one_unlocked: number;
+  scheduled_unlocked: number;
+  cohorts_affected: number;
+  executed_at: string;
+}> {
+  const { data, error } = await supabase.rpc('unlock_scheduled_daily_challenges');
+  if (error) {
+    throw parseDatabaseError(error);
+  }
+  return data as {
+    success: boolean;
+    total_unlocked: number;
+    day_one_unlocked: number;
+    scheduled_unlocked: number;
+    cohorts_affected: number;
+    executed_at: string;
+  };
+}
+
+/**
+ * Unlocks scheduled daily challenges for a specific cohort
+ */
+export async function unlockCohortDailyChallenges(cohortId: string): Promise<{
+  success: boolean;
+  cohort_id: string;
+  unlocked_challenges: number;
+  executed_at: string;
+}> {
+  const { data, error } = await supabase.rpc('unlock_cohort_daily_challenges', {
+    p_cohort_id: cohortId,
+  });
+  if (error) {
+    throw parseDatabaseError(error);
+  }
+  return data as {
+    success: boolean;
+    cohort_id: string;
+    unlocked_challenges: number;
+    executed_at: string;
+  };
+}
+
+/**
+ * Manually toggle or set challenge publication/unlock status (Mentor / Admin)
+ */
+export async function setDailyChallengePublicationStatus(
+  challengeId: string,
+  isPublished: boolean
+): Promise<{
+  success: boolean;
+  id: string;
+  day_number: number;
+  is_published: boolean;
+  unlocked_at: string | null;
+}> {
+  const { data, error } = await supabase.rpc('set_daily_challenge_publication_status', {
+    p_challenge_id: challengeId,
+    p_is_published: isPublished,
+  });
+  if (error) {
+    throw parseDatabaseError(error);
+  }
+  return data as {
+    success: boolean;
+    id: string;
+    day_number: number;
+    is_published: boolean;
+    unlocked_at: string | null;
+  };
 }
 
 /**
@@ -486,30 +596,34 @@ export async function getStudentSprintDays(
   overallScore: number | null;
   progressPercent: number;
 }> {
-  const fetchCohortDuration = async (): Promise<number | null> => {
+  const fetchCohortMeta = async (): Promise<{ durationDays: number | null; startDate: string | null }> => {
     try {
-      const query = supabase.from('cohorts').select('sprint_duration_days');
+      const query = supabase.from('cohorts').select('sprint_duration_days, start_date');
       if (typeof query?.eq === 'function') {
         const eqQuery = query.eq('id', cohortId);
         if (typeof eqQuery?.maybeSingle === 'function') {
           const res = await eqQuery.maybeSingle();
-          return (res?.data as { sprint_duration_days?: number } | null)?.sprint_duration_days ?? null;
+          const cohortData = res?.data as { sprint_duration_days?: number; start_date?: string } | null;
+          return {
+            durationDays: cohortData?.sprint_duration_days ?? null,
+            startDate: cohortData?.start_date ?? null,
+          };
         }
       }
-      return null;
+      return { durationDays: null, startDate: null };
     } catch {
-      return null;
+      return { durationDays: null, startDate: null };
     }
   };
 
-  const [configuredDays, challenges, submissions] = await Promise.all([
-    fetchCohortDuration(),
+  const [cohortMeta, challenges, submissions] = await Promise.all([
+    fetchCohortMeta(),
     listDailyChallenges(cohortId),
     listMyDailySubmissions(userId),
   ]);
 
   const maxChallengeDay = challenges.length > 0 ? Math.max(...challenges.map((c) => c.day_number)) : 0;
-  const configuredSprintDays = configuredDays || 15;
+  const configuredSprintDays = cohortMeta.durationDays || 15;
   const totalDays = Math.max(configuredSprintDays, maxChallengeDay, 1);
 
   const submissionMap = new Map(submissions.map((s) => [s.challenge_id, s]));
@@ -524,8 +638,27 @@ export async function getStudentSprintDays(
     const ch = challenges.find((c) => c.day_number === i) || null;
     const sub = ch ? submissionMap.get(ch.id) || null : null;
 
+    let isCalendarUnlocked = ch?.is_published;
+    if (isCalendarUnlocked === undefined) {
+      isCalendarUnlocked = i === 1 || !cohortMeta.startDate;
+    }
+
+    if (!isCalendarUnlocked && cohortMeta.startDate) {
+      const start = new Date(cohortMeta.startDate);
+      start.setHours(0, 0, 0, 0);
+      const unlockDate = new Date(start);
+      unlockDate.setDate(unlockDate.getDate() + (i - 1));
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (today >= unlockDate) {
+        isCalendarUnlocked = true;
+      }
+    }
+
+    const isPrerequisiteMet = i === 1 || (days[i - 2]?.status === 'accepted' || days[i - 2]?.status === 'pending');
+    const isUnlocked = Boolean(isCalendarUnlocked && isPrerequisiteMet);
+
     let status: 'locked' | 'todo' | 'pending' | 'accepted' | 'resubmit' = 'todo';
-    const isUnlocked = i === 1 || (days[i - 2]?.status === 'accepted' || days[i - 2]?.status === 'pending');
 
     if (!isUnlocked) {
       status = 'locked';

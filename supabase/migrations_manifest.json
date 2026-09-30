@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-30T04:51:32.762Z",
-  "migrationCount": 39,
+  "generatedAt": "2026-09-30T06:33:38.008Z",
+  "migrationCount": 40,
   "migrations": [
     {
       "order": 1,
@@ -592,6 +592,20 @@
         "fn_protect_profile_privilege_fields",
         "get_public_profiles",
         "fn_enforce_daily_challenge_submission_integrity"
+      ]
+    },
+    {
+      "order": 40,
+      "filename": "20260928000033_canonical_automated_midnight_challenge_unlock.sql",
+      "sha256": "cab3a3f9fbc0d86b5e66a9ac6ccdb2e84a789b3a928d5264b22f59d11fd3ea0a",
+      "sizeBytes": 16172,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "unlock_scheduled_daily_challenges",
+        "unlock_cohort_daily_challenges",
+        "set_daily_challenge_publication_status",
+        "ensure_cohort_daily_challenges"
       ]
     }
   ]

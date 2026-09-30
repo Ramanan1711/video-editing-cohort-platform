@@ -15,6 +15,9 @@ import {
   updateDailyChallenge,
   deleteDailyChallenge,
   seedCohortDailyChallenges,
+  unlockScheduledDailyChallenges,
+  unlockCohortDailyChallenges,
+  setDailyChallengePublicationStatus,
 } from '../../lib/internshipService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -327,6 +330,139 @@ describe('15-Day Internship Platform & WhatsApp Suite', () => {
       await expect(
         submitDailyChallenge('u-1', 'default-ch-999', 'https://drive.google.com/test')
       ).rejects.toThrow('Invalid challenge ID');
+    });
+
+    it('seeds Day 1 as published and subsequent days as unpublished by default', () => {
+      expect(DEFAULT_15_DAY_CURRICULUM[0].is_published).toBe(true);
+      expect(DEFAULT_15_DAY_CURRICULUM[1].is_published).toBe(false);
+      expect(DEFAULT_15_DAY_CURRICULUM[14].is_published).toBe(false);
+    });
+
+    it('invokes unlockScheduledDailyChallenges RPC for automated midnight execution', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: {
+          success: true,
+          total_unlocked: 5,
+          day_one_unlocked: 1,
+          scheduled_unlocked: 4,
+          cohorts_affected: 2,
+          executed_at: '2026-09-30T00:00:00Z',
+        },
+        error: null,
+      });
+
+      const res = await unlockScheduledDailyChallenges();
+      expect(res.success).toBe(true);
+      expect(res.total_unlocked).toBe(5);
+      expect(supabase.rpc).toHaveBeenCalledWith('unlock_scheduled_daily_challenges');
+    });
+
+    it('invokes unlockCohortDailyChallenges RPC for on-demand cohort unlock', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: {
+          success: true,
+          cohort_id: 'c-uuid-1',
+          unlocked_challenges: 3,
+          executed_at: '2026-09-30T00:00:00Z',
+        },
+        error: null,
+      });
+
+      const res = await unlockCohortDailyChallenges('c-uuid-1');
+      expect(res.success).toBe(true);
+      expect(res.unlocked_challenges).toBe(3);
+      expect(supabase.rpc).toHaveBeenCalledWith('unlock_cohort_daily_challenges', {
+        p_cohort_id: 'c-uuid-1',
+      });
+    });
+
+    it('allows mentors and admins to manually toggle challenge publication status', async () => {
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: {
+          success: true,
+          id: 'ch-toggle-1',
+          day_number: 3,
+          is_published: true,
+          unlocked_at: '2026-09-30T10:00:00Z',
+        },
+        error: null,
+      });
+
+      const res = await setDailyChallengePublicationStatus('ch-toggle-1', true);
+      expect(res.success).toBe(true);
+      expect(res.is_published).toBe(true);
+      expect(supabase.rpc).toHaveBeenCalledWith('set_daily_challenge_publication_status', {
+        p_challenge_id: 'ch-toggle-1',
+        p_is_published: true,
+      });
+    });
+
+    it('automatically unlocks sprint challenges when cohort start_date + day_number - 1 has passed', async () => {
+      // Cohort started 2 days ago (today is Day 3)
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { sprint_duration_days: 15, start_date: twoDaysAgo.toISOString() },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'daily_challenges') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [
+                    { id: 'ch-1', day_number: 1, title: 'Day 1', is_published: true },
+                    { id: 'ch-2', day_number: 2, title: 'Day 2', is_published: false },
+                    { id: 'ch-3', day_number: 3, title: 'Day 3', is_published: false },
+                    { id: 'ch-4', day_number: 4, title: 'Day 4', is_published: false },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'daily_challenge_submissions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [
+                  { challenge_id: 'ch-1', status: 'accepted', score: 100 },
+                  { challenge_id: 'ch-2', status: 'accepted', score: 95 },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      const result = await getStudentSprintDays('user-1', 'c-1');
+
+      // Day 1 & Day 2 are completed
+      expect(result.days[0].isUnlocked).toBe(true);
+      expect(result.days[0].status).toBe('accepted');
+      expect(result.days[1].isUnlocked).toBe(true);
+      expect(result.days[1].status).toBe('accepted');
+
+      // Day 3 (start_date + 2 days = today) is calendar unlocked and Day 2 was accepted -> Active
+      expect(result.days[2].isUnlocked).toBe(true);
+      expect(result.days[2].status).toBe('todo');
+
+      // Day 4 (start_date + 3 days = tomorrow) is in future and unpublished -> Locked
+      expect(result.days[3].isUnlocked).toBe(false);
+      expect(result.days[3].status).toBe('locked');
     });
   });
 });
