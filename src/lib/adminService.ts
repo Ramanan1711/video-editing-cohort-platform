@@ -548,6 +548,73 @@ export async function getAdminStats(): Promise<AdminStats> {
   );
 }
 
+interface ExecutiveMetricProfile {
+  id: string;
+  full_name?: string | null;
+  email?: string | null;
+  role?: string;
+  admin_role?: string | null;
+  status?: string;
+  created_at?: string;
+}
+
+interface ExecutiveMetricEnrollment {
+  user_id: string;
+  cohort_id: string;
+  status?: string;
+  created_at?: string;
+}
+
+interface ExecutiveMetricCohort {
+  id: string;
+  title?: string | null;
+  name?: string | null;
+  capacity?: number;
+  visibility?: string;
+  status?: string;
+}
+
+interface ExecutiveMetricSubmission {
+  id: string;
+  student_id: string;
+  assignment_id: string;
+  status: string;
+  created_at?: string;
+}
+
+interface ExecutiveMetricProgress {
+  user_id: string;
+  lesson_id: string;
+  completed?: boolean;
+  completed_at?: string | null;
+}
+
+interface ExecutiveMetricFeedback {
+  submission_id: string;
+  mentor_id?: string | null;
+  created_at?: string;
+}
+
+interface ExecutiveMetricModule {
+  id: string;
+  cohort_id?: string;
+  title: string;
+  position: number;
+  lessons?: Array<{ id: string }>;
+}
+
+interface ExecutiveMetricLesson {
+  id: string;
+  module_id: string;
+  title: string;
+  status?: string;
+}
+
+interface ExecutiveMetricAssignment {
+  id: string;
+  cohort_id?: string;
+}
+
 export async function getAdminExecutiveMetrics(
   timeframe: '7d' | '30d' | '90d' | 'all' = '30d'
 ): Promise<AdminExecutiveMetrics> {
@@ -581,19 +648,19 @@ export async function getAdminExecutiveMetrics(
     supabase.from('assignments').select('id, cohort_id'),
   ]);
 
-  const profiles = profilesSettled.status === 'fulfilled' && !profilesSettled.value.error ? (profilesSettled.value.data as any[] ?? []) : [];
-  const enrollments = enrollmentsSettled.status === 'fulfilled' && !enrollmentsSettled.value.error ? (enrollmentsSettled.value.data as any[] ?? []) : [];
-  const cohorts = cohortsSettled.status === 'fulfilled' && !cohortsSettled.value.error ? (cohortsSettled.value.data as any[] ?? []) : [];
-  const submissions = submissionsSettled.status === 'fulfilled' && !submissionsSettled.value.error ? (submissionsSettled.value.data as any[] ?? []) : [];
-  const progressRows = progressRowsSettled.status === 'fulfilled' && !progressRowsSettled.value.error ? (progressRowsSettled.value.data as any[] ?? []) : [];
-  const feedbackRows = feedbackRowsSettled.status === 'fulfilled' && !feedbackRowsSettled.value.error ? (feedbackRowsSettled.value.data as any[] ?? []) : [];
-  const rawModules = rawModulesSettled.status === 'fulfilled' && !rawModulesSettled.value.error ? (rawModulesSettled.value.data as any[] ?? []) : [];
-  const rawLessons = rawLessonsSettled.status === 'fulfilled' && !rawLessonsSettled.value.error ? (rawLessonsSettled.value.data as any[] ?? []) : [];
-  const assignments = assignmentsSettled.status === 'fulfilled' && !assignmentsSettled.value.error ? (assignmentsSettled.value.data as any[] ?? []) : [];
+  const profiles = profilesSettled.status === 'fulfilled' && !profilesSettled.value.error ? ((profilesSettled.value.data ?? []) as ExecutiveMetricProfile[]) : [];
+  const enrollments = enrollmentsSettled.status === 'fulfilled' && !enrollmentsSettled.value.error ? ((enrollmentsSettled.value.data ?? []) as ExecutiveMetricEnrollment[]) : [];
+  const cohorts = cohortsSettled.status === 'fulfilled' && !cohortsSettled.value.error ? ((cohortsSettled.value.data ?? []) as ExecutiveMetricCohort[]) : [];
+  const submissions = submissionsSettled.status === 'fulfilled' && !submissionsSettled.value.error ? ((submissionsSettled.value.data ?? []) as ExecutiveMetricSubmission[]) : [];
+  const progressRows = progressRowsSettled.status === 'fulfilled' && !progressRowsSettled.value.error ? ((progressRowsSettled.value.data ?? []) as ExecutiveMetricProgress[]) : [];
+  const feedbackRows = feedbackRowsSettled.status === 'fulfilled' && !feedbackRowsSettled.value.error ? ((feedbackRowsSettled.value.data ?? []) as ExecutiveMetricFeedback[]) : [];
+  const rawModules = rawModulesSettled.status === 'fulfilled' && !rawModulesSettled.value.error ? ((rawModulesSettled.value.data ?? []) as ExecutiveMetricModule[]) : [];
+  const rawLessons = rawLessonsSettled.status === 'fulfilled' && !rawLessonsSettled.value.error ? ((rawLessonsSettled.value.data ?? []) as ExecutiveMetricLesson[]) : [];
+  const assignments = assignmentsSettled.status === 'fulfilled' && !assignmentsSettled.value.error ? ((assignmentsSettled.value.data ?? []) as ExecutiveMetricAssignment[]) : [];
 
   const totalUsers = profiles?.length || 0;
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-  const cohortMap = new Map(((cohorts as any[]) ?? []).map((c: any) => [c.id, c.title || c.name || 'Cohort']));
+  const cohortMap = new Map((cohorts ?? []).map((c) => [c.id, c.title || c.name || 'Cohort']));
   const studentCohortMap = new Map((enrollments ?? []).map((e) => [e.user_id, e.cohort_id]));
 
   const uniqueEnrolledStudents = new Set((enrollments ?? []).map((e) => e.user_id)).size;
@@ -639,7 +706,7 @@ export async function getAdminExecutiveMetrics(
       mentorReviewsMap.set(fb.mentor_id, (mentorReviewsMap.get(fb.mentor_id) || 0) + 1);
     }
     const subCreated = submissionCreatedMap.get(fb.submission_id);
-    if (subCreated) {
+    if (subCreated && fb.created_at) {
       const diff = (new Date(fb.created_at).getTime() - new Date(subCreated).getTime()) / (1000 * 60 * 60);
       if (diff >= 0 && diff < 500) {
         turnaroundDiffs.push(diff);
@@ -764,7 +831,7 @@ export async function getAdminExecutiveMetrics(
     const completionPct = enrolledCount > 0 ? Math.round((completedCount / enrolledCount) * 100) : 0;
     const churnRatePct = enrolledCount > 0 ? Math.round((droppedCount / enrolledCount) * 100) : 0;
 
-    const cohortTitle = (c as any).title || (c as any).name || 'Cohort';
+    const cohortTitle = c.title || c.name || 'Cohort';
     cohortChurn.push({
       cohortId: c.id,
       cohortName: cohortTitle,
@@ -775,10 +842,10 @@ export async function getAdminExecutiveMetrics(
       churnRatePct,
     });
 
-    const cohortAssignments = (assignments ?? []).filter((a: any) => a.cohort_id === c.id);
+    const cohortAssignments = (assignments ?? []).filter((a) => a.cohort_id === c.id);
     const expectedSubmissions = cohortAssignments.length * enrolledCount;
-    const cohortAssignmentIds = new Set(cohortAssignments.map((a: any) => a.id));
-    const cohortSubsCount = (submissions ?? []).filter((s: any) => cohortAssignmentIds.has(s.assignment_id)).length;
+    const cohortAssignmentIds = new Set(cohortAssignments.map((a) => a.id));
+    const cohortSubsCount = (submissions ?? []).filter((s) => cohortAssignmentIds.has(s.assignment_id)).length;
     const submissionRatePct = expectedSubmissions > 0
       ? Math.round((cohortSubsCount / expectedSubmissions) * 100)
       : (enrolledCount > 0 && cohortAssignments.length === 0 ? 100 : 0);
@@ -808,8 +875,8 @@ export async function getAdminExecutiveMetrics(
   }>).map((m) => {
     const modLessons = (m.lessons && m.lessons.length > 0)
       ? m.lessons
-      : (rawLessons ?? []).filter((l: any) => l.module_id === m.id);
-    const lessonIds = new Set(modLessons.map((l: any) => l.id));
+      : (rawLessons ?? []).filter((l) => l.module_id === m.id);
+    const lessonIds = new Set(modLessons.map((l) => l.id));
     const totalStudents = uniqueEnrolledStudents || 1;
 
     const completedStudentCount = enrolledStudentIds.filter((sId) => {
@@ -833,7 +900,7 @@ export async function getAdminExecutiveMetrics(
   }).sort((a, b) => a.position - b.position);
 
   // Mentor Leaderboard
-  const fullSubmissionMap = new Map((submissions ?? []).map((s: any) => [s.id, s]));
+  const fullSubmissionMap = new Map((submissions ?? []).map((s) => [s.id, s]));
   const mentorResubmitMap = new Map<string, number>();
   for (const fb of feedbackRows ?? []) {
     if (fb.mentor_id) {
@@ -1171,7 +1238,7 @@ async function getCohortNameMap(cohortIds: string[]): Promise<Map<string, string
     list = nameData ?? [];
   }
 
-  return new Map(list.map((c: any) => [c.id, c.title || c.name || 'Cohort']));
+  return new Map(list.map((c) => [c.id, c.title || c.name || 'Cohort']));
 }
 
 export async function listCohortEnrollments(cohortId?: string): Promise<AdminEnrollment[]> {
@@ -2006,34 +2073,51 @@ export interface MentorCohortAssignment {
   };
 }
 
+interface DbMentorCohortRow {
+  id: string;
+  mentor_id: string;
+  cohort_id: string;
+  created_at?: string;
+  assigned_at?: string;
+}
+
 export async function listMentorCohortAssignments(): Promise<MentorCohortAssignment[]> {
   try {
-    let res: any = await supabase
+    const firstRes = await supabase
       .from('mentor_cohorts')
       .select('id, mentor_id, cohort_id, created_at')
       .order('created_at', { ascending: false });
 
-    if (res.error && res.error.message.includes('created_at')) {
-      res = await supabase
+    let assignments: DbMentorCohortRow[] = [];
+    if (firstRes.error && firstRes.error.message.includes('created_at')) {
+      const fallbackRes = await supabase
         .from('mentor_cohorts')
         .select('id, mentor_id, cohort_id, assigned_at')
         .order('assigned_at', { ascending: false });
-    }
-
-    if (res.error) {
-      if (res.error.code === '42P01' || res.error.message.includes('mentor_cohorts')) {
-        console.warn('mentor_cohorts table not yet migrated, returning empty assignments:', res.error.message);
+      if (fallbackRes.error) {
+        if (fallbackRes.error.code === '42P01' || fallbackRes.error.message.includes('mentor_cohorts')) {
+          console.warn('mentor_cohorts table not yet migrated, returning empty assignments:', fallbackRes.error.message);
+          return [];
+        }
+        console.warn('mentor_cohorts query warning:', fallbackRes.error.message);
         return [];
       }
-      console.warn('mentor_cohorts query warning:', res.error.message);
+      assignments = (fallbackRes.data ?? []) as DbMentorCohortRow[];
+    } else if (firstRes.error) {
+      if (firstRes.error.code === '42P01' || firstRes.error.message.includes('mentor_cohorts')) {
+        console.warn('mentor_cohorts table not yet migrated, returning empty assignments:', firstRes.error.message);
+        return [];
+      }
+      console.warn('mentor_cohorts query warning:', firstRes.error.message);
       return [];
+    } else {
+      assignments = (firstRes.data ?? []) as DbMentorCohortRow[];
     }
 
-    const assignments = res.data;
-    if (!assignments || assignments.length === 0) return [];
+    if (assignments.length === 0) return [];
 
-    const mentorIds = Array.from(new Set(assignments.map((a: any) => a.mentor_id)));
-    const cohortIds = Array.from(new Set(assignments.map((a: any) => a.cohort_id)));
+    const mentorIds = Array.from(new Set(assignments.map((a) => a.mentor_id)));
+    const cohortIds = Array.from(new Set(assignments.map((a) => a.cohort_id)));
 
     const [{ data: profiles }, { data: cohorts }] = await Promise.all([
       mentorIds.length ? supabase.from('profiles').select('id, full_name, email').in('id', mentorIds) : { data: [] },
@@ -2041,9 +2125,9 @@ export async function listMentorCohortAssignments(): Promise<MentorCohortAssignm
     ]);
 
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-    const cohortMap = new Map(((cohorts as any[]) ?? []).map((c: any) => [c.id, c.title || c.name || 'Cohort']));
+    const cohortMap = new Map(((cohorts as Array<{ id: string; title?: string | null; name?: string | null }>) ?? []).map((c) => [c.id, c.title || c.name || 'Cohort']));
 
-    return assignments.map((a: any) => {
+    return assignments.map((a) => {
       const p = profileMap.get(a.mentor_id);
       const cName = cohortMap.get(a.cohort_id);
       return {

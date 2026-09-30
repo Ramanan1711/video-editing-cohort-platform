@@ -198,7 +198,10 @@ export async function assignMentorToCohort(mentorId: string, cohortId: string): 
     const fallbackPayload = error.message.includes('created_at')
       ? { mentor_id: mentorId, cohort_id: cohortId, assigned_at: timestamp }
       : { mentor_id: mentorId, cohort_id: cohortId, created_at: timestamp };
-    const res = await supabase.from('mentor_cohorts').upsert(fallbackPayload as any, { onConflict: 'mentor_id,cohort_id' });
+    const res = await supabase.from('mentor_cohorts').upsert(
+      fallbackPayload as { mentor_id: string; cohort_id: string; assigned_at?: string; created_at?: string },
+      { onConflict: 'mentor_id,cohort_id' }
+    );
     error = res.error;
   }
   if (error) throw error;
@@ -819,7 +822,7 @@ export async function listMentorStudents(
     ]);
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-  const cohortMap = new Map(((cohorts as any[]) ?? []).map((c: any) => [c.id, c.title || c.name || 'Cohort']));
+  const cohortMap = new Map(((cohorts as Array<{ id: string; title?: string | null; name?: string | null }>) ?? []).map((c) => [c.id, c.title || c.name || 'Cohort']));
 
   // Resolve lessons and total lessons per cohort
   const moduleIds = (modules ?? []).map((m) => m.id);
@@ -1089,7 +1092,7 @@ export async function listMentorOfficeHours(
     if (!data || data.length === 0) return [];
 
     const cohortIds = Array.from(new Set(data.map((d) => d.cohort_id).filter((c): c is string => Boolean(c))));
-    let cohorts: any[] = [];
+    let cohorts: Array<{ id: string; title?: string | null; name?: string | null }> = [];
     if (cohortIds.length) {
       const res = await supabase.from('cohorts').select('id, title').in('id', cohortIds);
       if (!res.error && res.data && res.data.length > 0) {
@@ -1099,7 +1102,7 @@ export async function listMentorOfficeHours(
         cohorts = fallback.data ?? [];
       }
     }
-    const cohortMap = new Map((cohorts ?? []).map((c: any) => [c.id, c.title || c.name || 'Cohort']));
+    const cohortMap = new Map(cohorts.map((c) => [c.id, c.title || c.name || 'Cohort']));
 
     return data.map((d) => ({
       ...d,

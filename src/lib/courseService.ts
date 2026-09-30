@@ -36,6 +36,47 @@ export interface Cohort {
   duration_days?: number;
 }
 
+export interface DbCohortRow {
+  id: string;
+  title: string;
+  name?: string;
+  course_id?: string | null;
+  description: string | null;
+  status?: Cohort['status'];
+  capacity?: number;
+  visibility?: Cohort['visibility'];
+  enrollment_start?: string | null;
+  enrollment_end?: string | null;
+  track_type?: Cohort['track_type'];
+  duration_days?: number;
+}
+
+export interface DbSubmissionRow {
+  id: string;
+  assignment_id: string;
+  student_id: string;
+  file_url: string;
+  status: string;
+  notes?: string | null;
+  created_at: string;
+  updated_at?: string;
+  is_late?: boolean;
+  version_number?: number;
+  version?: number;
+}
+
+export interface DbSubmissionVersionRow {
+  id: string;
+  submission_id: string;
+  version_number?: number;
+  version?: number;
+  file_url: string;
+  status: string;
+  notes?: string | null;
+  created_at: string;
+  submitted_at?: string;
+}
+
 export interface Lesson {
   id: string;
   module_id: string;
@@ -664,7 +705,7 @@ export async function listCohorts(): Promise<Cohort[]> {
         }));
       }
 
-      return (data ?? []).map((cohort: any) => ({
+      return ((data ?? []) as DbCohortRow[]).map((cohort) => ({
         id: cohort.id,
         name: cohort.title,
         title: cohort.title,
@@ -758,19 +799,20 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
     res = await supabase.from('cohorts').insert({ title: input.name, description: input.description }).select('id, title, description').single();
   }
   if (res.error) throw res.error;
+  const created = res.data as DbCohortRow;
   return {
-    id: res.data.id,
-    name: res.data.title,
-    title: res.data.title,
-    course_id: (res.data as any).course_id ?? null,
-    description: res.data.description,
-    status: res.data.status ?? 'published',
-    capacity: res.data.capacity ?? 30,
-    visibility: res.data.visibility ?? 'public',
-    enrollment_start: res.data.enrollment_start ?? null,
-    enrollment_end: res.data.enrollment_end ?? null,
-    track_type: (res.data as any).track_type ?? 'general',
-    duration_days: (res.data as any).duration_days ?? 15,
+    id: created.id,
+    name: created.title,
+    title: created.title,
+    course_id: created.course_id ?? null,
+    description: created.description,
+    status: created.status ?? 'published',
+    capacity: created.capacity ?? 30,
+    visibility: created.visibility ?? 'public',
+    enrollment_start: created.enrollment_start ?? null,
+    enrollment_end: created.enrollment_end ?? null,
+    track_type: created.track_type ?? 'general',
+    duration_days: created.duration_days ?? 15,
   };
 }
 
@@ -801,19 +843,20 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
     res = await supabase.from('cohorts').update(fallbackPayload).eq('id', id).select('id, title, description').single();
   }
   if (res.error) throw res.error;
+  const updated = res.data as DbCohortRow;
   return {
-    id: res.data.id,
-    name: res.data.title,
-    title: res.data.title,
-    course_id: (res.data as any).course_id ?? null,
-    description: res.data.description,
-    status: res.data.status ?? 'published',
-    capacity: res.data.capacity ?? 30,
-    visibility: res.data.visibility ?? 'public',
-    enrollment_start: res.data.enrollment_start ?? null,
-    enrollment_end: res.data.enrollment_end ?? null,
-    track_type: (res.data as any).track_type ?? 'general',
-    duration_days: (res.data as any).duration_days ?? 15,
+    id: updated.id,
+    name: updated.title,
+    title: updated.title,
+    course_id: updated.course_id ?? null,
+    description: updated.description,
+    status: updated.status ?? 'published',
+    capacity: updated.capacity ?? 30,
+    visibility: updated.visibility ?? 'public',
+    enrollment_start: updated.enrollment_start ?? null,
+    enrollment_end: updated.enrollment_end ?? null,
+    track_type: updated.track_type ?? 'general',
+    duration_days: updated.duration_days ?? 15,
   };
 }
 
@@ -2077,7 +2120,7 @@ export async function listMySubmissions(userId: string): Promise<Submission[]> {
     error = fallback.error;
   }
   if (error) throw error;
-  const submissions = (data ?? []).map((s: any) => ({
+  const submissions = ((data ?? []) as DbSubmissionRow[]).map((s) => ({
     ...s,
     status: normalizeSubmissionStatus(s.status),
     version: s.version ?? s.version_number ?? 1,
@@ -2297,7 +2340,7 @@ export async function listPendingSubmissions(): Promise<Submission[]> {
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
   if (error) throw error;
-  const submissions = (data ?? []).map((s: any) => ({
+  const submissions = ((data ?? []) as DbSubmissionRow[]).map((s) => ({
     ...s,
     status: normalizeSubmissionStatus(s.status),
     version: s.version ?? s.version_number ?? 1,
@@ -2887,7 +2930,7 @@ export async function listSubmissionVersions(submissionId: string): Promise<Subm
           .eq('submission_id', submissionId)
           .order('version_number', { ascending: false });
         if (fallback.error) throw fallback.error;
-        return (fallback.data ?? []).map((v: any) => ({
+        return ((fallback.data ?? []) as DbSubmissionVersionRow[]).map((v) => ({
           ...v,
           status: normalizeSubmissionStatus(v.status),
           version: v.version_number ?? 1,
@@ -2899,7 +2942,7 @@ export async function listSubmissionVersions(submissionId: string): Promise<Subm
       throw error;
     }
 
-    return (data ?? []).map((v: any) => ({
+    return ((data ?? []) as DbSubmissionVersionRow[]).map((v) => ({
       ...v,
       status: normalizeSubmissionStatus(v.status),
       version: v.version ?? v.version_number ?? 1,

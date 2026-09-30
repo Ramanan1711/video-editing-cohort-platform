@@ -299,7 +299,7 @@ function getDeterministicAvatar(seed: string): string {
  */
 export async function fetchAvailableCourses(): Promise<CourseOption[]> {
   try {
-    let list: any[] = [];
+    let list: Array<{ id: string; title?: string | null; name?: string | null }> = [];
     const { data: titleData, error: titleErr } = await supabase
       .from('cohorts')
       .select('id, title')
@@ -315,7 +315,7 @@ export async function fetchAvailableCourses(): Promise<CourseOption[]> {
       list = nameData ?? [];
     }
 
-    return list.map((c: any) => ({
+    return list.map((c) => ({
       id: c.id,
       title: c.title || c.name || 'Untitled Course',
     }));
@@ -359,8 +359,9 @@ export async function fetchUserEnrolledCohort(
       .eq('id', cohortId)
       .single();
 
-    if (fallbackData) {
-      return { id: fallbackData.id, title: (fallbackData as any).name || 'Course' };
+    const fallbackCohort = fallbackData as { id: string; name?: string | null } | null;
+    if (fallbackCohort) {
+      return { id: fallbackCohort.id, title: fallbackCohort.name || 'Course' };
     }
 
     return { id: cohortId, title: 'Course' };
@@ -369,11 +370,26 @@ export async function fetchUserEnrolledCohort(
   }
 }
 
-/**
- * Fetches enrolled students and computes their PRO points dynamically based on their XP,
- * filtered by their enrolled Course (Cohort Title).
- */
+interface EnrolledLeaderboardRpcRow {
+  user_id: string;
+  full_name?: string | null;
+  email?: string | null;
+  xp_points?: number | string | null;
+  editor_level?: number | string | null;
+  completed_lessons?: number | string | null;
+  submissions_count?: number | string | null;
+  cohort_id: string;
+  cohort_title?: string | null;
+}
+
 export async function fetchEnrolledLeaderboard(
+  cohortId?: string,
+  currentUserId?: string
+): Promise<LeaderboardMember[]> {
+  return getEnrolledLeaderboard(cohortId, currentUserId);
+}
+
+export async function getEnrolledLeaderboard(
   cohortId?: string,
   currentUserId?: string
 ): Promise<LeaderboardMember[]> {
@@ -387,7 +403,7 @@ export async function fetchEnrolledLeaderboard(
       );
 
       if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
-        return rpcData.map((row: any, idx: number) => ({
+        return (rpcData as EnrolledLeaderboardRpcRow[]).map((row, idx) => ({
           rank: idx + 1,
           id: row.user_id,
           name: row.full_name || (row.email ? row.email.split('@')[0] : 'Enrolled Student'),
@@ -471,7 +487,7 @@ export async function fetchEnrolledLeaderboard(
     ]);
 
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-    const cohortTitleMap = new Map(((titleCohorts as any[]) ?? []).map((c: any) => [c.id, c.title || c.name || 'Course']));
+    const cohortTitleMap = new Map(((titleCohorts as Array<{ id: string; title?: string | null; name?: string | null }>) ?? []).map((c) => [c.id, c.title || c.name || 'Course']));
     const gamificationMap = new Map((gamificationRows ?? []).map((g) => [g.user_id, g]));
 
     // Group progress by user

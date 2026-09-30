@@ -123,7 +123,7 @@ export async function getPlatformAnalytics(
     async () => {
       // 1. Attempt authoritative RPC
       try {
-        if (typeof (supabase as any).rpc === 'function') {
+        if (typeof supabase.rpc === 'function') {
           const rpcRes = await supabase.rpc('get_authoritative_platform_analytics', {
             p_cohort_id: cohortId ?? null,
             p_timeframe: '30d',
@@ -322,7 +322,7 @@ export async function getCohortReportingBaseline(
     async () => {
       // 1. Authoritative RPC
       try {
-        if (typeof (supabase as any).rpc === 'function') {
+        if (typeof supabase.rpc === 'function') {
           const res = await supabase.rpc('get_cohort_reporting_baseline', {
             p_cohort_id: cohortId,
           });
@@ -500,6 +500,27 @@ export async function getCohortReportingBaseline(
  * Fetch authoritative list of at-risk students across the platform or within a specific cohort.
  * Identifies learners with prolonged inactivity, low progress velocity, or multiple resubmissions.
  */
+interface AtRiskStudentRpcRow {
+  student_id: string;
+  student_name?: string | null;
+  student_email?: string | null;
+  cohort_id: string;
+  cohort_name?: string | null;
+  days_inactive?: number | string | null;
+  resubmissions_count?: number | string | null;
+  watch_percentage?: number | string | null;
+  risk_reason?: AtRiskStudentSummary['riskReason'];
+  enrolled_at?: string | null;
+}
+
+interface EnrollmentWithProfileAndCohortRow {
+  user_id: string;
+  cohort_id: string;
+  created_at: string;
+  profiles: { id: string; full_name?: string | null; email?: string | null } | null;
+  cohorts: { id: string; title?: string | null; name?: string | null } | null;
+}
+
 export async function getAtRiskStudentsReport(
   cohortId?: string,
   forceRefresh: boolean = false
@@ -510,13 +531,13 @@ export async function getAtRiskStudentsReport(
     async () => {
       // 1. Authoritative RPC
       try {
-        if (typeof (supabase as any).rpc === 'function') {
+        if (typeof supabase.rpc === 'function') {
           const res = await supabase.rpc('get_cohort_at_risk_students', {
             p_cohort_id: cohortId ?? null,
           });
 
           if (!res.error && Array.isArray(res.data)) {
-            return res.data.map((row: any) => ({
+            return (res.data as AtRiskStudentRpcRow[]).map((row) => ({
               studentId: row.student_id,
               studentName: row.student_name || 'Student',
               studentEmail: row.student_email || '',
@@ -548,7 +569,8 @@ export async function getAtRiskStudentsReport(
         const { data: enrollments, error } = await query;
         if (error || !enrollments) return [];
 
-        const userIds = enrollments.map((e: any) => e.user_id);
+        const typedEnrollments = enrollments as unknown as EnrollmentWithProfileAndCohortRow[];
+        const userIds = typedEnrollments.map((e) => e.user_id);
         const [progressRes, submissionsRes] = await Promise.allSettled([
           supabase.from('lesson_progress').select('user_id, completed_at, updated_at, watch_percentage').in('user_id', userIds),
           supabase.from('submissions').select('student_id, status, created_at').in('student_id', userIds),
@@ -560,7 +582,7 @@ export async function getAtRiskStudentsReport(
         const now = Date.now();
         const results: AtRiskStudentSummary[] = [];
 
-        enrollments.forEach((e: any) => {
+        typedEnrollments.forEach((e) => {
           const userProgress = progressRows.filter((p) => p.user_id === e.user_id);
           const userSubs = submissionRows.filter((s) => s.student_id === e.user_id);
 
@@ -607,14 +629,14 @@ export async function getAtRiskStudentsReport(
           }
 
           if (riskReason) {
-            const profile = e.profiles || {};
-            const cohort = e.cohorts || {};
+            const profile = e.profiles;
+            const cohort = e.cohorts;
             results.push({
               studentId: e.user_id,
-              studentName: profile.full_name || 'Student',
-              studentEmail: profile.email || '',
+              studentName: profile?.full_name || 'Student',
+              studentEmail: profile?.email || '',
               cohortId: e.cohort_id,
-              cohortName: cohort.title || cohort.name || 'Cohort',
+              cohortName: cohort?.title || cohort?.name || 'Cohort',
               daysInactive,
               resubmissionsCount: resubCount,
               watchPercentage: avgWatch,

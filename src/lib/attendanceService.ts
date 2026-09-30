@@ -45,6 +45,32 @@ export interface StudentAttendanceSummary {
   last_attended_at: string | null;
 }
 
+export interface AttendanceProfileRow {
+  id: string;
+  full_name?: string | null;
+  email?: string | null;
+}
+
+export interface AttendanceEnrollmentRow {
+  user_id: string;
+}
+
+export interface CohortAttendanceReportRpcRow {
+  student_id: string;
+  student_name: string;
+  student_email: string;
+  sessions_held: number | string;
+  attended_count: number | string;
+  attendance_rate_pct: number | string;
+  last_attended_at?: string | null;
+}
+
+export interface LiveSessionBasicRow {
+  id: string;
+  title?: string | null;
+  starts_at?: string | null;
+}
+
 /**
  * 1. Student self check-in to a live session
  */
@@ -253,7 +279,7 @@ export async function getSessionAttendanceRoster(
     ]);
 
     const attendanceRecords = (attRes.data as SessionAttendanceRecord[]) || [];
-    const enrolledUserIds = (enrollRes.data ?? []).map((e: any) => e.user_id as string);
+    const enrolledUserIds = ((enrollRes.data ?? []) as AttendanceEnrollmentRow[]).map((e) => e.user_id);
 
     // Collect all student IDs that should be in the roster
     const allStudentIds = Array.from(
@@ -268,7 +294,7 @@ export async function getSessionAttendanceRoster(
       .select('id, full_name, email')
       .in('id', allStudentIds);
 
-    const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+    const profileMap = new Map(((profiles ?? []) as AttendanceProfileRow[]).map((p) => [p.id, p]));
     const attendanceMap = new Map(attendanceRecords.map((a) => [a.student_id, a]));
 
     // Build unified roster (existing attendance or default absent/unmarked)
@@ -363,7 +389,7 @@ export async function getCohortAttendanceReport(
     });
 
     if (!error && Array.isArray(data)) {
-      return data.map((d: any) => ({
+      return (data as CohortAttendanceReportRpcRow[]).map((d) => ({
         student_id: d.student_id,
         student_name: d.student_name,
         student_email: d.student_email,
@@ -393,7 +419,7 @@ export async function getCohortAttendanceReport(
       .eq('cohort_id', cohortId),
   ]);
 
-  const userIds = (enrollRes.data ?? []).map((e: any) => e.user_id as string);
+  const userIds = ((enrollRes.data ?? []) as AttendanceEnrollmentRow[]).map((e) => e.user_id);
   if (!userIds.length) return [];
 
   const { data: profiles } = await supabase
@@ -401,7 +427,7 @@ export async function getCohortAttendanceReport(
     .select('id, full_name, email')
     .in('id', userIds);
 
-  const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+  const profileMap = new Map(((profiles ?? []) as AttendanceProfileRow[]).map((p) => [p.id, p]));
   const totalSessions = (sessionsRes.data ?? []).length;
 
   const attendanceByUser = new Map<string, { attended: number; lastJoin: string | null }>();
@@ -449,15 +475,15 @@ export async function getStudentAttendanceHistory(
     if (error) throw error;
     if (!records || !records.length) return [];
 
-    const sessionIds = Array.from(new Set(records.map((r: any) => r.session_id)));
+    const sessionIds = Array.from(new Set(records.map((r: SessionAttendanceRecord) => r.session_id)));
     const { data: sessions } = await supabase
       .from('live_sessions')
       .select('id, title, starts_at')
       .in('id', sessionIds);
 
-    const sessionMap = new Map((sessions ?? []).map((s: any) => [s.id, s]));
+    const sessionMap = new Map(((sessions ?? []) as LiveSessionBasicRow[]).map((s) => [s.id, s]));
 
-    return records.map((r: any) => {
+    return records.map((r: SessionAttendanceRecord) => {
       const s = sessionMap.get(r.session_id);
       return {
         ...r,
