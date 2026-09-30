@@ -211,7 +211,7 @@ describe('LessonPlayer - Expired Signed URL Recovery and Stream Continuity', () 
     expect(reconnectBtn).toBeInTheDocument();
 
     // Next click succeeds
-    vi.mocked(courseService.getSecureAssetUrl).mockResolvedValueOnce(
+    vi.mocked(courseService.getSecureAssetUrl).mockResolvedValue(
       'https://xyz.supabase.co/storage/v1/object/sign/course-assets/lessons/multicam.mp4?token=manual_reconnected_url'
     );
 

@@ -2383,6 +2383,8 @@ export function LessonPlayer({
   );
 
   const handleVideoError = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+
     const currentVideo = videoRef.current;
     const currentSrc = currentVideo?.src || resolvedVideoUrl || '';
     const currentPos = currentVideo?.currentTime || lastKnownTimeRef.current;
