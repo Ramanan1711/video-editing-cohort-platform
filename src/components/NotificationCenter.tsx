@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
   Check,
@@ -29,10 +29,37 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
   const [filter, setFilter] = useState<NotificationTab>('all');
   const [actionLoading, setActionLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const lastReconcileTimeRef = useRef<number>(0);
+  const isReconcilingRef = useRef<boolean>(false);
 
+  const reconcileNotifications = useCallback(
+    async (force = false) => {
+      if (!userId) return;
+      const now = Date.now();
+      // Throttle non-forced reconciliations to at most once every 3 seconds
+      if (!force && now - lastReconcileTimeRef.current < 3000) return;
+      if (isReconcilingRef.current) return;
+      isReconcilingRef.current = true;
+      lastReconcileTimeRef.current = now;
+
+      try {
+        const items = await listUserNotifications(userId);
+        setNotifications(items);
+      } catch (err: unknown) {
+        console.warn('Failed to reconcile notifications:', err);
+      } finally {
+        isReconcilingRef.current = false;
+      }
+    },
+    [userId]
+  );
+
+  // Initial fetch and Realtime subscription
   useEffect(() => {
     if (!userId) return;
     let active = true;
+
+    setLoading(true);
     listUserNotifications(userId)
       .then((items) => {
         if (active) setNotifications(items);
@@ -79,20 +106,57 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
           );
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // Reconcile missed notifications when subscription connects or recovers after flap
+          void reconcileNotifications();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.warn(`Notifications channel status: ${status}. Active polling fallback active.`);
+        }
+      });
 
     return () => {
       active = false;
       void supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, reconcileNotifications]);
+
+  // Window focus, online, and visibility reconciliation (network flap recovery)
+  useEffect(() => {
+    if (!userId) return;
+
+    const handleReconcile = () => {
+      void reconcileNotifications();
+    };
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        void reconcileNotifications();
+      }
+    };
+
+    window.addEventListener('focus', handleReconcile);
+    window.addEventListener('online', handleReconcile);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Active polling fallback: periodic reconciliation every 60s
+    const pollInterval = setInterval(() => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        void reconcileNotifications();
+      }
+    }, 60000);
+
+    return () => {
+      window.removeEventListener('focus', handleReconcile);
+      window.removeEventListener('online', handleReconcile);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(pollInterval);
+    };
+  }, [userId, reconcileNotifications]);
 
   const refreshNotifications = () => {
     setLoading(true);
-    listUserNotifications(userId)
-      .then((items) => setNotifications(items))
-      .catch((err: unknown) => console.warn('Failed to load notifications:', err))
-      .finally(() => setLoading(false));
+    reconcileNotifications(true).finally(() => setLoading(false));
   };
 
   // Close dropdown when clicking outside
