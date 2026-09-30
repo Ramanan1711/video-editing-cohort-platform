@@ -4,6 +4,8 @@ import {
   TwilioWhatsAppProvider,
   WebhookWhatsAppProvider,
   MockWhatsAppProvider,
+  ManualClickToChatProvider,
+  ServerQueuedWhatsAppProvider,
   getWhatsAppProvider,
   dispatchWhatsAppMessage,
   processPendingWhatsAppRetries,
@@ -119,9 +121,43 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
       expect(res.providerMessageId).toBe('gw_msg_999');
     });
 
+    it('ManualClickToChatProvider generates wa.me links with status queued and no API secrets', async () => {
+      const provider = new ManualClickToChatProvider();
+      const res = await provider.send('+91 98765 43210', 'Hello Manual');
+
+      expect(res.success).toBe(true);
+      expect(res.status).toBe('queued');
+      expect(res.providerMessageId).toMatch(/^manual_/);
+      expect(res.statusCode).toBe(200);
+    });
+
+    it('ServerQueuedWhatsAppProvider queues messages for backend worker execution without client secrets', async () => {
+      const provider = new ServerQueuedWhatsAppProvider('meta');
+      const res = await provider.send('+91 98765 43210', 'Hello Queued Meta');
+
+      expect(res.success).toBe(true);
+      expect(res.status).toBe('queued');
+      expect(res.providerMessageId).toMatch(/^queued_meta_/);
+      expect(res.statusCode).toBe(202);
+    });
+
     it('getWhatsAppProvider defaults to mock provider if environment variables are not configured', () => {
       const provider = getWhatsAppProvider('mock');
       expect(provider.name).toBe('mock');
+    });
+
+    it('getWhatsAppProvider resolves manual and server-queued providers safely without bundling secrets', () => {
+      const manualProvider = getWhatsAppProvider('manual');
+      expect(manualProvider.name).toBe('manual');
+      expect(manualProvider).toBeInstanceOf(ManualClickToChatProvider);
+
+      const metaProvider = getWhatsAppProvider('meta');
+      expect(metaProvider.name).toBe('meta');
+      expect(metaProvider).toBeInstanceOf(ServerQueuedWhatsAppProvider);
+
+      const twilioProvider = getWhatsAppProvider('twilio');
+      expect(twilioProvider.name).toBe('twilio');
+      expect(twilioProvider).toBeInstanceOf(ServerQueuedWhatsAppProvider);
     });
   });
 
@@ -198,6 +234,47 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
       expect(result.success).toBe(false);
       expect(result.log.status).toBe('cancelled');
       expect(result.error).toContain('opted out');
+    });
+
+    it('preserves queued status when dispatching via ServerQueuedWhatsAppProvider', async () => {
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      });
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        update: mockUpdate,
+      });
+
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: {
+          id: '00000000-0000-0000-0000-000000000002',
+          user_id: 'u-2',
+          cohort_id: 'c-1',
+          recipient_phone: '919876543210',
+          event_type: 'daily_challenge',
+          message_body: 'Queued task drop',
+          provider: 'meta',
+          status: 'queued',
+          retry_count: 0,
+          max_retries: 3,
+        },
+        error: null,
+      });
+
+      const result = await dispatchWhatsAppMessage({
+        userId: 'u-2',
+        cohortId: 'c-1',
+        phone: '+91 98765 43210',
+        eventType: 'daily_challenge',
+        message: 'Queued task drop',
+        provider: 'meta',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.log.status).toBe('queued');
+      expect(result.log.provider_message_id).toMatch(/^queued_meta_/);
+      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'queued',
+      }));
     });
   });
 

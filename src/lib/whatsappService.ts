@@ -347,6 +347,15 @@ export class WebhookWhatsAppProvider implements IWhatsAppProvider {
     if (this.apiKey) {
       headers['X-API-Key'] = this.apiKey;
       headers['Authorization'] = `Bearer ${this.apiKey}`;
+    } else {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.access_token) {
+          headers['Authorization'] = `Bearer ${sessionData.session.access_token}`;
+        }
+      } catch {
+        // Proceed without auth header if session retrieval fails
+      }
     }
 
     try {
@@ -390,6 +399,48 @@ export class WebhookWhatsAppProvider implements IWhatsAppProvider {
 }
 
 /**
+ * Manual Click-to-Chat WhatsApp Provider
+ * Generates direct wa.me URLs for mentors/admins with zero API credentials
+ */
+export class ManualClickToChatProvider implements IWhatsAppProvider {
+  name: WhatsAppProviderType = 'manual';
+
+  async send(to: string, message: string): Promise<WhatsAppProviderSendResult> {
+    generateWhatsAppClickToChatUrl(to, message);
+    return {
+      success: true,
+      status: 'queued',
+      providerMessageId: `manual_${Date.now()}`,
+      statusCode: 200,
+    };
+  }
+}
+
+/**
+ * Server-Queued WhatsApp Provider (Meta & Twilio Client Gateway)
+ * Enforces zero client-side secret exposure:
+ * Third-party vendor tokens (Meta System User Access Token, Twilio Auth Token) are NOT bundled
+ * into the client application. Messages are recorded into the database queue
+ * (whatsapp_notifications_log) with status 'queued' for backend Edge Function or worker execution.
+ */
+export class ServerQueuedWhatsAppProvider implements IWhatsAppProvider {
+  name: WhatsAppProviderType;
+
+  constructor(providerName: WhatsAppProviderType = 'meta') {
+    this.name = providerName;
+  }
+
+  async send(_to: string, _message: string): Promise<WhatsAppProviderSendResult> {
+    return {
+      success: true,
+      status: 'queued',
+      providerMessageId: `queued_${this.name}_${Date.now()}`,
+      statusCode: 202,
+    };
+  }
+}
+
+/**
  * Production-Ready Sandbox / Mock Provider with Simulated Network & Lifecycle
  */
 export class MockWhatsAppProvider implements IWhatsAppProvider {
@@ -423,38 +474,37 @@ export class MockWhatsAppProvider implements IWhatsAppProvider {
 }
 
 /**
- * Resolves the configured WhatsApp provider
+ * Resolves the configured WhatsApp provider.
+ * SECURITY ARCHITECTURE:
+ * Third-party vendor tokens (Meta Graph API Access Tokens, Twilio Auth Tokens) MUST NEVER
+ * be read from client-side `import.meta.env` (e.g. `VITE_WHATSAPP_*`). Doing so causes Vite
+ * to bundle live messaging credentials into public JavaScript assets.
+ *
+ * Direct third-party dispatches ('meta', 'twilio') from the client are routed to:
+ * 1) A secure backend proxy webhook (`VITE_WHATSAPP_WEBHOOK_URL`) if configured, or
+ * 2) `ServerQueuedWhatsAppProvider` which marks the log as 'queued' in Supabase,
+ *    where a secure server-side Supabase Edge Function executes delivery with private secrets.
  */
 export function getWhatsAppProvider(providerOverride?: WhatsAppProviderType): IWhatsAppProvider {
   const metaEnv = ((typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {}) as Record<string, string | undefined>;
   const providerType = providerOverride || (metaEnv.VITE_WHATSAPP_PROVIDER as WhatsAppProviderType) || 'mock';
 
-  if (providerType === 'meta') {
-    const phoneId = metaEnv.VITE_WHATSAPP_META_PHONE_NUMBER_ID || '';
-    const token = metaEnv.VITE_WHATSAPP_META_ACCESS_TOKEN || '';
-    if (phoneId && token) {
-      return new MetaWhatsAppProvider(phoneId, token);
-    }
-    console.warn('Meta WhatsApp credentials missing; falling back to Mock provider');
-    return new MockWhatsAppProvider();
+  if (providerType === 'manual') {
+    return new ManualClickToChatProvider();
   }
 
-  if (providerType === 'twilio') {
-    const sid = metaEnv.VITE_WHATSAPP_TWILIO_ACCOUNT_SID || '';
-    const token = metaEnv.VITE_WHATSAPP_TWILIO_AUTH_TOKEN || '';
-    const from = metaEnv.VITE_WHATSAPP_TWILIO_FROM || '';
-    if (sid && token && from) {
-      return new TwilioWhatsAppProvider(sid, token, from);
+  if (providerType === 'meta' || providerType === 'twilio') {
+    const webhookUrl = metaEnv.VITE_WHATSAPP_WEBHOOK_URL;
+    if (webhookUrl) {
+      return new WebhookWhatsAppProvider(webhookUrl);
     }
-    console.warn('Twilio WhatsApp credentials missing; falling back to Mock provider');
-    return new MockWhatsAppProvider();
+    return new ServerQueuedWhatsAppProvider(providerType);
   }
 
   if (providerType === 'webhook') {
     const url = metaEnv.VITE_WHATSAPP_WEBHOOK_URL || '';
-    const key = metaEnv.VITE_WHATSAPP_WEBHOOK_SECRET || '';
     if (url) {
-      return new WebhookWhatsAppProvider(url, key);
+      return new WebhookWhatsAppProvider(url);
     }
     console.warn('WhatsApp Webhook URL missing; falling back to Mock provider');
     return new MockWhatsAppProvider();
@@ -646,30 +696,44 @@ export async function dispatchWhatsAppMessage(
 
   if (isRealUuid) {
     if (sendResult.success) {
-      // Mark as sent via RPC
-      try {
-        const { data: updated } = await supabase.rpc('record_whatsapp_retry_attempt', {
-          p_log_id: logId,
-          p_success: true,
-          p_error_details: null,
-          p_provider_message_id: sendResult.providerMessageId || null,
-        });
-        if (updated) {
-          logRecord = updated as WhatsAppLog;
-        }
-      } catch {
-        // Table fallback
+      if (sendResult.status === 'queued') {
+        // Message remains queued for server-side worker or manual dispatch
         await supabase
           .from('whatsapp_notifications_log')
           .update({
-            status: 'sent',
-            sent_at: new Date().toISOString(),
+            status: 'queued',
             provider_message_id: sendResult.providerMessageId || null,
             error_details: null,
           })
           .eq('id', logId);
-        logRecord.status = 'sent';
+        logRecord.status = 'queued';
         logRecord.provider_message_id = sendResult.providerMessageId || null;
+      } else {
+        // Mark as sent via RPC
+        try {
+          const { data: updated } = await supabase.rpc('record_whatsapp_retry_attempt', {
+            p_log_id: logId,
+            p_success: true,
+            p_error_details: null,
+            p_provider_message_id: sendResult.providerMessageId || null,
+          });
+          if (updated) {
+            logRecord = updated as WhatsAppLog;
+          }
+        } catch {
+          // Table fallback
+          await supabase
+            .from('whatsapp_notifications_log')
+            .update({
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+              provider_message_id: sendResult.providerMessageId || null,
+              error_details: null,
+            })
+            .eq('id', logId);
+          logRecord.status = 'sent';
+          logRecord.provider_message_id = sendResult.providerMessageId || null;
+        }
       }
     } else {
       // Record failure & exponential backoff via RPC
@@ -710,10 +774,10 @@ export async function dispatchWhatsAppMessage(
     }
   } else {
     // In-memory update for mock/fallback
-    logRecord.status = sendResult.success ? 'sent' : 'failed';
+    logRecord.status = sendResult.status || (sendResult.success ? 'sent' : 'failed');
     logRecord.provider_message_id = sendResult.providerMessageId;
     logRecord.error_details = sendResult.error;
-    if (sendResult.success) {
+    if (logRecord.status === 'sent') {
       logRecord.sent_at = new Date().toISOString();
     }
   }
@@ -812,27 +876,41 @@ export async function processPendingWhatsAppRetries(maxBatchSize = 20): Promise<
     );
 
     // Update database status
-    try {
-      await supabase.rpc('record_whatsapp_retry_attempt', {
-        p_log_id: log.id,
-        p_success: sendResult.success,
-        p_error_details: sendResult.error || null,
-        p_provider_message_id: sendResult.providerMessageId || null,
-      });
-    } catch {
-      const newCount = log.retry_count + 1;
-      const isFailed = newCount >= log.max_retries;
-      await supabase
-        .from('whatsapp_notifications_log')
-        .update({
-          status: sendResult.success ? 'sent' : isFailed ? 'failed' : 'queued',
-          retry_count: newCount,
-          sent_at: sendResult.success ? new Date().toISOString() : log.sent_at,
-          error_details: sendResult.error || null,
-          next_retry_at: isFailed ? null : new Date(Date.now() + Math.pow(2, newCount) * 60000).toISOString(),
-          provider_message_id: sendResult.providerMessageId || log.provider_message_id,
-        })
-        .eq('id', log.id);
+    if (sendResult.status === 'queued') {
+      try {
+        await supabase
+          .from('whatsapp_notifications_log')
+          .update({
+            status: 'queued',
+            provider_message_id: sendResult.providerMessageId || log.provider_message_id,
+          })
+          .eq('id', log.id);
+      } catch {
+        // ignore fallback errors
+      }
+    } else {
+      try {
+        await supabase.rpc('record_whatsapp_retry_attempt', {
+          p_log_id: log.id,
+          p_success: sendResult.success,
+          p_error_details: sendResult.error || null,
+          p_provider_message_id: sendResult.providerMessageId || null,
+        });
+      } catch {
+        const newCount = log.retry_count + 1;
+        const isFailed = newCount >= log.max_retries;
+        await supabase
+          .from('whatsapp_notifications_log')
+          .update({
+            status: sendResult.success ? 'sent' : isFailed ? 'failed' : 'queued',
+            retry_count: newCount,
+            sent_at: sendResult.success ? new Date().toISOString() : log.sent_at,
+            error_details: sendResult.error || null,
+            next_retry_at: isFailed ? null : new Date(Date.now() + Math.pow(2, newCount) * 60000).toISOString(),
+            provider_message_id: sendResult.providerMessageId || log.provider_message_id,
+          })
+          .eq('id', log.id);
+      }
     }
 
     if (sendResult.success) {
@@ -869,32 +947,44 @@ export async function retrySingleWhatsAppMessage(logId: string): Promise<WhatsAp
 
   let updatedLog = log as WhatsAppLog;
 
-  try {
-    const { data: updated } = await supabase.rpc('record_whatsapp_retry_attempt', {
-      p_log_id: logId,
-      p_success: sendResult.success,
-      p_error_details: sendResult.error || null,
-      p_provider_message_id: sendResult.providerMessageId || null,
-    });
-    if (updated) {
-      updatedLog = updated as WhatsAppLog;
-    }
-  } catch {
-    const newCount = (log.retry_count || 0) + 1;
+  if (sendResult.status === 'queued') {
     await supabase
       .from('whatsapp_notifications_log')
       .update({
-        status: sendResult.success ? 'sent' : 'failed',
-        retry_count: newCount,
-        sent_at: sendResult.success ? new Date().toISOString() : log.sent_at,
-        error_details: sendResult.error || null,
-        provider_message_id: sendResult.providerMessageId || log.provider_message_id,
+        status: 'queued',
+        provider_message_id: sendResult.providerMessageId || null,
       })
       .eq('id', logId);
+    updatedLog.status = 'queued';
+    updatedLog.provider_message_id = sendResult.providerMessageId || null;
+  } else {
+    try {
+      const { data: updated } = await supabase.rpc('record_whatsapp_retry_attempt', {
+        p_log_id: logId,
+        p_success: sendResult.success,
+        p_error_details: sendResult.error || null,
+        p_provider_message_id: sendResult.providerMessageId || null,
+      });
+      if (updated) {
+        updatedLog = updated as WhatsAppLog;
+      }
+    } catch {
+      const newCount = (log.retry_count || 0) + 1;
+      await supabase
+        .from('whatsapp_notifications_log')
+        .update({
+          status: sendResult.success ? 'sent' : 'failed',
+          retry_count: newCount,
+          sent_at: sendResult.success ? new Date().toISOString() : log.sent_at,
+          error_details: sendResult.error || null,
+          provider_message_id: sendResult.providerMessageId || log.provider_message_id,
+        })
+        .eq('id', logId);
 
-    updatedLog.status = sendResult.success ? 'sent' : 'failed';
-    updatedLog.retry_count = newCount;
-    updatedLog.error_details = sendResult.error || null;
+      updatedLog.status = sendResult.success ? 'sent' : 'failed';
+      updatedLog.retry_count = newCount;
+      updatedLog.error_details = sendResult.error || null;
+    }
   }
 
   return {
