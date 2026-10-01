@@ -32,6 +32,7 @@ import { HeroCanvasSimulator } from '../components/home/HeroCanvasSimulator';
 import { TiltCard } from '../components/home/TiltCard';
 import { CustomCursor } from '../components/home/CustomCursor';
 import { StudioBar } from '../components/home/StudioBar';
+import { FwCard } from '../components/home/FwCard';
 import { soundFx } from '../lib/soundFx';
 
 export function Home() {
@@ -1810,6 +1811,81 @@ export function Home() {
                 </span>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION: SELECTED PRODUCTION DELIVERABLES (JUNCA .FW SHOWCASE)            */}
+        {/* ========================================================================= */}
+        <section id="deliverables" className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden fw">
+          <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
+              <div>
+                <span className="dot-label dot-label--emerald text-orange-400 font-bold mb-2">
+                  Featured Deliverables
+                </span>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mt-1">
+                  Selected Production Proof-of-Work
+                </h2>
+              </div>
+              <p className="text-sm text-slate-400 max-w-md leading-relaxed">
+                Inspected by senior engineers and creative directors. Real deliverables built by interns under 24-hour sprint briefs.
+              </p>
+            </div>
+
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-14">
+              <FwCard
+                figure={{
+                  imgSrc: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1280&q=80',
+                  alt: 'Cinematic video timeline with kinetic typography motion graphics',
+                  tags: ['Motion Design', 'After Effects', 'Kinetic Typography'],
+                  aspectRatio: '16/10',
+                }}
+                kicker="01 / 04 · Creative Video Track"
+                title="Cinematic Pacing & Kinetic Title Sequence"
+                description="Engineered for a commercial client with custom bezier easing curves, multi-track audio soundscapes, and viral retention pacing."
+                cursorLabel="INSPECT CUT"
+              />
+
+              <FwCard
+                figure={{
+                  imgSrc: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1280&q=80',
+                  alt: 'SaaS monitoring telemetry dashboard with real-time charts',
+                  tags: ['React 19', 'Supabase RLS', 'TypeScript'],
+                  aspectRatio: '16/10',
+                }}
+                kicker="02 / 04 · Full-Stack Coding Track"
+                title="Real-Time Analytics & Telemetry Engine"
+                description="Production web platform featuring optimistic UI state reducers, PostgreSQL Row-Level Security, and automated Vitest test coverage."
+                cursorLabel="VIEW CODE"
+              />
+
+              <FwCard
+                figure={{
+                  imgSrc: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1280&q=80',
+                  alt: 'DaVinci Resolve studio color grading interface and commercial video shot',
+                  tags: ['DaVinci Resolve', 'Color Primaries', '-14 LUFS Mix'],
+                  aspectRatio: '16/10',
+                }}
+                kicker="03 / 04 · Creative Video Track"
+                title="60s Commercial Capstone & Master Audio Mix"
+                description="Mastered to international broadcast loudness targets with skin-tone scopes, primary LUT grading, and 100% mentor rubric defense."
+                cursorLabel="VIEW REEL"
+              />
+
+              <FwCard
+                figure={{
+                  imgSrc: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1280&q=80',
+                  alt: 'Cloud server infrastructure and cryptographic verification system',
+                  tags: ['PostgreSQL', 'Webhooks', 'Vercel CI/CD'],
+                  aspectRatio: '16/10',
+                }}
+                kicker="04 / 04 · Full-Stack Coding Track"
+                title="Cryptographic Certificate & Delivery Webhook Hub"
+                description="Automated graduation pipeline verifying SHA-256 signatures, dispatching WhatsApp alerts, and provisioning recruiter links."
+                cursorLabel="INSPECT API"
+              />
+            </ul>
           </div>
         </section>
 
