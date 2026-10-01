@@ -1,4 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { soundFx } from '../../lib/soundFx';
 
 export interface TiltCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ export const TiltCard: React.FC<TiltCardProps> = ({
   className = '',
   enableGlare = true,
   style,
+  onMouseEnter,
   ...props
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -39,10 +41,15 @@ export const TiltCard: React.FC<TiltCardProps> = ({
     }
   }, []);
 
-  const handleMouseEnter = useCallback(() => {
-    if (reducedMotion) return;
-    setIsHovered(true);
-  }, [reducedMotion]);
+  const handleMouseEnter = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (reducedMotion) return;
+      setIsHovered(true);
+      soundFx.playBlip(540, 0.03, 'sine', 0.02);
+      onMouseEnter?.(e);
+    },
+    [reducedMotion, onMouseEnter]
+  );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {

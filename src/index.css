@@ -406,4 +406,46 @@ button, a { -webkit-tap-highlight-color: transparent; }
   border-color: rgba(249, 115, 22, 0.3);
 }
 
+/* ========================================================================= */
+/* Junca Studio-Inspired Editorial & Architectural Utilities */
+/* ========================================================================= */
+
+/* Neon Orange Selection Highlight */
+::selection {
+  background: #f97316;
+  color: #030712;
+}
+
+/* Architectural Dot Label with Pulse */
+.dot-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dot-label::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f97316;
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.7);
+  flex-shrink: 0;
+}
+
+.dot-label--emerald::before {
+  background: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+}
+
+/* Subtle Film Grain Noise Accent Overlay */
+.film-grain {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
 

@@ -30,6 +30,10 @@ import { SiteHeader } from '../components/SiteHeader';
 import { listCohorts, type Cohort } from '../lib/courseService';
 import { HeroCanvasSimulator } from '../components/home/HeroCanvasSimulator';
 import { TiltCard } from '../components/home/TiltCard';
+import { CustomCursor } from '../components/home/CustomCursor';
+import { StudioBar } from '../components/home/StudioBar';
+import { TextScramble } from '../components/home/TextScramble';
+import { soundFx } from '../lib/soundFx';
 
 export function Home() {
   const [selectedTrack, setSelectedTrack] = useState<'coding' | 'creative'>('creative');
@@ -274,7 +278,10 @@ export function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 font-sans selection:bg-orange-500 selection:text-white transition-colors relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#030712] text-slate-100 font-sans selection:bg-orange-500 selection:text-white transition-colors relative overflow-x-hidden film-grain">
+      {/* Junca Studio-inspired custom magnetic cursor follower */}
+      <CustomCursor />
+
       <SiteHeader />
 
       <main>
@@ -294,20 +301,23 @@ export function Home() {
           <div className="relative z-10 mx-auto max-w-7xl px-5 lg:px-8">
             <div className="flex flex-col items-center text-center">
               {/* Verified Status Pill */}
-              <div className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-orange-500/30 bg-[#090d16]/80 px-4 py-1.5 shadow-lg shadow-orange-500/10 backdrop-blur-xl">
+              <div
+                data-cursor="COHORT TELEMETRY"
+                className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-orange-500/30 bg-[#090d16]/80 px-4 py-1.5 shadow-lg shadow-orange-500/10 backdrop-blur-xl"
+              >
                 <span className="flex size-2 rounded-full bg-orange-500 animate-ping" />
-                <span className="text-[11px] font-black uppercase tracking-wider text-orange-400">
+                <span className="text-[11px] font-black uppercase tracking-wider text-orange-400 font-mono">
                   15-Day Intensive Production Internship
                 </span>
                 <span className="hidden sm:inline text-white/20">•</span>
-                <span className="hidden sm:inline text-[11px] font-bold text-slate-300">
+                <span className="hidden sm:inline text-[11px] font-bold text-slate-300 font-mono">
                   {loadingCohorts ? 'Checking Active Cohorts...' : `${cohorts.length || 2} Production Cohorts Active`}
                 </span>
               </div>
 
-              {/* Main Headline with Fluid Typography & Metallic Gradient */}
+              {/* Main Headline with Fluid Typography & TextScramble Decoder */}
               <h1 className="max-w-4xl text-[clamp(2.4rem,5.5vw,4.5rem)] font-black tracking-tight text-white leading-[1.06]">
-                Stop Watching Tutorials.{' '}
+                <TextScramble text="Stop Watching Tutorials." scrambleOnHover speed={26} />{' '}
                 <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500 bg-clip-text text-transparent drop-shadow-sm">
                   Start Shipping Production.
                 </span>
@@ -323,6 +333,8 @@ export function Home() {
                 <Button
                   href="#active-cohorts"
                   size="lg"
+                  data-cursor="VIEW COHORTS"
+                  onClick={() => soundFx.playSweep(260, 600, 0.1, 0.05)}
                   className="w-full sm:w-auto shadow-xl shadow-orange-500/30 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none justify-center px-8 py-3.5 hover:scale-105 transition-all"
                 >
                   <span>View Active Cohorts</span>
@@ -332,6 +344,8 @@ export function Home() {
                   href="#sprint"
                   variant="secondary"
                   size="lg"
+                  data-cursor="INSPECT 15 DAYS"
+                  onClick={() => soundFx.playBlip(480, 0.04, 'sine', 0.04)}
                   className="w-full sm:w-auto justify-center bg-white/5 border border-white/15 text-white hover:bg-white/10 hover:border-orange-500/40 backdrop-blur-xl px-7 py-3.5 font-bold transition-all"
                 >
                   <Play size={15} className="text-orange-400" fill="currentColor" />
@@ -595,11 +609,12 @@ export function Home() {
                     perspective={1000}
                     glareOpacity={0.25}
                     glareColor="rgba(249, 115, 22, 0.25)"
+                    data-cursor="RESERVE SEAT"
                     className="glass-obsidian p-6 border-white/10 hover:border-orange-500/40 flex flex-col justify-between space-y-4 shadow-xl transition-all"
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                        <span className="dot-label dot-label--emerald text-[10px] uppercase font-mono font-bold">
                           {cohort.status || 'Active Batch'}
                         </span>
                         <span className="text-[11px] font-bold text-slate-400 font-mono">
@@ -618,7 +633,13 @@ export function Home() {
                       <span className="text-[11px] font-bold text-orange-400 font-mono">
                         15 Days Intensive
                       </span>
-                      <Button href="/register" size="sm" className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold border-none shadow-md shadow-orange-500/20">
+                      <Button
+                        href="/register"
+                        size="sm"
+                        data-cursor="ENROLL"
+                        onClick={() => soundFx.playSweep(300, 700, 0.1, 0.05)}
+                        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold border-none shadow-md shadow-orange-500/20"
+                      >
                         <span>Enroll</span>
                         <ArrowRight size={13} />
                       </Button>
@@ -910,7 +931,11 @@ export function Home() {
               <div className="mt-8 inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-[#090d16] p-1.5 shadow-2xl">
                 <button
                   type="button"
-                  onClick={() => setSelectedTrack('creative')}
+                  data-cursor="TRACK: CREATIVE"
+                  onClick={() => {
+                    setSelectedTrack('creative');
+                    soundFx.playSweep(260, 520, 0.08, 0.04);
+                  }}
                   className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black transition cursor-pointer ${
                     selectedTrack === 'creative'
                       ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25'
@@ -922,7 +947,11 @@ export function Home() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedTrack('coding')}
+                  data-cursor="TRACK: CODING"
+                  onClick={() => {
+                    setSelectedTrack('coding');
+                    soundFx.playSweep(340, 680, 0.08, 0.04);
+                  }}
                   className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black transition cursor-pointer ${
                     selectedTrack === 'coding'
                       ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25'
@@ -938,7 +967,7 @@ export function Home() {
             {/* Track Content Showcase */}
             {selectedTrack === 'creative' ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <TiltCard maxTilt={5} className="glass-obsidian p-6 border-white/10 hover:border-orange-500/40 space-y-4 shadow-xl transition-all">
+                <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-orange-500/40 space-y-4 shadow-xl transition-all">
                   <div className="flex size-11 items-center justify-center rounded-2xl bg-orange-500/15 border border-orange-500/30 text-orange-400">
                     <Play size={20} />
                   </div>
@@ -954,7 +983,7 @@ export function Home() {
                   <span className="inline-block text-[11px] font-bold text-orange-400 pt-2 font-mono">Days 1–5 Deliverables →</span>
                 </TiltCard>
 
-                <TiltCard maxTilt={5} className="glass-obsidian p-6 border-white/10 hover:border-amber-500/40 space-y-4 shadow-xl transition-all">
+                <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-amber-500/40 space-y-4 shadow-xl transition-all">
                   <div className="flex size-11 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
                     <Flame size={20} />
                   </div>
@@ -970,7 +999,7 @@ export function Home() {
                   <span className="inline-block text-[11px] font-bold text-amber-400 pt-2 font-mono">Days 6–10 Deliverables →</span>
                 </TiltCard>
 
-                <TiltCard maxTilt={5} className="glass-obsidian p-6 border-white/10 hover:border-emerald-500/40 space-y-4 shadow-xl transition-all">
+                <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-emerald-500/40 space-y-4 shadow-xl transition-all">
                   <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
                     <Award size={20} />
                   </div>
@@ -988,7 +1017,7 @@ export function Home() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <TiltCard maxTilt={5} className="glass-obsidian p-6 border-white/10 hover:border-blue-500/40 space-y-4 shadow-xl transition-all">
+                <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-blue-500/40 space-y-4 shadow-xl transition-all">
                   <div className="flex size-11 items-center justify-center rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400">
                     <Code2 size={20} />
                   </div>
@@ -1004,7 +1033,7 @@ export function Home() {
                   <span className="inline-block text-[11px] font-bold text-blue-400 pt-2 font-mono">Days 1–5 Deliverables →</span>
                 </TiltCard>
 
-                <TiltCard maxTilt={5} className="glass-obsidian p-6 border-white/10 hover:border-purple-500/40 space-y-4 shadow-xl transition-all">
+                <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-purple-500/40 space-y-4 shadow-xl transition-all">
                   <div className="flex size-11 items-center justify-center rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-400">
                     <Zap size={20} />
                   </div>
@@ -1020,7 +1049,7 @@ export function Home() {
                   <span className="inline-block text-[11px] font-bold text-purple-400 pt-2 font-mono">Days 6–10 Deliverables →</span>
                 </TiltCard>
 
-                <TiltCard maxTilt={5} className="glass-obsidian p-6 border-white/10 hover:border-emerald-500/40 space-y-4 shadow-xl transition-all">
+                <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-emerald-500/40 space-y-4 shadow-xl transition-all">
                   <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
                     <Award size={20} />
                   </div>
@@ -1048,7 +1077,11 @@ export function Home() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setActiveSprintPhase('p1')}
+                    data-cursor="PHASE 01"
+                    onClick={() => {
+                      setActiveSprintPhase('p1');
+                      soundFx.playBlip(320, 0.04, 'sine', 0.04);
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
                       activeSprintPhase === 'p1' ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
                     }`}
@@ -1057,7 +1090,11 @@ export function Home() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveSprintPhase('p2')}
+                    data-cursor="PHASE 02"
+                    onClick={() => {
+                      setActiveSprintPhase('p2');
+                      soundFx.playBlip(420, 0.04, 'sine', 0.04);
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
                       activeSprintPhase === 'p2' ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
                     }`}
@@ -1066,7 +1103,11 @@ export function Home() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveSprintPhase('p3')}
+                    data-cursor="PHASE 03"
+                    onClick={() => {
+                      setActiveSprintPhase('p3');
+                      soundFx.playBlip(560, 0.04, 'sine', 0.04);
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
                       activeSprintPhase === 'p3' ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
                     }`}
@@ -1152,7 +1193,11 @@ export function Home() {
               {full15Days.map((d) => (
                 <button
                   key={d.day}
-                  onClick={() => setSelectedDayDetail(d.day)}
+                  data-cursor={`DAY ${d.day.toString().padStart(2, '0')}`}
+                  onClick={() => {
+                    setSelectedDayDetail(d.day);
+                    soundFx.playBlip(320 + d.day * 22, 0.035, 'sine', 0.035);
+                  }}
                   className={`flex flex-col items-center py-3 px-2 rounded-xl border transition cursor-pointer ${
                     selectedDayDetail === d.day
                       ? 'bg-gradient-to-r from-orange-500 to-amber-500 border-none text-white shadow-lg shadow-orange-500/25 scale-105'
@@ -1376,7 +1421,11 @@ export function Home() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => setActiveChatScenario('video')}
+                      data-cursor="TEST CHAT"
+                      onClick={() => {
+                        setActiveChatScenario('video');
+                        soundFx.playBlip(440, 0.04, 'sine', 0.04);
+                      }}
                       className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
                         activeChatScenario === 'video'
                           ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 ring-1 ring-emerald-400'
@@ -1387,7 +1436,11 @@ export function Home() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setActiveChatScenario('code')}
+                      data-cursor="TEST CHAT"
+                      onClick={() => {
+                        setActiveChatScenario('code');
+                        soundFx.playBlip(520, 0.04, 'sine', 0.04);
+                      }}
                       className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
                         activeChatScenario === 'code'
                           ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 ring-1 ring-emerald-400'
@@ -1398,7 +1451,11 @@ export function Home() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setActiveChatScenario('nudge')}
+                      data-cursor="TEST CHAT"
+                      onClick={() => {
+                        setActiveChatScenario('nudge');
+                        soundFx.playBlip(620, 0.04, 'sine', 0.04);
+                      }}
                       className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
                         activeChatScenario === 'nudge'
                           ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 ring-1 ring-emerald-400'
@@ -2176,7 +2233,13 @@ export function Home() {
                     <p className="text-4xl font-black text-white font-mono">$149</p>
                     <p className="text-[11px] text-slate-400">One-time payment</p>
                   </div>
-                  <Button href="/register" className="mt-6 w-full justify-center shadow-lg shadow-orange-500/25" withArrow>
+                  <Button
+                    href="/register"
+                    data-cursor="SAVE SEAT"
+                    onClick={() => soundFx.playSweep(280, 840, 0.15, 0.05)}
+                    className="mt-6 w-full justify-center shadow-lg shadow-orange-500/25"
+                    withArrow
+                  >
                     Save My Seat
                   </Button>
                 </div>
@@ -2211,7 +2274,12 @@ export function Home() {
               {faqs.map((faq, index) => (
                 <div key={faq.q} className="py-5">
                   <button
-                    onClick={() => setFaqOpen(faqOpen === index ? null : index)}
+                    data-cursor="EXPAND FAQ"
+                    onClick={() => {
+                      const next = faqOpen === index ? null : index;
+                      setFaqOpen(next);
+                      if (next !== null) soundFx.playBlip(440, 0.03, 'triangle', 0.03);
+                    }}
                     className="flex w-full items-center justify-between gap-5 text-left text-sm font-black text-white hover:text-orange-400 transition"
                   >
                     <span>{faq.q}</span>
@@ -2249,7 +2317,14 @@ export function Home() {
               Join the next intensive cohort. Experience the power of daily production constraints, real WhatsApp mentorship, and peer momentum.
             </p>
             <div className="pt-6">
-              <Button href="/register" size="lg" withArrow className="shadow-2xl shadow-orange-500/30 hover:shadow-orange-500/50">
+              <Button
+                href="/register"
+                size="lg"
+                data-cursor="JOIN COHORT"
+                onClick={() => soundFx.playSweep(300, 900, 0.2, 0.06)}
+                withArrow
+                className="shadow-2xl shadow-orange-500/30 hover:shadow-orange-500/50"
+              >
                 Join Next 15-Day Cohort
               </Button>
             </div>
@@ -2258,6 +2333,9 @@ export function Home() {
       </main>
 
       <SiteFooter />
+
+      {/* Fixed bottom architectural telemetry & sound equalizer bar */}
+      <StudioBar />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { soundFx } from '../../lib/soundFx';
 
 export type SimulatorMode = 'wave' | 'nebula' | 'grid';
 
@@ -435,11 +436,13 @@ export const HeroCanvasSimulator: React.FC = () => {
             <button
               key={m}
               type="button"
+              data-cursor={`SIM: ${m.toUpperCase()}`}
               onClick={(e) => {
                 e.stopPropagation();
                 setMode(m);
+                soundFx.playSweep(220, 660, 0.09, 0.05);
               }}
-              className={`rounded px-2 py-0.5 text-[10px] font-bold capitalize transition ${
+              className={`rounded px-2 py-0.5 text-[10px] font-bold capitalize transition cursor-pointer ${
                 mode === m
                   ? 'bg-orange-500 text-white shadow-xs'
                   : 'text-slate-400 hover:text-white hover:bg-white/10'
