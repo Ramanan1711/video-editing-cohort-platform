@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getAdminStats,
   getAdminExecutiveMetrics,
+  getCourseDemandReport,
   listMentorCohortAssignments,
   exportExecutiveReportCSV,
   exportAtRiskLearnersCSV,
 } from '../../lib/adminService';
 import { supabase } from '../../lib/supabaseClient';
+import { queryCache } from '../../lib/queryCache';
 
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
@@ -18,6 +20,7 @@ vi.mock('../../lib/supabaseClient', () => ({
 describe('Admin Dashboard & Reporting System', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryCache.clear();
   });
 
   describe('Schema Resilience in getAdminStats', () => {
@@ -223,6 +226,174 @@ describe('Admin Dashboard & Reporting System', () => {
       const csv = exportAtRiskLearnersCSV(mockMetrics.atRiskLearners);
       expect(csv).toContain('Student Name,Email,Cohort,Days Inactive,Pending Revisions,Risk Factor');
       expect(csv).toContain('"Alex Mercer","alex@example.com","Commercial Mastery",9,3,"multiple resubmissions"');
+    });
+
+    it('exports Course Demand & Enrollment Distribution section when courseDemand metrics exist', () => {
+      const metricsWithDemand = {
+        ...mockMetrics,
+        courseDemand: [
+          {
+            courseId: 'c-web',
+            title: 'Full Stack React & Node',
+            trackType: 'coding' as const,
+            cohortsCount: 3,
+            enrolledStudentsCount: 50,
+            status: 'published',
+            popularitySharePct: 71,
+          },
+          {
+            courseId: 'c-edit',
+            title: 'Commercial Video Editing',
+            trackType: 'non_coding' as const,
+            cohortsCount: 1,
+            enrolledStudentsCount: 20,
+            status: 'published',
+            popularitySharePct: 29,
+          },
+          {
+            courseId: 'c-sound',
+            title: 'Audio Foley Engineering',
+            trackType: 'non_coding' as const,
+            cohortsCount: 0,
+            enrolledStudentsCount: 0,
+            status: 'draft',
+            popularitySharePct: 0,
+          },
+        ],
+      };
+
+      const csv = exportExecutiveReportCSV(metricsWithDemand);
+      expect(csv).toContain('--- COURSE DEMAND & ENROLLMENT DISTRIBUTION ---');
+      expect(csv).toContain('Rank,Course Title,Track Type,Cohorts Count,Enrolled Students,Popularity Share %,Status');
+      expect(csv).toContain('1,"Full Stack React & Node","coding",3,50,71%,"published"');
+      expect(csv).toContain('2,"Commercial Video Editing","non_coding",1,20,29%,"published"');
+      expect(csv).toContain('3,"Audio Foley Engineering","non_coding",0,0,0%,"draft"');
+    });
+  });
+
+  describe('Course Demand & Enrollment Popularity Reporting', () => {
+    it('ranks courses by active student enrollment count descending from courses_overview', async () => {
+      const mockOverviewData = [
+        {
+          id: 'course-1',
+          title: 'Color Grading Masterclass',
+          slug: 'color-grading',
+          track_type: 'non_coding',
+          status: 'published',
+          cohorts_count: 2,
+          total_active_students: 45,
+        },
+        {
+          id: 'course-2',
+          title: 'TypeScript Full Stack',
+          slug: 'typescript-full-stack',
+          track_type: 'coding',
+          status: 'published',
+          cohorts_count: 4,
+          total_active_students: 120, // highest demand
+        },
+        {
+          id: 'course-3',
+          title: 'Davinci Resolve Audio Foley',
+          slug: 'audio-foley',
+          track_type: 'non_coding',
+          status: 'draft',
+          cohorts_count: 0,
+          total_active_students: 0, // lowest / zero enrollment
+        },
+      ];
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'courses_overview') {
+          return {
+            select: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: mockOverviewData, error: null }),
+            }),
+          };
+        }
+        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      });
+
+      const report = await getCourseDemandReport();
+      expect(report).toHaveLength(3);
+
+      // Most demanded course should be ranked #1
+      expect(report[0].courseId).toBe('course-2');
+      expect(report[0].title).toBe('TypeScript Full Stack');
+      expect(report[0].enrolledStudentsCount).toBe(120);
+      expect(report[0].popularitySharePct).toBe(Math.round((120 / (120 + 45)) * 100)); // 73%
+
+      // Medium demanded course
+      expect(report[1].courseId).toBe('course-1');
+      expect(report[1].enrolledStudentsCount).toBe(45);
+
+      // Lowest / zero enrollment course ranked at the bottom
+      expect(report[2].courseId).toBe('course-3');
+      expect(report[2].enrolledStudentsCount).toBe(0);
+      expect(report[2].popularitySharePct).toBe(0);
+    });
+
+    it('falls back to synthesized courses, cohorts, and enrollments when courses_overview fails', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'courses_overview') {
+          return {
+            select: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: null, error: { message: 'View not found', code: '42P01' } }),
+            }),
+          };
+        }
+        if (table === 'courses') {
+          return {
+            select: vi.fn().mockResolvedValue({
+              data: [
+                { id: 'c-python', title: 'Python Backend', track_type: 'coding', status: 'published' },
+                { id: 'c-premiere', title: 'Premiere Pro Timeline', track_type: 'non_coding', status: 'published' },
+              ],
+              error: null,
+            }),
+          };
+        }
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockResolvedValue({
+              data: [
+                { id: 'cohort-py-1', course_id: 'c-python', title: 'Python Fall 2026' },
+                { id: 'cohort-py-2', course_id: 'c-python', title: 'Python Winter 2026' },
+                { id: 'cohort-prem-1', course_id: 'c-premiere', title: 'Premiere Pro Sept' },
+              ],
+              error: null,
+            }),
+          };
+        }
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockResolvedValue({
+              data: [
+                { user_id: 'u-1', cohort_id: 'cohort-py-1', status: 'enrolled' },
+                { user_id: 'u-2', cohort_id: 'cohort-py-1', status: 'active' },
+                { user_id: 'u-3', cohort_id: 'cohort-py-2', status: 'active' },
+                { user_id: 'u-4', cohort_id: 'cohort-prem-1', status: 'enrolled' },
+                { user_id: 'u-5', cohort_id: 'cohort-prem-1', status: 'dropped' }, // dropped should not count as active
+              ],
+              error: null,
+            }),
+          };
+        }
+        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      });
+
+      const report = await getCourseDemandReport();
+      expect(report).toHaveLength(2);
+
+      // Python has 3 active enrolled students across 2 cohorts
+      expect(report[0].courseId).toBe('c-python');
+      expect(report[0].enrolledStudentsCount).toBe(3);
+      expect(report[0].cohortsCount).toBe(2);
+
+      // Premiere has 1 active enrolled student (u-5 is dropped)
+      expect(report[1].courseId).toBe('c-premiere');
+      expect(report[1].enrolledStudentsCount).toBe(1);
+      expect(report[1].cohortsCount).toBe(1);
     });
   });
 });

@@ -127,6 +127,17 @@ export interface AdminEscalationAlert {
   createdAt: string;
 }
 
+export interface CourseDemandMetric {
+  courseId: string;
+  title: string;
+  slug?: string;
+  trackType: 'coding' | 'non_coding' | 'general';
+  cohortsCount: number;
+  enrolledStudentsCount: number;
+  status: string;
+  popularitySharePct: number;
+}
+
 export interface AdminExecutiveMetrics {
   timeframe: '7d' | '30d' | '90d' | 'all';
   enrollmentConversionRate: number;
@@ -144,6 +155,7 @@ export interface AdminExecutiveMetrics {
   curriculumDropOff: ModuleDropOffMetric[];
   mentorLeaderboard: MentorPerformanceMetric[];
   escalationAlerts: AdminEscalationAlert[];
+  courseDemand?: CourseDemandMetric[];
 }
 
 export interface AuditLog {
@@ -615,6 +627,146 @@ interface ExecutiveMetricAssignment {
   cohort_id?: string;
 }
 
+export async function getCourseDemandReport(): Promise<CourseDemandMetric[]> {
+  return queryCache.getOrFetch(
+    'admin_course_demand_report',
+    async () => {
+      // 1. Try canonical courses_overview view
+      try {
+        const query = supabase
+          .from('courses_overview')
+          .select('id, title, slug, track_type, status, cohorts_count, total_active_students');
+
+        const { data: overviewData, error: overviewErr } =
+          typeof query.order === 'function' ? await query.order('title') : await query;
+
+        if (!overviewErr && overviewData && overviewData.length > 0) {
+          const rawMetrics: CourseDemandMetric[] = (overviewData as Array<{
+            id: string;
+            title?: string | null;
+            slug?: string | null;
+            track_type?: string | null;
+            cohorts_count?: number | string | null;
+            total_active_students?: number | string | null;
+            status?: string | null;
+          }>).map((c) => ({
+            courseId: c.id,
+            title: c.title || 'Untitled Course',
+            slug: c.slug || '',
+            trackType: (c.track_type as CourseDemandMetric['trackType']) || 'general',
+            cohortsCount: Number(c.cohorts_count) || 0,
+            enrolledStudentsCount: Number(c.total_active_students) || 0,
+            status: c.status || 'published',
+            popularitySharePct: 0,
+          }));
+
+          const totalActive = rawMetrics.reduce((sum, item) => sum + item.enrolledStudentsCount, 0);
+
+          return rawMetrics
+            .map((item) => ({
+              ...item,
+              popularitySharePct: totalActive > 0 ? Math.round((item.enrolledStudentsCount / totalActive) * 100) : 0,
+            }))
+            .sort((a, b) => b.enrolledStudentsCount - a.enrolledStudentsCount || a.title.localeCompare(b.title));
+        }
+      } catch (err) {
+        console.warn('courses_overview query fallback in getCourseDemandReport:', err);
+      }
+
+      // 2. Fallback: query courses, cohorts, and enrollments manually
+      const [coursesRes, cohortsRes, enrollmentsRes] = await Promise.allSettled([
+        supabase.from('courses').select('id, title, slug, track_type, status'),
+        supabase.from('cohorts').select('id, course_id, title, name, track_type, status'),
+        supabase.from('enrollments').select('user_id, cohort_id, status'),
+      ]);
+
+      const courses =
+        coursesRes.status === 'fulfilled' && !coursesRes.value.error && Array.isArray(coursesRes.value.data)
+          ? (coursesRes.value.data as Array<{ id: string; title?: string | null; slug?: string | null; track_type?: string | null; status?: string | null }>)
+          : [];
+      const cohorts =
+        cohortsRes.status === 'fulfilled' && !cohortsRes.value.error && Array.isArray(cohortsRes.value.data)
+          ? (cohortsRes.value.data as Array<{ id: string; course_id?: string | null; title?: string | null; name?: string | null; track_type?: string | null; status?: string | null }>)
+          : [];
+      const enrollments =
+        enrollmentsRes.status === 'fulfilled' && !enrollmentsRes.value.error && Array.isArray(enrollmentsRes.value.data)
+          ? (enrollmentsRes.value.data as Array<{ user_id: string; cohort_id: string; status?: string | null }>)
+          : [];
+
+      // Map cohort to course_id
+      const cohortToCourseMap = new Map<string, string>();
+      const courseCohortCountMap = new Map<string, number>();
+
+      for (const ch of cohorts) {
+        const courseId = ch.course_id || ch.id;
+        cohortToCourseMap.set(ch.id, courseId);
+        courseCohortCountMap.set(courseId, (courseCohortCountMap.get(courseId) || 0) + 1);
+      }
+
+      // Map active/enrolled students per course (distinct user_ids)
+      const courseStudentSetMap = new Map<string, Set<string>>();
+
+      for (const e of enrollments) {
+        if (e.status === 'enrolled' || e.status === 'active') {
+          const courseId = cohortToCourseMap.get(e.cohort_id);
+          if (courseId) {
+            const set = courseStudentSetMap.get(courseId) || new Set<string>();
+            set.add(e.user_id);
+            courseStudentSetMap.set(courseId, set);
+          }
+        }
+      }
+
+      // If courses table had rows, use them; otherwise extract courses from cohorts
+      const courseList: Array<{ id: string; title: string; slug?: string; track_type?: string; status?: string }> =
+        courses.length > 0
+          ? courses.map((c) => ({
+              id: c.id,
+              title: c.title || 'Untitled Course',
+              slug: c.slug || undefined,
+              track_type: c.track_type || undefined,
+              status: c.status || undefined,
+            }))
+          : cohorts.map((c) => ({
+              id: c.course_id || c.id,
+              title: c.title || c.name || 'Cohort Course',
+              track_type: c.track_type || undefined,
+              status: c.status || undefined,
+            }));
+
+      // Deduplicate courses by id
+      const seenCourses = new Map<string, CourseDemandMetric>();
+      for (const c of courseList) {
+        if (!seenCourses.has(c.id)) {
+          const studentSet = courseStudentSetMap.get(c.id);
+          seenCourses.set(c.id, {
+            courseId: c.id,
+            title: c.title || 'Untitled Course',
+            slug: c.slug,
+            trackType: (c.track_type as CourseDemandMetric['trackType']) || 'general',
+            cohortsCount: courseCohortCountMap.get(c.id) || (cohorts.some((ch) => ch.id === c.id) ? 1 : 0),
+            enrolledStudentsCount: studentSet ? studentSet.size : 0,
+            status: c.status || 'published',
+            popularitySharePct: 0,
+          });
+        }
+      }
+
+      const metricsList = Array.from(seenCourses.values());
+      const totalStudents = metricsList.reduce((sum, item) => sum + item.enrolledStudentsCount, 0);
+
+      return metricsList
+        .map((m) => ({
+          ...m,
+          popularitySharePct: totalStudents > 0 ? Math.round((m.enrolledStudentsCount / totalStudents) * 100) : 0,
+        }))
+        .sort((a, b) => b.enrolledStudentsCount - a.enrolledStudentsCount || a.title.localeCompare(b.title));
+    },
+    60_000,
+    ['courses', 'enrollments', 'cohorts', 'admin']
+  );
+}
+
 export async function getAdminExecutiveMetrics(
   timeframe: '7d' | '30d' | '90d' | 'all' = '30d'
 ): Promise<AdminExecutiveMetrics> {
@@ -991,6 +1143,13 @@ export async function getAdminExecutiveMetrics(
     });
   }
 
+  let courseDemand: CourseDemandMetric[] = [];
+  try {
+    courseDemand = await getCourseDemandReport();
+  } catch (err) {
+    console.warn('Unable to load course demand report in getAdminExecutiveMetrics:', err);
+  }
+
   return {
     timeframe,
     enrollmentConversionRate: conversionRate,
@@ -1008,6 +1167,7 @@ export async function getAdminExecutiveMetrics(
     curriculumDropOff,
     mentorLeaderboard,
     escalationAlerts,
+    courseDemand,
   };
 }
 
@@ -1694,6 +1854,16 @@ export function exportExecutiveReportCSV(metrics: AdminExecutiveMetrics): string
   metrics.curriculumDropOff.forEach((m) => {
     lines.push(`${m.position},"${m.moduleTitle.replace(/"/g, '""')}",${m.lessonCount},${m.completionRatePct}%,${m.stalledStudentCount}`);
   });
+  if (metrics.courseDemand && metrics.courseDemand.length > 0) {
+    lines.push('');
+    lines.push('--- COURSE DEMAND & ENROLLMENT DISTRIBUTION ---');
+    lines.push('Rank,Course Title,Track Type,Cohorts Count,Enrolled Students,Popularity Share %,Status');
+    metrics.courseDemand.forEach((cd, index) => {
+      lines.push(
+        `${index + 1},"${cd.title.replace(/"/g, '""')}","${cd.trackType}",${cd.cohortsCount},${cd.enrolledStudentsCount},${cd.popularitySharePct}%,"${cd.status}"`
+      );
+    });
+  }
 
   return lines.join('\n');
 }

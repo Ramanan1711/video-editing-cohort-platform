@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Award,
   Ban,
+  BarChart3,
   Bell,
   BookOpen,
   Calendar,
@@ -76,6 +77,7 @@ import {
   getAdminExecutiveMetrics,
   getAdminStats,
   getBulkEnrollmentTemplateCSV,
+  getCourseDemandReport,
   listAnnouncements,
   listAuditLogs,
   listCohortEnrollments,
@@ -102,6 +104,7 @@ import {
   type AdminStats,
   type AuditLog,
   type BulkEnrollmentResponse,
+  type CourseDemandMetric,
   type LiveSession,
   type MentorCohortAssignment,
   type UserProfile,
@@ -268,6 +271,13 @@ export function AdminOperations() {
   const [exportingAtRiskReport, setExportingAtRiskReport] = useState(false);
   const [updatingTimeframe, setUpdatingTimeframe] = useState(false);
 
+  // Course Demand & Enrollment Distribution state
+  const [courseDemand, setCourseDemand] = useState<CourseDemandMetric[]>([]);
+  const [courseDemandLoading, setCourseDemandLoading] = useState(false);
+  const [courseDemandFilter, setCourseDemandFilter] = useState<'all' | 'coding' | 'non_coding'>('all');
+  const [courseDemandSort, setCourseDemandSort] = useState<'desc' | 'asc' | 'alpha'>('desc');
+  const [courseDemandSearch, setCourseDemandSearch] = useState('');
+
   // Durable Error Logs & Telemetry state
   const [errorLogs, setErrorLogs] = useState<ErrorLogEntry[]>([]);
   const [errorStats, setErrorStats] = useState<DurableErrorTelemetryStats | null>(null);
@@ -303,6 +313,7 @@ export function AdminOperations() {
       canViewAuditLogs ? listAuditLogs({ limit: 100 }) : Promise.resolve([]),
       listMentorCohortAssignments(),
       canModerateCommunity ? listAdminCommunityReports() : Promise.resolve([]),
+      getCourseDemandReport(),
     ])
       .then((results) => {
         if (!active) return;
@@ -318,6 +329,7 @@ export function AdminOperations() {
           nextLogs,
           nextMentorAssignments,
           nextReports,
+          nextDemand,
         ] = results;
 
         if (nextStats.status === 'fulfilled') setStats(nextStats.value);
@@ -327,10 +339,18 @@ export function AdminOperations() {
         if (nextAnnouncements.status === 'fulfilled') setAnnouncements(nextAnnouncements.value);
         if (nextSessions.status === 'fulfilled') setSessions(nextSessions.value);
         if (nextPosts.status === 'fulfilled') setPosts(nextPosts.value);
-        if (nextMetrics.status === 'fulfilled') setExecMetrics(nextMetrics.value);
+        if (nextMetrics.status === 'fulfilled') {
+          setExecMetrics(nextMetrics.value);
+          if (nextMetrics.value.courseDemand?.length) {
+            setCourseDemand(nextMetrics.value.courseDemand);
+          }
+        }
         if (nextLogs.status === 'fulfilled') setAuditLogs(nextLogs.value);
         if (nextMentorAssignments.status === 'fulfilled') setMentorAssignments(nextMentorAssignments.value);
         if (nextReports && nextReports.status === 'fulfilled') setReports(nextReports.value as CommunityReport[]);
+        if (nextDemand && nextDemand.status === 'fulfilled' && nextDemand.value.length) {
+          setCourseDemand(nextDemand.value);
+        }
 
         setError(null);
         setAppError(null);
@@ -357,14 +377,80 @@ export function AdminOperations() {
     setSelectedTimeframe(tf);
     setUpdatingTimeframe(true);
     try {
-      const updatedMetrics = await getAdminExecutiveMetrics(tf);
+      const [updatedMetrics, updatedDemand] = await Promise.all([
+        getAdminExecutiveMetrics(tf),
+        getCourseDemandReport(),
+      ]);
       setExecMetrics(updatedMetrics);
+      if (updatedDemand.length) {
+        setCourseDemand(updatedDemand);
+      } else if (updatedMetrics.courseDemand?.length) {
+        setCourseDemand(updatedMetrics.courseDemand);
+      }
     } catch (err) {
       console.warn('Failed to update timeframe metrics:', err);
     } finally {
       setUpdatingTimeframe(false);
     }
   };
+
+  const handleRefreshCourseDemand = async () => {
+    setCourseDemandLoading(true);
+    try {
+      const demand = await getCourseDemandReport();
+      setCourseDemand(demand);
+      toast.success('Course demand report refreshed.');
+    } catch {
+      toast.error('Failed to refresh course demand report.');
+    } finally {
+      setCourseDemandLoading(false);
+    }
+  };
+
+  const filteredAndSortedDemand = useMemo(() => {
+    let list = [...courseDemand];
+    if (courseDemandFilter !== 'all') {
+      list = list.filter((c) => c.trackType === courseDemandFilter);
+    }
+    if (courseDemandSearch.trim()) {
+      const q = courseDemandSearch.trim().toLowerCase();
+      list = list.filter((c) => c.title.toLowerCase().includes(q));
+    }
+    if (courseDemandSort === 'desc') {
+      list.sort((a, b) => b.enrolledStudentsCount - a.enrolledStudentsCount || a.title.localeCompare(b.title));
+    } else if (courseDemandSort === 'asc') {
+      list.sort((a, b) => a.enrolledStudentsCount - b.enrolledStudentsCount || a.title.localeCompare(b.title));
+    } else if (courseDemandSort === 'alpha') {
+      list.sort((a, b) => a.title.localeCompare(b.title));
+    }
+    return list;
+  }, [courseDemand, courseDemandFilter, courseDemandSearch, courseDemandSort]);
+
+  const courseDemandKPIs = useMemo(() => {
+    if (!courseDemand.length) {
+      return {
+        mostDemanded: null as CourseDemandMetric | null,
+        leastDemanded: null as CourseDemandMetric | null,
+        totalActiveStudents: 0,
+        underEnrolledCount: 0,
+        maxEnrollment: 1,
+      };
+    }
+    const sorted = [...courseDemand].sort((a, b) => b.enrolledStudentsCount - a.enrolledStudentsCount);
+    const mostDemanded = sorted[0]?.enrolledStudentsCount > 0 ? sorted[0] : null;
+    const leastDemanded = sorted[sorted.length - 1];
+    const totalActiveStudents = sorted.reduce((sum, c) => sum + c.enrolledStudentsCount, 0);
+    const underEnrolledCount = sorted.filter((c) => c.enrolledStudentsCount === 0).length;
+    const maxEnrollment = Math.max(1, ...sorted.map((c) => c.enrolledStudentsCount));
+
+    return {
+      mostDemanded,
+      leastDemanded,
+      totalActiveStudents,
+      underEnrolledCount,
+      maxEnrollment,
+    };
+  }, [courseDemand]);
 
   const handleExportExecutiveReport = () => {
     if (!execMetrics) return;
@@ -1997,6 +2083,316 @@ export function AdminOperations() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </Card>
+
+            {/* Section: Course Demand & Enrollment Popularity Visual Report */}
+            <Card className="p-6 border-slate-200" data-testid="course-demand-report-section">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs font-bold text-xs">
+                      <BarChart3 size={15} />
+                    </span>
+                    <h2 className="text-base font-black text-slate-950 dark:text-white">
+                      Course Demand &amp; Enrollment Distribution
+                    </h2>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Active student enrollment volume across master courses. Highlights high-traction curricula driving cohort capacity versus under-enrolled subjects.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleRefreshCourseDemand}
+                    loading={courseDemandLoading}
+                    className="flex items-center gap-1.5 text-xs font-bold shrink-0"
+                  >
+                    <RefreshCw size={13} className={courseDemandLoading ? 'animate-spin' : ''} />
+                    <span>Refresh Data</span>
+                  </Button>
+                  <Link
+                    to="/admin/courses"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                  >
+                    <span>Manage Courses</span>
+                    <ExternalLink size={12} />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Course Demand KPI Cards */}
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {/* Most Demanded */}
+                <div className="rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-4 dark:border-amber-900/50">
+                  <div className="flex items-center justify-between text-xs font-bold text-amber-700 dark:text-amber-400">
+                    <span className="flex items-center gap-1">
+                      <Flame size={14} className="text-orange-500" /> Most Demanded Course
+                    </span>
+                    <span className="rounded bg-orange-500/15 px-1.5 py-0.5 text-[10px] font-black uppercase text-orange-600 dark:text-orange-400">
+                      Top Choice
+                    </span>
+                  </div>
+                  <div className="mt-2.5">
+                    <h4 className="text-sm font-black text-slate-950 dark:text-white truncate" title={courseDemandKPIs.mostDemanded?.title || 'None'}>
+                      {courseDemandKPIs.mostDemanded?.title || 'No active enrollments'}
+                    </h4>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-orange-600 dark:text-orange-400 font-mono">
+                        {courseDemandKPIs.mostDemanded?.enrolledStudentsCount ?? 0}
+                      </span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        students ({courseDemandKPIs.mostDemanded?.popularitySharePct ?? 0}% share)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lowest Demand / Least Enrolled */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <AlertTriangle size={14} className="text-amber-500" /> Lowest Enrollment Course
+                    </span>
+                    <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      Under-Enrolled
+                    </span>
+                  </div>
+                  <div className="mt-2.5">
+                    <h4 className="text-sm font-black text-slate-950 dark:text-white truncate" title={courseDemandKPIs.leastDemanded?.title || 'None'}>
+                      {courseDemandKPIs.leastDemanded?.title || 'No courses in catalog'}
+                    </h4>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-slate-700 dark:text-slate-300 font-mono">
+                        {courseDemandKPIs.leastDemanded?.enrolledStudentsCount ?? 0}
+                      </span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        students ({courseDemandKPIs.leastDemanded?.cohortsCount ?? 0} cohorts)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total Active Course Enrollments */}
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-3xs dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <Users size={14} className="text-blue-500" /> Total Active Enrollments
+                    </span>
+                    <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                      Active
+                    </span>
+                  </div>
+                  <div className="mt-2.5">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-blue-600 dark:text-blue-400 font-mono">
+                        {courseDemandKPIs.totalActiveStudents}
+                      </span>
+                      <span className="text-xs text-slate-400">students across catalog</span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      Sum of active &amp; enrolled students across all master courses
+                    </p>
+                  </div>
+                </div>
+
+                {/* Zero Enrollment Courses Count */}
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-3xs dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <BookOpen size={14} className="text-rose-500" /> Zero-Enrollment Courses
+                    </span>
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                        courseDemandKPIs.underEnrolledCount > 0
+                          ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                          : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                      }`}
+                    >
+                      {courseDemandKPIs.underEnrolledCount > 0 ? 'Needs Attention' : 'All Enrolled'}
+                    </span>
+                  </div>
+                  <div className="mt-2.5">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono">
+                        {courseDemandKPIs.underEnrolledCount}
+                      </span>
+                      <span className="text-xs text-slate-400">of {courseDemand.length} courses</span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      Courses with 0 active students (marketing or scheduling review recommended)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters & Controls */}
+              <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50/80 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs shadow-3xs dark:border-slate-800 dark:bg-slate-950 sm:w-64">
+                  <Search size={14} className="text-slate-400" />
+                  <input
+                    value={courseDemandSearch}
+                    onChange={(e) => setCourseDemandSearch(e.target.value)}
+                    placeholder="Search courses by title..."
+                    aria-label="Search courses by title"
+                    className="w-full bg-transparent outline-none text-xs"
+                  />
+                  {courseDemandSearch && (
+                    <button
+                      onClick={() => setCourseDemandSearch('')}
+                      aria-label="Clear search"
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  {/* Track Type Filter */}
+                  <div className="flex items-center gap-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-1">
+                    {(['all', 'coding', 'non_coding'] as const).map((trk) => (
+                      <button
+                        key={trk}
+                        type="button"
+                        onClick={() => setCourseDemandFilter(trk)}
+                        className={`rounded px-2.5 py-1 font-bold text-[11px] transition ${
+                          courseDemandFilter === trk
+                            ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {trk === 'all' ? 'All Tracks' : trk === 'coding' ? 'Coding' : 'Non-Coding'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Sort Order */}
+                  <select
+                    value={courseDemandSort}
+                    onChange={(e) => setCourseDemandSort(e.target.value as 'desc' | 'asc' | 'alpha')}
+                    aria-label="Sort courses by demand"
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-bold text-[11px] text-slate-700 shadow-3xs dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                  >
+                    <option value="desc">Most Demanded First (High → Low)</option>
+                    <option value="asc">Least Demanded First (Low → High)</option>
+                    <option value="alpha">Alphabetical (A → Z)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Horizontal Bar Chart Distribution */}
+              <div className="mt-5 space-y-3.5">
+                {filteredAndSortedDemand.length ? (
+                  filteredAndSortedDemand.map((course, idx) => {
+                    const widthPct =
+                      courseDemandKPIs.maxEnrollment > 0
+                        ? Math.round((course.enrolledStudentsCount / courseDemandKPIs.maxEnrollment) * 100)
+                        : 0;
+                    const isTop = idx === 0 && courseDemandSort === 'desc' && course.enrolledStudentsCount > 0;
+                    const isZero = course.enrolledStudentsCount === 0;
+
+                    return (
+                      <div
+                        key={course.courseId}
+                        className="rounded-xl border border-slate-100 bg-white p-4 shadow-3xs transition hover:border-slate-200 dark:border-slate-800 dark:bg-slate-900/70"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span
+                              className={`flex size-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-black ${
+                                isTop
+                                  ? 'bg-amber-500 text-white shadow-2xs'
+                                  : isZero
+                                  ? 'bg-slate-100 text-slate-400 dark:bg-slate-800'
+                                  : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                              }`}
+                            >
+                              #{idx + 1}
+                            </span>
+                            <strong className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              {course.title}
+                            </strong>
+                            <span
+                              className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-bold ${
+                                course.trackType === 'coding'
+                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                  : course.trackType === 'non_coding'
+                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                                  : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                              }`}
+                            >
+                              {course.trackType === 'coding' ? 'Coding' : course.trackType === 'non_coding' ? 'Non-Coding' : 'General'}
+                            </span>
+                            <span className="hidden sm:inline-block text-[11px] text-slate-400">
+                              {course.cohortsCount} {course.cohortsCount === 1 ? 'cohort' : 'cohorts'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+                            {isTop && (
+                              <span className="flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+                                <Flame size={12} /> Highest Demand
+                              </span>
+                            )}
+                            {isZero && (
+                              <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                                ⚠️ Zero Enrollments
+                              </span>
+                            )}
+                            {!isTop && !isZero && widthPct < 25 && (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                                Low Demand
+                              </span>
+                            )}
+                            <div className="text-right">
+                              <span className="text-xs font-black text-slate-900 dark:text-white font-mono">
+                                {course.enrolledStudentsCount}
+                              </span>
+                              <span className="text-[11px] text-slate-400 ml-1">students</span>
+                              <span className="text-[10px] text-slate-400 block font-mono">
+                                {course.popularitySharePct}% share
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Visual Bar */}
+                        <div className="mt-3">
+                          <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isTop
+                                  ? 'bg-gradient-to-r from-orange-500 to-amber-400 shadow-2xs'
+                                  : isZero
+                                  ? 'bg-slate-200 dark:bg-slate-700'
+                                  : widthPct >= 60
+                                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                                  : widthPct >= 30
+                                  ? 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                                  : 'bg-gradient-to-r from-amber-500 to-amber-400'
+                              }`}
+                              style={{ width: `${isZero ? 0 : Math.max(3, widthPct)}%` }}
+                              role="meter"
+                              aria-label={`Enrollment for ${course.title}`}
+                              aria-valuenow={course.enrolledStudentsCount}
+                              aria-valuemin={0}
+                              aria-valuemax={courseDemandKPIs.maxEnrollment}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="py-12 text-center text-xs text-slate-400">
+                    <p className="font-bold">No courses match the current filter or search query.</p>
+                    <p className="mt-1">Try resetting the filter to All Tracks or clear the search field.</p>
+                  </div>
+                )}
               </div>
             </Card>
 
