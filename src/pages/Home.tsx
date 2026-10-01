@@ -32,7 +32,6 @@ import { HeroCanvasSimulator } from '../components/home/HeroCanvasSimulator';
 import { TiltCard } from '../components/home/TiltCard';
 import { CustomCursor } from '../components/home/CustomCursor';
 import { StudioBar } from '../components/home/StudioBar';
-import { TextScramble } from '../components/home/TextScramble';
 import { soundFx } from '../lib/soundFx';
 
 export function Home() {
@@ -315,9 +314,9 @@ export function Home() {
                 </span>
               </div>
 
-              {/* Main Headline with Fluid Typography & TextScramble Decoder */}
+              {/* Main Headline with Fluid Typography */}
               <h1 className="max-w-4xl text-[clamp(2.4rem,5.5vw,4.5rem)] font-black tracking-tight text-white leading-[1.06]">
-                <TextScramble text="Stop Watching Tutorials." scrambleOnHover speed={26} />{' '}
+                Stop Watching Tutorials.{' '}
                 <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500 bg-clip-text text-transparent drop-shadow-sm">
                   Start Shipping Production.
                 </span>
