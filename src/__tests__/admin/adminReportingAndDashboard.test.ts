@@ -31,7 +31,7 @@ describe('Admin Dashboard & Reporting System', () => {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockResolvedValue({ count: 10, error: null }),
               // head query without eq
-              then: (fn: any) => Promise.resolve({ count: 25, error: null }).then(fn),
+              then: (fn: (val: unknown) => unknown) => Promise.resolve({ count: 25, error: null }).then(fn),
             }),
           };
         }

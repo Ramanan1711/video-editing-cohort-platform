@@ -306,4 +306,44 @@ describe('Course Demand & Enrollment Distribution Visual Report UI', () => {
     const rankBadges = screen.getAllByText(/^#\d+$/);
     expect(rankBadges[0].textContent).toBe('#1');
   });
+
+  it('toggles between Chart View and Enterprise Data Matrix mode', async () => {
+    render(
+      <MemoryRouter>
+        <AdminOperations />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Operations & Governance')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Executive Insights/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Course Demand & Enrollment Distribution')).toBeInTheDocument();
+    });
+
+    // Default is Chart View
+    expect(screen.getByText('Scale Reference: 0 → 60 max learners')).toBeInTheDocument();
+
+    // Switch to Data Matrix mode
+    const matrixBtn = screen.getByRole('button', { name: /Data Matrix/i });
+    fireEvent.click(matrixBtn);
+
+    // Table columns should be rendered
+    expect(screen.getByText('Master Course')).toBeInTheDocument();
+    expect(screen.getByText('Catalog Share')).toBeInTheDocument();
+    expect(screen.getByText('Intake Status')).toBeInTheDocument();
+
+    // Verify course row in table
+    expect(screen.getByText('ID: full-stack-react')).toBeInTheDocument();
+
+    // Switch back to Chart View
+    const chartBtn = screen.getByRole('button', { name: /Chart View/i });
+    fireEvent.click(chartBtn);
+
+    expect(screen.getByText('Scale Reference: 0 → 60 max learners')).toBeInTheDocument();
+  });
 });
+
