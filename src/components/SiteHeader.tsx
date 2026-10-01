@@ -16,22 +16,22 @@ export function SiteHeader() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200/70 bg-white/90 backdrop-blur-md dark:border-slate-800/70 dark:bg-slate-950/90 transition-colors">
+    <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#030712]/85 backdrop-blur-xl transition-colors">
       <div className="mx-auto flex max-w-7xl h-18 items-center justify-between px-5 lg:px-8">
         {/* Brand Logo */}
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm shadow-orange-500/20 group-hover:scale-105 transition-transform">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 text-white shadow-md shadow-orange-500/25 group-hover:scale-105 transition-transform">
             <Sparkles size={18} />
           </div>
           <div className="flex items-center gap-1 leading-none font-sans">
-            <span className="text-xl font-black tracking-tight text-orange-600 dark:text-orange-500">
+            <span className="text-xl font-black tracking-tight text-orange-500">
               ProCut
             </span>
-            <span className="text-xl font-black tracking-tight text-slate-950 dark:text-white">
+            <span className="text-xl font-black tracking-tight text-white">
               Hub
             </span>
           </div>
-          <span className="hidden sm:inline-block rounded-full bg-orange-100 dark:bg-orange-950/60 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-orange-700 dark:text-orange-300">
+          <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-orange-400">
             Sprint 2.0
           </span>
         </Link>
@@ -42,7 +42,7 @@ export function SiteHeader() {
             <a
               key={link.href}
               href={link.href}
-              className="text-xs font-bold text-slate-600 hover:text-orange-600 dark:text-slate-400 dark:hover:text-white transition-colors"
+              className="text-xs font-bold text-slate-300 hover:text-orange-400 transition-colors"
             >
               {link.label}
             </a>
@@ -53,11 +53,11 @@ export function SiteHeader() {
         <div className="hidden items-center gap-3 lg:flex">
           <Link
             to="/login"
-            className="px-3.5 py-2 text-xs font-bold text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white transition"
+            className="px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white transition"
           >
             Sign in
           </Link>
-          <Button href="/register" size="sm" className="shadow-sm shadow-orange-500/20">
+          <Button href="/register" size="sm" className="shadow-lg shadow-orange-500/25 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 border-none text-white font-bold">
             <span>Join Next Cohort</span>
             <ArrowRight size={13} />
           </Button>
@@ -66,7 +66,7 @@ export function SiteHeader() {
         {/* Mobile Hamburger Toggle */}
         <button
           onClick={() => setOpen(!open)}
-          className="rounded-xl p-2 text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
+          className="rounded-xl p-2 text-slate-300 hover:bg-white/10 lg:hidden"
           aria-label="Toggle navigation"
         >
           {open ? <X size={20} /> : <Menu size={20} />}
@@ -75,27 +75,27 @@ export function SiteHeader() {
 
       {/* Mobile Drawer */}
       {open && (
-        <div className="mx-4 mb-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl lg:hidden animate-in fade-in slide-in-from-top-2">
+        <div className="mx-4 mb-4 rounded-2xl border border-white/10 bg-[#090d16]/95 p-5 shadow-2xl backdrop-blur-2xl lg:hidden animate-in fade-in slide-in-from-top-2">
           <nav className="flex flex-col gap-2">
             {links.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className="rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-300 hover:bg-white/10 hover:text-white transition"
               >
                 {link.label}
               </a>
             ))}
-            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2">
+            <div className="mt-3 pt-3 border-t border-white/10 flex flex-col gap-2">
               <Link
                 to="/login"
                 onClick={() => setOpen(false)}
-                className="rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-300 hover:bg-white/10 hover:text-white"
               >
                 Sign in
               </Link>
-              <Button href="/register" withArrow className="w-full justify-center">
+              <Button href="/register" withArrow className="w-full justify-center bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold">
                 Join Next Cohort
               </Button>
             </div>
