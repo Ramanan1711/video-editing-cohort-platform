@@ -33,6 +33,7 @@ import { TiltCard } from '../components/home/TiltCard';
 import { CustomCursor } from '../components/home/CustomCursor';
 import { StudioBar } from '../components/home/StudioBar';
 import { FwCard } from '../components/home/FwCard';
+import { RobotTerminal } from '../components/home/RobotTerminal';
 import { soundFx } from '../lib/soundFx';
 
 export function Home() {
@@ -286,28 +287,32 @@ export function Home() {
 
       <main>
         {/* ========================================================================= */}
-        {/* HERO SECTION WITH INTERACTIVE 3D WEBGL / GRADIENT CANVAS SIMULATOR */}
+        {/* HERO SECTION WITH 3D ROBOT TERMINAL & JUNCA STUDIO TYPOGRAPHY */}
         {/* ========================================================================= */}
-        <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-32 bg-[#030712]">
+        <section className="hero relative overflow-hidden bg-[#080808] border-b border-white/10 min-h-[92vh] lg:min-h-screen flex items-end pb-16 lg:pb-28">
+          {/* Atmospheric crimson volumetric gradient inspired by Junca Studio */}
+          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_75%_55%_at_70%_40%,rgba(220,38,38,0.22),transparent_70%)]" />
+          <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-red-600/10 blur-[140px]" />
+
           {/* Interactive 3D / Gradient WebGL Canvas Hero Simulator */}
           <HeroCanvasSimulator />
 
-          {/* Dynamic Cinematic Ambient Spotlights */}
-          <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 -z-10 h-[650px] w-full max-w-7xl">
-            <div className="absolute top-10 left-1/4 size-[450px] rounded-full bg-orange-500/15 blur-[120px] animate-pulse-glow-slow" />
-            <div className="absolute top-28 right-1/4 size-[420px] rounded-full bg-indigo-500/10 blur-[130px] animate-pulse-glow-slow" />
+          {/* 3D Retro-Futuristic Robot Terminal Character with Visor CRT & Fan */}
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 lg:right-12 xl:right-20 z-1 hidden md:flex items-center justify-center opacity-90 hover:opacity-100 transition-opacity">
+            <RobotTerminal />
           </div>
 
-          <div className="relative z-10 mx-auto max-w-7xl px-5 lg:px-8">
-            <div className="flex flex-col items-center text-center">
+          {/* Exact Requested Hero Content Markup */}
+          <div className="container hero__content mx-auto max-w-7xl px-5 lg:px-8 relative z-10 w-full" data-astro-cid-lcdefpme="">
+            <div className="flex flex-col items-start text-left max-w-3xl">
               {/* Verified Status Pill */}
               <div
                 data-cursor="COHORT TELEMETRY"
-                className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-orange-500/30 bg-[#090d16]/80 px-4 py-1.5 shadow-lg shadow-orange-500/10 backdrop-blur-xl"
+                className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-orange-500/30 bg-[#090d16]/80 px-4 py-1.5 shadow-lg shadow-orange-500/10 backdrop-blur-xl"
               >
                 <span className="flex size-2 rounded-full bg-orange-500 animate-ping" />
                 <span className="text-[11px] font-black uppercase tracking-wider text-orange-400 font-mono">
-                  15-Day Intensive Production Internship
+                  Stop Watching Tutorials · 15-Day Production Sprint
                 </span>
                 <span className="hidden sm:inline text-white/20">•</span>
                 <span className="hidden sm:inline text-[11px] font-bold text-slate-300 font-mono">
@@ -315,12 +320,9 @@ export function Home() {
                 </span>
               </div>
 
-              {/* Main Headline with Fluid Typography */}
-              <h1 className="max-w-4xl text-[clamp(2.4rem,5.5vw,4.5rem)] font-black tracking-tight text-white leading-[1.06]">
-                Stop Watching Tutorials.{' '}
-                <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500 bg-clip-text text-transparent drop-shadow-sm">
-                  Start Shipping Production.
-                </span>
+              {/* Exact Requested Hero Title Markup */}
+              <h1 className="hero__title" data-hero-titre="" data-scr-skip="" data-astro-cid-lcdefpme="">
+                Start Shipping Production.
               </h1>
 
               {/* Subtitle */}
@@ -354,7 +356,7 @@ export function Home() {
               </div>
 
               {/* Substantiated Quality Metrics Banner */}
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-300">
+              <div className="mt-8 flex flex-wrap items-center justify-start gap-4 text-xs text-slate-300">
                 <div className="inline-flex items-center gap-1.5 font-bold">
                   <CheckCircle2 size={15} className="text-emerald-400" />
                   <span>15 Daily Submissions Required</span>
@@ -372,14 +374,20 @@ export function Home() {
                     ))}
                   </div>
                   <span className="font-bold text-white">4.9/5</span>
-                  <span>Student Satisfaction*</span>
+                  <span>Satisfaction*</span>
                 </div>
               </div>
 
-              <p className="mt-1 text-[10px] text-slate-400">
+              <p className="mt-2 text-[10px] text-slate-400">
                 *Based on post-sprint feedback surveys across verified cohort completions.
               </p>
             </div>
+          </div>
+        </section>
+
+        {/* Live Interactive Platform Mockup Section */}
+        <section className="relative py-12 px-5 lg:px-8 bg-[#040813] border-b border-white/10">
+          <div className="mx-auto max-w-7xl">
 
             {/* Live Interactive Platform Mockup with 3D Depth-Tilt & Specular Lighting */}
             <div className="mt-14 relative perspective-1200">

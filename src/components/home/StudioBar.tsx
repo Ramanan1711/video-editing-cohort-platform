@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Volume2, VolumeX, Radio } from 'lucide-react';
 import { soundFx } from '../../lib/soundFx';
 
 export const StudioBar: React.FC = () => {
@@ -32,65 +31,57 @@ export const StudioBar: React.FC = () => {
   };
 
   return (
-    <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-40 hidden md:flex items-center justify-between font-mono text-[11px] tracking-wider text-slate-400 select-none">
-      {/* Left Studio Telemetry */}
-      <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 bg-[#030712]/80 px-4 py-2 backdrop-blur-xl shadow-2xl transition hover:border-white/20">
-        <div className="flex items-center gap-1.5 text-emerald-400">
+    <div className="pointer-events-none fixed bottom-4 left-6 right-8 z-40 hidden md:flex items-center justify-between font-mono text-[11px] tracking-wider text-slate-400 select-none">
+      {/* Left: Copyright */}
+      <div className="pointer-events-auto flex items-center gap-4">
+        <span className="text-slate-300 font-mono font-medium">©2026</span>
+        <div className="flex items-center gap-1.5 text-emerald-400 border-l border-white/15 pl-4">
           <span className="relative flex size-2">
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
           </span>
-          <span className="font-bold text-slate-200">BATCH 15 LIVE</span>
+          <span className="font-bold text-slate-300">BATCH 15 LIVE</span>
         </div>
-        <span className="text-white/20">•</span>
-        <div className="flex items-center gap-1.5 text-slate-300">
-          <Radio size={12} className="text-orange-400" />
-          <span>STUDIO TIME {timeStr}</span>
-        </div>
-        <span className="text-white/20 hidden lg:inline">•</span>
-        <span className="text-slate-400 hidden lg:inline">24/30 CANDIDATES</span>
       </div>
 
-      {/* Right Sound Synthesizer Controller */}
+      {/* Middle: UTC Studio Time */}
+      <div className="pointer-events-auto flex items-center gap-2 text-slate-300 font-mono">
+        <span className="text-slate-400">(UTC+1)</span>
+        <span className="font-semibold text-slate-200">{timeStr || '11:31:42 AM'}</span>
+      </div>
+
+      {/* Right: Junca Turbine Sound Toggle */}
       <button
         type="button"
         onClick={handleSoundToggle}
         data-cursor={soundOn ? 'MUTE SOUND' : 'ENABLE SOUND'}
-        className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 backdrop-blur-xl shadow-2xl transition cursor-pointer ${
-          soundOn
-            ? 'border-orange-500/40 bg-orange-500/10 text-orange-400 shadow-orange-500/10'
-            : 'border-white/10 bg-[#030712]/80 text-slate-400 hover:text-white hover:border-white/25'
-        }`}
+        className="pointer-events-auto flex items-center gap-2.5 text-slate-300 hover:text-white transition-colors cursor-pointer group"
         aria-label={soundOn ? 'Turn sound off' : 'Turn sound on'}
       >
-        {/* Animated Equalizer Wave Bars */}
-        <div className="flex items-end gap-0.5 h-3">
-          <span
-            className={`w-0.5 rounded-full bg-current transition-all ${
-              soundOn ? 'h-3 animate-pulse' : 'h-1'
-            }`}
-          />
-          <span
-            className={`w-0.5 rounded-full bg-current transition-all ${
-              soundOn ? 'h-2 animate-bounce' : 'h-1'
-            }`}
-          />
-          <span
-            className={`w-0.5 rounded-full bg-current transition-all ${
-              soundOn ? 'h-3.5 animate-pulse' : 'h-1'
-            }`}
-          />
-        </div>
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          className={`transition-transform duration-500 ${soundOn ? 'animate-spin text-orange-400' : 'text-slate-400 group-hover:text-white'}`}
+          fill="currentColor"
+        >
+          <g>
+            <path d="M12 12 C 13.6 8.6, 13.2 4.6, 10.1 2.5 C 15.6 2, 19.3 6.4, 18.7 10.6 C 16.6 11.7, 14.2 12.1, 12 12 Z" />
+            <path
+              d="M12 12 C 13.6 8.6, 13.2 4.6, 10.1 2.5 C 15.6 2, 19.3 6.4, 18.7 10.6 C 16.6 11.7, 14.2 12.1, 12 12 Z"
+              transform="rotate(120 12 12)"
+            />
+            <path
+              d="M12 12 C 13.6 8.6, 13.2 4.6, 10.1 2.5 C 15.6 2, 19.3 6.4, 18.7 10.6 C 16.6 11.7, 14.2 12.1, 12 12 Z"
+              transform="rotate(240 12 12)"
+            />
+            <circle cx="12" cy="12" r="2.1" />
+          </g>
+        </svg>
 
-        <span className="font-bold uppercase tracking-widest text-[10px]">
-          {soundOn ? 'SOUND: ON' : 'SOUND: OFF'}
+        <span className="font-mono text-xs font-semibold tracking-wider">
+          {soundOn ? 'Sound: On' : 'Sound'}
         </span>
-
-        {soundOn ? (
-          <Volume2 size={13} className="text-orange-400" />
-        ) : (
-          <VolumeX size={13} className="text-slate-500" />
-        )}
       </button>
     </div>
   );
