@@ -708,5 +708,76 @@ button, a { -webkit-tap-highlight-color: transparent; }
   -webkit-user-select: none;
 }
 
+/* ========================================================================= */
+/* Vertical Connected Roadmap Styles with Smooth Transforms                  */
+/* ========================================================================= */
+
+.roadmap-track {
+  position: relative;
+}
+
+.roadmap-track::before {
+  content: '';
+  position: absolute;
+  top: 1.25rem;
+  bottom: 2rem;
+  left: 1.125rem;
+  width: 2px;
+  background: linear-gradient(180deg, #f97316 0%, #fbbf24 45%, #10b981 100%);
+  opacity: 0.85;
+  border-radius: 9999px;
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.4);
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .roadmap-track::before {
+    left: 1.25rem;
+  }
+}
+
+.roadmap-laser-node {
+  position: absolute;
+  left: calc(1.125rem - 3px);
+  width: 8px;
+  height: 28px;
+  background: linear-gradient(180deg, #ffffff, #fbbf24);
+  border-radius: 9999px;
+  filter: drop-shadow(0 0 8px #f97316);
+  animation: laserSlide 5s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 5;
+}
+
+@media (min-width: 640px) {
+  .roadmap-laser-node {
+    left: calc(1.25rem - 3px);
+  }
+}
+
+@keyframes laserSlide {
+  0% {
+    top: 2%;
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+    height: 40px;
+  }
+  100% {
+    top: 96%;
+    opacity: 0.3;
+  }
+}
+
+.roadmap-card-transform {
+  will-change: transform, box-shadow, border-color;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.25s ease, 
+              background-color 0.25s ease, 
+              box-shadow 0.3s ease;
+}
+
+
 
 

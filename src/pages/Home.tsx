@@ -6,6 +6,8 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Code2,
   Download,
@@ -40,6 +42,7 @@ export function Home() {
   const [selectedTrack, setSelectedTrack] = useState<'coding' | 'creative'>('creative');
   const [activeSprintPhase, setActiveSprintPhase] = useState<'p1' | 'p2' | 'p3'>('p1');
   const [selectedDayDetail, setSelectedDayDetail] = useState<number>(4);
+  const [roadmapFilter, setRoadmapFilter] = useState<'all' | 1 | 2 | 3>('all');
   const [projectRate, setProjectRate] = useState<number>(500);
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [activeChatScenario, setActiveChatScenario] = useState<'code' | 'video' | 'nudge'>('video');
@@ -1178,112 +1181,404 @@ export function Home() {
         </section>
 
         {/* ========================================================================= */}
-        {/* SECTION 4: COMPLETE 15-DAY DAILY ARCHITECTURE INSPECTOR */}
+        {/* SECTION 4: COMPLETE 15-DAY DAILY ARCHITECTURE ROADMAP */}
         {/* ========================================================================= */}
-        <section id="sprint" className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative">
+        <section id="sprint" className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden">
+          {/* Subtle ambient background glow */}
+          <div className="pointer-events-none absolute top-1/4 right-0 size-[500px] rounded-full bg-orange-500/5 blur-[140px] -z-10" />
+          <div className="pointer-events-none absolute bottom-1/4 left-0 size-[500px] rounded-full bg-indigo-500/5 blur-[140px] -z-10" />
+
           <div className="mx-auto max-w-7xl px-5 lg:px-8">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-400">
-                  Full 15-Day Architecture
+                  Full 15-Day Connected Roadmap
                 </p>
                 <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-white">
                   Inspect Every Single Day Before You Commit
                 </h2>
               </div>
               <p className="text-xs sm:text-sm text-slate-400 max-w-md leading-relaxed">
-                Click any day below to inspect the exact deliverable, tools used, grading focus, and expected time commitment.
+                Scroll and explore our 15-day production syllabus connected milestone by milestone. Click any node to inspect briefs, tools, deliverables, and mentor evaluation criteria.
               </p>
             </div>
 
-            {/* Day Selector Strip */}
-            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-15 gap-2 pb-4 overflow-x-auto">
-              {full15Days.map((d) => (
+            {/* Phase Filters & Quick Jump Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-8 pb-4 border-b border-white/10">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
-                  key={d.day}
-                  data-cursor={`DAY ${d.day.toString().padStart(2, '0')}`}
+                  type="button"
                   onClick={() => {
-                    setSelectedDayDetail(d.day);
-                    soundFx.playBlip(320 + d.day * 22, 0.035, 'sine', 0.035);
+                    setRoadmapFilter('all');
+                    soundFx.playBlip(380, 0.03, 'sine', 0.03);
                   }}
-                  className={`flex flex-col items-center py-3 px-2 rounded-xl border transition cursor-pointer ${
-                    selectedDayDetail === d.day
-                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 border-none text-white shadow-lg shadow-orange-500/25 scale-105'
-                      : 'bg-[#090d16] border-white/10 text-slate-300 hover:border-orange-500/40'
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                    roadmapFilter === 'all'
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20'
+                      : 'bg-[#090d16] border border-white/10 text-slate-400 hover:text-white hover:border-white/25'
                   }`}
                 >
-                  <span className="text-[10px] uppercase font-bold opacity-75">Day</span>
-                  <span className="text-base font-black font-mono">{d.day.toString().padStart(2, '0')}</span>
-                  <span className="mt-1 size-1.5 rounded-full bg-current" />
+                  All 15 Days
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoadmapFilter(1);
+                    soundFx.playBlip(420, 0.03, 'sine', 0.03);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                    roadmapFilter === 1
+                      ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                      : 'bg-[#090d16] border border-white/10 text-slate-400 hover:text-white hover:border-white/25'
+                  }`}
+                >
+                  Phase 1 · Foundations (Days 1–5)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoadmapFilter(2);
+                    soundFx.playBlip(460, 0.03, 'sine', 0.03);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                    roadmapFilter === 2
+                      ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+                      : 'bg-[#090d16] border border-white/10 text-slate-400 hover:text-white hover:border-white/25'
+                  }`}
+                >
+                  Phase 2 · Depth &amp; APIs (Days 6–10)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoadmapFilter(3);
+                    soundFx.playBlip(500, 0.03, 'sine', 0.03);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                    roadmapFilter === 3
+                      ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                      : 'bg-[#090d16] border border-white/10 text-slate-400 hover:text-white hover:border-white/25'
+                  }`}
+                >
+                  Phase 3 · Capstone &amp; LOR (Days 11–15)
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
+                <span className="size-2 rounded-full bg-orange-400 animate-ping" />
+                <span>15 Production Milestones</span>
+              </div>
             </div>
 
-            {/* Selected Day Expanded Detail Card */}
-            {(() => {
-              const activeDay = full15Days.find((d) => d.day === selectedDayDetail) || full15Days[3];
-              return (
-                <TiltCard
-                  maxTilt={3}
-                  scale={1.01}
-                  perspective={1200}
-                  glareOpacity={0.15}
-                  glareColor="rgba(249, 115, 22, 0.2)"
-                  className="mt-6 p-6 sm:p-8 glass-obsidian border-orange-500/30 bg-[#090d16]/90 shadow-2xl"
-                >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-white/10">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-md bg-orange-500/20 border border-orange-500/30 px-2.5 py-0.5 text-xs font-black uppercase text-orange-400 font-mono">
-                          Day {activeDay.day.toString().padStart(2, '0')} · Phase {activeDay.phase}
+            {/* Split Screen Layout: Vertical Connected Roadmap + Sticky Live Inspector */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+              {/* Left Column: Vertical Connected Transform Roadmap Track */}
+              <div className="lg:col-span-7">
+                <div className="roadmap-track pl-6 sm:pl-8 space-y-4">
+                  {/* Glowing Animated Laser Node traversing the spine */}
+                  <div className="roadmap-laser-node" />
+
+                  {full15Days
+                    .filter((d) => roadmapFilter === 'all' || d.phase === roadmapFilter)
+                    .map((d) => {
+                      const isSelected = selectedDayDetail === d.day;
+                      const isPhaseStart =
+                        roadmapFilter === 'all' && (d.day === 1 || d.day === 6 || d.day === 11);
+
+                      return (
+                        <div key={d.day} className="relative group">
+                          {/* Phase Milestone Marker */}
+                          {isPhaseStart && (
+                            <div className="pt-4 pb-2 -ml-6 sm:-ml-8 first:pt-0">
+                              <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-[#060a16] px-3.5 py-1 text-[11px] font-black uppercase tracking-wider text-orange-300 font-mono shadow-md backdrop-blur-xl">
+                                {d.day === 1 ? (
+                                  <Zap size={12} className="text-orange-400" />
+                                ) : d.day === 6 ? (
+                                  <Flame size={12} className="text-amber-400" />
+                                ) : (
+                                  <Trophy size={12} className="text-emerald-400" />
+                                )}
+                                <span>
+                                  {d.day === 1
+                                    ? 'Phase 01 · Foundations & Kinetic Pacing'
+                                    : d.day === 6
+                                    ? 'Phase 02 · Advanced Workflows & APIs'
+                                    : 'Phase 03 · Commercial Capstone & Exit Referral'}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex items-start gap-3 sm:gap-5">
+                            {/* Connected Spine Node Button */}
+                            <div className="relative z-10 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDayDetail(d.day);
+                                  soundFx.playBlip(320 + d.day * 22, 0.035, 'sine', 0.035);
+                                }}
+                                data-cursor={`DAY ${d.day.toString().padStart(2, '0')}`}
+                                className={`size-8 sm:size-9 rounded-full flex items-center justify-center font-mono font-black text-xs transition-all duration-300 cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white ring-4 ring-orange-500/30 shadow-lg shadow-orange-500/40 scale-110'
+                                    : 'bg-[#090d16] border border-white/20 text-slate-300 hover:border-orange-500/50 hover:text-white hover:scale-105'
+                                }`}
+                              >
+                                {d.day.toString().padStart(2, '0')}
+                              </button>
+                            </div>
+
+                            {/* Connected Horizontal Branch Line */}
+                            <div
+                              className={`absolute left-[15px] sm:left-[17px] top-[15px] sm:top-[17px] w-4 sm:w-6 h-0.5 pointer-events-none transition-colors duration-300 -z-0 ${
+                                isSelected
+                                  ? 'bg-gradient-to-r from-orange-500 to-amber-500'
+                                  : 'bg-white/10 group-hover:bg-orange-500/30'
+                              }`}
+                            />
+
+                            {/* Connected Roadmap Card with Smooth Transform */}
+                            <div
+                              onClick={() => {
+                                setSelectedDayDetail(d.day);
+                                soundFx.playBlip(320 + d.day * 22, 0.035, 'sine', 0.035);
+                              }}
+                              data-cursor={`INSPECT DAY ${d.day.toString().padStart(2, '0')}`}
+                              style={{ willChange: 'transform' }}
+                              className={`w-full text-left p-4 sm:p-5 rounded-2xl border transition-all duration-300 cursor-pointer roadmap-card-transform ${
+                                isSelected
+                                  ? 'translate-x-1 sm:translate-x-2 border-orange-500/80 bg-gradient-to-r from-orange-500/15 via-[#0b1122] to-[#080d1a] shadow-xl shadow-orange-500/15'
+                                  : 'bg-[#090d16]/85 border-white/10 hover:border-orange-500/40 hover:bg-[#0c1222]/90 hover:translate-x-1'
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`px-2 py-0.5 rounded text-[10px] font-black uppercase font-mono tracking-wider ${
+                                      isSelected
+                                        ? 'bg-orange-500 text-white'
+                                        : 'bg-white/10 text-orange-400'
+                                    }`}
+                                  >
+                                    Day {d.day.toString().padStart(2, '0')}
+                                  </span>
+                                  <span className="text-[11px] font-bold text-slate-400 font-mono">
+                                    Phase {d.phase}
+                                  </span>
+                                  <span className="text-white/20">•</span>
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                                    <Clock size={11} className="text-orange-400" />
+                                    <span>{d.time} sprint</span>
+                                  </span>
+                                </div>
+
+                                <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono text-slate-300">
+                                  <Code2 size={11} className="text-indigo-400" />
+                                  <span className="truncate max-w-[180px]">{d.tool}</span>
+                                </div>
+                              </div>
+
+                              <h3
+                                className={`text-base font-black tracking-tight leading-snug transition-colors ${
+                                  isSelected
+                                    ? 'text-white'
+                                    : 'text-slate-100 group-hover:text-orange-300'
+                                }`}
+                              >
+                                {d.title}
+                              </h3>
+
+                              <p className="mt-1.5 text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                                {d.desc}
+                              </p>
+
+                              <div className="mt-3.5 pt-3 border-t border-white/5 flex items-center justify-between gap-2 text-xs">
+                                <span className="text-[11px] font-medium text-slate-300 truncate">
+                                  <strong className="text-orange-400 font-mono">Output: </strong>
+                                  {d.deliverable}
+                                </span>
+                                <span
+                                  className={`shrink-0 inline-flex items-center gap-1 text-[11px] font-bold transition-transform ${
+                                    isSelected
+                                      ? 'text-orange-400 translate-x-1'
+                                      : 'text-slate-400 group-hover:text-orange-400 group-hover:translate-x-1'
+                                  }`}
+                                >
+                                  <span>Inspect</span>
+                                  <ArrowRight size={12} />
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Right Column: Sticky Selected Day Deep-Dive Inspector */}
+              <div className="lg:col-span-5 sticky top-24 self-start">
+                {(() => {
+                  const activeDay =
+                    full15Days.find((d) => d.day === selectedDayDetail) || full15Days[3];
+                  const prevDay = activeDay.day > 1 ? activeDay.day - 1 : null;
+                  const nextDay = activeDay.day < 15 ? activeDay.day + 1 : null;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Stepper Navigation Controls */}
+                      <div className="flex items-center justify-between bg-[#060913] border border-white/10 rounded-2xl px-4 py-2.5 backdrop-blur-xl">
+                        <button
+                          type="button"
+                          disabled={!prevDay}
+                          onClick={() => {
+                            if (prevDay) {
+                              setSelectedDayDetail(prevDay);
+                              soundFx.playBlip(320 + prevDay * 22, 0.035, 'sine', 0.035);
+                            }
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                            prevDay
+                              ? 'bg-white/5 hover:bg-orange-500/20 text-slate-200 hover:text-orange-300 cursor-pointer'
+                              : 'opacity-30 cursor-not-allowed text-slate-500'
+                          }`}
+                        >
+                          <ChevronLeft size={14} />
+                          <span>Day {(activeDay.day - 1).toString().padStart(2, '0')}</span>
+                        </button>
+
+                        <span className="text-xs font-black font-mono text-orange-400 tracking-wider">
+                          DAY {activeDay.day.toString().padStart(2, '0')} / 15
                         </span>
-                        <span className="rounded-md bg-white/5 border border-white/10 px-2 py-0.5 text-[11px] font-bold text-slate-300 font-mono">
-                          {activeDay.time} sprint
-                        </span>
-                      </div>
-                      <h3 className="text-xl sm:text-2xl font-black text-white">
-                        {activeDay.title}
-                      </h3>
-                    </div>
 
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="text-right hidden sm:block">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tools Involved</p>
-                        <p className="text-xs font-black text-white font-mono">{activeDay.tool}</p>
+                        <button
+                          type="button"
+                          disabled={!nextDay}
+                          onClick={() => {
+                            if (nextDay) {
+                              setSelectedDayDetail(nextDay);
+                              soundFx.playBlip(320 + nextDay * 22, 0.035, 'sine', 0.035);
+                            }
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                            nextDay
+                              ? 'bg-white/5 hover:bg-orange-500/20 text-slate-200 hover:text-orange-300 cursor-pointer'
+                              : 'opacity-30 cursor-not-allowed text-slate-500'
+                          }`}
+                        >
+                          <span>Day {(activeDay.day + 1).toString().padStart(2, '0')}</span>
+                          <ChevronRight size={14} />
+                        </button>
                       </div>
-                      <Button href="/register" size="sm" className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold border-none shadow-md shadow-orange-500/20">
-                        <span>Enroll Now</span>
-                        <ArrowRight size={13} />
-                      </Button>
-                    </div>
-                  </div>
 
-                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-2 space-y-3">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">The Brief</h4>
-                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                        {activeDay.desc}
-                      </p>
-                      <div className="pt-2 flex items-center gap-2 text-xs font-bold text-slate-500">
-                        <Clock size={14} className="text-orange-500" />
-                        <span>24-Hour Submission Window (Due 11:59 PM)</span>
-                      </div>
-                    </div>
+                      {/* Detailed 3D Tilt Card */}
+                      <TiltCard
+                        maxTilt={4}
+                        scale={1.01}
+                        perspective={1200}
+                        glareOpacity={0.18}
+                        glareColor="rgba(249, 115, 22, 0.25)"
+                        className="p-6 sm:p-7 glass-obsidian border-orange-500/40 bg-[#090d16]/95 shadow-2xl rounded-3xl"
+                      >
+                        {/* Card Header */}
+                        <div className="space-y-2 pb-5 border-b border-white/10">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-md bg-orange-500/20 border border-orange-500/40 px-2.5 py-0.5 text-xs font-black uppercase text-orange-400 font-mono">
+                                Day {activeDay.day.toString().padStart(2, '0')} · Phase {activeDay.phase}
+                              </span>
+                              <span className="rounded-md bg-white/5 border border-white/10 px-2 py-0.5 text-[11px] font-bold text-slate-300 font-mono">
+                                {activeDay.time} sprint
+                              </span>
+                            </div>
+                            <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 font-mono">
+                              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              Active Brief
+                            </span>
+                          </div>
 
-                    <div className="rounded-xl border border-white/10 bg-[#060911]/80 p-4 space-y-2">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-orange-400 font-mono">Expected Deliverable</h4>
-                      <p className="text-xs font-bold text-white">
-                        {activeDay.deliverable}
-                      </p>
-                      <div className="border-t border-white/10 pt-2 text-[11px] text-slate-400">
-                        <strong className="text-slate-200">Grading Focus: </strong>
-                        {activeDay.rubricPoints}
-                      </div>
+                          <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
+                            {activeDay.title}
+                          </h3>
+
+                          <div className="flex items-center gap-2 text-xs text-slate-400 font-mono pt-1">
+                            <span className="text-slate-500">Stack:</span>
+                            <span className="text-white font-bold">{activeDay.tool}</span>
+                          </div>
+                        </div>
+
+                        {/* Card Body */}
+                        <div className="mt-5 space-y-5">
+                          {/* The Brief */}
+                          <div>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 font-mono mb-1.5">
+                              The Brief &amp; Narrative
+                            </h4>
+                            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                              {activeDay.desc}
+                            </p>
+                            <div className="mt-2.5 flex items-center gap-2 text-xs font-bold text-slate-400">
+                              <Clock size={13} className="text-orange-500" />
+                              <span>24-Hour Submission Window (Due 11:59 PM)</span>
+                            </div>
+                          </div>
+
+                          {/* Expected Deliverable */}
+                          <div className="rounded-xl border border-white/10 bg-[#060911]/90 p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-xs font-black uppercase tracking-wider text-orange-400 font-mono">
+                                Expected Deliverable
+                              </h4>
+                              <CheckCircle2 size={14} className="text-emerald-400" />
+                            </div>
+                            <p className="text-xs font-bold text-white leading-relaxed">
+                              {activeDay.deliverable}
+                            </p>
+                          </div>
+
+                          {/* Mentor Grading Rubric */}
+                          <div className="rounded-xl border border-white/10 bg-[#060911]/60 p-4 space-y-1.5">
+                            <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 font-mono">
+                              Mentor Grading Focus (0–100 Rubric)
+                            </h4>
+                            <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                              {activeDay.rubricPoints}
+                            </p>
+                          </div>
+
+                          {/* WhatsApp Mentor SLA Callout */}
+                          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 flex items-center gap-3">
+                            <div className="flex size-7 items-center justify-center rounded-full bg-[#25D366] text-white shrink-0">
+                              <MessageCircle size={14} />
+                            </div>
+                            <div className="text-xs">
+                              <p className="font-bold text-white leading-none">1-on-1 Mentor Support</p>
+                              <p className="text-[11px] text-emerald-400 mt-0.5">Instant WhatsApp blocker help with &lt;15m response SLA</p>
+                            </div>
+                          </div>
+
+                          {/* CTA Button */}
+                          <div className="pt-2">
+                            <Button
+                              href="/register"
+                              size="md"
+                              data-cursor="ENROLL IN SPRINT"
+                              onClick={() => soundFx.playSweep(300, 700, 0.12, 0.05)}
+                              className="w-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 justify-center py-3"
+                            >
+                              <span>Enroll In 15-Day Sprint</span>
+                              <ArrowRight size={15} />
+                            </Button>
+                          </div>
+                        </div>
+                      </TiltCard>
                     </div>
-                  </div>
-                </TiltCard>
-              );
-            })()}
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         </section>
 
