@@ -48,6 +48,20 @@ const handleOpenSecureSubmissionFile = async (e: React.MouseEvent, rawUrl: strin
   window.open(secureUrl, '_blank', 'noopener,noreferrer');
 };
 
+function getCohortEnrollmentStatus(cohort: Cohort): { isOpen: boolean; label?: string } {
+  if (cohort.status && !['published', 'active'].includes(cohort.status)) {
+    return { isOpen: false, label: 'Not Open' };
+  }
+  const now = Date.now();
+  if (cohort.enrollment_start && new Date(cohort.enrollment_start).getTime() > now) {
+    return { isOpen: false, label: 'Opening Soon' };
+  }
+  if (cohort.enrollment_end && new Date(cohort.enrollment_end).getTime() < now) {
+    return { isOpen: false, label: 'Enrollment Closed' };
+  }
+  return { isOpen: true };
+}
+
 export function EnrollmentPanel({ userId, onEnrolled }: { userId: string; onEnrolled: () => void }) {
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [selectedId, setSelectedId] = useState('');
@@ -67,9 +81,10 @@ export function EnrollmentPanel({ userId, onEnrolled }: { userId: string; onEnro
   }, [userId]);
 
   const selectedCohort = cohorts.find((c) => c.id === selectedId);
+  const selectedStatus = selectedCohort ? getCohortEnrollmentStatus(selectedCohort) : null;
 
   const enroll = async () => {
-    if (!selectedCohort) return;
+    if (!selectedCohort || !selectedStatus?.isOpen) return;
     setSaving(true);
     setError(null);
 
@@ -118,29 +133,50 @@ export function EnrollmentPanel({ userId, onEnrolled }: { userId: string; onEnro
         <LoaderCircle className="mt-8 animate-spin text-orange-500" size={20} />
       ) : cohorts.length ? (
         <div className="mt-7 space-y-3">
-          {cohorts.map((cohort) => (
-            <button
-              key={cohort.id}
-              onClick={() => setSelectedId(cohort.id)}
-              className={`flex w-full items-start justify-between rounded-xl border p-4 text-left transition ${
-                selectedId === cohort.id ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-orange-200'
-              }`}
-            >
-              <span>
-                <div className="flex items-center gap-2">
-                  <strong className="block text-sm text-slate-950">{cohort.name}</strong>
-                  <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                    ₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')} INR
-                  </span>
-                </div>
-                <span className="mt-1 block text-sm text-slate-500">{cohort.description || 'A focused learning cohort.'}</span>
-              </span>
-              {selectedId === cohort.id && <Check className="text-orange-600" size={19} />}
-            </button>
-          ))}
-          <Button onClick={() => void enroll()} loading={saving} disabled={!selectedId} className="mt-3">
+          {cohorts.map((cohort) => {
+            const status = getCohortEnrollmentStatus(cohort);
+            const isSelected = selectedId === cohort.id;
+            return (
+              <button
+                key={cohort.id}
+                onClick={() => status.isOpen && setSelectedId(cohort.id)}
+                disabled={!status.isOpen}
+                className={`flex w-full items-start justify-between rounded-xl border p-4 text-left transition ${
+                  !status.isOpen
+                    ? 'opacity-60 bg-slate-50 border-slate-200 cursor-not-allowed'
+                    : isSelected
+                    ? 'border-orange-400 bg-orange-50'
+                    : 'border-slate-200 hover:border-orange-200'
+                }`}
+              >
+                <span>
+                  <div className="flex items-center gap-2">
+                    <strong className="block text-sm text-slate-950">{cohort.name}</strong>
+                    <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                      ₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')} INR
+                    </span>
+                    {!status.isOpen && (
+                      <span className="rounded-md bg-rose-50 border border-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                        {status.label}
+                      </span>
+                    )}
+                  </div>
+                  <span className="mt-1 block text-sm text-slate-500">{cohort.description || 'A focused learning cohort.'}</span>
+                </span>
+                {isSelected && <Check className="text-orange-600" size={19} />}
+              </button>
+            );
+          })}
+          <Button
+            onClick={() => void enroll()}
+            loading={saving}
+            disabled={!selectedId || !selectedStatus?.isOpen}
+            className="mt-3"
+          >
             {saving
               ? 'Opening checkout...'
+              : selectedStatus && !selectedStatus.isOpen
+              ? selectedStatus.label || 'Enrollment Closed'
               : selectedCohort && (selectedCohort.price_inr ?? 4999) > 0
               ? `Proceed to Checkout (₹${(selectedCohort.price_inr ?? 4999).toLocaleString('en-IN')})`
               : 'Enroll in cohort'}
@@ -296,14 +332,25 @@ export function CohortDiscoveryModal({
                         </span>
                       )}
                       {!isEnrolled && (
-                        <>
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                            Open to Join
-                          </span>
-                          <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                            ₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')} INR
-                          </span>
-                        </>
+                        (() => {
+                          const status = getCohortEnrollmentStatus(cohort);
+                          return (
+                            <>
+                              <span
+                                className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                                  status.isOpen
+                                    ? 'bg-slate-100 text-slate-600'
+                                    : 'bg-rose-50 border border-rose-200 text-rose-700'
+                                }`}
+                              >
+                                {status.isOpen ? 'Open to Join' : status.label || 'Closed'}
+                              </span>
+                              <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                                ₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')} INR
+                              </span>
+                            </>
+                          );
+                        })()
                       )}
                     </div>
                     <p className="mt-1 text-xs text-slate-500 leading-relaxed">
@@ -328,14 +375,22 @@ export function CohortDiscoveryModal({
                         Switch Cohort
                       </Button>
                     ) : (
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        loading={enrollingId === cohort.id}
-                        onClick={() => void handleEnrollAndSwitch(cohort)}
-                      >
-                        Enroll (₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')})
-                      </Button>
+                      (() => {
+                        const status = getCohortEnrollmentStatus(cohort);
+                        return (
+                          <Button
+                            size="sm"
+                            variant={status.isOpen ? 'primary' : 'secondary'}
+                            disabled={!status.isOpen}
+                            loading={enrollingId === cohort.id}
+                            onClick={() => status.isOpen && void handleEnrollAndSwitch(cohort)}
+                          >
+                            {status.isOpen
+                              ? `Enroll (₹${(cohort.price_inr ?? 4999).toLocaleString('en-IN')})`
+                              : status.label || 'Closed'}
+                          </Button>
+                        );
+                      })()
                     )}
                   </div>
                 </div>
