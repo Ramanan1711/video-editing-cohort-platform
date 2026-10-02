@@ -1,9 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, CheckCircle2, KeyRound, Lock, RefreshCw } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  KeyRound,
+  Lock,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/FormField';
+import { CustomCursor } from '../components/home/CustomCursor';
+import { StudioBar } from '../components/home/StudioBar';
+import { TiltCard } from '../components/home/TiltCard';
+import { soundFx } from '../lib/soundFx';
 
 export const ResetPassword: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -147,6 +160,7 @@ export const ResetPassword: React.FC = () => {
     }
 
     setLoading(true);
+    soundFx.playSweep(260, 600, 0.1, 0.05);
 
     try {
       // Re-verify that an active authenticated session exists before attempting update
@@ -181,6 +195,7 @@ export const ResetPassword: React.FC = () => {
       }
 
       setSuccess(true);
+      soundFx.playChime();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update password. Please try again.');
     } finally {
@@ -194,6 +209,7 @@ export const ResetPassword: React.FC = () => {
 
     setOtpLoading(true);
     setOtpError('');
+    soundFx.playSweep(260, 600, 0.1, 0.05);
 
     try {
       const { data, error: verifyError } = await supabase.auth.verifyOtp({
@@ -212,6 +228,7 @@ export const ResetPassword: React.FC = () => {
         setHasValidSession(true);
         setLinkError(null);
         setShowManualOtp(false);
+        soundFx.playChime();
       } else {
         setOtpError('Verification succeeded, but session could not be established.');
       }
@@ -223,206 +240,308 @@ export const ResetPassword: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] px-5 py-12">
-      <div className="w-full max-w-md">
-        <Link to="/" className="mx-auto mb-8 block w-fit text-sm font-black tracking-tight text-slate-950">
-          CUT / CRAFT
-        </Link>
+    <div className="relative min-h-screen bg-[#030712] text-slate-100 font-sans selection:bg-orange-500 selection:text-white overflow-x-hidden film-grain flex flex-col justify-between">
+      {/* Custom Magnetic Cursor */}
+      <CustomCursor />
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-900/5 sm:p-9">
-          {/* State 1: Verification in Progress */}
-          {isVerifying ? (
-            <div className="py-8 text-center">
-              <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 animate-spin">
-                <RefreshCw size={24} />
-              </div>
-              <h1 className="text-xl font-black tracking-tight text-slate-950">Verifying reset link...</h1>
-              <p className="mt-2 text-xs text-slate-500">
-                Please wait a moment while we establish your secure recovery session.
-              </p>
+      {/* Atmospheric crimson & amber volumetric lighting */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_75%_55%_at_70%_35%,rgba(220,38,38,0.22),transparent_70%)]" />
+      <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-red-600/10 blur-[140px]" />
+      <div className="pointer-events-none absolute bottom-12 right-1/4 -z-10 size-[450px] rounded-full bg-orange-500/10 blur-[130px]" />
+
+      <main className="flex-1 flex items-center justify-center px-5 py-12">
+        <div className="w-full max-w-md">
+          {/* Logo Header */}
+          <Link
+            to="/"
+            data-cursor="HOME"
+            className="mx-auto mb-8 flex items-center justify-center gap-2 group w-fit"
+          >
+            <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform">
+              <Sparkles size={19} />
             </div>
-          ) : success ? (
-            /* State 2: Password Successfully Reset */
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                <CheckCircle2 size={24} />
-              </div>
-              <h1 className="text-2xl font-black tracking-tight text-slate-950">Password updated</h1>
-              <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                Your password has been successfully reset. You can now use your new password to sign in.
-              </p>
-
-              <div className="mt-6">
-                <Button className="w-full" onClick={() => navigate('/login')}>
-                  Continue to log in
-                </Button>
-              </div>
+            <div className="flex items-center gap-1 leading-none font-sans">
+              <span className="text-2xl font-black tracking-tight text-white">
+                Growbytee
+              </span>
+              <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
+                Global
+              </span>
+              <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-orange-400">
+                Academy
+              </span>
             </div>
-          ) : linkError ? (
-            /* State 3: Link Expired or Invalid Error */
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-                <AlertCircle size={24} />
-              </div>
-              <p className="eyebrow text-amber-600">Link Expired or Invalid</p>
-              <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950">Password reset link invalid</h1>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                {linkError}
-              </p>
+          </Link>
 
-              <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-xs text-slate-500 text-left space-y-1.5">
-                <p className="font-bold text-slate-700">Common causes:</p>
-                <ul className="list-disc list-inside space-y-1 text-slate-600">
-                  <li>Security filters or anti-virus link scanners opened and consumed the one-time link.</li>
-                  <li>The link has expired (recovery links are time-limited).</li>
-                  <li>The link was already clicked or used previously.</li>
-                </ul>
+          {/* Interactive 3D Obsidian Tilt Card */}
+          <TiltCard
+            maxTilt={3}
+            scale={1.01}
+            perspective={1200}
+            glareOpacity={0.16}
+            glareColor="rgba(249, 115, 22, 0.25)"
+            className="relative rounded-3xl border border-white/10 bg-[#090d16]/90 p-7 sm:p-9 shadow-2xl backdrop-blur-2xl"
+          >
+            {/* State 1: Verification in Progress */}
+            {isVerifying ? (
+              <div className="py-8 text-center">
+                <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl border border-orange-500/30 bg-orange-500/15 text-orange-400 animate-spin shadow-lg shadow-orange-500/10">
+                  <RefreshCw size={26} />
+                </div>
+                <h1 className="text-2xl font-black tracking-tight text-white">
+                  Verifying reset link...
+                </h1>
+                <p className="mt-2 text-xs text-slate-400">
+                  Please wait a moment while we establish your secure recovery session.
+                </p>
               </div>
+            ) : success ? (
+              /* State 2: Password Successfully Reset */
+              <div className="text-center">
+                <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/15 text-emerald-400 shadow-lg shadow-emerald-500/10">
+                  <CheckCircle2 size={26} />
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                  Password updated
+                </h1>
+                <p className="mt-2.5 text-sm leading-relaxed text-slate-400">
+                  Your password has been successfully reset. You can now use your new password to sign in.
+                </p>
 
-              {/* Optional Manual OTP Verification Accordion */}
-              {showManualOtp ? (
-                <form onSubmit={handleManualOtpVerify} className="mt-6 space-y-4 text-left">
-                  <p className="text-xs font-bold text-slate-800">Enter recovery code from email:</p>
-                  {otpError && (
-                    <div className="rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
-                      {otpError}
-                    </div>
-                  )}
-                  <FormField
-                    id="otp-email"
-                    label="Email address"
-                    type="email"
-                    required
-                    value={otpEmail}
-                    onChange={(e) => setOtpEmail(e.target.value)}
-                    placeholder="name@domain.com"
-                  />
-                  <FormField
-                    id="otp-token"
-                    label="Recovery Code / Token"
-                    type="text"
-                    required
-                    value={otpToken}
-                    onChange={(e) => setOtpToken(e.target.value)}
-                    placeholder="6-digit code or token from email"
-                  />
-                  <Button type="submit" className="w-full" loading={otpLoading}>
-                    {otpLoading ? 'Verifying code...' : 'Verify recovery code'}
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={() => setShowManualOtp(false)}
-                    className="w-full text-center text-xs font-semibold text-slate-500 hover:text-slate-900"
-                  >
-                    Cancel manual entry
-                  </button>
-                </form>
-              ) : (
-                <div className="mt-6 flex flex-col gap-3">
+                <div className="mt-7">
                   <Button
-                    className="w-full justify-center"
+                    className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+                    onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
+                    onClick={() => navigate('/login')}
+                  >
+                    Continue to log in
+                  </Button>
+                </div>
+              </div>
+            ) : linkError ? (
+              /* State 3: Link Expired or Invalid Error */
+              <div className="text-center">
+                <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/15 text-amber-400 shadow-lg shadow-amber-500/10">
+                  <AlertCircle size={26} />
+                </div>
+                <div
+                  data-cursor="ALERT"
+                  className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-400 font-mono"
+                >
+                  Link Expired or Invalid
+                </div>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white">
+                  Password reset link invalid
+                </h1>
+                <p className="mt-2.5 text-sm leading-relaxed text-slate-400">
+                  {linkError}
+                </p>
+
+                <div className="mt-5 rounded-2xl border border-white/10 bg-[#060913]/90 p-4 text-xs text-slate-400 text-left space-y-2 backdrop-blur-xl">
+                  <p className="font-mono font-bold uppercase tracking-wider text-amber-300">Common causes:</p>
+                  <ul className="list-disc list-inside space-y-1 text-slate-400 leading-relaxed">
+                    <li>Security filters or anti-virus link scanners opened and consumed the one-time link.</li>
+                    <li>The link has expired (recovery links are time-limited).</li>
+                    <li>The link was already clicked or used previously.</li>
+                  </ul>
+                </div>
+
+                {/* Optional Manual OTP Verification Accordion */}
+                {showManualOtp ? (
+                  <form onSubmit={handleManualOtpVerify} className="mt-6 space-y-4 text-left">
+                    <p className="text-xs font-mono font-bold uppercase tracking-wider text-orange-400">
+                      Enter recovery code from email:
+                    </p>
+                    {otpError && (
+                      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
+                        {otpError}
+                      </div>
+                    )}
+                    <FormField
+                      id="otp-email"
+                      label="Email address"
+                      type="email"
+                      required
+                      value={otpEmail}
+                      onChange={(e) => setOtpEmail(e.target.value)}
+                      placeholder="name@domain.com"
+                      labelClassName="mb-1.5 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                      inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                    />
+                    <FormField
+                      id="otp-token"
+                      label="Recovery Code / Token"
+                      type="text"
+                      required
+                      value={otpToken}
+                      onChange={(e) => setOtpToken(e.target.value)}
+                      placeholder="6-digit code or token from email"
+                      labelClassName="mb-1.5 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                      inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                    />
+                    <Button
+                      type="submit"
+                      className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3 hover:scale-[1.01] transition-all"
+                      loading={otpLoading}
+                      onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
+                    >
+                      {otpLoading ? 'Verifying code...' : 'Verify recovery code'}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setShowManualOtp(false)}
+                      className="w-full text-center text-xs font-semibold text-slate-400 hover:text-white transition-colors pt-1"
+                    >
+                      Cancel manual entry
+                    </button>
+                  </form>
+                ) : (
+                  <div className="mt-7 flex flex-col gap-3">
+                    <Button
+                      className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+                      onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
+                      onClick={() => navigate('/forgot-password')}
+                    >
+                      Request a new reset link
+                    </Button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowManualOtp(true)}
+                      onMouseEnter={() => soundFx.playBlip(440, 0.02, 'sine', 0.02)}
+                      className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-orange-400 hover:text-orange-300 transition-colors py-1"
+                    >
+                      <KeyRound size={13} /> Enter recovery code manually
+                    </button>
+
+                    <Link
+                      to="/login"
+                      onMouseEnter={() => soundFx.playBlip(420, 0.02, 'sine', 0.02)}
+                      className="inline-flex items-center justify-center gap-1.5 text-sm font-bold text-slate-400 hover:text-white transition-colors mt-1"
+                    >
+                      <ArrowLeft size={14} /> Back to log in
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : !hasValidSession ? (
+              /* State 4: Direct Access Without Session or Token */
+              <div className="text-center">
+                <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl border border-orange-500/30 bg-orange-500/15 text-orange-400 shadow-lg shadow-orange-500/10">
+                  <Lock size={26} />
+                </div>
+                <div
+                  data-cursor="ALERT"
+                  className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-orange-500/30 bg-[#060913]/90 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-orange-400 font-mono"
+                >
+                  Recovery Session Missing
+                </div>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white">
+                  No reset session found
+                </h1>
+                <p className="mt-2.5 text-sm leading-relaxed text-slate-400">
+                  To reset your password, please click the recovery link sent to your email address or request a new one below.
+                </p>
+
+                <div className="mt-7 flex flex-col gap-3">
+                  <Button
+                    className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+                    onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
                     onClick={() => navigate('/forgot-password')}
                   >
-                    Request a new reset link
+                    Request a password reset link
                   </Button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowManualOtp(true)}
-                    className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700"
-                  >
-                    <KeyRound size={13} /> Enter recovery code manually
-                  </button>
-
                   <Link
                     to="/login"
-                    className="inline-flex items-center justify-center gap-1 text-sm font-bold text-slate-600 hover:text-slate-950 mt-1"
+                    onMouseEnter={() => soundFx.playBlip(420, 0.02, 'sine', 0.02)}
+                    className="inline-flex items-center justify-center gap-1.5 text-sm font-bold text-slate-400 hover:text-white transition-colors"
                   >
                     <ArrowLeft size={14} /> Back to log in
                   </Link>
                 </div>
-              )}
-            </div>
-          ) : !hasValidSession ? (
-            /* State 4: Direct Access Without Session or Token */
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
-                <Lock size={24} />
               </div>
-              <p className="eyebrow">Recovery Session Missing</p>
-              <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950">No reset session found</h1>
-              <p className="mt-3 text-sm leading-relaxed text-slate-500">
-                To reset your password, please click the recovery link sent to your email address or request a new one below.
-              </p>
-
-              <div className="mt-6 flex flex-col gap-3">
-                <Button
-                  className="w-full justify-center"
-                  onClick={() => navigate('/forgot-password')}
-                >
-                  Request a password reset link
-                </Button>
-                <Link
-                  to="/login"
-                  className="inline-flex items-center justify-center gap-1 text-sm font-bold text-slate-600 hover:text-slate-950"
-                >
-                  <ArrowLeft size={14} /> Back to log in
-                </Link>
-              </div>
-            </div>
-          ) : (
-            /* State 5: Active Recovery Session - Set New Password */
-            <>
-              <div className="mb-4 flex size-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
-                <Lock size={20} />
-              </div>
-              <p className="eyebrow">Set new password</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Choose a new password.</h1>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Create a strong password with at least 6 characters to secure your account.
-              </p>
-
-              {error && (
-                <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                  {error}
+            ) : (
+              /* State 5: Active Recovery Session - Set New Password */
+              <>
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-[#060913]/90 px-3.5 py-1 text-[11px] font-black uppercase tracking-wider text-orange-400 font-mono shadow-md backdrop-blur-xl">
+                  <span className="flex size-2 rounded-full bg-orange-500 animate-ping" />
+                  <span>Credential Update · Growbytee Studio</span>
                 </div>
-              )}
 
-              <form onSubmit={handleResetPassword} className="mt-7 space-y-5">
-                <FormField
-                  id="new-password"
-                  label="New password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                />
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                  Choose a new password.
+                </h1>
+                <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                  Create a strong password with at least 6 characters to secure your account.
+                </p>
 
-                <FormField
-                  id="confirm-password"
-                  label="Confirm new password"
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter your new password"
-                />
+                {error && (
+                  <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-200 backdrop-blur-xl flex items-start gap-2.5">
+                    <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
+                    <p className="leading-relaxed flex-1">{error}</p>
+                  </div>
+                )}
 
-                <Button type="submit" className="w-full" loading={loading}>
-                  {loading ? 'Updating password...' : 'Update password'}
-                </Button>
-              </form>
+                <form onSubmit={handleResetPassword} className="mt-7 space-y-5">
+                  <FormField
+                    id="new-password"
+                    label="New password"
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                    inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                  />
 
-              <div className="mt-6 text-center text-sm">
-                <Link to="/login" className="font-bold text-slate-500 hover:text-slate-900">
-                  Back to log in
-                </Link>
-              </div>
-            </>
-          )}
+                  <FormField
+                    id="confirm-password"
+                    label="Confirm new password"
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter your new password"
+                    labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                    inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                  />
+
+                  <Button
+                    type="submit"
+                    size="lg"
+                    loading={loading}
+                    data-cursor="UPDATE"
+                    onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
+                    className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+                  >
+                    {loading ? 'Updating password...' : 'Update password'}
+                  </Button>
+                </form>
+
+                <div className="mt-7 pt-6 border-t border-white/10 text-center">
+                  <Link
+                    to="/login"
+                    onMouseEnter={() => soundFx.playBlip(440, 0.02, 'sine', 0.02)}
+                    className="text-sm font-bold text-orange-400 hover:text-orange-300 transition-colors inline-flex items-center gap-1.5"
+                  >
+                    <ArrowLeft size={14} /> Back to log in
+                  </Link>
+                </div>
+
+                <div className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-mono">
+                  <ShieldCheck size={13} className="text-emerald-400" />
+                  <span>256-Bit Encrypted Database Authentication</span>
+                </div>
+              </>
+            )}
+          </TiltCard>
         </div>
-      </div>
+      </main>
+
+      {/* Fixed Junca Studio Bottom Bar */}
+      <StudioBar />
     </div>
   );
 };
+
