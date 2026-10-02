@@ -6,10 +6,16 @@ import {
   Mail,
   RefreshCw,
   Sparkles,
+  ArrowRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/FormField';
+import { CustomCursor } from '../components/home/CustomCursor';
+import { StudioBar } from '../components/home/StudioBar';
+import { TiltCard } from '../components/home/TiltCard';
+import { soundFx } from '../lib/soundFx';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -42,6 +48,8 @@ export const Login: React.FC = () => {
     setIsNetworkError(false);
     setIsEmailUnconfirmed(false);
     setResendSuccess(false);
+
+    soundFx.playSweep(260, 600, 0.1, 0.05);
 
     // Pre-flight client offline check
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -143,142 +151,199 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] dark:bg-slate-950 px-5 py-12 transition-colors">
-      <div className="w-full max-w-md">
-        <Link to="/" className="mx-auto mb-8 flex items-center justify-center gap-2 group">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm shadow-orange-500/20 group-hover:scale-105 transition-transform">
-            <Sparkles size={18} />
-          </div>
-          <div className="flex items-center gap-1 leading-none font-sans">
-            <span className="text-xl font-black tracking-tight text-orange-600 dark:text-orange-500">
-              ProCut
-            </span>
-            <span className="text-xl font-black tracking-tight text-slate-950 dark:text-white">
-              Hub
-            </span>
-          </div>
-        </Link>
+    <div className="relative min-h-screen bg-[#030712] text-slate-100 font-sans selection:bg-orange-500 selection:text-white overflow-x-hidden film-grain flex flex-col justify-between">
+      {/* Custom Magnetic Cursor */}
+      <CustomCursor />
 
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-xl shadow-slate-900/5 sm:p-9">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-600 dark:text-orange-500">
-            Welcome Back
-          </p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white">
-            Return to the room.
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-            Your next production task is waiting for you.
-          </p>
+      {/* Atmospheric crimson & amber volumetric lighting */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_75%_55%_at_70%_35%,rgba(220,38,38,0.22),transparent_70%)]" />
+      <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-red-600/10 blur-[140px]" />
+      <div className="pointer-events-none absolute bottom-12 right-1/4 -z-10 size-[450px] rounded-full bg-orange-500/10 blur-[130px]" />
 
-          {/* Unconfirmed Email Alert Box */}
-          {isEmailUnconfirmed && (
-            <div className="mt-6 rounded-xl border border-amber-200 dark:border-amber-950 bg-amber-50 dark:bg-amber-950/40 p-4 text-xs text-amber-900 dark:text-amber-200 space-y-3">
-              <div className="flex items-start gap-2.5">
-                <Mail size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="font-bold">Email Confirmation Required</p>
-                  <p>{error}</p>
-                </div>
-              </div>
-
-              {resendSuccess ? (
-                <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/60 dark:bg-emerald-950/60 p-2 rounded-lg">
-                  <CheckCircle2 size={14} />
-                  <span>Confirmation link sent to {email}. Check your inbox!</span>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleResendConfirmation}
-                  disabled={resendLoading || resendCooldown > 0}
-                  className="inline-flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300 underline hover:no-underline cursor-pointer disabled:opacity-50"
-                >
-                  {resendLoading ? (
-                    <>
-                      <RefreshCw size={12} className="animate-spin" />
-                      Sending link...
-                    </>
-                  ) : resendCooldown > 0 ? (
-                    `Resend in ${resendCooldown}s`
-                  ) : (
-                    'Resend confirmation email →'
-                  )}
-                </button>
-              )}
+      <main className="flex-1 flex items-center justify-center px-5 py-12">
+        <div className="w-full max-w-md">
+          {/* Logo Header */}
+          <Link
+            to="/"
+            data-cursor="HOME"
+            className="mx-auto mb-8 flex items-center justify-center gap-2 group w-fit"
+          >
+            <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform">
+              <Sparkles size={19} />
             </div>
-          )}
+            <div className="flex items-center gap-1 leading-none font-sans">
+              <span className="text-2xl font-black tracking-tight text-white">
+                ProCut
+              </span>
+              <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
+                Hub
+              </span>
+            </div>
+          </Link>
 
-          {/* Network Failure / General Error Banner */}
-          {error && !isEmailUnconfirmed && (
-            <div className={`mt-6 rounded-xl border p-3.5 text-xs ${
-              isNetworkError
-                ? 'border-amber-200 dark:border-amber-950 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200'
-                : 'border-red-200 dark:border-red-950 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300'
-            }`}>
-              <div className="flex items-start gap-2.5">
-                <AlertCircle size={16} className={`shrink-0 mt-0.5 ${isNetworkError ? 'text-amber-600' : 'text-red-600'}`} />
-                <div className="space-y-2 flex-1">
-                  <p>{error}</p>
-                  {isNetworkError && (
-                    <button
-                      type="button"
-                      onClick={() => handleLogin()}
-                      className="inline-flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300 underline hover:no-underline cursor-pointer"
-                    >
-                      <RefreshCw size={12} />
-                      Retry connection
-                    </button>
-                  )}
+          {/* Interactive 3D Obsidian Tilt Card */}
+          <TiltCard
+            maxTilt={3}
+            scale={1.01}
+            perspective={1200}
+            glareOpacity={0.16}
+            glareColor="rgba(249, 115, 22, 0.25)"
+            className="relative rounded-3xl border border-white/10 bg-[#090d16]/90 p-7 sm:p-9 shadow-2xl backdrop-blur-2xl"
+          >
+            {/* Telemetry Status Pill */}
+            <div
+              data-cursor="TELEMETRY"
+              className="mb-4 inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-[#060913]/90 px-3.5 py-1 text-[11px] font-black uppercase tracking-wider text-orange-400 font-mono shadow-md backdrop-blur-xl"
+            >
+              <span className="flex size-2 rounded-full bg-orange-500 animate-ping" />
+              <span>Welcome Back · Production Portal</span>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              Return to the room.
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              Your next production task is waiting for you.
+            </p>
+
+            {/* Unconfirmed Email Alert Box */}
+            {isEmailUnconfirmed && (
+              <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200 space-y-3 backdrop-blur-xl">
+                <div className="flex items-start gap-2.5">
+                  <Mail size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-amber-300">Email Confirmation Required</p>
+                    <p className="text-slate-300">{error}</p>
+                  </div>
+                </div>
+
+                {resendSuccess ? (
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-300 bg-emerald-500/20 p-2 rounded-xl border border-emerald-500/30">
+                    <CheckCircle2 size={14} className="text-emerald-400" />
+                    <span>Confirmation link sent to {email}. Check your inbox!</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={resendLoading || resendCooldown > 0}
+                    onMouseEnter={() => soundFx.playBlip(420, 0.02, 'sine', 0.02)}
+                    className="inline-flex items-center gap-1.5 font-bold text-orange-400 hover:text-orange-300 underline cursor-pointer disabled:opacity-50"
+                  >
+                    {resendLoading ? (
+                      <>
+                        <RefreshCw size={12} className="animate-spin" />
+                        Sending link...
+                      </>
+                    ) : resendCooldown > 0 ? (
+                      `Resend in ${resendCooldown}s`
+                    ) : (
+                      'Resend confirmation email →'
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Network Failure / General Error Banner */}
+            {error && !isEmailUnconfirmed && (
+              <div className={`mt-6 rounded-2xl border p-4 text-xs backdrop-blur-xl ${
+                isNetworkError
+                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+                  : 'border-red-500/30 bg-red-500/10 text-red-200'
+              }`}>
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle size={16} className={`shrink-0 mt-0.5 ${isNetworkError ? 'text-amber-400' : 'text-red-400'}`} />
+                  <div className="space-y-2 flex-1">
+                    <p className="leading-relaxed">{error}</p>
+                    {isNetworkError && (
+                      <button
+                        type="button"
+                        onClick={() => handleLogin()}
+                        onMouseEnter={() => soundFx.playBlip(420, 0.02, 'sine', 0.02)}
+                        className="inline-flex items-center gap-1.5 font-bold text-amber-300 underline hover:no-underline cursor-pointer"
+                      >
+                        <RefreshCw size={12} />
+                        Retry connection
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <form onSubmit={handleLogin} className="mt-7 space-y-5">
-            <FormField
-              id="email"
-              label="Email address"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-bold text-slate-700 dark:text-slate-300" htmlFor="password">
-                  Password
-                </label>
-                <Link
-                  to="/forgot-password"
-                  className="text-xs font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <input
-                id="password"
-                type="password"
+            <form onSubmit={handleLogin} className="mt-7 space-y-5">
+              <FormField
+                id="email"
+                label="Email address"
+                type="email"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Your password"
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-3 text-sm text-slate-950 dark:text-white outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
               />
-            </div>
-            <Button type="submit" className="w-full justify-center" loading={loading}>
-              {loading ? 'Logging in...' : 'Log in'}
-            </Button>
-          </form>
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300" htmlFor="password">
+                    Password
+                  </label>
+                  <Link
+                    to="/forgot-password"
+                    onMouseEnter={() => soundFx.playBlip(440, 0.02, 'sine', 0.02)}
+                    className="text-xs font-bold text-orange-400 hover:text-orange-300 transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Your password"
+                  className="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                />
+              </div>
 
-          <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
-            New to ProCut Hub?{' '}
-            <Link to="/register" className="font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300">
-              Create an account
-            </Link>
-          </p>
+              <Button
+                type="submit"
+                size="lg"
+                loading={loading}
+                data-cursor="SIGN IN"
+                onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
+                className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+              >
+                {loading ? 'Logging in...' : 'Log in'}
+              </Button>
+            </form>
+
+            <div className="mt-7 pt-6 border-t border-white/10 text-center">
+              <p className="text-sm text-slate-400">
+                New to ProCut Hub?{' '}
+                <Link
+                  to="/register"
+                  onMouseEnter={() => soundFx.playBlip(460, 0.02, 'sine', 0.02)}
+                  className="font-bold text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 transition-colors"
+                >
+                  <span>Create an account</span>
+                  <ArrowRight size={13} />
+                </Link>
+              </p>
+            </div>
+
+            <div className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-mono">
+              <ShieldCheck size={13} className="text-emerald-400" />
+              <span>256-Bit Encrypted Database Authentication</span>
+            </div>
+          </TiltCard>
         </div>
-      </div>
+      </main>
+
+      {/* Fixed Junca Studio Bottom Bar */}
+      <StudioBar />
     </div>
   );
 };
