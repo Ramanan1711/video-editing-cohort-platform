@@ -301,7 +301,7 @@ export function Home() {
           <HeroCanvasSimulator />
 
           {/* 3D Retro-Futuristic Robot Terminal Character with Visor CRT & Fan */}
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 lg:right-12 xl:right-20 z-1 hidden md:flex items-center justify-center opacity-90 hover:opacity-100 transition-opacity">
+          <div className="absolute right-0 sm:right-4 lg:right-8 xl:right-16 top-1/2 -translate-y-1/2 z-10 hidden md:flex items-center justify-center pointer-events-none">
             <RobotTerminal />
           </div>
 

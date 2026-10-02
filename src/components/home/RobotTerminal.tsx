@@ -1,167 +1,698 @@
 import React, { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { soundFx } from '../../lib/soundFx';
 
 /**
- * RobotTerminal - Junca Studio signature 3D Robot Character & Workstation Terminal:
- * - Interactive 3D head and eye-tracking following the cursor coordinates
- * - Retro CRT monitor with glowing phosphor text, scanlines, and blinking prompt
- * - Rotating ventilation fan inside recessed cooling cowl
- * - Metallic specular edge highlights and glowing orange status LED
+ * RobotTerminal - Authentic 1:1 Three.js 3D Robot Character
+ * Replicates the Junca Studio WebGL 3D robot bust:
+ * - Real 3D GLTF/DRACO model with decoupled head pivot tracking mouse cursor
+ * - Realistic PBR materials (anodized crimson case, chrome neck, matte fan, CRT glass)
+ * - Dynamic CRT Canvas screen with live phosphor terminal telemetry
+ * - Smoothly spinning turbine fan blades inside recessed cowl
+ * - Directional crimson studio lighting and EXR environment reflections
+ * - Resilient CSS 3D fallback for headless/jsdom or environments without WebGL
  */
 export const RobotTerminal: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [rotation, setRotation] = useState({ x: 0, y: 0 });
-  const [time, setTime] = useState<string>('v0.1');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isReady, setIsReady] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  // Mouse tracking state
+  const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, active: false });
+  const [rpm, setRpm] = useState(62);
+  const fanSpeedRef = useRef(1.0);
+  const uptimeSecondsRef = useRef(160);
+  const statusModeRef = useRef<'status' | 'awaiting'>('status');
+
+  // Fallback CSS 3D head transform states (used when WebGL is unavailable)
+  const [fallbackTransform, setFallbackTransform] = useState({
+    yaw: 0,
+    pitch: 0,
+    roll: 0,
+    glareX: 0,
+    glareY: 0,
+    torsoYaw: 0,
+    torsoPitch: 0,
+  });
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    // 0. Pre-flight check: ensure WebGL is supported
+    try {
+      const testCanvas = document.createElement('canvas');
+      const gl = testCanvas.getContext('webgl2') || testCanvas.getContext('webgl');
+      if (!gl) {
+        setHasError(true);
+        return;
+      }
+    } catch {
+      setHasError(true);
+      return;
+    }
+
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
+
+    let disposed = false;
+    let animId = 0;
+    let renderer: THREE.WebGLRenderer | null = null;
+    let dracoLoader: DRACOLoader | null = null;
+    let screenTexture: THREE.CanvasTexture | null = null;
+    let lightMapTex: THREE.Texture | null = null;
+    let aoTex: THREE.Texture | null = null;
+    const createdMaterials: THREE.Material[] = [];
+
+    try {
+      // 1. Three.js Scene, Camera, Renderer
+      const scene = new THREE.Scene();
+
+      const width = container.clientWidth || 480;
+      const height = container.clientHeight || 560;
+
+      const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 50);
+
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        alpha: true,
+        antialias: true,
+        powerPreference: 'high-performance',
+      });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.15;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+      // 2. Studio Lighting (Matching Junca Studio's deep crimson aesthetic)
+      const ambientLight = new THREE.AmbientLight(0x2a0808, 1.8);
+      scene.add(ambientLight);
+
+      // Strong crimson key / rim light from the left-back
+      const redRimLight = new THREE.DirectionalLight(0xff2222, 5.0);
+      redRimLight.position.set(-2.5, 2.0, -1.0);
+      scene.add(redRimLight);
+
+      // Warm top highlight for the beveled canopy
+      const topLight = new THREE.DirectionalLight(0xff6644, 2.5);
+      topLight.position.set(0.5, 3.5, 1.5);
+      scene.add(topLight);
+
+      // Subtle front-right fill light for the silver cheek & metallic body
+      const fillLight = new THREE.DirectionalLight(0xffffff, 1.2);
+      fillLight.position.set(2.0, 1.0, 3.0);
+      scene.add(fillLight);
+
+      // 3. Dynamic CRT Canvas Texture for the Terminal Screen
+      const screenCanvas = document.createElement('canvas');
+      screenCanvas.width = 512;
+      screenCanvas.height = 512;
+      const sCtx = screenCanvas.getContext('2d');
+
+      screenTexture = new THREE.CanvasTexture(screenCanvas);
+      screenTexture.colorSpace = THREE.SRGBColorSpace;
+      screenTexture.minFilter = THREE.LinearFilter;
+      screenTexture.magFilter = THREE.LinearFilter;
+
+      const updateScreenCanvas = (timeSec: number) => {
+        if (!sCtx) return;
+
+        // Dark CRT glass background
+        sCtx.fillStyle = '#060203';
+        sCtx.fillRect(0, 0, 512, 512);
+
+        // CRT phosphor glow gradient
+        const radGlow = sCtx.createRadialGradient(256, 256, 40, 256, 256, 320);
+        radGlow.addColorStop(0, 'rgba(239, 68, 68, 0.12)');
+        radGlow.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+        sCtx.fillStyle = radGlow;
+        sCtx.fillRect(0, 0, 512, 512);
+
+        // CRT Scanlines
+        sCtx.fillStyle = 'rgba(239, 68, 68, 0.04)';
+        for (let y = 0; y < 512; y += 4) {
+          sCtx.fillRect(0, y, 512, 2);
+        }
+
+        sCtx.font = '22px monospace';
+        sCtx.textBaseline = 'top';
+
+        const blink = Math.floor(timeSec * 2) % 2 === 0;
+
+        if (statusModeRef.current === 'status') {
+          // Red phosphor header
+          sCtx.fillStyle = '#ef4444';
+          sCtx.fillText('> status', 45, 60);
+
+          sCtx.font = '20px monospace';
+          sCtx.fillStyle = 'rgba(248, 113, 113, 0.9)';
+          sCtx.fillText('  env ........ ok', 45, 110);
+          sCtx.fillText('  lightmap ... ok', 45, 150);
+          sCtx.fillText('  rig ........ ok', 45, 190);
+          sCtx.fillText(`  fan ........ ${rpm} rpm`, 45, 230);
+
+          const mins = Math.floor(uptimeSecondsRef.current / 60);
+          const secs = uptimeSecondsRef.current % 60;
+          const uptimeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+          sCtx.fillText(`  uptime ..... ${uptimeStr}`, 45, 270);
+        } else {
+          sCtx.fillStyle = '#ef4444';
+          sCtx.fillText('> awaiting input ' + (blink ? '_' : ' '), 45, 120);
+
+          sCtx.font = '18px monospace';
+          sCtx.fillStyle = 'rgba(248, 113, 113, 0.7)';
+          sCtx.fillText('  core active', 45, 180);
+          sCtx.fillText('  telemetry synced', 45, 220);
+        }
+
+        // Screen footer bar
+        sCtx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+        sCtx.fillRect(45, 410, 422, 1);
+
+        sCtx.font = '16px monospace';
+        sCtx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+        sCtx.fillText('JUNCA OS  v0.1', 45, 430);
+
+        sCtx.textAlign = 'right';
+        sCtx.fillText(blink ? 'ATTENTIF' : '#TT84F2F', 467, 430);
+        sCtx.textAlign = 'left';
+
+        if (screenTexture) {
+          screenTexture.needsUpdate = true;
+        }
+      };
+
+      // 4. Setup DRACO and GLTFLoader
+      dracoLoader = new DRACOLoader();
+      dracoLoader.setDecoderPath('/draco/');
+
+      const gltfLoader = new GLTFLoader();
+      gltfLoader.setDRACOLoader(dracoLoader);
+
+      // Texture loaders for lightmap & AO
+      const texLoader = new THREE.TextureLoader();
+      lightMapTex = texLoader.load('/robot/junca_lightmap_1024.webp');
+      lightMapTex.colorSpace = THREE.SRGBColorSpace;
+      lightMapTex.channel = 1;
+      lightMapTex.flipY = false;
+
+      aoTex = texLoader.load('/robot/junca_ao.webp');
+      aoTex.flipY = false;
+
+      // EXR Environment Loader
+      const exrLoader = new EXRLoader();
+      exrLoader.load(
+        '/robot/env_256.exr',
+        (texture) => {
+          if (disposed) {
+            texture.dispose();
+            return;
+          }
+          texture.mapping = THREE.EquirectangularReflectionMapping;
+          scene.environment = texture;
+        },
+        undefined,
+        () => {
+          // EXR optional
+        }
+      );
+
+      // Model groups & references
+      const robotRoot = new THREE.Group();
+      const headPivot = new THREE.Group();
+      const bodyPivot = new THREE.Group();
+      robotRoot.add(bodyPivot);
+      robotRoot.add(headPivot);
+      scene.add(robotRoot);
+
+      let fanBladesMesh: THREE.Object3D | null = null;
+
+      // Materials map matching Junca Studio's visual shaders
+      const materials: Record<string, THREE.Material> = {
+        mat_case_alu: new THREE.MeshStandardMaterial({
+          name: 'mat_case_alu',
+          color: new THREE.Color(0x3a0c0c),
+          metalness: 0.85,
+          roughness: 0.38,
+          lightMap: lightMapTex,
+          lightMapIntensity: 0.9,
+          aoMap: aoTex,
+          aoMapIntensity: 0.4,
+          side: THREE.DoubleSide,
+        }),
+        mat_case_anod: new THREE.MeshStandardMaterial({
+          name: 'mat_case_anod',
+          color: new THREE.Color(0x8a1818),
+          metalness: 0.92,
+          roughness: 0.5,
+          lightMap: lightMapTex,
+          lightMapIntensity: 0.9,
+          side: THREE.DoubleSide,
+        }),
+        mat_chrome: new THREE.MeshStandardMaterial({
+          name: 'mat_chrome',
+          color: new THREE.Color(0xb5bcc8),
+          metalness: 1.0,
+          roughness: 0.05,
+          side: THREE.DoubleSide,
+        }),
+        mat_fan: new THREE.MeshStandardMaterial({
+          name: 'mat_fan',
+          color: new THREE.Color(0x22242a),
+          metalness: 0.9,
+          roughness: 0.42,
+        }),
+        Screen: new THREE.MeshBasicMaterial({
+          name: 'Screen',
+          map: screenTexture,
+        }),
+        ScreenGlow: new THREE.MeshBasicMaterial({
+          name: 'ScreenGlow',
+          color: new THREE.Color(0x000000),
+          transparent: true,
+          opacity: 0.4,
+          depthWrite: false,
+        }),
+        mat_glass: new THREE.MeshPhysicalMaterial({
+          name: 'mat_glass',
+          color: new THREE.Color(0x180505),
+          metalness: 0.1,
+          roughness: 0.04,
+          transmission: 0.6,
+          transparent: true,
+          opacity: 0.45,
+          clearcoat: 1.0,
+          clearcoatRoughness: 0.03,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        }),
+        LED_pwr: new THREE.MeshStandardMaterial({
+          name: 'LED_pwr',
+          color: new THREE.Color(0xff7700),
+          emissive: new THREE.Color(0xff5500),
+          emissiveIntensity: 3.5,
+        }),
+      };
+
+      Object.values(materials).forEach((m) => createdMaterials.push(m));
+
+      const headNodes = new Set([
+        'Cube_Plate',
+        'Cube_Plate.001',
+        'Cube_Plate_Piece.001',
+        'Slice.004',
+        'Slice.005',
+        'Slice.006',
+        'Slice.007',
+        'Slice.008',
+      ]);
+
+      gltfLoader.load(
+        '/robot/junca_robot.glb',
+        (gltf) => {
+          if (disposed) return;
+
+          // Apply tailored materials and lightmaps to each mesh
+          gltf.scene.traverse((obj) => {
+            if ((obj as THREE.Mesh).isMesh) {
+              const mesh = obj as THREE.Mesh;
+              const matName = Array.isArray(mesh.material)
+                ? mesh.material[0]?.name
+                : mesh.material?.name;
+
+              if (matName && materials[matName]) {
+                mesh.material = materials[matName];
+              } else if (mesh.name.toLowerCase().includes('glass')) {
+                mesh.material = materials.mat_glass;
+              } else if (mesh.name === 'fan_blades') {
+                mesh.material = materials.mat_fan;
+              } else if (mesh.name === 'Cylinder' || mesh.name === 'Cou') {
+                mesh.material = materials.mat_chrome;
+              } else if (mesh.name.includes('LED')) {
+                mesh.material = materials.LED_pwr;
+              } else {
+                mesh.material = materials.mat_case_alu;
+              }
+            }
+
+            if (obj.name === 'fan_blades') {
+              fanBladesMesh = obj;
+            }
+          });
+
+          // Compute Head Bounding Box to find the exact pivot point (at top of neck)
+          const headBox = new THREE.Box3();
+          const headObjects: THREE.Object3D[] = [];
+          const bodyObjects: THREE.Object3D[] = [];
+
+          gltf.scene.children.slice().forEach((child) => {
+            if (headNodes.has(child.name)) {
+              headObjects.push(child);
+              headBox.expandByObject(child);
+            } else {
+              bodyObjects.push(child);
+            }
+          });
+
+          const pivotCenter = new THREE.Vector3();
+          headBox.getCenter(pivotCenter);
+          pivotCenter.y = headBox.min.y;
+
+          headPivot.position.copy(pivotCenter);
+
+          headObjects.forEach((obj) => {
+            obj.position.sub(pivotCenter);
+            headPivot.add(obj);
+          });
+
+          bodyObjects.forEach((obj) => {
+            bodyPivot.add(obj);
+          });
+
+          // Center overall robot model in view
+          const totalBox = new THREE.Box3().setFromObject(robotRoot);
+          const totalCenter = new THREE.Vector3();
+          totalBox.getCenter(totalCenter);
+
+          robotRoot.position.x = -totalCenter.x;
+          robotRoot.position.y = -totalCenter.y;
+          robotRoot.position.z = -totalCenter.z;
+
+          // Position camera to frame the head & upper torso exactly like Junca Studio
+          camera.position.set(0.18, 0.12, 0.72);
+          camera.lookAt(0, 0.04, 0);
+
+          setIsReady(true);
+        },
+        undefined,
+        (err) => {
+          console.warn('WebGL GLTF load failed, using CSS 3D fallback:', err);
+          setHasError(true);
+        }
+      );
+
+      // 5. Mouse Interaction & Physics Lerp Loop
+      const handleMouseMove = (e: MouseEvent) => {
+        const { innerWidth, innerHeight } = window;
+        const nx = (e.clientX / innerWidth - 0.5) * 2;
+        const ny = (e.clientY / innerHeight - 0.5) * 2;
+        mouseRef.current.targetX = nx;
+        mouseRef.current.targetY = ny;
+        mouseRef.current.active = true;
+      };
+
+      const handleMouseLeave = () => {
+        mouseRef.current.active = false;
+      };
+
+      window.addEventListener('mousemove', handleMouseMove, { passive: true });
+      document.addEventListener('mouseleave', handleMouseLeave);
+
+      // Telemetry tickers
+      const intervalId = setInterval(() => {
+        setRpm(60 + Math.floor(Math.random() * 5));
+        uptimeSecondsRef.current += 1;
+      }, 1000);
+
+      let lastTime = performance.now();
+      let currentHeadYaw = 0;
+      let currentHeadPitch = 0;
+      let currentHeadRoll = 0;
+      let currentBodyYaw = 0;
+      let currentBodyPitch = 0;
+
+      const animate = (time: number) => {
+        if (disposed) return;
+
+        const delta = Math.min((time - lastTime) * 0.001, 0.05);
+        lastTime = time;
+
+        // Mouse Lerp
+        const lerpFactor = 0.08;
+        mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * lerpFactor;
+        mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * lerpFactor;
+
+        let targetYaw: number;
+        let targetPitch: number;
+        let targetRoll: number;
+
+        if (mouseRef.current.active) {
+          targetYaw = mouseRef.current.x * 0.48;
+          targetPitch = -mouseRef.current.y * 0.32;
+          targetRoll = -mouseRef.current.x * 0.06;
+        } else {
+          const elapsed = time * 0.001;
+          targetYaw = Math.sin(elapsed * 0.8) * 0.12;
+          targetPitch = Math.cos(elapsed * 1.2) * 0.06 - 0.03;
+          targetRoll = Math.sin(elapsed * 0.6) * 0.02;
+        }
+
+        currentHeadYaw += (targetYaw - currentHeadYaw) * 0.08;
+        currentHeadPitch += (targetPitch - currentHeadPitch) * 0.08;
+        currentHeadRoll += (targetRoll - currentHeadRoll) * 0.08;
+
+        currentBodyYaw += (targetYaw * 0.2 - currentBodyYaw) * 0.05;
+        currentBodyPitch += (targetPitch * 0.15 - currentBodyPitch) * 0.05;
+
+        headPivot.rotation.set(currentHeadPitch, currentHeadYaw, currentHeadRoll, 'YXZ');
+        bodyPivot.rotation.set(currentBodyPitch, currentBodyYaw, 0, 'YXZ');
+
+        // Spin fan blades smoothly
+        if (fanBladesMesh) {
+          fanBladesMesh.rotation.x -= fanSpeedRef.current * 4.2 * delta;
+        }
+
+        // Refresh CRT Canvas
+        updateScreenCanvas(time * 0.001);
+
+        renderer?.render(scene, camera);
+        animId = requestAnimationFrame(animate);
+      };
+
+      animId = requestAnimationFrame(animate);
+
+      // Resize handler
+      const handleResize = () => {
+        if (!container || disposed || !renderer) return;
+        const w = container.clientWidth || 480;
+        const h = container.clientHeight || 560;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      return () => {
+        disposed = true;
+        cancelAnimationFrame(animId);
+        clearInterval(intervalId);
+        window.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseleave', handleMouseLeave);
+        window.removeEventListener('resize', handleResize);
+
+        dracoLoader?.dispose();
+        renderer?.dispose();
+        screenTexture?.dispose();
+        lightMapTex?.dispose();
+        aoTex?.dispose();
+        createdMaterials.forEach((m) => m.dispose());
+      };
+    } catch (err) {
+      console.warn('WebGL initialization failed, falling back to CSS 3D:', err);
+      setHasError(true);
+    }
+  }, []);
+
+  // Fallback interactive animation loop when WebGL is unavailable
+  useEffect(() => {
+    if (!hasError) return;
+
+    let animId: number;
+    let targetX = 0;
+    let targetY = 0;
+    let currX = 0;
+    let currY = 0;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const { innerWidth, innerHeight } = window;
-      // Normalized from -1 to 1
-      const nx = (e.clientX / innerWidth - 0.5) * 2;
-      const ny = (e.clientY / innerHeight - 0.5) * 2;
-
-      // Soft tilt angles (max +/- 12 deg)
-      setRotation({
-        x: -ny * 10,
-        y: nx * 14,
-      });
+      targetX = (e.clientX / window.innerWidth - 0.5) * 2;
+      targetY = (e.clientY / window.innerHeight - 0.5) * 2;
     };
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTime(new Date().getSeconds() % 2 === 0 ? 'ATTENTIF' : 'SCANNING');
-    }, 3000);
-    return () => clearInterval(timer);
-  }, []);
+    const animateFallback = () => {
+      currX += (targetX - currX) * 0.08;
+      currY += (targetY - currY) * 0.08;
+
+      setFallbackTransform({
+        yaw: currX * 26,
+        pitch: -currY * 16,
+        roll: -currX * 3.5,
+        glareX: -currX * 20,
+        glareY: -currY * 20,
+        torsoYaw: currX * 5,
+        torsoPitch: -currY * 3,
+      });
+
+      animId = requestAnimationFrame(animateFallback);
+    };
+
+    animId = requestAnimationFrame(animateFallback);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      cancelAnimationFrame(animId);
+    };
+  }, [hasError]);
+
+  const handleClick = () => {
+    soundFx.playSweep(260, 720, 0.12, 0.06);
+    statusModeRef.current = statusModeRef.current === 'status' ? 'awaiting' : 'status';
+    fanSpeedRef.current = 2.4;
+    setTimeout(() => {
+      fanSpeedRef.current = 1.0;
+    }, 1200);
+  };
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full max-w-[480px] lg:max-w-[560px] aspect-square flex items-center justify-center select-none pointer-events-none"
-      style={{ perspective: 1200 }}
+      data-cursor="ROBOT"
+      onClick={handleClick}
+      onMouseEnter={() => soundFx.playBlip(540, 0.03, 'sine', 0.03)}
+      className="relative w-[340px] sm:w-[420px] lg:w-[490px] xl:w-[540px] h-[520px] sm:h-[600px] lg:h-[660px] flex items-center justify-center select-none pointer-events-auto cursor-pointer"
     >
-      {/* Volumetric Crimson Atmospheric Smoke Aura */}
-      <div className="absolute inset-0 -z-10 rounded-full bg-gradient-to-tr from-red-600/30 via-red-900/20 to-transparent blur-[90px] animate-pulse-glow-slow" />
-      <div className="absolute top-1/4 -right-12 size-72 rounded-full bg-orange-600/20 blur-[100px] pointer-events-none" />
-
-      {/* 3D Tilt Container */}
-      <div
-        className="relative w-full h-full flex flex-col items-center justify-center transition-transform duration-300 ease-out will-change-transform"
-        style={{
-          transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
-        }}
-      >
-        {/* ================= ROBOT HEAD WITH VISOR MONITOR ================= */}
-        <div className="relative z-20 w-[280px] sm:w-[320px] transition-transform duration-200">
-          {/* Head Canopy / Visor Roof */}
-          <div className="relative mx-auto w-[260px] sm:w-[300px] h-[34px] rounded-t-2xl bg-gradient-to-b from-[#3a2020] via-[#221212] to-[#140a0a] border-t border-red-500/40 shadow-2xl flex items-center justify-between px-6">
-            <div className="flex items-center gap-1">
-              <span className="size-1 rounded-full bg-red-400" />
-              <span className="size-1 rounded-full bg-red-400/60" />
-            </div>
-            <div className="h-1 w-16 rounded-full bg-red-500/30" />
-          </div>
-
-          {/* Head Body & Visor Frame */}
-          <div className="relative w-full h-[170px] sm:h-[190px] rounded-2xl bg-gradient-to-b from-[#1f1010] via-[#120808] to-[#0a0505] p-3.5 border border-red-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.9),inset_0_1px_2px_rgba(255,100,100,0.2)]">
-            {/* Side Intake Fins */}
-            <div className="absolute -left-3 top-10 flex flex-col gap-1.5 w-3">
-              <span className="h-4 bg-[#2a1414] border-l border-red-500/40 rounded-l-xs" />
-              <span className="h-4 bg-[#2a1414] border-l border-red-500/40 rounded-l-xs" />
-              <span className="h-4 bg-[#2a1414] border-l border-red-500/40 rounded-l-xs" />
-            </div>
-            <div className="absolute -right-3 top-10 flex flex-col gap-1.5 w-3">
-              <span className="h-4 bg-[#2a1414] border-r border-red-500/40 rounded-r-xs" />
-              <span className="h-4 bg-[#2a1414] border-r border-red-500/40 rounded-r-xs" />
-              <span className="h-4 bg-[#2a1414] border-r border-red-500/40 rounded-r-xs" />
-            </div>
-
-            {/* Recessed CRT Terminal Screen */}
-            <div className="relative size-full rounded-xl bg-gradient-to-b from-[#0d0404] via-[#050202] to-[#000000] border border-red-950/80 p-5 flex flex-col justify-between overflow-hidden shadow-inner">
-              {/* Scanlines Effect Overlay */}
-              <div
-                className="absolute inset-0 pointer-events-none opacity-20"
-                style={{
-                  backgroundImage:
-                    'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 60, 60, 0.4) 3px)',
-                }}
-              />
-
-              {/* CRT Phosphor Glass Curve Glow */}
-              <div className="absolute -top-12 -left-12 size-36 rounded-full bg-red-500/10 blur-xl pointer-events-none" />
-
-              {/* Screen Top: Prompt */}
-              <div className="relative z-10 font-mono text-[11px] sm:text-xs text-red-400 tracking-wider flex items-center gap-1.5">
-                <span className="text-red-500">&gt;</span>
-                <span className="font-bold">awaiting input</span>
-                <span className="inline-block size-2 bg-red-400 animate-pulse ml-0.5" />
-              </div>
-
-              {/* Screen Bottom: Telemetry */}
-              <div className="relative z-10 font-mono text-[9px] sm:text-[10px] text-red-500/80 tracking-widest flex items-center justify-between border-t border-red-900/30 pt-2">
-                <span>AJAY RAMANAN 01 v0.1</span>
-                <span className="text-red-400 font-bold uppercase">{time}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Neck Joint Pivot */}
-          <div className="mx-auto -mt-1 w-20 h-6 bg-gradient-to-r from-[#2a1515] via-[#4d2828] to-[#2a1515] rounded-b-md border-x border-b border-red-500/30 shadow-md" />
-        </div>
-
-        {/* ================= ROBOT TORSO CHASSIS WITH FAN & LED ================= */}
-        <div className="relative z-10 w-[310px] sm:w-[360px] h-[190px] sm:h-[220px] rounded-3xl bg-gradient-to-b from-[#180a0a] via-[#100606] to-[#080303] border border-red-500/30 shadow-[0_30px_70px_rgba(0,0,0,0.95)] p-5 flex flex-col justify-between overflow-hidden">
-          {/* Top Edge Metallic Specular Bevel */}
-          <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-red-500/60 to-transparent" />
-
-          {/* Torso Top Area: Ventilation Turbine Fan */}
-          <div className="flex items-center justify-between">
-            {/* Ventilation Turbine Cowl */}
-            <div className="relative size-16 sm:size-20 rounded-full bg-[#0a0404] border-2 border-red-900/60 p-1 flex items-center justify-center shadow-inner">
-              {/* Spinning Fan Blades */}
-              <div className="relative size-full animate-spin duration-3000">
-                <svg viewBox="0 0 24 24" className="size-full text-red-600/80" fill="currentColor">
-                  <path d="M12 12 C 13.6 8.6, 13.2 4.6, 10.1 2.5 C 15.6 2, 19.3 6.4, 18.7 10.6 C 16.6 11.7, 14.2 12.1, 12 12 Z" />
-                  <path
-                    d="M12 12 C 13.6 8.6, 13.2 4.6, 10.1 2.5 C 15.6 2, 19.3 6.4, 18.7 10.6 C 16.6 11.7, 14.2 12.1, 12 12 Z"
-                    transform="rotate(120 12 12)"
-                  />
-                  <path
-                    d="M12 12 C 13.6 8.6, 13.2 4.6, 10.1 2.5 C 15.6 2, 19.3 6.4, 18.7 10.6 C 16.6 11.7, 14.2 12.1, 12 12 Z"
-                    transform="rotate(240 12 12)"
-                  />
-                  <circle cx="12" cy="12" r="2.4" fill="#2d1212" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Glowing Orange Status Indicator Bar */}
-            <div className="flex flex-col items-end gap-2">
-              <div className="h-3 w-14 rounded-sm bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.8)] border border-orange-400" />
-              <span className="font-mono text-[9px] uppercase tracking-widest text-slate-500">
-                SYS ONLINE
-              </span>
-            </div>
-          </div>
-
-          {/* Torso Bottom Area: Micro Vent Grill Dots */}
-          <div className="pt-4 border-t border-red-950/60 flex items-center justify-between">
-            <div className="grid grid-cols-12 gap-1.5 opacity-40">
-              {Array.from({ length: 24 }).map((_, i) => (
-                <span key={i} className="size-1 rounded-full bg-red-400" />
-              ))}
-            </div>
-            <div className="font-mono text-[9px] text-red-500/60 uppercase tracking-widest">
-              REV 2.06
-            </div>
-          </div>
-        </div>
+      {/* ================= VOLUMETRIC CRIMSON BACKGROUND NEBULA ================= */}
+      <div className="pointer-events-none absolute -inset-20 -z-10 overflow-hidden">
+        {/* Deep ambient red smoke core */}
+        <div className="absolute top-1/4 right-0 w-[520px] h-[520px] rounded-full bg-gradient-to-br from-red-600/40 via-red-950/30 to-transparent blur-[120px]" />
+        {/* Soft upper crimson fog plume */}
+        <div className="absolute -top-12 right-1/4 w-[400px] h-[400px] rounded-full bg-red-700/25 blur-[140px]" />
+        {/* Subtle orange accent glow */}
+        <div className="absolute bottom-8 right-8 w-[300px] h-[300px] rounded-full bg-orange-600/15 blur-[100px]" />
       </div>
+
+      {/* Real Three.js WebGL Canvas */}
+      {!hasError ? (
+        <>
+          <canvas
+            ref={canvasRef}
+            className={`size-full transition-opacity duration-700 ${
+              isReady ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+          {!isReady && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="size-16 rounded-full border-2 border-red-500/20 border-t-red-500 animate-spin" />
+            </div>
+          )}
+        </>
+      ) : (
+        /* ================= CSS 3D HIGH-FIDELITY FALLBACK ================= */
+        <div
+          className="relative w-full h-full flex flex-col items-center justify-end pb-8"
+          style={{ perspective: 1200 }}
+        >
+          {/* Fallback Head */}
+          <div
+            className="relative z-30 mb-[-12px] will-change-transform"
+            style={{
+              transformStyle: 'preserve-3d',
+              transformOrigin: '50% 120%',
+              transform: `rotateX(${fallbackTransform.pitch}deg) rotateY(${fallbackTransform.yaw}deg) rotateZ(${fallbackTransform.roll}deg)`,
+            }}
+          >
+            <div className="relative w-[280px] sm:w-[320px] lg:w-[350px]">
+              {/* Canopy */}
+              <div className="relative mx-auto w-[92%] h-[36px] rounded-t-2xl bg-gradient-to-b from-[#2a2c33] via-[#1c1d22] to-[#121316] border-t border-white/20 px-6 flex items-center justify-between">
+                <span className="size-1.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
+                <div className="h-1.5 w-16 rounded-full bg-[#0a0a0c] border border-white/10" />
+              </div>
+              {/* Housing */}
+              <div className="relative w-full h-[190px] sm:h-[210px] rounded-2xl bg-[#141518] shadow-[0_25px_60px_rgba(0,0,0,0.95)] border border-white/10 p-3.5 flex items-center justify-center">
+                {/* Silver cheek */}
+                <div className="absolute -left-3.5 top-4 bottom-4 w-5 bg-gradient-to-r from-[#5a5e69] via-[#3d414a] to-[#25272e] rounded-l-md border-l border-white/30" />
+                {/* Screen */}
+                <div
+                  className="relative size-full rounded-xl bg-[#09090c] p-3 border-2 border-[#20222a] flex flex-col justify-between overflow-hidden"
+                  style={{ clipPath: 'polygon(2% 0%, 98% 0%, 95% 100%, 5% 100%)' }}
+                >
+                  <div className="relative size-full rounded-lg bg-[#070204] p-3 flex flex-col justify-between font-mono text-[11px] leading-relaxed text-red-400">
+                    <div>
+                      <div className="text-red-500 font-bold">&gt; status</div>
+                      <div className="mt-1 space-y-0.5 text-[10px]">
+                        <div>env ........ ok</div>
+                        <div>lightmap ... ok</div>
+                        <div>rig ........ ok</div>
+                        <div>fan ........ {rpm} rpm</div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between border-t border-red-900/40 pt-1 text-[9px]">
+                      <span>JUNCA OS v0.1</span>
+                      <span className="text-red-300 font-bold">ATTENTIF</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Chin */}
+              <div className="mx-auto w-[65%] h-[12px] rounded-b-xl bg-[#121316] border-x border-b border-white/10" />
+            </div>
+            {/* Neck */}
+            <div className="mx-auto -mt-1 w-24 h-7 flex flex-col justify-between items-center py-1">
+              <div className="w-24 h-2 rounded-full bg-gradient-to-r from-[#202228] via-[#8c919d] to-[#202228]" />
+              <div className="w-26 h-2 rounded-full bg-[#141518]" />
+            </div>
+          </div>
+          {/* Fallback Torso */}
+          <div
+            className="relative z-10 w-[310px] sm:w-[370px] lg:w-[420px] h-[210px] sm:h-[240px] rounded-3xl bg-gradient-to-b from-[#18191e] via-[#111215] to-[#08080a] border border-white/10 p-5 flex flex-col justify-between"
+            style={{
+              transform: `rotateX(${fallbackTransform.torsoPitch}deg) rotateY(${fallbackTransform.torsoYaw}deg)`,
+            }}
+          >
+            <div className="flex items-center justify-between">
+              {/* Fan */}
+              <div className="relative size-20 rounded-full bg-[#08080a] border-2 border-[#2b2d36] p-1 flex items-center justify-center">
+                <div className="size-full animate-spin duration-3000">
+                  <svg viewBox="0 0 100 100" className="size-full">
+                    <circle cx="50" cy="50" r="12" fill="#180b0b" stroke="#ef4444" strokeWidth="1" />
+                    <path
+                      d="M50 50 C 58 30, 52 10, 36 2 C 58 0, 78 18, 72 38 Z"
+                      fill="#3a1212"
+                      stroke="#ef4444"
+                      strokeWidth="0.5"
+                    />
+                    <path
+                      d="M50 50 C 58 30, 52 10, 36 2 C 58 0, 78 18, 72 38 Z"
+                      transform="rotate(120 50 50)"
+                      fill="#3a1212"
+                      stroke="#ef4444"
+                      strokeWidth="0.5"
+                    />
+                    <path
+                      d="M50 50 C 58 30, 52 10, 36 2 C 58 0, 78 18, 72 38 Z"
+                      transform="rotate(240 50 50)"
+                      fill="#3a1212"
+                      stroke="#ef4444"
+                      strokeWidth="0.5"
+                    />
+                  </svg>
+                </div>
+              </div>
+              {/* LED */}
+              <div className="h-3 w-16 rounded-sm bg-gradient-to-r from-orange-600 to-amber-500 shadow-[0_0_12px_rgba(249,115,22,0.8)]" />
+            </div>
+            <div className="pt-3 border-t border-white/5 flex justify-between text-[9px] text-red-500/70 font-mono">
+              <span>ACTIVE</span>
+              <span>REV 2.06</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
