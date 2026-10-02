@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-30T06:33:38.008Z",
-  "migrationCount": 40,
+  "generatedAt": "2026-10-02T06:00:11.264Z",
+  "migrationCount": 41,
   "migrations": [
     {
       "order": 1,
@@ -606,6 +606,22 @@
         "unlock_cohort_daily_challenges",
         "set_daily_challenge_publication_status",
         "ensure_cohort_daily_challenges"
+      ]
+    },
+    {
+      "order": 41,
+      "filename": "20261002000001_canonical_razorpay_cohort_pricing_and_payments.sql",
+      "sha256": "6ac578262a5d55efd103220adf598c2a8e68e9817310f75a755408470f18dff0",
+      "sizeBytes": 16915,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "payments"
+      ],
+      "rpcDefinitions": [
+        "sync_cohort_names_and_metadata",
+        "create_cohort_checkout_order",
+        "record_successful_payment_and_enroll",
+        "enroll_student_in_cohort"
       ]
     }
   ]

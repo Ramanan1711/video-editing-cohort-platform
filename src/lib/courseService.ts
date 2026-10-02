@@ -355,7 +355,7 @@ export type CourseInput = Pick<Course, 'title'> &
   Partial<Pick<Course, 'description' | 'slug' | 'thumbnail_url' | 'status' | 'difficulty_level' | 'estimated_hours' | 'track_type'>>;
 
 export type CohortInput = Pick<Cohort, 'name' | 'description'> &
-  Partial<Pick<Cohort, 'status' | 'capacity' | 'visibility' | 'enrollment_start' | 'enrollment_end' | 'course_id' | 'track_type' | 'duration_days'>>;
+  Partial<Pick<Cohort, 'status' | 'capacity' | 'visibility' | 'enrollment_start' | 'enrollment_end' | 'course_id' | 'track_type' | 'duration_days' | 'price_inr' | 'currency'>>;
 export type ModuleInput = Pick<Module, 'title'> &
   Partial<Pick<Module, 'cohort_id' | 'course_id' | 'description' | 'position' | 'status'>>;
 export type LessonInput = Pick<Lesson, 'module_id' | 'title' | 'description' | 'video_url' | 'duration_minutes' | 'position'> &
@@ -698,7 +698,7 @@ export async function listCohorts(): Promise<Cohort[]> {
     async () => {
       const { data, error } = await supabase
         .from('cohorts')
-        .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days')
+        .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency')
         .order('title');
 
       if (error) {
@@ -756,6 +756,41 @@ export async function listAvailableCohorts(userId: string): Promise<Cohort[]> {
 }
 
 export async function enrollInCohort(userId: string, cohortId: string): Promise<Enrollment> {
+  // Fail-closed payment requirement check for paid cohorts
+  try {
+    const { data: cohortData } = await supabase
+      .from('cohorts')
+      .select('price_inr')
+      .eq('id', cohortId)
+      .maybeSingle();
+
+    if (cohortData && Number(cohortData.price_inr) > 0) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profile?.role !== 'admin') {
+        const { data: payment } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('cohort_id', cohortId)
+          .eq('status', 'captured')
+          .maybeSingle();
+
+        if (!payment) {
+          throw new Error('Payment required to enroll in this cohort. Please complete checkout.');
+        }
+      }
+    }
+  } catch (checkErr) {
+    if (checkErr instanceof Error && checkErr.message.includes('Payment required')) {
+      throw checkErr;
+    }
+  }
+
   // 1. Deactivate any existing active enrollments for this student in other cohorts
   try {
     await supabase
@@ -811,10 +846,12 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
   if (input.enrollment_end !== undefined) payload.enrollment_end = input.enrollment_end;
   if (input.track_type !== undefined) payload.track_type = input.track_type;
   if (input.duration_days !== undefined) payload.duration_days = input.duration_days;
+  if (input.price_inr !== undefined) payload.price_inr = input.price_inr;
+  if (input.currency !== undefined) payload.currency = input.currency;
 
-  let res = await supabase.from('cohorts').insert(payload).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days').single();
+  let res = await supabase.from('cohorts').insert(payload).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency').single();
   if (res.error) {
-    res = await supabase.from('cohorts').insert({ title: input.name, description: input.description }).select('id, title, description').single();
+    res = await supabase.from('cohorts').insert({ title: input.name, description: input.description, price_inr: input.price_inr, currency: input.currency }).select('id, title, description').single();
   }
   if (res.error) throw res.error;
   const created = res.data as DbCohortRow;
@@ -831,6 +868,8 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
     enrollment_end: created.enrollment_end ?? null,
     track_type: created.track_type ?? 'general',
     duration_days: created.duration_days ?? 15,
+    price_inr: created.price_inr ?? 4999,
+    currency: created.currency ?? 'INR',
   };
 }
 
@@ -852,12 +891,15 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
   if (input.enrollment_end !== undefined) payload.enrollment_end = input.enrollment_end;
   if (input.track_type !== undefined) payload.track_type = input.track_type;
   if (input.duration_days !== undefined) payload.duration_days = input.duration_days;
+  if (input.price_inr !== undefined) payload.price_inr = input.price_inr;
+  if (input.currency !== undefined) payload.currency = input.currency;
 
-  let res = await supabase.from('cohorts').update(payload).eq('id', id).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days').single();
+  let res = await supabase.from('cohorts').update(payload).eq('id', id).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency').single();
   if (res.error) {
     const fallbackPayload: Record<string, unknown> = {};
     if (input.name !== undefined) fallbackPayload.title = input.name;
     if (input.description !== undefined) fallbackPayload.description = input.description;
+    if (input.price_inr !== undefined) fallbackPayload.price_inr = input.price_inr;
     res = await supabase.from('cohorts').update(fallbackPayload).eq('id', id).select('id, title, description').single();
   }
   if (res.error) throw res.error;
@@ -875,6 +917,8 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
     enrollment_end: updated.enrollment_end ?? null,
     track_type: updated.track_type ?? 'general',
     duration_days: updated.duration_days ?? 15,
+    price_inr: updated.price_inr ?? 4999,
+    currency: updated.currency ?? 'INR',
   };
 }
 

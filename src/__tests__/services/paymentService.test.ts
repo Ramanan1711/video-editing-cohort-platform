@@ -3,11 +3,11 @@ import {
   DEFAULT_COHORT_FEE_INR,
   DEFAULT_CURRENCY,
   createCohortRazorpayOrder,
-  verifyAndCompleteEnrollment,
+  verifyRazorpayPayment,
   loadRazorpayScript,
+  startCohortCheckout,
 } from '../../lib/paymentService';
 import { supabase } from '../../lib/supabaseClient';
-import * as courseService from '../../lib/courseService';
 
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
@@ -17,7 +17,7 @@ vi.mock('../../lib/supabaseClient', () => ({
   },
 }));
 
-describe('paymentService (Razorpay INR Payments)', () => {
+describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -27,12 +27,13 @@ describe('paymentService (Razorpay INR Payments)', () => {
     expect(DEFAULT_CURRENCY).toBe('INR');
   });
 
-  it('creates a Razorpay order via edge function when available', async () => {
+  it('creates a Razorpay order using only cohortId via edge function', async () => {
     const mockOrderResponse = {
       orderId: 'order_test_123',
       amount: 499900,
       currency: 'INR',
-      receipt: 'rcpt_123',
+      keyId: 'rzp_live_test_key',
+      cohortTitle: 'Video Editing Masterclass',
     };
 
     (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -40,76 +41,154 @@ describe('paymentService (Razorpay INR Payments)', () => {
       error: null,
     });
 
-    const order = await createCohortRazorpayOrder('cohort-abc-123', 'user-xyz-456', 4999);
+    const order = await createCohortRazorpayOrder('cohort-abc-123');
     expect(order.id).toBe('order_test_123');
     expect(order.amount).toBe(499900);
     expect(order.currency).toBe('INR');
-    expect(order.status).toBe('created');
+    expect(order.keyId).toBe('rzp_live_test_key');
+    expect(order.cohortTitle).toBe('Video Editing Masterclass');
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('create-razorpay-order', {
+      body: { cohortId: 'cohort-abc-123' },
+    });
   });
 
-  it('provides a resilient fallback order descriptor if edge function fails', async () => {
+  it('fails closed and throws error if order creation edge function fails', async () => {
+    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      error: { message: 'Cohort capacity reached' },
+    });
+
+    await expect(createCohortRazorpayOrder('cohort-full-123')).rejects.toThrow(
+      'Cohort capacity reached'
+    );
+  });
+
+  it('fails closed and throws if order creation network rejects', async () => {
     (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error('Edge function network failure')
+      new Error('Network offline')
     );
 
-    const order = await createCohortRazorpayOrder('cohort-abc-123', 'user-xyz-456', 4999);
-    expect(order.id).toContain('order_inr_cohort-a');
-    expect(order.amount).toBe(499900);
-    expect(order.currency).toBe('INR');
+    await expect(createCohortRazorpayOrder('cohort-abc')).rejects.toThrow('Network offline');
   });
 
-  it('verifies payment signature through edge function and returns success', async () => {
+  it('verifies payment signature through edge function and confirms enrollment', async () => {
     (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { verified: true, enrollmentId: 'enrollment-test-789' },
+      data: { success: true, verified: true, enrollmentId: 'enrollment-test-789' },
       error: null,
     });
 
-    const result = await verifyAndCompleteEnrollment(
+    const result = await verifyRazorpayPayment(
       {
         razorpay_payment_id: 'pay_test_001',
         razorpay_order_id: 'order_test_123',
         razorpay_signature: 'sig_valid_hex',
       },
-      'cohort-abc',
-      'user-xyz'
+      'cohort-abc'
     );
 
     expect(result.success).toBe(true);
     expect(result.enrollmentId).toBe('enrollment-test-789');
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('verify-razorpay-payment', {
+      body: {
+        orderId: 'order_test_123',
+        paymentId: 'pay_test_001',
+        signature: 'sig_valid_hex',
+        cohortId: 'cohort-abc',
+      },
+    });
   });
 
-  it('falls back to enrollInCohort when edge function verification fails', async () => {
-    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error('Verification endpoint unreachable')
-    );
-
-    const enrollSpy = vi.spyOn(courseService, 'enrollInCohort').mockResolvedValue({
-      id: 'enrollment-fallback-111',
-      user_id: 'user-xyz',
-      cohort_id: 'cohort-abc',
-      enrolled_at: new Date().toISOString(),
-      role: 'student',
-      status: 'enrolled',
+  it('fails closed and throws error if payment verification is invalid or rejected', async () => {
+    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { success: false, verified: false, error: 'Signature verification failed' },
+      error: null,
     });
 
-    const result = await verifyAndCompleteEnrollment(
-      {
-        razorpay_payment_id: 'pay_fallback_002',
-        razorpay_order_id: 'order_fallback_222',
-        razorpay_signature: 'sig_fallback',
-      },
-      'cohort-abc',
-      'user-xyz'
+    await expect(
+      verifyRazorpayPayment(
+        {
+          razorpay_payment_id: 'pay_tampered_002',
+          razorpay_order_id: 'order_test_123',
+          razorpay_signature: 'sig_invalid_hex',
+        },
+        'cohort-abc'
+      )
+    ).rejects.toThrow('Signature verification failed');
+  });
+
+  it('fails closed if payment verification edge function returns a network error', async () => {
+    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Verification server unreachable')
     );
 
-    expect(enrollSpy).toHaveBeenCalledWith('user-xyz', 'cohort-abc');
-    expect(result.success).toBe(true);
-    expect(result.enrollmentId).toBe('enrollment-fallback-111');
+    await expect(
+      verifyRazorpayPayment(
+        {
+          razorpay_payment_id: 'pay_test_003',
+          razorpay_order_id: 'order_test_333',
+          razorpay_signature: 'sig_test',
+        },
+        'cohort-abc'
+      )
+    ).rejects.toThrow('Verification server unreachable');
   });
 
   it('detects existing window.Razorpay when loading script', async () => {
     (window as unknown as { Razorpay: unknown }).Razorpay = class MockRazorpay {};
     const loaded = await loadRazorpayScript();
     expect(loaded).toBe(true);
+  });
+
+  it('orchestrates checkout flow with startCohortCheckout and opens modal', async () => {
+    const openMock = vi.fn();
+    (window as unknown as { Razorpay: unknown }).Razorpay = class MockRazorpay {
+      open = openMock;
+    };
+
+    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        orderId: 'order_flow_123',
+        amount: 499900,
+        currency: 'INR',
+        keyId: 'rzp_test_key_1',
+      },
+      error: null,
+    });
+
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+
+    await startCohortCheckout({
+      cohortId: 'cohort-100',
+      cohortName: 'Advanced Motion Design',
+      userEmail: 'student@example.com',
+      userName: 'Jane Doe',
+      onSuccess,
+      onError,
+    });
+
+    expect(openMock).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('startCohortCheckout invokes onError when order creation fails', async () => {
+    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Server error')
+    );
+
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+
+    await startCohortCheckout({
+      cohortId: 'cohort-fail',
+      cohortName: 'Failed Cohort',
+      onSuccess,
+      onError,
+    });
+
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 });

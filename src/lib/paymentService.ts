@@ -1,5 +1,4 @@
 import { supabase } from './supabaseClient';
-import { enrollInCohort } from './courseService';
 
 export const DEFAULT_COHORT_FEE_INR = 4999;
 export const DEFAULT_CURRENCY = 'INR';
@@ -8,9 +7,9 @@ export interface RazorpayOrder {
   id: string;
   amount: number; // in paise (e.g. 499900)
   currency: string;
+  keyId: string;
   receipt?: string;
-  status: 'created' | 'attempted' | 'paid';
-  notes?: Record<string, string>;
+  cohortTitle?: string;
 }
 
 export interface RazorpayPaymentResponse {
@@ -40,6 +39,16 @@ export interface RazorpayCheckoutOptions {
   modal?: {
     ondismiss?: () => void;
   };
+}
+
+export interface CohortCheckoutParams {
+  cohortId: string;
+  cohortName: string;
+  userEmail?: string;
+  userName?: string;
+  onSuccess: (enrollmentId: string) => void;
+  onError: (error: Error) => void;
+  onDismiss?: () => void;
 }
 
 declare global {
@@ -77,90 +86,129 @@ export async function loadRazorpayScript(): Promise<boolean> {
 }
 
 /**
- * Creates an INR Razorpay order for cohort enrollment.
- * Calls Supabase Edge Function `create-razorpay-order` or falls back to standard client order model.
+ * Requests an order from the server using only the cohort ID.
+ * The Supabase Edge Function reads the server-authoritative cohort price and returns order details.
+ * Fail-closed: Never returns a fabricated local order on failure.
  */
-export async function createCohortRazorpayOrder(
-  cohortId: string,
-  userId: string,
-  amountInINR: number = DEFAULT_COHORT_FEE_INR
-): Promise<RazorpayOrder> {
-  const amountInPaise = Math.round(amountInINR * 100);
-
-  try {
-    const { data, error } = await supabase.functions.invoke<{
-      orderId: string;
-      amount: number;
-      currency: string;
-      receipt: string;
-    }>('create-razorpay-order', {
-      body: {
-        cohortId,
-        userId,
-        amount: amountInPaise,
-        currency: DEFAULT_CURRENCY,
-      },
-    });
-
-    if (!error && data?.orderId) {
-      return {
-        id: data.orderId,
-        amount: data.amount,
-        currency: data.currency || DEFAULT_CURRENCY,
-        receipt: data.receipt,
-        status: 'created',
-      };
-    }
-  } catch (err) {
-    console.warn('Edge function create-razorpay-order failed, using local order descriptor:', err);
+export async function createCohortRazorpayOrder(cohortId: string): Promise<RazorpayOrder> {
+  if (!cohortId) {
+    throw new Error('Cohort ID is required to initiate checkout.');
   }
 
-  // Graceful fallback order reference for testing or before edge function deployment
+  const { data, error } = await supabase.functions.invoke<{
+    success?: boolean;
+    orderId: string;
+    amount: number;
+    currency: string;
+    keyId: string;
+    cohortTitle?: string;
+    error?: string;
+  }>('create-razorpay-order', {
+    body: { cohortId },
+  });
+
+  if (error || !data || !data.orderId) {
+    const errorMessage = data?.error || error?.message || 'Failed to create payment order.';
+    throw new Error(errorMessage);
+  }
+
   return {
-    id: `order_inr_${cohortId.slice(0, 8)}_${Date.now()}`,
-    amount: amountInPaise,
-    currency: DEFAULT_CURRENCY,
-    receipt: `rcpt_${userId.slice(0, 6)}_${cohortId.slice(0, 6)}`,
-    status: 'created',
-    notes: {
-      cohort_id: cohortId,
-      user_id: userId,
-    },
+    id: data.orderId,
+    amount: data.amount,
+    currency: data.currency || DEFAULT_CURRENCY,
+    keyId: data.keyId,
+    cohortTitle: data.cohortTitle,
   };
 }
 
 /**
- * Verifies Razorpay payment signature server-side and activates enrollment upon success.
+ * Verifies Razorpay payment signature server-side and confirms enrollment.
+ * Fail-closed: Never falls back to direct client-side enrollment if verification fails.
  */
-export async function verifyAndCompleteEnrollment(
+export async function verifyRazorpayPayment(
   paymentData: RazorpayPaymentResponse,
-  cohortId: string,
-  userId: string
-): Promise<{ success: boolean; enrollmentId?: string; error?: string }> {
-  try {
-    // 1. Attempt verification via Supabase Edge Function
-    const { data, error } = await supabase.functions.invoke<{
-      verified: boolean;
-      enrollmentId?: string;
-      error?: string;
-    }>('verify-razorpay-payment', {
-      body: {
-        paymentId: paymentData.razorpay_payment_id,
-        orderId: paymentData.razorpay_order_id,
-        signature: paymentData.razorpay_signature,
-        cohortId,
-        userId,
-      },
-    });
-
-    if (!error && data?.verified) {
-      return { success: true, enrollmentId: data.enrollmentId };
-    }
-  } catch (err) {
-    console.warn('verify-razorpay-payment edge function unavailable, falling back to direct enrollment:', err);
+  cohortId: string
+): Promise<{ success: boolean; enrollmentId: string }> {
+  if (!paymentData.razorpay_order_id || !paymentData.razorpay_payment_id || !paymentData.razorpay_signature) {
+    throw new Error('Incomplete payment response received from gateway.');
   }
 
-  // 2. Direct activation fallback
-  const enrollment = await enrollInCohort(userId, cohortId);
-  return { success: true, enrollmentId: enrollment.id || `${userId}_${cohortId}` };
+  const { data, error } = await supabase.functions.invoke<{
+    success: boolean;
+    verified: boolean;
+    enrollmentId?: string;
+    error?: string;
+  }>('verify-razorpay-payment', {
+    body: {
+      orderId: paymentData.razorpay_order_id,
+      paymentId: paymentData.razorpay_payment_id,
+      signature: paymentData.razorpay_signature,
+      cohortId,
+    },
+  });
+
+  if (error || !data || !data.verified || !data.enrollmentId) {
+    const errorMsg = data?.error || error?.message || 'Payment signature verification failed.';
+    throw new Error(errorMsg);
+  }
+
+  return {
+    success: true,
+    enrollmentId: data.enrollmentId,
+  };
+}
+
+/**
+ * Orchestrates the full paid checkout flow:
+ * 1. Loads Razorpay script.
+ * 2. Fetches server-authoritative order from Edge Function using only cohortId.
+ * 3. Opens Razorpay Checkout modal.
+ * 4. Calls server-side verification upon completion.
+ * 5. Notifies UI only after verified enrollment is secured.
+ */
+export async function startCohortCheckout(params: CohortCheckoutParams): Promise<void> {
+  try {
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded || !window.Razorpay) {
+      throw new Error('Unable to load Razorpay payment gateway. Please check your internet connection.');
+    }
+
+    const order = await createCohortRazorpayOrder(params.cohortId);
+
+    const options: RazorpayCheckoutOptions = {
+      key: order.keyId,
+      amount: order.amount,
+      currency: order.currency,
+      name: 'Iunoware Platform',
+      description: `${params.cohortName} Enrollment`,
+      order_id: order.id,
+      theme: {
+        color: '#f97316',
+      },
+      prefill: {
+        email: params.userEmail,
+        name: params.userName,
+      },
+      handler: async (response: RazorpayPaymentResponse) => {
+        try {
+          const verification = await verifyRazorpayPayment(response, params.cohortId);
+          params.onSuccess(verification.enrollmentId);
+        } catch (verificationError) {
+          const err = verificationError instanceof Error ? verificationError : new Error(String(verificationError));
+          params.onError(err);
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          params.onDismiss?.();
+        },
+      },
+    };
+
+    const razorpayInstance = new window.Razorpay(options);
+    razorpayInstance.open();
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    params.onError(error);
+  }
 }

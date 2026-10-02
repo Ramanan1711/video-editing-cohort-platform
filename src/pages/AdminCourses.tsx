@@ -104,6 +104,7 @@ interface CohortEditorState {
   description: string;
   status: 'draft' | 'review' | 'published' | 'archived' | 'upcoming' | 'active' | 'completed';
   capacity: string;
+  priceInr: string;
   visibility: 'public' | 'private' | 'unlisted';
   enrollmentStart: string;
   enrollmentEnd: string;
@@ -335,6 +336,7 @@ export function AdminCourses() {
         description: cohort.description ?? '',
         status: cohort.status ?? 'draft',
         capacity: cohort.capacity != null ? String(cohort.capacity) : '30',
+        priceInr: cohort.price_inr != null ? String(cohort.price_inr) : '4999',
         visibility: cohort.visibility ?? 'public',
         enrollmentStart: cohort.enrollment_start ? cohort.enrollment_start.slice(0, 16) : '',
         enrollmentEnd: cohort.enrollment_end ? cohort.enrollment_end.slice(0, 16) : '',
@@ -347,6 +349,7 @@ export function AdminCourses() {
         description: '',
         status: 'draft',
         capacity: '30',
+        priceInr: '4999',
         visibility: 'public',
         enrollmentStart: '',
         enrollmentEnd: '',
@@ -583,6 +586,8 @@ export function AdminCourses() {
           course_id: editor.courseId || null,
           status: editor.status,
           capacity: Number(editor.capacity) || 30,
+          price_inr: Number(editor.priceInr) >= 0 ? Number(editor.priceInr) : 4999,
+          currency: 'INR',
           visibility: editor.visibility,
           enrollment_start: editor.enrollmentStart ? new Date(editor.enrollmentStart).toISOString() : null,
           enrollment_end: editor.enrollmentEnd ? new Date(editor.enrollmentEnd).toISOString() : null,
@@ -1231,6 +1236,9 @@ export function AdminCourses() {
                               Cap: {cohort.capacity} seats
                             </span>
                           )}
+                          <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                            ₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')} INR
+                          </span>
                         </div>
                         <p className="mt-0.5 truncate text-xs text-slate-500">
                           {cohort.description || 'No description set'}
@@ -2185,7 +2193,16 @@ export function AdminCourses() {
                     />
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <FormField
+                      label="Enrollment Fee (INR ₹)"
+                      type="number"
+                      min="0"
+                      value={editor.priceInr}
+                      onChange={(val) => setEditor({ ...editor, priceInr: val })}
+                      placeholder="4999"
+                      required
+                    />
                     <FormField
                       label="Enrollment Start"
                       type="datetime-local"

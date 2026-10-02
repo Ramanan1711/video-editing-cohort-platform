@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
+import { startCohortCheckout } from '../lib/paymentService';
 import {
   addFeedbackReply,
   enrollInCohort,
@@ -65,18 +66,41 @@ export function EnrollmentPanel({ userId, onEnrolled }: { userId: string; onEnro
     };
   }, [userId]);
 
+  const selectedCohort = cohorts.find((c) => c.id === selectedId);
+
   const enroll = async () => {
-    if (!selectedId) return;
+    if (!selectedCohort) return;
     setSaving(true);
     setError(null);
-    try {
-      await enrollInCohort(userId, selectedId);
-      onEnrolled();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Unable to enroll.');
-    } finally {
-      setSaving(false);
+
+    const price = selectedCohort.price_inr ?? 4999;
+    if (price === 0) {
+      try {
+        await enrollInCohort(userId, selectedCohort.id);
+        onEnrolled();
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : 'Unable to enroll.');
+      } finally {
+        setSaving(false);
+      }
+      return;
     }
+
+    await startCohortCheckout({
+      cohortId: selectedCohort.id,
+      cohortName: selectedCohort.name,
+      onSuccess: () => {
+        setSaving(false);
+        onEnrolled();
+      },
+      onError: (err) => {
+        setSaving(false);
+        setError(err.message || 'Payment was unsuccessful or cancelled.');
+      },
+      onDismiss: () => {
+        setSaving(false);
+      },
+    });
   };
 
   return (
@@ -115,7 +139,11 @@ export function EnrollmentPanel({ userId, onEnrolled }: { userId: string; onEnro
             </button>
           ))}
           <Button onClick={() => void enroll()} loading={saving} disabled={!selectedId} className="mt-3">
-            {saving ? 'Joining cohort...' : 'Enroll in cohort (₹4,999 INR)'}
+            {saving
+              ? 'Opening checkout...'
+              : selectedCohort && (selectedCohort.price_inr ?? 4999) > 0
+              ? `Proceed to Checkout (₹${(selectedCohort.price_inr ?? 4999).toLocaleString('en-IN')})`
+              : 'Enroll in cohort'}
           </Button>
         </div>
       ) : (
@@ -166,17 +194,40 @@ export function CohortDiscoveryModal({
 
   if (!isOpen) return null;
 
-  const handleEnrollAndSwitch = async (cohortId: string) => {
-    try {
-      setEnrollingId(cohortId);
-      await enrollInCohort(userId, cohortId);
-      onSelectCohort(cohortId);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to enroll in cohort.');
-    } finally {
-      setEnrollingId(null);
+  const handleEnrollAndSwitch = async (cohort: Cohort) => {
+    setError(null);
+    setEnrollingId(cohort.id);
+
+    const price = cohort.price_inr ?? 4999;
+    if (price === 0) {
+      try {
+        await enrollInCohort(userId, cohort.id);
+        onSelectCohort(cohort.id);
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to enroll in cohort.');
+      } finally {
+        setEnrollingId(null);
+      }
+      return;
     }
+
+    await startCohortCheckout({
+      cohortId: cohort.id,
+      cohortName: cohort.name,
+      onSuccess: () => {
+        setEnrollingId(null);
+        onSelectCohort(cohort.id);
+        onClose();
+      },
+      onError: (err) => {
+        setEnrollingId(null);
+        setError(err.message || 'Payment was unsuccessful or cancelled.');
+      },
+      onDismiss: () => {
+        setEnrollingId(null);
+      },
+    });
   };
 
   return (
@@ -281,9 +332,9 @@ export function CohortDiscoveryModal({
                         size="sm"
                         variant="primary"
                         loading={enrollingId === cohort.id}
-                        onClick={() => void handleEnrollAndSwitch(cohort.id)}
+                        onClick={() => void handleEnrollAndSwitch(cohort)}
                       >
-                        Enroll (₹4,999 INR)
+                        Enroll (₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')})
                       </Button>
                     )}
                   </div>
