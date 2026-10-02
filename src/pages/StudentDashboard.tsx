@@ -1592,6 +1592,8 @@ export function StudentDashboard() {
               user && (
                 <EnrollmentPanel
                   userId={user.id}
+                  userEmail={user.email}
+                  userName={profile?.full_name || user.user_metadata?.full_name}
                   onEnrolled={() => {
                     setRefreshKey((k) => k + 1);
                   }}
@@ -2048,6 +2050,8 @@ export function StudentDashboard() {
   {user && (
     <CohortDiscoveryModal
       userId={user.id}
+      userEmail={user.email}
+      userName={profile?.full_name || user.user_metadata?.full_name}
       isOpen={discoveryModalOpen}
       onClose={() => setDiscoveryModalOpen(false)}
       currentCohortId={course.cohort?.id}

@@ -210,6 +210,10 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
       );
     }
 
+    const prefill: Record<string, string> = {};
+    if (params.userEmail) prefill.email = params.userEmail;
+    if (params.userName) prefill.name = params.userName;
+
     const options: RazorpayCheckoutOptions = {
       key: effectiveKey,
       amount: order.amount,
@@ -220,10 +224,7 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
       theme: {
         color: '#f97316',
       },
-      prefill: {
-        email: params.userEmail,
-        name: params.userName,
-      },
+      ...(Object.keys(prefill).length > 0 ? { prefill } : {}),
       handler: async (response: RazorpayPaymentResponse) => {
         try {
           const verification = await verifyRazorpayPayment(response, params.cohortId);
@@ -241,6 +242,14 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
     };
 
     const razorpayInstance = new window.Razorpay(options);
+    if (typeof razorpayInstance.on === 'function') {
+      razorpayInstance.on('payment.failed', (failedResponse: unknown) => {
+        const errorDetail = failedResponse && typeof failedResponse === 'object' && 'error' in failedResponse
+          ? (failedResponse as { error?: { description?: string } }).error?.description
+          : null;
+        params.onError(new Error(errorDetail || 'Payment failed or was cancelled.'));
+      });
+    }
     razorpayInstance.open();
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));

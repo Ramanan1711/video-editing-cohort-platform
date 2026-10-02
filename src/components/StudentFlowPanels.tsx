@@ -62,7 +62,17 @@ function getCohortEnrollmentStatus(cohort: Cohort): { isOpen: boolean; label?: s
   return { isOpen: true };
 }
 
-export function EnrollmentPanel({ userId, onEnrolled }: { userId: string; onEnrolled: () => void }) {
+export function EnrollmentPanel({
+  userId,
+  userEmail,
+  userName,
+  onEnrolled,
+}: {
+  userId: string;
+  userEmail?: string;
+  userName?: string;
+  onEnrolled: () => void;
+}) {
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -104,6 +114,8 @@ export function EnrollmentPanel({ userId, onEnrolled }: { userId: string; onEnro
     await startCohortCheckout({
       cohortId: selectedCohort.id,
       cohortName: selectedCohort.name,
+      userEmail,
+      userName,
       onSuccess: () => {
         setSaving(false);
         onEnrolled();
@@ -191,12 +203,16 @@ export function EnrollmentPanel({ userId, onEnrolled }: { userId: string; onEnro
 
 export function CohortDiscoveryModal({
   userId,
+  userEmail,
+  userName,
   isOpen,
   onClose,
   currentCohortId,
   onSelectCohort,
 }: {
   userId: string;
+  userEmail?: string;
+  userName?: string;
   isOpen: boolean;
   onClose: () => void;
   currentCohortId?: string | null;
@@ -251,6 +267,8 @@ export function CohortDiscoveryModal({
     await startCohortCheckout({
       cohortId: cohort.id,
       cohortName: cohort.name,
+      userEmail,
+      userName,
       onSuccess: () => {
         setEnrollingId(null);
         onSelectCohort(cohort.id);
