@@ -381,8 +381,8 @@ export const RobotTerminal: React.FC = () => {
           robotRoot.position.y = -totalCenter.y;
           robotRoot.position.z = -totalCenter.z;
 
-          // Position camera at a dynamic 3/4 studio angle (turned slightly right to reveal 3D cheek depth & chamfers)
-          camera.position.set(0.72, 0.035, 0.15);
+          // Position camera at a dynamic 3/4 studio angle with closer framing for larger, bold character presence
+          camera.position.set(0.65, 0.03, 0.135);
           camera.lookAt(0, 0.015, 0);
 
           setIsReady(true);
@@ -566,16 +566,16 @@ export const RobotTerminal: React.FC = () => {
       data-cursor="ROBOT"
       onClick={handleClick}
       onMouseEnter={() => soundFx.playBlip(540, 0.03, 'sine', 0.03)}
-      className="relative w-[340px] sm:w-[420px] lg:w-[490px] xl:w-[540px] h-[520px] sm:h-[600px] lg:h-[660px] flex items-center justify-center select-none pointer-events-auto cursor-pointer"
+      className="relative w-[380px] sm:w-[460px] md:w-[540px] lg:w-[640px] xl:w-[720px] 2xl:w-[800px] h-[580px] sm:h-[660px] md:h-[720px] lg:h-[820px] xl:h-[900px] 2xl:h-[980px] flex items-center justify-center select-none pointer-events-auto cursor-pointer"
     >
       {/* ================= VOLUMETRIC CRIMSON BACKGROUND NEBULA ================= */}
-      <div className="pointer-events-none absolute -inset-20 -z-10 overflow-hidden">
+      <div className="pointer-events-none absolute -inset-24 -z-10 overflow-hidden">
         {/* Deep ambient red smoke core */}
-        <div className="absolute top-1/4 right-0 w-[520px] h-[520px] rounded-full bg-gradient-to-br from-red-600/40 via-red-950/30 to-transparent blur-[120px]" />
+        <div className="absolute top-1/4 right-0 w-[640px] h-[640px] rounded-full bg-gradient-to-br from-red-600/40 via-red-950/30 to-transparent blur-[130px]" />
         {/* Soft upper crimson fog plume */}
-        <div className="absolute -top-12 right-1/4 w-[400px] h-[400px] rounded-full bg-red-700/25 blur-[140px]" />
+        <div className="absolute -top-16 right-1/4 w-[480px] h-[480px] rounded-full bg-red-700/25 blur-[150px]" />
         {/* Subtle orange accent glow */}
-        <div className="absolute bottom-8 right-8 w-[300px] h-[300px] rounded-full bg-orange-600/15 blur-[100px]" />
+        <div className="absolute bottom-8 right-8 w-[360px] h-[360px] rounded-full bg-orange-600/15 blur-[110px]" />
       </div>
 
       {/* Real Three.js WebGL Canvas */}
