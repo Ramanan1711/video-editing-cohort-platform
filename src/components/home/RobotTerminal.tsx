@@ -87,23 +87,23 @@ export const RobotTerminal: React.FC = () => {
       renderer.toneMappingExposure = 1.15;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-      // 2. Studio Lighting (Matching Junca Studio's deep crimson aesthetic)
+      // 2. Studio Lighting (Front view orientation)
       const ambientLight = new THREE.AmbientLight(0x2a0808, 1.8);
       scene.add(ambientLight);
 
-      // Strong crimson key / rim light from the left-back
+      // Strong crimson key / rim light from viewer's left
       const redRimLight = new THREE.DirectionalLight(0xff2222, 5.0);
-      redRimLight.position.set(-2.5, 2.0, -1.0);
+      redRimLight.position.set(0.5, 1.8, 2.5);
       scene.add(redRimLight);
 
       // Warm top highlight for the beveled canopy
       const topLight = new THREE.DirectionalLight(0xff6644, 2.5);
-      topLight.position.set(0.5, 3.5, 1.5);
+      topLight.position.set(1.5, 3.5, 0.0);
       scene.add(topLight);
 
-      // Subtle front-right fill light for the silver cheek & metallic body
+      // Subtle front-right fill light for the metallic body
       const fillLight = new THREE.DirectionalLight(0xffffff, 1.2);
-      fillLight.position.set(2.0, 1.0, 3.0);
+      fillLight.position.set(2.0, 0.8, -1.8);
       scene.add(fillLight);
 
       // 3. Dynamic CRT Canvas Texture for the Terminal Screen
@@ -381,9 +381,9 @@ export const RobotTerminal: React.FC = () => {
           robotRoot.position.y = -totalCenter.y;
           robotRoot.position.z = -totalCenter.z;
 
-          // Position camera to frame the head & upper torso exactly like Junca Studio
-          camera.position.set(0.18, 0.12, 0.72);
-          camera.lookAt(0, 0.04, 0);
+          // Position camera at a dynamic 3/4 studio angle (turned slightly right to reveal 3D cheek depth & chamfers)
+          camera.position.set(0.72, 0.035, 0.15);
+          camera.lookAt(0, 0.015, 0);
 
           setIsReady(true);
         },
@@ -440,13 +440,14 @@ export const RobotTerminal: React.FC = () => {
         let targetRoll: number;
 
         if (mouseRef.current.active) {
-          targetYaw = mouseRef.current.x * 0.48;
-          targetPitch = -mouseRef.current.y * 0.32;
+          // Front-facing mouse tracking (X is forward, Y is vertical up, Z is horizontal side)
+          targetYaw = mouseRef.current.x * 0.45;
+          targetPitch = -mouseRef.current.y * 0.28;
           targetRoll = -mouseRef.current.x * 0.06;
         } else {
           const elapsed = time * 0.001;
-          targetYaw = Math.sin(elapsed * 0.8) * 0.12;
-          targetPitch = Math.cos(elapsed * 1.2) * 0.06 - 0.03;
+          targetYaw = Math.sin(elapsed * 0.8) * 0.10;
+          targetPitch = Math.cos(elapsed * 1.2) * 0.05;
           targetRoll = Math.sin(elapsed * 0.6) * 0.02;
         }
 
@@ -454,11 +455,12 @@ export const RobotTerminal: React.FC = () => {
         currentHeadPitch += (targetPitch - currentHeadPitch) * 0.08;
         currentHeadRoll += (targetRoll - currentHeadRoll) * 0.08;
 
-        currentBodyYaw += (targetYaw * 0.2 - currentBodyYaw) * 0.05;
-        currentBodyPitch += (targetPitch * 0.15 - currentBodyPitch) * 0.05;
+        currentBodyYaw += (targetYaw * 0.18 - currentBodyYaw) * 0.05;
+        currentBodyPitch += (targetPitch * 0.12 - currentBodyPitch) * 0.05;
 
-        headPivot.rotation.set(currentHeadPitch, currentHeadYaw, currentHeadRoll, 'YXZ');
-        bodyPivot.rotation.set(currentBodyPitch, currentBodyYaw, 0, 'YXZ');
+        // In front-facing view, Z is pitch (nod up/down), Y is yaw (turn left/right), X is roll
+        headPivot.rotation.set(currentHeadRoll, currentHeadYaw, currentHeadPitch, 'ZYX');
+        bodyPivot.rotation.set(0, currentBodyYaw, currentBodyPitch, 'ZYX');
 
         // Spin fan blades smoothly
         if (fanBladesMesh) {
@@ -529,12 +531,12 @@ export const RobotTerminal: React.FC = () => {
       currY += (targetY - currY) * 0.08;
 
       setFallbackTransform({
-        yaw: currX * 26,
+        yaw: currX * 26 + 10,
         pitch: -currY * 16,
         roll: -currX * 3.5,
         glareX: -currX * 20,
         glareY: -currY * 20,
-        torsoYaw: currX * 5,
+        torsoYaw: currX * 5 + 4,
         torsoPitch: -currY * 3,
       });
 
