@@ -154,7 +154,7 @@ Deno.serve(async (req: Request) => {
       }
     );
 
-    if (enrollError || !enrollData) {
+    if (enrollError || !enrollmentData) {
       console.error('Failed to record payment & enroll:', enrollError);
       return new Response(
         JSON.stringify({ error: enrollError?.message || 'Failed to complete enrollment' }),
