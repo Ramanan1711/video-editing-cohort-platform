@@ -73,11 +73,11 @@ export const ForgotPassword: React.FC = () => {
             </div>
             <div className="flex items-center gap-1 leading-none font-sans">
               <span className="text-2xl font-black tracking-tight text-white">
-                Growbytee
+                Iunoware
               </span>
-              <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
+              {/* <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
                 Global
-              </span>
+              </span> */}
               <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-orange-400">
                 Academy
               </span>
@@ -142,7 +142,7 @@ export const ForgotPassword: React.FC = () => {
                   className="mb-4 inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-[#060913]/90 px-3.5 py-1 text-[11px] font-black uppercase tracking-wider text-orange-400 font-mono shadow-md backdrop-blur-xl"
                 >
                   <span className="flex size-2 rounded-full bg-orange-500 animate-ping" />
-                  <span>Account Recovery · Growbytee Studio</span>
+                  <span>Account Recovery · Iunoware Studio</span>
                 </div>
 
                 <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
