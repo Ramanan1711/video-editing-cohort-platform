@@ -168,15 +168,50 @@ export async function verifyRazorpayPayment(
  */
 export async function startCohortCheckout(params: CohortCheckoutParams): Promise<void> {
   try {
+    const order = await createCohortRazorpayOrder(params.cohortId);
+
+    // If order was created in mock development mode, bypass external Razorpay CDN to avoid invalid key crashes
+    if (order.id.startsWith('order_mock_')) {
+      const confirmed = typeof window !== 'undefined' && typeof window.confirm === 'function'
+        ? window.confirm(
+            `[DEV MODE] Simulated Razorpay Checkout:\n\nCohort: ${params.cohortName}\nAmount: ₹${(order.amount / 100).toLocaleString('en-IN')}\nOrder ID: ${order.id}\n\nClick OK to simulate verified payment and complete enrollment.`
+          )
+        : true;
+
+      if (!confirmed) {
+        params.onDismiss?.();
+        return;
+      }
+
+      const mockResponse: RazorpayPaymentResponse = {
+        razorpay_order_id: order.id,
+        razorpay_payment_id: `pay_mock_${Date.now()}`,
+        razorpay_signature: `sig_mock_${Date.now()}`,
+      };
+
+      const verification = await verifyRazorpayPayment(mockResponse, params.cohortId);
+      params.onSuccess(verification.enrollmentId);
+      return;
+    }
+
     const scriptLoaded = await loadRazorpayScript();
     if (!scriptLoaded || !window.Razorpay) {
       throw new Error('Unable to load Razorpay payment gateway. Please check your internet connection.');
     }
 
-    const order = await createCohortRazorpayOrder(params.cohortId);
+    const effectiveKey =
+      (order.keyId && order.keyId !== 'rzp_test_placeholder')
+        ? order.keyId
+        : (import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined);
+
+    if (!effectiveKey || effectiveKey === 'rzp_test_placeholder' || !effectiveKey.startsWith('rzp_')) {
+      throw new Error(
+        'Razorpay Key ID is not configured or invalid. Please configure RAZORPAY_KEY_ID (e.g. rzp_test_...) in your Supabase Edge Function secrets or set VITE_RAZORPAY_KEY_ID in your .env file.'
+      );
+    }
 
     const options: RazorpayCheckoutOptions = {
-      key: order.keyId,
+      key: effectiveKey,
       amount: order.amount,
       currency: order.currency,
       name: 'Iunoware Platform',
