@@ -173,8 +173,11 @@ export const Register: React.FC = () => {
                 <Sparkles size={19} />
               </div>
               <div className="flex items-center gap-1 leading-none font-sans">
-                <span className="text-2xl font-black tracking-tight text-white">ProCut</span>
-                <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">Hub</span>
+                <span className="text-2xl font-black tracking-tight text-white">Growbytee</span>
+                <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">Global</span>
+                <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-orange-400">
+                Academy
+              </span>
               </div>
             </Link>
 
@@ -282,8 +285,11 @@ export const Register: React.FC = () => {
                 <Sparkles size={19} />
               </div>
               <div className="flex items-center gap-1 leading-none font-sans">
-                <span className="text-2xl font-black tracking-tight text-white">ProCut</span>
-                <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">Hub</span>
+                <span className="text-2xl font-black tracking-tight text-white">Growbytee</span>
+                <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">Global</span>
+                <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-orange-400">
+                Academy
+              </span>
               </div>
             </Link>
 
@@ -304,7 +310,7 @@ export const Register: React.FC = () => {
                   Account Already Exists
                 </h1>
                 <p className="text-sm text-slate-300 leading-relaxed">
-                  An account with <strong className="text-white font-mono break-all">{email}</strong> is already registered on ProCut Hub.
+                  An account with <strong className="text-white font-mono break-all">{email}</strong> is already registered on Growbytee Global Academy.
                 </p>
               </div>
 
@@ -362,8 +368,11 @@ export const Register: React.FC = () => {
               <Sparkles size={19} />
             </div>
             <div className="flex items-center gap-1 leading-none font-sans">
-              <span className="text-2xl font-black tracking-tight text-white">ProCut</span>
-              <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">Hub</span>
+              <span className="text-2xl font-black tracking-tight text-white">Growbytee</span>
+              <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">Global</span>
+              <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-orange-400">
+                Academy
+              </span>
             </div>
           </Link>
 

@@ -25,14 +25,14 @@ export function SiteHeader() {
           </div>
           <div className="flex items-center gap-1 leading-none font-sans">
             <span className="text-xl font-black tracking-tight text-orange-500">
-              ProCut
+              Growbytee
             </span>
             <span className="text-xl font-black tracking-tight text-white">
-              Hub
+              Global
             </span>
           </div>
           <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-orange-400">
-            Sprint 2.0
+            Academy
           </span>
         </Link>
 
