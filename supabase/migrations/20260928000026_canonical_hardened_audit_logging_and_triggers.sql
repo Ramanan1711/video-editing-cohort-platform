@@ -371,12 +371,15 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_entity_id text;
 begin
   if (TG_OP = 'INSERT') then
+    v_entity_id := new.user_id::text || ':' || new.cohort_id::text;
     perform public.log_audit_event(
       'enrollment.created',
       'enrollment',
-      new.id::text,
+      v_entity_id,
       jsonb_build_object(
         'cohort_id', new.cohort_id,
         'student_id', new.user_id,
@@ -387,10 +390,11 @@ begin
     return new;
   elsif (TG_OP = 'UPDATE') then
     if (old.status is distinct from new.status) then
+      v_entity_id := new.user_id::text || ':' || new.cohort_id::text;
       perform public.log_audit_event(
         'enrollment.status_changed',
         'enrollment',
-        new.id::text,
+        v_entity_id,
         jsonb_build_object(
           'cohort_id', new.cohort_id,
           'student_id', new.user_id,
@@ -402,10 +406,11 @@ begin
     end if;
     return new;
   elsif (TG_OP = 'DELETE') then
+    v_entity_id := old.user_id::text || ':' || old.cohort_id::text;
     perform public.log_audit_event(
       'enrollment.deleted',
       'enrollment',
-      old.id::text,
+      v_entity_id,
       jsonb_build_object(
         'cohort_id', old.cohort_id,
         'student_id', old.user_id,

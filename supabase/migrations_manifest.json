@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-02T06:00:11.264Z",
-  "migrationCount": 41,
+  "generatedAt": "2026-10-02T07:29:13.856Z",
+  "migrationCount": 42,
   "migrations": [
     {
       "order": 1,
@@ -499,8 +499,8 @@
     {
       "order": 33,
       "filename": "20260928000026_canonical_hardened_audit_logging_and_triggers.sql",
-      "sha256": "d4a7efc3cb46a644d9af9ce72b2b57f6013b281e728d7588238d587921486d13",
-      "sizeBytes": 20626,
+      "sha256": "5d868029f936fa35cb3267763bc0ea900327f2733f2429cfc25a9dfff3f04e69",
+      "sizeBytes": 20857,
       "hasSecurityDefinerWithoutSearchPath": true,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -622,6 +622,17 @@
         "create_cohort_checkout_order",
         "record_successful_payment_and_enroll",
         "enroll_student_in_cohort"
+      ]
+    },
+    {
+      "order": 42,
+      "filename": "20261002000002_fix_enrollments_audit_trigger_and_id_column.sql",
+      "sha256": "a6fba059727dc038691afff9a828ce855416262282ec2b6805a34c476a925f88",
+      "sizeBytes": 2487,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "fn_audit_enrollments_trigger"
       ]
     }
   ]
