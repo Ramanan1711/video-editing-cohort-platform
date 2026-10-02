@@ -103,14 +103,19 @@ export function EnrollmentPanel({ userId, onEnrolled }: { userId: string; onEnro
               }`}
             >
               <span>
-                <strong className="block text-sm text-slate-950">{cohort.name}</strong>
+                <div className="flex items-center gap-2">
+                  <strong className="block text-sm text-slate-950">{cohort.name}</strong>
+                  <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                    ₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')} INR
+                  </span>
+                </div>
                 <span className="mt-1 block text-sm text-slate-500">{cohort.description || 'A focused learning cohort.'}</span>
               </span>
               {selectedId === cohort.id && <Check className="text-orange-600" size={19} />}
             </button>
           ))}
           <Button onClick={() => void enroll()} loading={saving} disabled={!selectedId} className="mt-3">
-            {saving ? 'Joining cohort...' : 'Enroll in cohort'}
+            {saving ? 'Joining cohort...' : 'Enroll in cohort (₹4,999 INR)'}
           </Button>
         </div>
       ) : (
@@ -240,9 +245,14 @@ export function CohortDiscoveryModal({
                         </span>
                       )}
                       {!isEnrolled && (
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                          Open to Join
-                        </span>
+                        <>
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                            Open to Join
+                          </span>
+                          <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                            ₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')} INR
+                          </span>
+                        </>
                       )}
                     </div>
                     <p className="mt-1 text-xs text-slate-500 leading-relaxed">
@@ -273,7 +283,7 @@ export function CohortDiscoveryModal({
                         loading={enrollingId === cohort.id}
                         onClick={() => void handleEnrollAndSwitch(cohort.id)}
                       >
-                        Enroll &amp; Switch
+                        Enroll (₹4,999 INR)
                       </Button>
                     )}
                   </div>

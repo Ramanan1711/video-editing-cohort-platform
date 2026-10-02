@@ -43,7 +43,7 @@ export function Home() {
   const [activeSprintPhase, setActiveSprintPhase] = useState<'p1' | 'p2' | 'p3'>('p1');
   const [selectedDayDetail, setSelectedDayDetail] = useState<number>(4);
   const [roadmapFilter, setRoadmapFilter] = useState<'all' | 1 | 2 | 3>('all');
-  const [projectRate, setProjectRate] = useState<number>(500);
+  const [projectRate, setProjectRate] = useState<number>(15000);
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [activeChatScenario, setActiveChatScenario] = useState<'code' | 'video' | 'nudge'>('video');
   const [activeTransformation, setActiveTransformation] = useState<'creative' | 'coding'>('creative');
@@ -2466,36 +2466,36 @@ export function Home() {
                   <div className="flex items-center justify-between text-xs font-bold text-slate-300 mb-2">
                     <span>Expected Client Project Fee / Milestone Rate:</span>
                     <span className="text-xl font-black text-orange-400 font-mono">
-                      ${projectRate} USD
+                      ₹{projectRate.toLocaleString('en-IN')} INR
                     </span>
                   </div>
                   <input
                     type="range"
-                    min="150"
-                    max="2500"
-                    step="50"
+                    min="5000"
+                    max="75000"
+                    step="1000"
                     value={projectRate}
                     onChange={(e) => setProjectRate(Number(e.target.value))}
                     className="w-full accent-orange-500 h-2 bg-white/10 rounded-lg cursor-pointer"
                   />
                   <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-bold">
-                    <span>$150 (Entry Freelancer)</span>
-                    <span>$1,000 (Junior Pro)</span>
-                    <span>$2,500+ (Production Lead)</span>
+                    <span>₹5,000 (Entry Freelancer)</span>
+                    <span>₹25,000 (Junior Pro)</span>
+                    <span>₹75,000+ (Production Lead)</span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/10 text-center">
                   <div className="rounded-xl bg-white/[0.03] p-4 border border-white/10">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cohort Investment</p>
-                    <p className="text-2xl font-black text-white mt-1 font-mono">$149</p>
+                    <p className="text-2xl font-black text-white mt-1 font-mono">₹4,999</p>
                     <p className="text-[10px] text-slate-400 mt-0.5">One-time enrollment</p>
                   </div>
 
                   <div className="rounded-xl bg-white/[0.03] p-4 border border-white/10">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Time to Break Even</p>
                     <p className="text-2xl font-black text-emerald-400 mt-1">
-                      {projectRate >= 149 ? '1 Single Project' : '2 Projects'}
+                      {projectRate >= 4999 ? '1 Single Project' : '2 Projects'}
                     </p>
                     <p className="text-[10px] text-slate-400 mt-0.5">&lt; 1 client engagement</p>
                   </div>
@@ -2503,14 +2503,14 @@ export function Home() {
                   <div className="rounded-xl bg-white/[0.03] p-4 border border-white/10">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Est. 90-Day ROI*</p>
                     <p className="text-2xl font-black text-orange-400 mt-1 font-mono">
-                      {Math.round(((projectRate * 3 - 149) / 149) * 100)}%
+                      {Math.round(((projectRate * 3 - 4999) / 4999) * 100)}%
                     </p>
                     <p className="text-[10px] text-slate-400 mt-0.5">Based on 3 client deliverables</p>
                   </div>
                 </div>
 
                 <p className="text-[10px] text-slate-400 leading-relaxed text-center">
-                  *Illustrative Freelance Projection: Calculated using your estimated project fee against the one-time $149 cohort fee. Actual earnings depend on personal client acquisition, market rates, and delivered production quality.
+                  *Illustrative Freelance Projection: Calculated using your estimated project fee against the one-time ₹4,999 cohort fee. Actual earnings depend on personal client acquisition, market rates, and delivered production quality.
                 </p>
               </div>
             </TiltCard>
@@ -2620,9 +2620,9 @@ export function Home() {
 
                 <div className="flex flex-col justify-between sm:items-end border-t sm:border-t-0 sm:border-l border-white/10 pt-6 sm:pt-0 sm:pl-8">
                   <div>
-                    <span className="text-xs text-slate-500 line-through">$249</span>
-                    <p className="text-4xl font-black text-white font-mono">$149</p>
-                    <p className="text-[11px] text-slate-400">One-time payment</p>
+                    <span className="text-xs text-slate-500 line-through">₹9,999</span>
+                    <p className="text-4xl font-black text-white font-mono">₹4,999</p>
+                    <p className="text-[11px] text-slate-400">One-time payment (INR)</p>
                   </div>
                   <Button
                     href="/register"

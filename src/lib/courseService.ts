@@ -20,6 +20,14 @@ export interface Course {
   updated_at?: string;
 }
 
+export function formatCurrencyINR(amount: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 export interface Cohort {
   id: string;
   name: string;
@@ -34,6 +42,8 @@ export interface Cohort {
   enrollment_end?: string | null;
   track_type?: 'coding' | 'non_coding' | 'general';
   duration_days?: number;
+  price_inr?: number;
+  currency?: string;
 }
 
 export interface DbCohortRow {
@@ -49,6 +59,8 @@ export interface DbCohortRow {
   enrollment_end?: string | null;
   track_type?: Cohort['track_type'];
   duration_days?: number;
+  price_inr?: number;
+  currency?: string;
 }
 
 export interface DbSubmissionRow {
@@ -111,9 +123,11 @@ export type EnrollmentStatus =
   | 'dropped';
 
 export interface Enrollment {
+  id?: string;
   user_id: string;
   cohort_id: string;
   status: EnrollmentStatus;
+  role?: string;
   created_at?: string;
   enrolled_at?: string;
 }
@@ -702,6 +716,8 @@ export async function listCohorts(): Promise<Cohort[]> {
           visibility: 'public',
           enrollment_start: null,
           enrollment_end: null,
+          price_inr: 4999,
+          currency: 'INR',
         }));
       }
 
@@ -718,6 +734,8 @@ export async function listCohorts(): Promise<Cohort[]> {
         enrollment_end: cohort.enrollment_end ?? null,
         track_type: cohort.track_type ?? 'general',
         duration_days: cohort.duration_days ?? 15,
+        price_inr: cohort.price_inr ?? 4999,
+        currency: cohort.currency ?? 'INR',
       }));
     },
     300_000,
