@@ -121,15 +121,15 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors">
-      <div className="flex h-[73px] w-full items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Left: Navigation Menu (Three minus symbols: ☰) & CUT / CRAFT Brand Logo */}
-        <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors">
+      <div className="flex h-[73px] w-full items-center justify-between px-3.5 sm:px-6 lg:px-8">
+        {/* Left: Navigation Menu (☰) & ProCut Hub Brand Logo */}
+        <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
           <button
             onClick={() => setNavDrawerOpen(true)}
             aria-label="Open workspace navigation"
             title="Workspace Navigation"
-            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-2xs hover:bg-slate-100 hover:text-slate-950 active:scale-95 transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white lg:hidden"
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-2xs hover:bg-slate-100 hover:text-slate-950 active:scale-95 transition dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
           >
             <Menu size={20} />
           </button>
@@ -137,14 +137,14 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
           {/* Brand Logo - ProCut Hub */}
           <Link
             to={profile?.role === 'admin' ? '/admin' : '/student/dashboard'}
-            className="flex items-center gap-2.5 group"
+            className="flex items-center gap-1.5 sm:gap-2 shrink-0 group"
             title="ProCut Hub"
           >
-            <div className="flex items-center gap-1.5 leading-none">
-              <span className="text-xl font-black tracking-tight text-orange-500 group-hover:text-orange-600 transition">
+            <div className="flex items-center gap-1 sm:gap-1.5 leading-none">
+              <span className="text-lg sm:text-xl font-black tracking-tight text-orange-500 group-hover:text-orange-600 transition">
                 ProCut
               </span>
-              <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white transition">
+              <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white transition">
                 Hub
               </span>
             </div>
@@ -153,7 +153,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
         </div>
 
         {/* Center: Segmented Navigation Pills */}
-        <nav className="hidden md:flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-slate-50/80 p-1.5 shadow-2xs dark:border-slate-800 dark:bg-slate-900/80">
+        <nav className="hidden md:flex items-center gap-1 lg:gap-1.5 rounded-full border border-slate-200/70 bg-slate-50/80 p-1 lg:p-1.5 shadow-2xs dark:border-slate-800 dark:bg-slate-900/80">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -168,7 +168,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
                     onTabChange(item.id);
                   }
                 }}
-                className={`relative flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all ${
+                className={`relative flex items-center gap-1.5 xl:gap-2 rounded-full px-2.5 lg:px-3.5 xl:px-4 py-1.5 lg:py-2 text-xs font-bold transition-all ${
                   isActive
                     ? 'bg-amber-50 text-amber-950 shadow-xs border border-amber-200/80 font-black dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-700/50'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800'
@@ -188,20 +188,20 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
 
           <button
             title="App Launcher"
-            className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 transition"
+            className="rounded-full p-1.5 lg:p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 transition"
           >
             <LayoutGrid size={16} />
           </button>
         </nav>
 
         {/* Right: Actions & User Avatar */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleTheme}
             title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             aria-label="Toggle dark mode"
-            className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition"
+            className="rounded-xl p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition"
           >
             {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
           </button>
