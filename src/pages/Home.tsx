@@ -1209,6 +1209,7 @@ export function Home() {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
+                  onMouseEnter={() => soundFx.playBlip(380, 0.02, 'sine', 0.02)}
                   onClick={() => {
                     setRoadmapFilter('all');
                     soundFx.playBlip(380, 0.03, 'sine', 0.03);
@@ -1223,6 +1224,7 @@ export function Home() {
                 </button>
                 <button
                   type="button"
+                  onMouseEnter={() => soundFx.playBlip(420, 0.02, 'sine', 0.02)}
                   onClick={() => {
                     setRoadmapFilter(1);
                     soundFx.playBlip(420, 0.03, 'sine', 0.03);
@@ -1237,6 +1239,7 @@ export function Home() {
                 </button>
                 <button
                   type="button"
+                  onMouseEnter={() => soundFx.playBlip(460, 0.02, 'sine', 0.02)}
                   onClick={() => {
                     setRoadmapFilter(2);
                     soundFx.playBlip(460, 0.03, 'sine', 0.03);
@@ -1251,6 +1254,7 @@ export function Home() {
                 </button>
                 <button
                   type="button"
+                  onMouseEnter={() => soundFx.playBlip(500, 0.02, 'sine', 0.02)}
                   onClick={() => {
                     setRoadmapFilter(3);
                     soundFx.playBlip(500, 0.03, 'sine', 0.03);
@@ -1315,6 +1319,7 @@ export function Home() {
                             <div className="relative z-10 shrink-0">
                               <button
                                 type="button"
+                                onMouseEnter={() => soundFx.playBlip(300 + d.day * 18, 0.03, 'sine', 0.03)}
                                 onClick={() => {
                                   setSelectedDayDetail(d.day);
                                   soundFx.playBlip(320 + d.day * 22, 0.035, 'sine', 0.035);
@@ -1341,6 +1346,7 @@ export function Home() {
 
                             {/* Connected Roadmap Card with Smooth Transform */}
                             <div
+                              onMouseEnter={() => soundFx.playBlip(300 + d.day * 18, 0.03, 'sine', 0.03)}
                               onClick={() => {
                                 setSelectedDayDetail(d.day);
                                 soundFx.playBlip(320 + d.day * 22, 0.035, 'sine', 0.035);
@@ -1433,6 +1439,9 @@ export function Home() {
                         <button
                           type="button"
                           disabled={!prevDay}
+                          onMouseEnter={() => {
+                            if (prevDay) soundFx.playBlip(360, 0.02, 'sine', 0.02);
+                          }}
                           onClick={() => {
                             if (prevDay) {
                               setSelectedDayDetail(prevDay);
@@ -1456,6 +1465,9 @@ export function Home() {
                         <button
                           type="button"
                           disabled={!nextDay}
+                          onMouseEnter={() => {
+                            if (nextDay) soundFx.playBlip(480, 0.02, 'sine', 0.02);
+                          }}
                           onClick={() => {
                             if (nextDay) {
                               setSelectedDayDetail(nextDay);
@@ -1565,6 +1577,7 @@ export function Home() {
                               href="/register"
                               size="md"
                               data-cursor="ENROLL IN SPRINT"
+                              onMouseEnter={() => soundFx.playBlip(560, 0.03, 'sine', 0.03)}
                               onClick={() => soundFx.playSweep(300, 700, 0.12, 0.05)}
                               className="w-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 justify-center py-3"
                             >

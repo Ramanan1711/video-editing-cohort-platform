@@ -8,7 +8,19 @@ class SoundFxService {
   constructor() {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('procut_sound_enabled');
-      this.enabled = stored === 'true';
+      // Default to enabled unless user explicitly set to 'false'
+      this.enabled = stored !== 'false';
+
+      // Auto-unlock Web Audio context on first user gesture
+      const unlock = () => {
+        if (this.enabled) {
+          this.initContext();
+        }
+      };
+      window.addEventListener('pointerdown', unlock, { once: true, passive: true });
+      window.addEventListener('click', unlock, { once: true, passive: true });
+      window.addEventListener('keydown', unlock, { once: true, passive: true });
+      window.addEventListener('touchstart', unlock, { once: true, passive: true });
     }
   }
 
