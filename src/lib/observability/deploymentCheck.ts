@@ -118,9 +118,9 @@ export function runDeploymentCheck(): DeploymentReport {
       id: 'env_razorpay_key',
       name: 'Razorpay Public Key Configured',
       category: 'env',
-      status: isProduction ? 'fail' : 'warn',
-      message: 'VITE_RAZORPAY_KEY_ID is missing in environment variables.',
-      details: 'Define VITE_RAZORPAY_KEY_ID in .env or hosting environment variables.',
+      status: 'warn',
+      message: 'VITE_RAZORPAY_KEY_ID is missing in client build variables.',
+      details: 'Frontend will receive keyId dynamically from the create-razorpay-order Edge Function at checkout. Define VITE_RAZORPAY_KEY_ID in hosting environment variables (Vercel/Netlify) as offline fallback.',
     });
   } else {
     const isLiveKey = razorpayKeyId.startsWith('rzp_live_');
