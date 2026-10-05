@@ -3,6 +3,30 @@ import { supabase } from './supabaseClient';
 export const DEFAULT_COHORT_FEE_INR = 4999;
 export const DEFAULT_CURRENCY = 'INR';
 
+/**
+ * Authoritatively formats cohort price and currency for uniform display across landing, admin, and checkout.
+ */
+export function formatCohortPrice(priceInr?: number | null, currency?: string | null): string {
+  const effectivePrice = priceInr ?? DEFAULT_COHORT_FEE_INR;
+  const effectiveCurrency = currency ?? DEFAULT_CURRENCY;
+  return `₹${effectivePrice.toLocaleString('en-IN')} ${effectiveCurrency}`;
+}
+
+/**
+ * Returns authoritative pricing information for a cohort, falling back to canonical defaults.
+ */
+export function getAuthoritativeCohortPricing(cohort?: { price_inr?: number | null; currency?: string | null } | null) {
+  const priceInr = cohort?.price_inr ?? DEFAULT_COHORT_FEE_INR;
+  const currency = cohort?.currency ?? DEFAULT_CURRENCY;
+  return {
+    priceInr,
+    currency,
+    amountPaise: priceInr * 100,
+    formatted: `₹${priceInr.toLocaleString('en-IN')}`,
+    formattedWithCurrency: `₹${priceInr.toLocaleString('en-IN')} ${currency}`,
+  };
+}
+
 export interface RazorpayOrder {
   id: string;
   amount: number; // in paise (e.g. 499900)

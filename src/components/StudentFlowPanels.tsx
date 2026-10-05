@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
-import { startCohortCheckout } from '../lib/paymentService';
+import { startCohortCheckout, DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../lib/paymentService';
 import {
   addFeedbackReply,
   enrollInCohort,
@@ -98,7 +98,7 @@ export function EnrollmentPanel({
     setSaving(true);
     setError(null);
 
-    const price = selectedCohort.price_inr ?? 4999;
+    const price = selectedCohort.price_inr ?? DEFAULT_COHORT_FEE_INR;
     if (price === 0) {
       try {
         await enrollInCohort(userId, selectedCohort.id);
@@ -165,7 +165,7 @@ export function EnrollmentPanel({
                   <div className="flex items-center gap-2">
                     <strong className="block text-sm text-slate-950">{cohort.name}</strong>
                     <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                      ₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')} INR
+                      ₹{(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} {cohort.currency || DEFAULT_CURRENCY}
                     </span>
                     {!status.isOpen && (
                       <span className="rounded-md bg-rose-50 border border-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-700">
@@ -189,8 +189,8 @@ export function EnrollmentPanel({
               ? 'Opening checkout...'
               : selectedStatus && !selectedStatus.isOpen
               ? selectedStatus.label || 'Enrollment Closed'
-              : selectedCohort && (selectedCohort.price_inr ?? 4999) > 0
-              ? `Proceed to Checkout (₹${(selectedCohort.price_inr ?? 4999).toLocaleString('en-IN')})`
+              : selectedCohort && (selectedCohort.price_inr ?? DEFAULT_COHORT_FEE_INR) > 0
+              ? `Proceed to Checkout (₹${(selectedCohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} ${selectedCohort.currency || DEFAULT_CURRENCY})`
               : 'Enroll in cohort'}
           </Button>
         </div>
@@ -250,7 +250,7 @@ export function CohortDiscoveryModal({
     setError(null);
     setEnrollingId(cohort.id);
 
-    const price = cohort.price_inr ?? 4999;
+    const price = cohort.price_inr ?? DEFAULT_COHORT_FEE_INR;
     if (price === 0) {
       try {
         await enrollInCohort(userId, cohort.id);
@@ -364,7 +364,7 @@ export function CohortDiscoveryModal({
                                 {status.isOpen ? 'Open to Join' : status.label || 'Closed'}
                               </span>
                               <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                                ₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')} INR
+                                ₹{(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} {cohort.currency || DEFAULT_CURRENCY}
                               </span>
                             </>
                           );
@@ -404,7 +404,7 @@ export function CohortDiscoveryModal({
                             onClick={() => status.isOpen && void handleEnrollAndSwitch(cohort)}
                           >
                             {status.isOpen
-                              ? `Enroll (₹${(cohort.price_inr ?? 4999).toLocaleString('en-IN')})`
+                              ? `Enroll (₹${(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} ${cohort.currency || DEFAULT_CURRENCY})`
                               : status.label || 'Closed'}
                           </Button>
                         );

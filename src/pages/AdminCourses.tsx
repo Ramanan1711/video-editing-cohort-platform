@@ -93,6 +93,7 @@ import {
   type DailyChallenge,
   type DailyChallengeInput,
 } from '../lib/internshipService';
+import { DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../lib/paymentService';
 
 type EditorModalType = 'cohort' | 'module' | 'lesson' | 'assignment' | 'resource' | 'challenge';
 
@@ -336,7 +337,7 @@ export function AdminCourses() {
         description: cohort.description ?? '',
         status: cohort.status ?? 'draft',
         capacity: cohort.capacity != null ? String(cohort.capacity) : '30',
-        priceInr: cohort.price_inr != null ? String(cohort.price_inr) : '4999',
+        priceInr: cohort.price_inr != null ? String(cohort.price_inr) : String(DEFAULT_COHORT_FEE_INR),
         visibility: cohort.visibility ?? 'public',
         enrollmentStart: cohort.enrollment_start ? cohort.enrollment_start.slice(0, 16) : '',
         enrollmentEnd: cohort.enrollment_end ? cohort.enrollment_end.slice(0, 16) : '',
@@ -349,7 +350,7 @@ export function AdminCourses() {
         description: '',
         status: 'draft',
         capacity: '30',
-        priceInr: '4999',
+        priceInr: String(DEFAULT_COHORT_FEE_INR),
         visibility: 'public',
         enrollmentStart: '',
         enrollmentEnd: '',
@@ -586,8 +587,8 @@ export function AdminCourses() {
           course_id: editor.courseId || null,
           status: editor.status,
           capacity: Number(editor.capacity) || 30,
-          price_inr: Number(editor.priceInr) >= 0 ? Number(editor.priceInr) : 4999,
-          currency: 'INR',
+          price_inr: Number(editor.priceInr) >= 0 ? Number(editor.priceInr) : DEFAULT_COHORT_FEE_INR,
+          currency: DEFAULT_CURRENCY,
           visibility: editor.visibility,
           enrollment_start: editor.enrollmentStart ? new Date(editor.enrollmentStart).toISOString() : null,
           enrollment_end: editor.enrollmentEnd ? new Date(editor.enrollmentEnd).toISOString() : null,
@@ -1237,7 +1238,7 @@ export function AdminCourses() {
                             </span>
                           )}
                           <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
-                            ₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')} INR
+                            ₹{(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} {cohort.currency || DEFAULT_CURRENCY}
                           </span>
                         </div>
                         <p className="mt-0.5 truncate text-xs text-slate-500">
@@ -2200,7 +2201,7 @@ export function AdminCourses() {
                       min="0"
                       value={editor.priceInr}
                       onChange={(val) => setEditor({ ...editor, priceInr: val })}
-                      placeholder="4999"
+                      placeholder={String(DEFAULT_COHORT_FEE_INR)}
                       required
                     />
                     <FormField

@@ -50,10 +50,10 @@ describe('Home Page (Public Landing Page)', () => {
     // Wait for live cohorts to be rendered in the document
     await waitFor(() => {
       expect(
-        screen.getByText('Full-Stack Software Production Cohort (Batch 15)')
-      ).toBeInTheDocument();
+        screen.getAllByText(/Full-Stack Software Production Cohort/i).length
+      ).toBeGreaterThanOrEqual(1);
       expect(
-        screen.getByText('Creative Video & Kinetic Motion Cohort (Batch 15)')
+        screen.getByText(/Creative Video & Kinetic Motion Cohort/i)
       ).toBeInTheDocument();
     });
 
@@ -73,6 +73,43 @@ describe('Home Page (Public Landing Page)', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Next Sprint Cycle Opening Soon/i)).toBeInTheDocument();
+    });
+
+    // Default canonical price displayed when no cohorts returned
+    expect(screen.getAllByText('₹4,999').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/One-time payment \(INR\)/i).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('dynamically reflects authoritative published price and currency from database cohorts', async () => {
+    const customPriceCohort = [
+      {
+        id: 'cohort-custom-price-1',
+        name: 'Cinematic Storytelling Cohort',
+        description: 'Advanced 15-day narrative storytelling sprint.',
+        status: 'published' as const,
+        capacity: 20,
+        visibility: 'public' as const,
+        price_inr: 6499,
+        currency: 'INR',
+      },
+    ];
+
+    (listCohorts as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(customPriceCohort);
+
+    render(
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    );
+
+    // Wait for the custom published price to be rendered in pricing section and cards
+    await waitFor(() => {
+      // Cohort card should show ₹6,499 INR
+      expect(screen.getByText('₹6,499 INR')).toBeInTheDocument();
+      // Pricing section and ROI card should show ₹6,499
+      expect(screen.getAllByText('₹6,499').length).toBeGreaterThanOrEqual(1);
+      // Strikethrough anchor price should be 2x (₹12,998)
+      expect(screen.getByText('₹12,998')).toBeInTheDocument();
     });
   });
 });

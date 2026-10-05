@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 import { parseDatabaseError } from './errorHandling';
 import { queryCache } from './queryCache';
 import { getStudentSprintDays } from './internshipService';
+import { DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from './paymentService';
 
 export interface Course {
   id: string;
@@ -716,8 +717,8 @@ export async function listCohorts(): Promise<Cohort[]> {
           visibility: 'public',
           enrollment_start: null,
           enrollment_end: null,
-          price_inr: 4999,
-          currency: 'INR',
+          price_inr: DEFAULT_COHORT_FEE_INR,
+          currency: DEFAULT_CURRENCY,
         }));
       }
 
@@ -734,8 +735,8 @@ export async function listCohorts(): Promise<Cohort[]> {
         enrollment_end: cohort.enrollment_end ?? null,
         track_type: cohort.track_type ?? 'general',
         duration_days: cohort.duration_days ?? 15,
-        price_inr: cohort.price_inr ?? 4999,
-        currency: cohort.currency ?? 'INR',
+        price_inr: cohort.price_inr ?? DEFAULT_COHORT_FEE_INR,
+        currency: cohort.currency ?? DEFAULT_CURRENCY,
       }));
     },
     300_000,
@@ -868,8 +869,8 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
     enrollment_end: created.enrollment_end ?? null,
     track_type: created.track_type ?? 'general',
     duration_days: created.duration_days ?? 15,
-    price_inr: created.price_inr ?? 4999,
-    currency: created.currency ?? 'INR',
+    price_inr: created.price_inr ?? DEFAULT_COHORT_FEE_INR,
+    currency: created.currency ?? DEFAULT_CURRENCY,
   };
 }
 
@@ -917,8 +918,8 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
     enrollment_end: updated.enrollment_end ?? null,
     track_type: updated.track_type ?? 'general',
     duration_days: updated.duration_days ?? 15,
-    price_inr: updated.price_inr ?? 4999,
-    currency: updated.currency ?? 'INR',
+    price_inr: updated.price_inr ?? DEFAULT_COHORT_FEE_INR,
+    currency: updated.currency ?? DEFAULT_CURRENCY,
   };
 }
 

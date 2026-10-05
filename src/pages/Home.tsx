@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDown,
   ArrowRight,
@@ -30,6 +30,7 @@ import { Button } from '../components/ui/Button';
 import { SiteFooter } from '../components/SiteFooter';
 import { SiteHeader } from '../components/SiteHeader';
 import { listCohorts, type Cohort } from '../lib/courseService';
+import { DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../lib/paymentService';
 import { HeroCanvasSimulator } from '../components/home/HeroCanvasSimulator';
 import { TiltCard } from '../components/home/TiltCard';
 import { CustomCursor } from '../components/home/CustomCursor';
@@ -52,6 +53,15 @@ export function Home() {
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [loadingCohorts, setLoadingCohorts] = useState<boolean>(true);
   const [cohortError, setCohortError] = useState<string | null>(null);
+
+  // Authoritative published cohort and price (synced with admin settings and database)
+  const publishedCohort = useMemo(() => {
+    return cohorts.find((c) => c.status === 'published' || c.status === 'active') || cohorts[0] || null;
+  }, [cohorts]);
+
+  const publishedPrice = publishedCohort?.price_inr ?? DEFAULT_COHORT_FEE_INR;
+  const publishedCurrency = publishedCohort?.currency ?? DEFAULT_CURRENCY;
+  const publishedOriginalPrice = Math.round(publishedPrice * 2);
 
   useEffect(() => {
     let mounted = true;
@@ -641,11 +651,14 @@ export function Home() {
                     </div>
 
                     <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-orange-400 font-mono">
-                        15 Days Intensive
-                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-orange-400 font-mono block">
+                          ₹{(cohort.price_inr ?? publishedPrice).toLocaleString('en-IN')} {cohort.currency || publishedCurrency}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">15 Days Intensive</span>
+                      </div>
                       <Button
-                        href="/register"
+                        href={`/register?cohort=${cohort.id}`}
                         size="sm"
                         data-cursor="ENROLL"
                         onClick={() => soundFx.playSweep(300, 700, 0.1, 0.05)}
@@ -2488,14 +2501,14 @@ export function Home() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/10 text-center">
                   <div className="rounded-xl bg-white/[0.03] p-4 border border-white/10">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cohort Investment</p>
-                    <p className="text-2xl font-black text-white mt-1 font-mono">₹4,999</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">One-time enrollment</p>
+                    <p className="text-2xl font-black text-white mt-1 font-mono">₹{publishedPrice.toLocaleString('en-IN')}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">One-time enrollment ({publishedCurrency})</p>
                   </div>
 
                   <div className="rounded-xl bg-white/[0.03] p-4 border border-white/10">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Time to Break Even</p>
                     <p className="text-2xl font-black text-emerald-400 mt-1">
-                      {projectRate >= 4999 ? '1 Single Project' : '2 Projects'}
+                      {projectRate >= publishedPrice ? '1 Single Project' : `${Math.ceil(publishedPrice / projectRate)} Projects`}
                     </p>
                     <p className="text-[10px] text-slate-400 mt-0.5">&lt; 1 client engagement</p>
                   </div>
@@ -2503,14 +2516,14 @@ export function Home() {
                   <div className="rounded-xl bg-white/[0.03] p-4 border border-white/10">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Est. 90-Day ROI*</p>
                     <p className="text-2xl font-black text-orange-400 mt-1 font-mono">
-                      {Math.round(((projectRate * 3 - 4999) / 4999) * 100)}%
+                      {publishedPrice > 0 ? `${Math.round(((projectRate * 3 - publishedPrice) / publishedPrice) * 100)}%` : '0%'}
                     </p>
                     <p className="text-[10px] text-slate-400 mt-0.5">Based on 3 client deliverables</p>
                   </div>
                 </div>
 
                 <p className="text-[10px] text-slate-400 leading-relaxed text-center">
-                  *Illustrative Freelance Projection: Calculated using your estimated project fee against the one-time ₹4,999 cohort fee. Actual earnings depend on personal client acquisition, market rates, and delivered production quality.
+                  *Illustrative Freelance Projection: Calculated using your estimated project fee against the one-time ₹{publishedPrice.toLocaleString('en-IN')} {publishedCurrency} cohort fee. Actual earnings depend on personal client acquisition, market rates, and delivered production quality.
                 </p>
               </div>
             </TiltCard>
@@ -2620,12 +2633,15 @@ export function Home() {
 
                 <div className="flex flex-col justify-between sm:items-end border-t sm:border-t-0 sm:border-l border-white/10 pt-6 sm:pt-0 sm:pl-8">
                   <div>
-                    <span className="text-xs text-slate-500 line-through">₹9,999</span>
-                    <p className="text-4xl font-black text-white font-mono">₹4,999</p>
-                    <p className="text-[11px] text-slate-400">One-time payment (INR)</p>
+                    <span className="text-xs text-slate-500 line-through">₹{publishedOriginalPrice.toLocaleString('en-IN')}</span>
+                    <p className="text-4xl font-black text-white font-mono">₹{publishedPrice.toLocaleString('en-IN')}</p>
+                    <p className="text-[11px] text-slate-400">One-time payment ({publishedCurrency})</p>
+                    {publishedCohort?.name && (
+                      <p className="text-[10px] text-orange-400/90 font-mono mt-0.5 truncate max-w-[200px]">{publishedCohort.name}</p>
+                    )}
                   </div>
                   <Button
-                    href="/register"
+                    href={publishedCohort?.id ? `/register?cohort=${publishedCohort.id}` : '/register'}
                     data-cursor="SAVE SEAT"
                     onClick={() => soundFx.playSweep(280, 840, 0.15, 0.05)}
                     className="mt-6 w-full justify-center shadow-lg shadow-orange-500/25"
