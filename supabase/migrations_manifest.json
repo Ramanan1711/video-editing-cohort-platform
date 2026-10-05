@@ -638,8 +638,8 @@
     {
       "order": 43,
       "filename": "20261005000001_harden_record_successful_payment_and_enroll.sql",
-      "sha256": "c4f570b73c5bec655d1b7a9719325f72db8ce61e272fe0584e8f2226a906cde0",
-      "sizeBytes": 10464,
+      "sha256": "318b2de0fdfa6b5e7a743ead53f3fa27e9fd9bc40eb58b2eea5223d1dfbb089d",
+      "sizeBytes": 10665,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -658,6 +658,19 @@
         "create_cohort_checkout_order",
         "cancel_cohort_checkout_reservation"
       ]
+    },
+    {
+      "order": 45,
+      "filename": "20261005000003_enforce_paid_only_cohort_policy_and_block_free_enrollment.sql",
+      "sha256": "b02f9bb5172dab00df82339b9163b18b577334c10e424600234dcb5ac08ccab9",
+      "sizeBytes": 22162,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "enroll_student_in_cohort",
+        "create_cohort_checkout_order",
+        "record_successful_payment_and_enroll"
+      ]  
     }
   ]
 }

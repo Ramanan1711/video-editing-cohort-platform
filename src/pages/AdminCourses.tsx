@@ -581,13 +581,16 @@ export function AdminCourses() {
     try {
       if (editor.type === 'cohort') {
         if (!editor.name.trim()) throw new Error('Cohort name is required.');
+        if (editor.priceInr !== undefined && editor.priceInr !== '' && Number(editor.priceInr) <= 0) {
+          throw new Error('Cohort price must be greater than zero. Free enrollment is prohibited under the platform paid-only policy.');
+        }
         const cohortPayload = {
           name: editor.name.trim(),
           description: editor.description.trim() || null,
           course_id: editor.courseId || null,
           status: editor.status,
           capacity: Number(editor.capacity) || 30,
-          price_inr: Number(editor.priceInr) >= 0 ? Number(editor.priceInr) : DEFAULT_COHORT_FEE_INR,
+          price_inr: Math.max(1, Number(editor.priceInr) || DEFAULT_COHORT_FEE_INR),
           currency: DEFAULT_CURRENCY,
           visibility: editor.visibility,
           enrollment_start: editor.enrollmentStart ? new Date(editor.enrollmentStart).toISOString() : null,
@@ -2198,7 +2201,7 @@ export function AdminCourses() {
                     <FormField
                       label="Enrollment Fee (INR ₹)"
                       type="number"
-                      min="0"
+                      min="1"
                       value={editor.priceInr}
                       onChange={(val) => setEditor({ ...editor, priceInr: val })}
                       placeholder={String(DEFAULT_COHORT_FEE_INR)}

@@ -178,8 +178,16 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const expectedCohortPaise = (cohortRecord.price_inr ?? 4999) * 100;
-    if (paymentRecord.amount < expectedCohortPaise) {
+    // Enforce paid-only launch policy: free or zero-priced cohorts are rejected
+    if (!cohortRecord.price_inr || cohortRecord.price_inr <= 0) {
+      return new Response(
+        JSON.stringify({ error: 'Cohort does not have a valid positive paid price. Free enrollment is prohibited.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const expectedCohortPaise = cohortRecord.price_inr * 100;
+    if (paymentRecord.amount < expectedCohortPaise || paymentRecord.amount <= 0) {
       console.warn(`Payment underpaid: storedOrder=${paymentRecord.amount}, required=${expectedCohortPaise}`);
       return new Response(
         JSON.stringify({

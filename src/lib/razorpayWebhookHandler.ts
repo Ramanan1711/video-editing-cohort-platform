@@ -259,16 +259,23 @@ export async function handleRazorpayWebhook({
     .eq('id', storedOrder.cohort_id)
     .single();
 
-  if (cohortRecord?.price_inr) {
-    const expectedCohortPaise = cohortRecord.price_inr * 100;
-    if (storedOrder.amount < expectedCohortPaise || (eventAmount !== undefined && eventAmount < expectedCohortPaise)) {
-      return {
-        status: 400,
-        data: {
-          error: `Payment amount (${eventAmount ?? storedOrder.amount} paise) does not meet authoritative cohort price (${expectedCohortPaise} paise)`,
-        },
-      };
-    }
+  if (!cohortRecord?.price_inr || cohortRecord.price_inr <= 0) {
+    return {
+      status: 400,
+      data: {
+        error: 'Cohort does not have a valid positive paid price. Free enrollment is prohibited.',
+      },
+    };
+  }
+
+  const expectedCohortPaise = cohortRecord.price_inr * 100;
+  if (storedOrder.amount < expectedCohortPaise || storedOrder.amount <= 0 || (eventAmount !== undefined && (eventAmount < expectedCohortPaise || eventAmount <= 0))) {
+    return {
+      status: 400,
+      data: {
+        error: `Payment amount (${eventAmount ?? storedOrder.amount} paise) does not meet authoritative cohort price (${expectedCohortPaise} paise)`,
+      },
+    };
   }
 
   // Authoritative amount verification

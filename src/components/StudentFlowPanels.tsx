@@ -24,7 +24,6 @@ import { Card } from './ui/Card';
 import { startCohortCheckout, DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../lib/paymentService';
 import {
   addFeedbackReply,
-  enrollInCohort,
   formatFileSize,
   listAllStudentCohorts,
   listAssignments,
@@ -99,15 +98,9 @@ export function EnrollmentPanel({
     setError(null);
 
     const price = selectedCohort.price_inr ?? DEFAULT_COHORT_FEE_INR;
-    if (price === 0) {
-      try {
-        await enrollInCohort(userId, selectedCohort.id);
-        onEnrolled();
-      } catch (reason) {
-        setError(reason instanceof Error ? reason.message : 'Unable to enroll.');
-      } finally {
-        setSaving(false);
-      }
+    if (price <= 0) {
+      setError('Free enrollment is prohibited under the platform paid-only policy. Cohorts require paid checkout.');
+      setSaving(false);
       return;
     }
 
@@ -251,16 +244,9 @@ export function CohortDiscoveryModal({
     setEnrollingId(cohort.id);
 
     const price = cohort.price_inr ?? DEFAULT_COHORT_FEE_INR;
-    if (price === 0) {
-      try {
-        await enrollInCohort(userId, cohort.id);
-        onSelectCohort(cohort.id);
-        onClose();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to enroll in cohort.');
-      } finally {
-        setEnrollingId(null);
-      }
+    if (price <= 0) {
+      setError('Free enrollment is prohibited under the platform paid-only policy. Cohorts require paid checkout.');
+      setEnrollingId(null);
       return;
     }
 

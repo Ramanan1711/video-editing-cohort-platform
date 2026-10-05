@@ -28,20 +28,36 @@ describe('Razorpay Webhook Hardening & Verification (Problem 2)', () => {
   let mockSelect: ReturnType<typeof vi.fn>;
   let mockEq: ReturnType<typeof vi.fn>;
   let mockSingle: ReturnType<typeof vi.fn>;
+  let mockCohortSingle: ReturnType<typeof vi.fn>;
   let mockRpc: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
     mockSingle = vi.fn();
+    mockCohortSingle = vi.fn().mockResolvedValue({
+      data: { id: 'cohort-uuid-1', price_inr: 4999 },
+      error: null,
+    });
     mockEq = vi.fn(() => ({ single: mockSingle }));
     mockSelect = vi.fn(() => ({ eq: mockEq }));
     mockRpc = vi.fn();
 
     mockSupabase = {
-      from: vi.fn(() => ({
-        select: mockSelect,
-      })) as unknown as SupabaseClient['from'],
+      from: vi.fn((table: string) => {
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: mockCohortSingle,
+              })),
+            })),
+          };
+        }
+        return {
+          select: mockSelect,
+        };
+      }) as unknown as SupabaseClient['from'],
       rpc: mockRpc as unknown as SupabaseClient['rpc'],
     };
   });
@@ -480,25 +496,25 @@ describe('Razorpay Webhook Hardening & Verification (Problem 2)', () => {
       const signature = await generateTestSignature(rawBody, TEST_SECRET);
 
       // Order in DB was created for 100000 paise, but cohort price in cohorts table is ₹5,000 (500000 paise)
-      mockSingle
-        .mockResolvedValueOnce({
-          data: {
-            order_id: 'order_rzp_777',
-            user_id: 'user-uuid-1',
-            cohort_id: 'cohort-uuid-1',
-            amount: 100000,
-            currency: 'INR',
-            status: 'created',
-          },
-          error: null,
-        })
-        .mockResolvedValueOnce({
-          data: {
-            id: 'cohort-uuid-1',
-            price_inr: 5000, // authoritative price is ₹5,000 (500000 paise)
-          },
-          error: null,
-        });
+      mockSingle.mockResolvedValueOnce({
+        data: {
+          order_id: 'order_rzp_777',
+          user_id: 'user-uuid-1',
+          cohort_id: 'cohort-uuid-1',
+          amount: 100000,
+          currency: 'INR',
+          status: 'created',
+        },
+        error: null,
+      });
+
+      mockCohortSingle.mockResolvedValueOnce({
+        data: {
+          id: 'cohort-uuid-1',
+          price_inr: 5000, // authoritative price is ₹5,000 (500000 paise)
+        },
+        error: null,
+      });
 
       const result = await handleRazorpayWebhook({
         supabase: mockSupabase as SupabaseClient,
@@ -509,6 +525,63 @@ describe('Razorpay Webhook Hardening & Verification (Problem 2)', () => {
 
       expect(result.status).toBe(400);
       expect(result.data.error).toContain('does not meet authoritative cohort price');
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('rejects webhook when cohort price is zero or invalid under paid-only policy', async () => {
+      const freePayload = {
+        event: 'payment.captured',
+        id: 'evt_free_777',
+        payload: {
+          payment: {
+            entity: {
+              id: 'pay_free_777',
+              order_id: 'order_free_777',
+              amount: 0,
+              currency: 'INR',
+              status: 'captured',
+              captured: true,
+              notes: {
+                cohort_id: 'cohort-uuid-free',
+                user_id: 'user-uuid-1',
+              },
+            },
+          },
+        },
+      };
+
+      const rawBody = JSON.stringify(freePayload);
+      const signature = await generateTestSignature(rawBody, TEST_SECRET);
+
+      mockSingle.mockResolvedValueOnce({
+        data: {
+          order_id: 'order_free_777',
+          user_id: 'user-uuid-1',
+          cohort_id: 'cohort-uuid-free',
+          amount: 0,
+          currency: 'INR',
+          status: 'created',
+        },
+        error: null,
+      });
+
+      mockCohortSingle.mockResolvedValueOnce({
+        data: {
+          id: 'cohort-uuid-free',
+          price_inr: 0,
+        },
+        error: null,
+      });
+
+      const result = await handleRazorpayWebhook({
+        supabase: mockSupabase as SupabaseClient,
+        webhookSecret: TEST_SECRET,
+        signature,
+        rawBody,
+      });
+
+      expect(result.status).toBe(400);
+      expect(result.data.error).toContain('Free enrollment is prohibited');
       expect(mockRpc).not.toHaveBeenCalled();
     });
 

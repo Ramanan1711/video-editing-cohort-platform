@@ -765,25 +765,28 @@ export async function enrollInCohort(userId: string, cohortId: string): Promise<
       .eq('id', cohortId)
       .maybeSingle();
 
-    if (cohortData && Number(cohortData.price_inr) > 0) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profile?.role !== 'admin') {
+      // Enforce paid-only launch policy: free or zero-priced cohorts cannot grant enrollment
+      if (!cohortData?.price_inr || Number(cohortData.price_inr) <= 0) {
+        throw new Error('Free enrollment is prohibited under the platform paid-only policy. Cohorts require a valid positive price.');
+      }
+
+      const { data: payment } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('cohort_id', cohortId)
+        .eq('status', 'captured')
         .maybeSingle();
 
-      if (profile?.role !== 'admin') {
-        const { data: payment } = await supabase
-          .from('payments')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('cohort_id', cohortId)
-          .eq('status', 'captured')
-          .maybeSingle();
-
-        if (!payment) {
-          throw new Error('Payment required to enroll in this cohort. Please complete checkout.');
-        }
+      if (!payment) {
+        throw new Error('Payment required to enroll in this cohort. Please complete checkout.');
       }
     }
   } catch (checkErr) {
@@ -847,12 +850,12 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
   if (input.enrollment_end !== undefined) payload.enrollment_end = input.enrollment_end;
   if (input.track_type !== undefined) payload.track_type = input.track_type;
   if (input.duration_days !== undefined) payload.duration_days = input.duration_days;
-  if (input.price_inr !== undefined) payload.price_inr = input.price_inr;
+  payload.price_inr = Math.max(1, Number(input.price_inr) || DEFAULT_COHORT_FEE_INR);
   if (input.currency !== undefined) payload.currency = input.currency;
 
   let res = await supabase.from('cohorts').insert(payload).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency').single();
   if (res.error) {
-    res = await supabase.from('cohorts').insert({ title: input.name, description: input.description, price_inr: input.price_inr, currency: input.currency }).select('id, title, description').single();
+    res = await supabase.from('cohorts').insert({ title: input.name, description: input.description, price_inr: payload.price_inr, currency: input.currency }).select('id, title, description').single();
   }
   if (res.error) throw res.error;
   const created = res.data as DbCohortRow;
@@ -892,7 +895,9 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
   if (input.enrollment_end !== undefined) payload.enrollment_end = input.enrollment_end;
   if (input.track_type !== undefined) payload.track_type = input.track_type;
   if (input.duration_days !== undefined) payload.duration_days = input.duration_days;
-  if (input.price_inr !== undefined) payload.price_inr = input.price_inr;
+  if (input.price_inr !== undefined) {
+    payload.price_inr = Math.max(1, Number(input.price_inr) || DEFAULT_COHORT_FEE_INR);
+  }
   if (input.currency !== undefined) payload.currency = input.currency;
 
   let res = await supabase.from('cohorts').update(payload).eq('id', id).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency').single();

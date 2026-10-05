@@ -263,17 +263,23 @@ interface RazorpayWebhookEvent {
       .eq('id', storedOrder.cohort_id)
       .single();
 
-    if (cohortRecord?.price_inr) {
-      const expectedCohortPaise = cohortRecord.price_inr * 100;
-      if (storedOrder.amount < expectedCohortPaise || (eventAmount !== undefined && eventAmount < expectedCohortPaise)) {
-        console.warn(`Rejected webhook: payment amount does not meet cohort price (${expectedCohortPaise} paise)`);
-        return new Response(
-          JSON.stringify({
-            error: `Payment amount does not meet authoritative cohort price (${expectedCohortPaise} paise)`,
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    if (!cohortRecord?.price_inr || cohortRecord.price_inr <= 0) {
+      console.warn(`Rejected webhook: cohort ${storedOrder.cohort_id} has invalid or zero price. Free enrollment is prohibited.`);
+      return new Response(
+        JSON.stringify({ error: 'Cohort does not have a valid positive paid price. Free enrollment is prohibited.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const expectedCohortPaise = cohortRecord.price_inr * 100;
+    if (storedOrder.amount < expectedCohortPaise || storedOrder.amount <= 0 || (eventAmount !== undefined && (eventAmount < expectedCohortPaise || eventAmount <= 0))) {
+      console.warn(`Rejected webhook: payment amount does not meet cohort price (${expectedCohortPaise} paise)`);
+      return new Response(
+        JSON.stringify({
+          error: `Payment amount does not meet authoritative cohort price (${expectedCohortPaise} paise)`,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Authoritative Amount check: Prevent underpaid spoofed payments

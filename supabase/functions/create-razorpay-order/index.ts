@@ -84,9 +84,31 @@ Deno.serve(async (req: Request) => {
     }
 
     const reservationId = checkoutData.reservation_id;
-    const amountInPaise = Number(checkoutData.amount_paise) || 499900;
+    const amountInPaise = Number(checkoutData.amount_paise);
+    const priceInr = Number(checkoutData.price_inr);
     const currency = String(checkoutData.currency || 'INR');
     const receipt = checkoutData.receipt || `rcpt_${user.id.slice(0, 8)}_${Date.now()}`;
+
+    // Enforce paid-only launch policy: free or zero-priced cohorts are prohibited from checkout
+    if (!amountInPaise || amountInPaise <= 0 || !priceInr || priceInr <= 0) {
+      if (reservationId) {
+        await supabase
+          .from('payments')
+          .update({
+            status: 'failed',
+            metadata: {
+              release_reason: 'free_enrollment_rejected',
+              failed_at: new Date().toISOString(),
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', reservationId);
+      }
+      return new Response(
+        JSON.stringify({ error: 'Free enrollment is prohibited under the platform paid-only policy. Cohorts must have a valid positive price.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // 4. Create Razorpay Order
     let razorpayOrderId = '';

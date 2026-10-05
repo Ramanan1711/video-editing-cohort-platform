@@ -66,6 +66,17 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
     );
   });
 
+  it('fails closed and throws error if cohort is free or zero-priced under paid-only policy', async () => {
+    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      error: { message: 'Free enrollment is prohibited under the platform paid-only policy. Cohorts must have a valid positive price.' },
+    });
+
+    await expect(createCohortRazorpayOrder('cohort-free-zero')).rejects.toThrow(
+      /Free enrollment is prohibited/i
+    );
+  });
+
   it('fails closed and throws if order creation network rejects', async () => {
     (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Network offline')

@@ -338,6 +338,45 @@ describe('Live Database & Row Level Security (RLS) Policy Verification', () => {
       }
     });
   });
+
+  describe('9. Paid-Only Launch Policy & Free Enrollment Lockdown', () => {
+    it('prohibits unauthenticated direct insertion into enrollments table', async () => {
+      if (!anonClient || !isLiveEndpointReachable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      const { error } = await anonClient
+        .from('enrollments')
+        .insert({
+          user_id: '00000000-0000-0000-0000-000000000002',
+          cohort_id: '00000000-0000-0000-0000-000000000001',
+          status: 'enrolled',
+        });
+
+      expect(error).not.toBeNull();
+      if (error) {
+        expect(['42501', 'PGRST301', '401', '403']).toContain(error.code);
+      }
+    });
+
+    it('prohibits unauthenticated direct call to enroll_student_in_cohort', async () => {
+      if (!anonClient || !isLiveEndpointReachable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      const { data, error } = await anonClient.rpc('enroll_student_in_cohort', {
+        p_cohort_id: '00000000-0000-0000-0000-000000000001',
+      });
+
+      expect(data).toBeNull();
+      expect(error).not.toBeNull();
+      if (error) {
+        expect(['42501', 'PGRST301', '401', '403']).toContain(error.code);
+      }
+    });
+  });
 });
 
 

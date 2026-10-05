@@ -12,15 +12,10 @@
 --                 checkout events never produce redundant or corrupted enrollments.
 -- ==============================================================================
 
--- 1. Revoke direct client execution privileges
-revoke execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) from public;
-revoke execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) from anon;
-revoke execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) from authenticated;
+-- 1. Drop existing function to eliminate parameter name or default value conflicts (PostgreSQL 42P13)
+drop function if exists public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb);
 
--- 2. Grant exclusively to the trusted backend service role
-grant execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) to service_role;
-
--- 3. Replace function definition with fortified security checks & duplicate prevention
+-- 2. Define fortified function with defense-in-depth role checks & duplicate prevention
 create or replace function public.record_successful_payment_and_enroll(
   p_order_id text,
   p_payment_id text,
@@ -308,3 +303,10 @@ begin
   );
 end;
 $$;
+
+-- 3. Revoke direct client execution privileges and grant strictly to service_role
+revoke execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) from public;
+revoke execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) from anon;
+revoke execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) from authenticated;
+grant execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) to service_role;
+
