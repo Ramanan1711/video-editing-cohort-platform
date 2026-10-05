@@ -317,7 +317,7 @@ export function StudentDashboard() {
     return () => {
       active = false;
     };
-  }, [user, selectedCohortId, refreshKey]);
+  }, [user, selectedCohortId, refreshKey, targetCohortId]);
 
   const allLessons = useMemo(() => course.modules.flatMap((module) => module.lessons), [course.modules]);
   const selectedLesson = allLessons.find((lesson) => lesson.id === selectedLessonId) ?? null;

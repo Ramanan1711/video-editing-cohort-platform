@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -93,8 +93,8 @@ export function EnrollmentPanel({
         const preferred = initialCohortId;
         if (preferred && data.some((c) => c.id === preferred)) {
           setSelectedId(preferred);
-        } else if (data.length > 0 && !selectedId) {
-          setSelectedId(data[0].id);
+        } else if (data.length > 0) {
+          setSelectedId((curr) => curr || data[0].id);
         }
       })
       .catch((reason: unknown) => active && setError(reason instanceof Error ? reason.message : 'Unable to load cohorts.'))
@@ -108,20 +108,7 @@ export function EnrollmentPanel({
   const selectedStatus = selectedCohort ? getCohortEnrollmentStatus(selectedCohort) : null;
   const autoCheckoutTriggeredRef = useRef(false);
 
-  useEffect(() => {
-    if (
-      autoCheckout &&
-      selectedCohort &&
-      selectedStatus?.isOpen &&
-      !autoCheckoutTriggeredRef.current &&
-      !saving
-    ) {
-      autoCheckoutTriggeredRef.current = true;
-      void enroll();
-    }
-  }, [autoCheckout, selectedCohort, selectedStatus?.isOpen]);
-
-  const enroll = async () => {
+  const enroll = useCallback(async () => {
     if (!selectedCohort || !selectedStatus?.isOpen) return;
     setSaving(true);
     setError(null);
@@ -150,7 +137,20 @@ export function EnrollmentPanel({
         setSaving(false);
       },
     });
-  };
+  }, [selectedCohort, selectedStatus?.isOpen, userEmail, userName, onEnrolled]);
+
+  useEffect(() => {
+    if (
+      autoCheckout &&
+      selectedCohort &&
+      selectedStatus?.isOpen &&
+      !autoCheckoutTriggeredRef.current &&
+      !saving
+    ) {
+      autoCheckoutTriggeredRef.current = true;
+      void enroll();
+    }
+  }, [autoCheckout, selectedCohort, selectedStatus?.isOpen, saving, enroll]);
 
   return (
     <Card className="mx-auto max-w-3xl p-6 sm:p-10">
