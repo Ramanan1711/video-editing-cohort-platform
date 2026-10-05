@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-05T05:04:54.552Z",
-  "migrationCount": 43,
+  "generatedAt": "2026-10-05T06:26:48.090Z",
+  "migrationCount": 44,
   "migrations": [
     {
       "order": 1,
@@ -644,6 +644,19 @@
       "tableCreations": [],
       "rpcDefinitions": [
         "record_successful_payment_and_enroll"
+      ]
+    },
+    {
+      "order": 44,
+      "filename": "20261005000002_atomic_cohort_reservation_and_capacity.sql",
+      "sha256": "b604fc4809f6d5e5d256d4da6639a56bceac9b335110df00744e324e5ca4f186",
+      "sizeBytes": 11005,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "release_expired_cohort_reservations",
+        "create_cohort_checkout_order",
+        "cancel_cohort_checkout_reservation"
       ]
     }
   ]

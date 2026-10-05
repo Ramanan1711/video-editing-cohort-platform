@@ -66,8 +66,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 3. Invoke server-side checkout initialization RPC
-    // Checks capacity + unexpired checkout reservations, enrollment dates, user account state
+    // 3. Invoke atomic checkout initialization RPC
+    // Serializes concurrent requests via row lock, cleans expired reservations, and atomically reserves capacity
     const { data: checkoutData, error: checkoutError } = await supabase.rpc(
       'create_cohort_checkout_order',
       {
@@ -83,9 +83,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const reservationId = checkoutData.reservation_id;
     const amountInPaise = Number(checkoutData.amount_paise) || 499900;
     const currency = String(checkoutData.currency || 'INR');
-    const receipt = `rcpt_${user.id.slice(0, 8)}_${Date.now()}`;
+    const receipt = checkoutData.receipt || `rcpt_${user.id.slice(0, 8)}_${Date.now()}`;
 
     // 4. Create Razorpay Order
     let razorpayOrderId = '';
@@ -114,6 +115,23 @@ Deno.serve(async (req: Request) => {
       if (!rzpRes.ok) {
         const errorText = await rzpRes.text();
         console.error('Razorpay order creation error:', errorText);
+
+        // Problem 5: Immediately release the atomic seat reservation on gateway failure
+        if (reservationId) {
+          await supabase
+            .from('payments')
+            .update({
+              status: 'failed',
+              metadata: {
+                release_reason: 'gateway_order_creation_failed',
+                error_response: errorText.slice(0, 500),
+                failed_at: new Date().toISOString(),
+              },
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', reservationId);
+        }
+
         return new Response(
           JSON.stringify({ error: 'Payment gateway error initiating order' }),
           { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -126,6 +144,21 @@ Deno.serve(async (req: Request) => {
       // In development environments without live credentials, support test order ID
       const allowMock = Deno.env.get('ALLOW_DEV_MOCK_PAYMENTS') === 'true';
       if (!allowMock) {
+        // Immediately release the atomic reservation if gateway is unavailable
+        if (reservationId) {
+          await supabase
+            .from('payments')
+            .update({
+              status: 'failed',
+              metadata: {
+                release_reason: 'gateway_unconfigured',
+                failed_at: new Date().toISOString(),
+              },
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', reservationId);
+        }
+
         return new Response(
           JSON.stringify({ error: 'Payment gateway is not configured on this server' }),
           { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -134,48 +167,100 @@ Deno.serve(async (req: Request) => {
       razorpayOrderId = `order_mock_${cohortId.slice(0, 8)}_${Date.now()}`;
     }
 
-    // 5. Critical Gate: Record and PERSIST pending payment attempt with reservation TTL (15 minutes)
-    // Fail-Closed: If database insert fails, abort immediately and return error.
-    // Never return a Razorpay order without a corresponding persisted payment attempt in the database.
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-    const { data: insertedPayment, error: insertOrderError } = await supabase
-      .from('payments')
-      .insert({
-        order_id: razorpayOrderId,
-        cohort_id: cohortId,
-        user_id: user.id,
-        amount: amountInPaise,
-        currency,
-        status: 'created',
-        provider: 'razorpay',
-        receipt,
-        notes: {
-          cohort_title: checkoutData.title,
-          user_email: user.email,
-          user_id: user.id,
-          cohort_id: cohortId,
-        },
-        metadata: {
-          initiated_at: new Date().toISOString(),
-          user_email: user.email,
-          cohort_title: checkoutData.title,
-          cohort_price_inr: checkoutData.price_inr,
-          created_via: 'create-razorpay-order',
-        },
-        expires_at: expiresAt,
-      })
-      .select('id, order_id, cohort_id, user_id, amount, status, created_at')
-      .single();
+    // 5. Critical Gate: Link provider order ID to the atomically reserved payment row
+    // Fail-Closed: If database update fails, abort immediately, release seat, and return error.
+    let paymentRecordId = reservationId;
 
-    if (insertOrderError || !insertedPayment) {
-      console.error('CRITICAL: Failed to persist pending payment attempt in database:', insertOrderError);
-      return new Response(
-        JSON.stringify({
-          error: 'Unable to initiate checkout: payment attempt could not be recorded in database.',
-          details: insertOrderError?.message || 'Database write unconfirmed',
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (reservationId) {
+      const { error: updateOrderError } = await supabase
+        .from('payments')
+        .update({
+          order_id: razorpayOrderId,
+          notes: {
+            cohort_title: checkoutData.title,
+            user_email: user.email,
+            user_id: user.id,
+            cohort_id: cohortId,
+          },
+          metadata: {
+            initiated_at: new Date().toISOString(),
+            user_email: user.email,
+            cohort_title: checkoutData.title,
+            cohort_price_inr: checkoutData.price_inr,
+            created_via: 'create-razorpay-order',
+            razorpay_order_id: razorpayOrderId,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', reservationId);
+
+      if (updateOrderError) {
+        console.error('CRITICAL: Failed to link order ID to atomic reservation:', updateOrderError);
+        // Release reservation
+        await supabase
+          .from('payments')
+          .update({
+            status: 'failed',
+            metadata: {
+              release_reason: 'failed_to_link_order_id',
+              error: updateOrderError.message,
+              failed_at: new Date().toISOString(),
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', reservationId);
+
+        return new Response(
+          JSON.stringify({
+            error: 'Unable to initiate checkout: payment attempt could not be recorded in database.',
+            details: updateOrderError.message,
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // Fallback for legacy database environments without atomic reservation RPC
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      const { data: insertedPayment, error: insertOrderError } = await supabase
+        .from('payments')
+        .insert({
+          order_id: razorpayOrderId,
+          cohort_id: cohortId,
+          user_id: user.id,
+          amount: amountInPaise,
+          currency,
+          status: 'created',
+          provider: 'razorpay',
+          receipt,
+          notes: {
+            cohort_title: checkoutData.title,
+            user_email: user.email,
+            user_id: user.id,
+            cohort_id: cohortId,
+          },
+          metadata: {
+            initiated_at: new Date().toISOString(),
+            user_email: user.email,
+            cohort_title: checkoutData.title,
+            cohort_price_inr: checkoutData.price_inr,
+            created_via: 'create-razorpay-order',
+          },
+          expires_at: expiresAt,
+        })
+        .select('id')
+        .single();
+
+      if (insertOrderError || !insertedPayment) {
+        console.error('CRITICAL: Failed to persist pending payment attempt in database:', insertOrderError);
+        return new Response(
+          JSON.stringify({
+            error: 'Unable to initiate checkout: payment attempt could not be recorded in database.',
+            details: insertOrderError?.message || 'Database write unconfirmed',
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      paymentRecordId = insertedPayment.id;
     }
 
     // 6. Return verified order details to frontend only after local payment record is securely persisted
@@ -187,7 +272,8 @@ Deno.serve(async (req: Request) => {
         currency,
         keyId: razorpayKeyId || 'rzp_test_placeholder',
         cohortTitle: checkoutData.title,
-        paymentRecordId: insertedPayment.id,
+        paymentRecordId,
+        expiresAt: checkoutData.expires_at,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

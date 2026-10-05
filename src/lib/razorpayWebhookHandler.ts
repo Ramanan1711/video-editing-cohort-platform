@@ -9,6 +9,8 @@ export interface RazorpayEntity {
   captured?: boolean;
   notes?: Record<string, string>;
   method?: string;
+  error_code?: string;
+  error_description?: string;
 }
 
 export interface RazorpayWebhookEvent {
@@ -35,6 +37,7 @@ export interface WebhookHandlerResult {
     already_processed?: boolean;
     ignored?: boolean;
     eventType?: string;
+    status?: string;
     order_id?: string;
     payment_id?: string;
     enrollment_id?: string;
@@ -149,6 +152,33 @@ export async function handleRazorpayWebhook({
   }
 
   const eventType = event.event;
+
+  // Problem 5: Release reservation capacity if payment failed
+  if (eventType === 'payment.failed') {
+    const failedPayment = event.payload?.payment?.entity;
+    const failedOrderId = failedPayment?.order_id;
+    if (failedOrderId) {
+      await supabase
+        .from('payments')
+        .update({
+          status: 'failed',
+          metadata: {
+            failure_reason: failedPayment?.error_description || 'Payment failed at gateway',
+            error_code: failedPayment?.error_code,
+            released_at: new Date().toISOString(),
+            source: 'webhook_payment_failed',
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('order_id', failedOrderId)
+        .eq('status', 'created');
+    }
+
+    return {
+      status: 200,
+      data: { received: true, ignored: true, status: 'failed_reservation_released', eventType },
+    };
+  }
 
   // Non-capture events acknowledged safely without granting course access
   if (eventType !== 'payment.captured' && eventType !== 'order.paid') {

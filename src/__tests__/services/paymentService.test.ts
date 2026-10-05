@@ -6,6 +6,7 @@ import {
   verifyRazorpayPayment,
   loadRazorpayScript,
   startCohortCheckout,
+  cancelCohortCheckoutReservation,
 } from '../../lib/paymentService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -14,6 +15,7 @@ vi.mock('../../lib/supabaseClient', () => ({
     functions: {
       invoke: vi.fn(),
     },
+    rpc: vi.fn(),
   },
 }));
 
@@ -301,5 +303,143 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
       })
     );
     expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  describe('Problem 5: Atomic Cohort Capacity & Race Condition Elimination', () => {
+    it('halts checkout and throws error when cohort capacity is exhausted', async () => {
+      (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: {
+          error: 'Cohort capacity reached. No seats currently available.',
+        },
+        error: null,
+      });
+
+      await expect(createCohortRazorpayOrder('cohort-full-123')).rejects.toThrow(
+        'Cohort capacity reached. No seats currently available.'
+      );
+    });
+
+    it('cancelCohortCheckoutReservation invokes cancel_cohort_checkout_reservation RPC with orderId', async () => {
+      const rpcMock = (supabase as unknown as { rpc: ReturnType<typeof vi.fn> }).rpc;
+      rpcMock.mockResolvedValue({
+        data: { success: true, status: 'cancelled' },
+        error: null,
+      });
+
+      const released = await cancelCohortCheckoutReservation('order_test_release_999');
+      expect(released).toBe(true);
+      expect(rpcMock).toHaveBeenCalledWith('cancel_cohort_checkout_reservation', {
+        p_order_id: 'order_test_release_999',
+      });
+    });
+
+    it('cancelCohortCheckoutReservation returns false on missing orderId or RPC failure', async () => {
+      const emptyResult = await cancelCohortCheckoutReservation('');
+      expect(emptyResult).toBe(false);
+
+      const rpcMock = (supabase as unknown as { rpc: ReturnType<typeof vi.fn> }).rpc;
+      rpcMock.mockResolvedValue({
+        data: null,
+        error: { message: 'Database error' },
+      });
+
+      const failedResult = await cancelCohortCheckoutReservation('order_err');
+      expect(failedResult).toBe(false);
+    });
+
+    it('releases reserved capacity when user dismisses the checkout modal', async () => {
+      const rpcMock = (supabase as unknown as { rpc: ReturnType<typeof vi.fn> }).rpc;
+      rpcMock.mockResolvedValue({
+        data: { success: true, status: 'cancelled' },
+        error: null,
+      });
+
+      let capturedOptions: { modal?: { ondismiss?: () => void } } | null = null;
+      (window as unknown as { Razorpay: unknown }).Razorpay = class MockRazorpay {
+        constructor(options: { modal?: { ondismiss?: () => void } }) {
+          capturedOptions = options;
+        }
+        open = vi.fn();
+      };
+
+      (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: {
+          orderId: 'order_dismiss_123',
+          amount: 499900,
+          currency: 'INR',
+          keyId: 'rzp_test_key_1',
+          paymentRecordId: 'resv_uuid_123',
+        },
+        error: null,
+      });
+
+      const onDismiss = vi.fn();
+      await startCohortCheckout({
+        cohortId: 'cohort-atomic-dismiss',
+        cohortName: 'Dismiss Cohort',
+        onSuccess: vi.fn(),
+        onError: vi.fn(),
+        onDismiss,
+      });
+
+      expect(capturedOptions).not.toBeNull();
+      (capturedOptions as { modal?: { ondismiss?: () => void } } | null)?.modal?.ondismiss?.();
+
+      expect(onDismiss).toHaveBeenCalledTimes(1);
+      expect(rpcMock).toHaveBeenCalledWith('cancel_cohort_checkout_reservation', {
+        p_order_id: 'order_dismiss_123',
+      });
+    });
+
+    it('releases reserved capacity when payment failure event is triggered', async () => {
+      const rpcMock = (supabase as unknown as { rpc: ReturnType<typeof vi.fn> }).rpc;
+      rpcMock.mockResolvedValue({
+        data: { success: true, status: 'cancelled' },
+        error: null,
+      });
+
+      let capturedFailedHandler: ((response: unknown) => void) | null = null;
+      (window as unknown as { Razorpay: unknown }).Razorpay = class MockRazorpay {
+        open = vi.fn();
+        on = (event: string, handler: (response: unknown) => void) => {
+          if (event === 'payment.failed') {
+            capturedFailedHandler = handler;
+          }
+        };
+      };
+
+      (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: {
+          orderId: 'order_failed_event_456',
+          amount: 499900,
+          currency: 'INR',
+          keyId: 'rzp_test_key_1',
+          paymentRecordId: 'resv_uuid_456',
+        },
+        error: null,
+      });
+
+      const onError = vi.fn();
+      await startCohortCheckout({
+        cohortId: 'cohort-atomic-failure',
+        cohortName: 'Failure Cohort',
+        onSuccess: vi.fn(),
+        onError,
+      });
+
+      expect(capturedFailedHandler).not.toBeNull();
+      (capturedFailedHandler as ((response: unknown) => void) | null)?.({
+        error: { description: 'Card declined by issuing bank' },
+      });
+
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Card declined by issuing bank',
+        })
+      );
+      expect(rpcMock).toHaveBeenCalledWith('cancel_cohort_checkout_reservation', {
+        p_order_id: 'order_failed_event_456',
+      });
+    });
   });
 });

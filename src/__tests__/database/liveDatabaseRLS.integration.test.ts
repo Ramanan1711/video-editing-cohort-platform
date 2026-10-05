@@ -301,6 +301,43 @@ describe('Live Database & Row Level Security (RLS) Policy Verification', () => {
       }
     });
   });
+
+  describe('8. Atomic Checkout Reservation & Capacity Boundaries (Problem 5)', () => {
+    it('prohibits anonymous unauthenticated checkout reservation creation', async () => {
+      if (!anonClient || !isLiveEndpointReachable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      const dummyCohortId = '00000000-0000-0000-0000-000000000001';
+      const { data, error } = await anonClient.rpc('create_cohort_checkout_order', {
+        p_cohort_id: dummyCohortId,
+      });
+
+      expect(data).toBeNull();
+      expect(error).not.toBeNull();
+      if (error) {
+        expect(['42501', 'PGRST301', '401', '403', 'P0001']).toContain(error.code);
+      }
+    });
+
+    it('prohibits anonymous unauthenticated checkout reservation cancellation', async () => {
+      if (!anonClient || !isLiveEndpointReachable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      const { data, error } = await anonClient.rpc('cancel_cohort_checkout_reservation', {
+        p_order_id: 'order_probe_unauthenticated',
+      });
+
+      expect(data).toBeNull();
+      expect(error).not.toBeNull();
+      if (error) {
+        expect(['42501', 'PGRST301', '401', '403', 'P0001']).toContain(error.code);
+      }
+    });
+  });
 });
 
 

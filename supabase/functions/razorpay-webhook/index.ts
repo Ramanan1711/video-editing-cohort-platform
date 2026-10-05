@@ -122,6 +122,8 @@ interface RazorpayEntity {
   captured?: boolean;
   notes?: Record<string, string>;
   method?: string;
+  error_code?: string;
+  error_description?: string;
 }
 
 interface RazorpayWebhookEvent {
@@ -146,7 +148,35 @@ interface RazorpayWebhookEvent {
 
     const eventType = event.event;
 
-    // Acknowledge non-capture events safely without granting access
+    // Problem 5: Release pending reservation capacity immediately if payment fails at gateway
+    if (eventType === 'payment.failed') {
+      const failedPaymentEntity = event.payload?.payment?.entity;
+      const failedOrderId = failedPaymentEntity?.order_id;
+      if (failedOrderId) {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        await supabase
+          .from('payments')
+          .update({
+            status: 'failed',
+            metadata: {
+              failure_reason: failedPaymentEntity?.error_description || 'Payment failed at gateway',
+              error_code: failedPaymentEntity?.error_code,
+              released_at: new Date().toISOString(),
+              source: 'webhook_payment_failed',
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('order_id', failedOrderId)
+          .eq('status', 'created');
+      }
+
+      return new Response(
+        JSON.stringify({ received: true, ignored: true, status: 'failed_reservation_released', eventType }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Acknowledge other non-capture events safely without granting access
     if (eventType !== 'payment.captured' && eventType !== 'order.paid') {
       return new Response(
         JSON.stringify({ received: true, ignored: true, eventType }),

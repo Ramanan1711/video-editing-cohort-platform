@@ -159,12 +159,34 @@ export async function verifyRazorpayPayment(
 }
 
 /**
+ * Immediately releases an uncompleted checkout reservation (Problem 5 remediation).
+ * Ensures seats are freed right away without requiring the student to wait for the 15-minute TTL.
+ */
+export async function cancelCohortCheckoutReservation(orderId: string): Promise<boolean> {
+  if (!orderId) return false;
+  try {
+    const { data, error } = await supabase.rpc('cancel_cohort_checkout_reservation', {
+      p_order_id: orderId,
+    });
+    if (error) {
+      console.warn('Failed to release cohort checkout reservation:', error.message);
+      return false;
+    }
+    return Boolean(data?.success);
+  } catch (err) {
+    console.warn('Error releasing checkout reservation:', err);
+    return false;
+  }
+}
+
+/**
  * Orchestrates the full paid checkout flow:
  * 1. Loads Razorpay script.
  * 2. Fetches server-authoritative order from Edge Function using only cohortId.
  * 3. Opens Razorpay Checkout modal.
  * 4. Calls server-side verification upon completion.
  * 5. Notifies UI only after verified enrollment is secured.
+ * 6. Immediately releases seat reservation if modal is dismissed or payment fails.
  */
 export async function startCohortCheckout(params: CohortCheckoutParams): Promise<void> {
   try {
@@ -179,6 +201,8 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
         : true;
 
       if (!confirmed) {
+        // User dismissed/declined simulated checkout: immediately release seat reservation
+        void cancelCohortCheckoutReservation(order.id);
         params.onDismiss?.();
         return;
       }
@@ -196,6 +220,8 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
 
     const scriptLoaded = await loadRazorpayScript();
     if (!scriptLoaded || !window.Razorpay) {
+      // Script load failed: immediately release seat reservation
+      void cancelCohortCheckoutReservation(order.id);
       throw new Error('Unable to load Razorpay payment gateway. Please check your internet connection.');
     }
 
@@ -205,6 +231,8 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
         : (import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined);
 
     if (!effectiveKey || effectiveKey === 'rzp_test_placeholder' || !effectiveKey.startsWith('rzp_')) {
+      // Configuration invalid: release seat reservation
+      void cancelCohortCheckoutReservation(order.id);
       throw new Error(
         'Razorpay Key ID is not configured or invalid. Please configure RAZORPAY_KEY_ID (e.g. rzp_test_...) in your Supabase Edge Function secrets or set VITE_RAZORPAY_KEY_ID in your .env file.'
       );
@@ -231,11 +259,15 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
           params.onSuccess(verification.enrollmentId);
         } catch (verificationError) {
           const err = verificationError instanceof Error ? verificationError : new Error(String(verificationError));
+          // If verification failed, release reservation
+          void cancelCohortCheckoutReservation(order.id);
           params.onError(err);
         }
       },
       modal: {
         ondismiss: () => {
+          // Immediately release pending reservation upon client dismissal
+          void cancelCohortCheckoutReservation(order.id);
           params.onDismiss?.();
         },
       },
@@ -244,6 +276,8 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
     const razorpayInstance = new window.Razorpay(options);
     if (typeof razorpayInstance.on === 'function') {
       razorpayInstance.on('payment.failed', (failedResponse: unknown) => {
+        // Immediately release reservation upon explicit payment failure
+        void cancelCohortCheckoutReservation(order.id);
         const errorDetail = failedResponse && typeof failedResponse === 'object' && 'error' in failedResponse
           ? (failedResponse as { error?: { description?: string } }).error?.description
           : null;
