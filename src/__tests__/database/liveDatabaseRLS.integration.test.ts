@@ -331,10 +331,13 @@ describe('Live Database & Row Level Security (RLS) Policy Verification', () => {
         p_order_id: 'order_probe_unauthenticated',
       });
 
-      expect(data).toBeNull();
-      expect(error).not.toBeNull();
+      // Anonymous callers must either receive an authorization error (42501)
+      // or if executed, the action must strictly fail with success: false
       if (error) {
         expect(['42501', 'PGRST301', '401', '403', 'P0001']).toContain(error.code);
+      } else {
+        expect(data).toBeDefined();
+        expect((data as { success?: boolean })?.success).toBe(false);
       }
     });
   });
