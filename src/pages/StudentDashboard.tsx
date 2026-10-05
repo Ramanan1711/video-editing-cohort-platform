@@ -96,12 +96,17 @@ import { SprintChallengeTracker } from '../components/internship/SprintChallenge
 import { WhatsAppSupportWidget } from '../components/internship/WhatsAppSupportWidget';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { getStudentSprintDays, type InternshipDayStatus } from '../lib/internshipService';
+import {
+  resolveTargetCohortId,
+  clearPendingCohortCheckout,
+} from '../lib/cohortCheckoutPersistence';
 
 const emptyCourse: StudentCourseData = { cohort: null, modules: [], progress: [], enrolledCohorts: [] };
 
 export function StudentDashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const targetCohortId = resolveTargetCohortId(searchParams);
   const { user, profile } = useAuth();
   const [course, setCourse] = useState<StudentCourseData>(emptyCourse);
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
@@ -269,6 +274,9 @@ export function StudentDashboard() {
 
         // Fetch dynamic internship sprint progress and unified composite progress
         if (courseRes.value.cohort) {
+          if (targetCohortId && courseRes.value.cohort.id === targetCohortId) {
+            clearPendingCohortCheckout();
+          }
           try {
             const [sprintData, progressData] = await Promise.all([
               getStudentSprintDays(userId, courseRes.value.cohort.id),
@@ -1594,7 +1602,10 @@ export function StudentDashboard() {
                   userId={user.id}
                   userEmail={user.email}
                   userName={profile?.full_name || user.user_metadata?.full_name}
+                  initialCohortId={targetCohortId || undefined}
+                  autoCheckout={Boolean(searchParams.get('checkout'))}
                   onEnrolled={() => {
+                    clearPendingCohortCheckout();
                     setRefreshKey((k) => k + 1);
                   }}
                 />

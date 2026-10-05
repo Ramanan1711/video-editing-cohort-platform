@@ -31,6 +31,7 @@ import { SiteFooter } from '../components/SiteFooter';
 import { SiteHeader } from '../components/SiteHeader';
 import { listCohorts, type Cohort } from '../lib/courseService';
 import { DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../lib/paymentService';
+import { setPendingCohortCheckout } from '../lib/cohortCheckoutPersistence';
 import { HeroCanvasSimulator } from '../components/home/HeroCanvasSimulator';
 import { TiltCard } from '../components/home/TiltCard';
 import { CustomCursor } from '../components/home/CustomCursor';
@@ -661,7 +662,10 @@ export function Home() {
                         href={`/register?cohort=${cohort.id}`}
                         size="sm"
                         data-cursor="ENROLL"
-                        onClick={() => soundFx.playSweep(300, 700, 0.1, 0.05)}
+                        onClick={() => {
+                          setPendingCohortCheckout(cohort.id, cohort.name, cohort.price_inr, cohort.currency);
+                          soundFx.playSweep(300, 700, 0.1, 0.05);
+                        }}
                         className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold border-none shadow-md shadow-orange-500/20"
                       >
                         <span>Enroll</span>
@@ -2643,7 +2647,17 @@ export function Home() {
                   <Button
                     href={publishedCohort?.id ? `/register?cohort=${publishedCohort.id}` : '/register'}
                     data-cursor="SAVE SEAT"
-                    onClick={() => soundFx.playSweep(280, 840, 0.15, 0.05)}
+                    onClick={() => {
+                      if (publishedCohort?.id) {
+                        setPendingCohortCheckout(
+                          publishedCohort.id,
+                          publishedCohort.name,
+                          publishedCohort.price_inr,
+                          publishedCohort.currency
+                        );
+                      }
+                      soundFx.playSweep(280, 840, 0.15, 0.05);
+                    }}
                     className="mt-6 w-full justify-center shadow-lg shadow-orange-500/25"
                     withArrow
                   >

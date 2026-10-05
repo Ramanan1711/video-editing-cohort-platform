@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   CheckCircle2,
@@ -16,6 +16,11 @@ import { CustomCursor } from '../components/home/CustomCursor';
 import { StudioBar } from '../components/home/StudioBar';
 import { TiltCard } from '../components/home/TiltCard';
 import { soundFx } from '../lib/soundFx';
+import {
+  setPendingCohortCheckout,
+  resolveTargetCohortId,
+} from '../lib/cohortCheckoutPersistence';
+import { listCohorts, type Cohort } from '../lib/courseService';
 
 export const Register: React.FC = () => {
   const [fullName, setFullName] = useState('');
@@ -33,6 +38,26 @@ export const Register: React.FC = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [targetCohort, setTargetCohort] = useState<Cohort | null>(null);
+  const targetCohortId = resolveTargetCohortId(searchParams);
+
+  // Synchronize and retain selected cohort for checkout continuation
+  useEffect(() => {
+    if (targetCohortId) {
+      setPendingCohortCheckout(targetCohortId);
+      listCohorts()
+        .then((all) => {
+          const matched = all.find((c) => c.id === targetCohortId);
+          if (matched) {
+            setTargetCohort(matched);
+            setPendingCohortCheckout(matched.id, matched.name, matched.price_inr, matched.currency);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [targetCohortId]);
+
 
   // Handle countdown for resend button
   useEffect(() => {
@@ -62,8 +87,11 @@ export const Register: React.FC = () => {
     try {
       // Secure Production Flow: All public registrations are strictly assigned 'student' role.
       // Mentors are promoted exclusively by administrators through the Admin Console.
+      const redirectPath = targetCohortId
+        ? `/student/dashboard?cohort=${encodeURIComponent(targetCohortId)}&checkout=true`
+        : '/student/dashboard';
       const redirectUrl = typeof window !== 'undefined'
-        ? `${window.location.origin}/student/dashboard`
+        ? `${window.location.origin}${redirectPath}`
         : undefined;
 
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -73,6 +101,7 @@ export const Register: React.FC = () => {
           data: {
             full_name: fullName.trim(),
             role: 'student',
+            ...(targetCohortId ? { preferred_cohort_id: targetCohortId } : {}),
           },
           emailRedirectTo: redirectUrl,
         },
@@ -107,8 +136,8 @@ export const Register: React.FC = () => {
         return;
       }
 
-      // If session is active immediately (e.g. email confirmation disabled in dev), route directly.
-      navigate('/student/dashboard');
+      // If session is active immediately (e.g. email confirmation disabled in dev), route directly to checkout.
+      navigate(redirectPath);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : '';
       if (errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network')) {
@@ -128,8 +157,11 @@ export const Register: React.FC = () => {
     setError('');
 
     try {
+      const redirectPath = targetCohortId
+        ? `/student/dashboard?cohort=${encodeURIComponent(targetCohortId)}&checkout=true`
+        : '/student/dashboard';
       const redirectUrl = typeof window !== 'undefined'
-        ? `${window.location.origin}/student/dashboard`
+        ? `${window.location.origin}${redirectPath}`
         : undefined;
 
       const { error: resendErr } = await supabase.auth.resend({
@@ -211,7 +243,13 @@ export const Register: React.FC = () => {
                 <ul className="list-disc list-inside space-y-1 text-slate-400">
                   <li>Check your inbox (and junk / spam folder).</li>
                   <li>Click the confirmation link to activate your student workspace.</li>
-                  <li>Return here to log in once verified.</li>
+                  {targetCohort ? (
+                    <li className="text-orange-300 font-semibold">
+                      You will return directly to checkout for <strong>{targetCohort.name}</strong>.
+                    </li>
+                  ) : (
+                    <li>You will be redirected right back to complete cohort checkout.</li>
+                  )}
                 </ul>
               </div>
 
@@ -250,7 +288,7 @@ export const Register: React.FC = () => {
                 </Button>
 
                 <Button
-                  href="/login"
+                  href={targetCohortId ? `/login?cohort=${encodeURIComponent(targetCohortId)}` : '/login'}
                   onMouseEnter={() => soundFx.playBlip(480, 0.02, 'sine', 0.02)}
                   className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3"
                 >
@@ -316,7 +354,7 @@ export const Register: React.FC = () => {
 
               <div className="space-y-3 pt-2">
                 <Button
-                  href="/login"
+                  href={targetCohortId ? `/login?cohort=${encodeURIComponent(targetCohortId)}` : '/login'}
                   onMouseEnter={() => soundFx.playBlip(460, 0.02, 'sine', 0.02)}
                   className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3"
                 >
@@ -401,6 +439,30 @@ export const Register: React.FC = () => {
               Start your 15-day intensive production internship.
             </p>
 
+            {/* Target Cohort Reservation Indicator */}
+            {targetCohortId && (
+              <div className="mt-5 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-3.5 text-xs text-orange-200 flex items-center justify-between shadow-lg shadow-orange-500/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400">
+                    <Sparkles size={14} />
+                  </div>
+                  <div>
+                    <span className="font-bold text-white block">
+                      {targetCohort?.name ? `Joining ${targetCohort.name}` : 'Cohort Selected for Checkout'}
+                    </span>
+                    <span className="text-[11px] text-orange-300/80">
+                      {targetCohort?.price_inr
+                        ? `₹${targetCohort.price_inr.toLocaleString('en-IN')} ${targetCohort.currency || 'INR'} • Seat held during signup`
+                        : 'Seat reserved for checkout after email verification'}
+                    </span>
+                  </div>
+                </div>
+                <span className="rounded-full bg-orange-500/20 px-2 py-0.5 text-[9px] font-mono text-orange-300 uppercase tracking-wider font-bold">
+                  Step 1 of 2
+                </span>
+              </div>
+            )}
+
             {/* Network Failure / General Error Banner */}
             {error && (
               <div className={`mt-6 rounded-2xl border p-4 text-xs backdrop-blur-xl ${
@@ -484,7 +546,7 @@ export const Register: React.FC = () => {
               <p className="text-sm text-slate-400">
                 Already enrolled?{' '}
                 <Link
-                  to="/login"
+                  to={targetCohortId ? `/login?cohort=${encodeURIComponent(targetCohortId)}` : '/login'}
                   onMouseEnter={() => soundFx.playBlip(460, 0.02, 'sine', 0.02)}
                   className="font-bold text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 transition-colors"
                 >

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -65,15 +65,21 @@ export function EnrollmentPanel({
   userId,
   userEmail,
   userName,
+  initialCohortId,
+  autoCheckout = false,
   onEnrolled,
 }: {
   userId: string;
   userEmail?: string;
   userName?: string;
+  initialCohortId?: string;
+  autoCheckout?: boolean;
   onEnrolled: () => void;
 }) {
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
-  const [selectedId, setSelectedId] = useState('');
+  const [selectedId, setSelectedId] = useState<string>(
+    () => initialCohortId || ''
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,16 +87,39 @@ export function EnrollmentPanel({
   useEffect(() => {
     let active = true;
     listAvailableCohorts(userId)
-      .then((data) => active && setCohorts(data))
+      .then((data) => {
+        if (!active) return;
+        setCohorts(data);
+        const preferred = initialCohortId;
+        if (preferred && data.some((c) => c.id === preferred)) {
+          setSelectedId(preferred);
+        } else if (data.length > 0 && !selectedId) {
+          setSelectedId(data[0].id);
+        }
+      })
       .catch((reason: unknown) => active && setError(reason instanceof Error ? reason.message : 'Unable to load cohorts.'))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [userId]);
+  }, [userId, initialCohortId]);
 
   const selectedCohort = cohorts.find((c) => c.id === selectedId);
   const selectedStatus = selectedCohort ? getCohortEnrollmentStatus(selectedCohort) : null;
+  const autoCheckoutTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      autoCheckout &&
+      selectedCohort &&
+      selectedStatus?.isOpen &&
+      !autoCheckoutTriggeredRef.current &&
+      !saving
+    ) {
+      autoCheckoutTriggeredRef.current = true;
+      void enroll();
+    }
+  }, [autoCheckout, selectedCohort, selectedStatus?.isOpen]);
 
   const enroll = async () => {
     if (!selectedCohort || !selectedStatus?.isOpen) return;

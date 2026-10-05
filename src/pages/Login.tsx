@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   CheckCircle2,
@@ -16,6 +16,11 @@ import { CustomCursor } from '../components/home/CustomCursor';
 import { StudioBar } from '../components/home/StudioBar';
 import { TiltCard } from '../components/home/TiltCard';
 import { soundFx } from '../lib/soundFx';
+import {
+  setPendingCohortCheckout,
+  resolveTargetCohortId,
+} from '../lib/cohortCheckoutPersistence';
+import { listCohorts, type Cohort } from '../lib/courseService';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -31,6 +36,25 @@ export const Login: React.FC = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [targetCohort, setTargetCohort] = useState<Cohort | null>(null);
+  const targetCohortId = resolveTargetCohortId(searchParams);
+
+  // Synchronize and retain selected cohort for checkout continuation
+  useEffect(() => {
+    if (targetCohortId) {
+      setPendingCohortCheckout(targetCohortId);
+      listCohorts()
+        .then((all) => {
+          const matched = all.find((c) => c.id === targetCohortId);
+          if (matched) {
+            setTargetCohort(matched);
+            setPendingCohortCheckout(matched.id, matched.name, matched.price_inr, matched.currency);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [targetCohortId]);
 
   // Cooldown timer for resend confirmation button
   useEffect(() => {
@@ -84,6 +108,10 @@ export const Login: React.FC = () => {
 
       if (data?.user) {
         // Role-aware redirect: send mentors to the review room, admins to admin console, students to dashboard
+        const redirectPath = targetCohortId
+          ? `/student/dashboard?cohort=${encodeURIComponent(targetCohortId)}&checkout=true`
+          : '/student/dashboard';
+
         try {
           const { data: profile } = await supabase
             .from('profiles')
@@ -98,14 +126,17 @@ export const Login: React.FC = () => {
           } else if (userRole === 'mentor') {
             navigate('/mentor');
           } else {
-            navigate('/student/dashboard');
+            navigate(redirectPath);
           }
         } catch {
           // Graceful fallback if database profile query experiences degraded connectivity
-          navigate('/student/dashboard');
+          navigate(redirectPath);
         }
       } else {
-        navigate('/student/dashboard');
+        const redirectPath = targetCohortId
+          ? `/student/dashboard?cohort=${encodeURIComponent(targetCohortId)}&checkout=true`
+          : '/student/dashboard';
+        navigate(redirectPath);
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : '';
@@ -125,8 +156,11 @@ export const Login: React.FC = () => {
     setResendLoading(true);
 
     try {
+      const redirectPath = targetCohortId
+        ? `/student/dashboard?cohort=${encodeURIComponent(targetCohortId)}&checkout=true`
+        : '/student/dashboard';
       const redirectUrl = typeof window !== 'undefined'
-        ? `${window.location.origin}/student/dashboard`
+        ? `${window.location.origin}${redirectPath}`
         : undefined;
 
       const { error: resendErr } = await supabase.auth.resend({
@@ -208,6 +242,28 @@ export const Login: React.FC = () => {
             <p className="mt-2 text-sm leading-relaxed text-slate-400">
               Your next production task is waiting for you.
             </p>
+
+            {/* Target Cohort Reservation Indicator */}
+            {targetCohortId && (
+              <div className="mt-5 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-3.5 text-xs text-orange-200 flex items-center justify-between shadow-lg shadow-orange-500/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400">
+                    <Sparkles size={14} />
+                  </div>
+                  <div>
+                    <span className="font-bold text-white block">
+                      {targetCohort?.name ? `Checkout: ${targetCohort.name}` : 'Cohort Selected'}
+                    </span>
+                    <span className="text-[11px] text-orange-300/80">
+                      Sign in to complete your enrollment & checkout
+                    </span>
+                  </div>
+                </div>
+                <span className="rounded-full bg-orange-500/20 px-2 py-0.5 text-[9px] font-mono text-orange-300 uppercase tracking-wider font-bold">
+                  Checkout
+                </span>
+              </div>
+            )}
 
             {/* Unconfirmed Email Alert Box */}
             {isEmailUnconfirmed && (
@@ -327,7 +383,7 @@ export const Login: React.FC = () => {
               <p className="text-sm text-slate-400">
                 New to Iunoware Academy?{' '}
                 <Link
-                  to="/register"
+                  to={targetCohortId ? `/register?cohort=${encodeURIComponent(targetCohortId)}` : '/register'}
                   onMouseEnter={() => soundFx.playBlip(460, 0.02, 'sine', 0.02)}
                   className="font-bold text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 transition-colors"
                 >
