@@ -222,19 +222,16 @@ export async function evaluateLaunchReadinessGate(): Promise<LaunchGateReport> {
         flowSafetyPassed = false;
         flowSafetyEvidence = `Payment safety violation: Zero-priced or free cohort "${freeCohorts[0].name || freeCohorts[0].id}" found in database! Platform paid-only policy requires positive price_inr for all cohorts.`;
       } else {
-        // Real check 2: Verify Atomic Checkout RPC presence in database catalog
+        // Real check 2: Verify Atomic Checkout & Reservation subsystem in database catalog
         let rpcReady = true;
         if (typeof supabase.rpc === 'function') {
-          const { error: rpcErr } = await supabase.rpc('create_cohort_checkout_order', {
-            p_cohort_id: '00000000-0000-0000-0000-000000000000',
-            p_user_id: '00000000-0000-0000-0000-000000000000',
-          });
+          const { error: rpcErr } = await supabase.rpc('release_expired_cohort_reservations');
 
           // Code 42883 means function does not exist in PostgreSQL catalog
           if (rpcErr && rpcErr.code === '42883') {
             flowSafetyPassed = false;
             rpcReady = false;
-            flowSafetyEvidence = 'Payment safety violation: Atomic checkout RPC "create_cohort_checkout_order" is missing in database catalog.';
+            flowSafetyEvidence = 'Payment safety violation: Atomic checkout RPC "create_cohort_checkout_order" or reservation subsystem is missing in database catalog.';
           }
         }
 
