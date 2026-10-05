@@ -191,4 +191,29 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
     expect(onSuccess).not.toHaveBeenCalled();
   });
+
+  it('strictly routes through edge functions and never calls record_successful_payment_and_enroll directly from client', async () => {
+    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { success: true, verified: true, enrollmentId: 'enrollment-secure-123' },
+      error: null,
+    });
+
+    await verifyRazorpayPayment(
+      {
+        razorpay_order_id: 'order_test_secure',
+        razorpay_payment_id: 'pay_test_secure',
+        razorpay_signature: 'sig_test_secure',
+      },
+      'cohort-test-secure'
+    );
+
+    // Assert it called the edge function
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('verify-razorpay-payment', expect.any(Object));
+
+    // Verify client never attempted to call the privileged RPC directly
+    const rpcMock = (supabase as unknown as { rpc?: ReturnType<typeof vi.fn> }).rpc;
+    if (rpcMock) {
+      expect(rpcMock).not.toHaveBeenCalledWith('record_successful_payment_and_enroll', expect.anything());
+    }
+  });
 });

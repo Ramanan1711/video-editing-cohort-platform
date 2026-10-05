@@ -271,5 +271,36 @@ describe('Live Database & Row Level Security (RLS) Policy Verification', () => {
       expect(error).not.toBeNull();
     });
   });
+
+  describe('7. Privileged Payment Confirmation & Enrollment RPC Security Boundary', () => {
+    it('prohibits direct client execution of record_successful_payment_and_enroll', async () => {
+      if (!anonClient || !isLiveEndpointReachable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      // An ordinary unprivileged student attempts to call record_successful_payment_and_enroll directly
+      const dummyCohortId = '00000000-0000-0000-0000-000000000001';
+      const dummyUserId = '00000000-0000-0000-0000-000000000002';
+      const { data, error } = await anonClient.rpc('record_successful_payment_and_enroll', {
+        p_order_id: 'order_unauthorized_probe_999',
+        p_payment_id: 'pay_unauthorized_probe_999',
+        p_signature: 'fake_signature',
+        p_cohort_id: dummyCohortId,
+        p_user_id: dummyUserId,
+        p_amount: 0,
+        p_currency: 'INR',
+        p_metadata: { source: 'malicious_client_probe' },
+      });
+
+      // Direct client execution must be rejected (permission denied / 42501 / PGRST301)
+      expect(data).toBeNull();
+      expect(error).not.toBeNull();
+      if (error) {
+        expect(['42501', 'PGRST301', '401', '403', 'P0001']).toContain(error.code);
+      }
+    });
+  });
 });
+
 

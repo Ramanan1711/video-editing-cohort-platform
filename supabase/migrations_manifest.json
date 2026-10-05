@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-02T07:29:13.856Z",
-  "migrationCount": 42,
+  "generatedAt": "2026-10-05T05:04:54.552Z",
+  "migrationCount": 43,
   "migrations": [
     {
       "order": 1,
@@ -611,8 +611,8 @@
     {
       "order": 41,
       "filename": "20261002000001_canonical_razorpay_cohort_pricing_and_payments.sql",
-      "sha256": "6ac578262a5d55efd103220adf598c2a8e68e9817310f75a755408470f18dff0",
-      "sizeBytes": 16915,
+      "sha256": "5ee51112c36cbabc4fbad16935bcba640687d15ee128e2669b25648c6d9554a6",
+      "sizeBytes": 16874,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [
         "payments"
@@ -633,6 +633,17 @@
       "tableCreations": [],
       "rpcDefinitions": [
         "fn_audit_enrollments_trigger"
+      ]
+    },
+    {
+      "order": 43,
+      "filename": "20261005000001_harden_record_successful_payment_and_enroll.sql",
+      "sha256": "c4f570b73c5bec655d1b7a9719325f72db8ce61e272fe0584e8f2226a906cde0",
+      "sizeBytes": 10464,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "record_successful_payment_and_enroll"
       ]
     }
   ]

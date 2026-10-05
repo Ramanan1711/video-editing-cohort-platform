@@ -324,7 +324,7 @@ begin
 end;
 $$;
 
-grant execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) to authenticated;
+-- Restrict execution strictly to trusted backend service_role (prohibits direct client execution)
 grant execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) to service_role;
 
 -- ------------------------------------------------------------------------------
