@@ -256,4 +256,50 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
       expect(rpcMock).not.toHaveBeenCalledWith('record_successful_payment_and_enroll', expect.anything());
     }
   });
+
+  it('halts checkout and throws error if pending payment attempt cannot be recorded (Problem 4)', async () => {
+    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        error: 'Unable to initiate checkout: payment attempt could not be recorded in database.',
+        details: 'Database connection failed',
+      },
+      error: null,
+    });
+
+    await expect(createCohortRazorpayOrder('cohort-unpersisted-123')).rejects.toThrow(
+      'Unable to initiate checkout: payment attempt could not be recorded in database.'
+    );
+  });
+
+  it('startCohortCheckout stops and never opens Razorpay modal if payment attempt is unpersisted', async () => {
+    const openMock = vi.fn();
+    (window as unknown as { Razorpay: unknown }).Razorpay = class MockRazorpay {
+      open = openMock;
+    };
+
+    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        error: 'Unable to initiate checkout: payment attempt could not be recorded in database.',
+      },
+      error: null,
+    });
+
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+
+    await startCohortCheckout({
+      cohortId: 'cohort-db-error',
+      cohortName: 'Failed DB Cohort',
+      onSuccess,
+      onError,
+    });
+
+    expect(openMock).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining('payment attempt could not be recorded in database'),
+      })
+    );
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
 });
