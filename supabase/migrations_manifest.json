@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-05T06:26:48.090Z",
-  "migrationCount": 44,
+  "generatedAt": "2026-10-05T11:19:51.889Z",
+  "migrationCount": 46,
   "migrations": [
     {
       "order": 1,
@@ -667,10 +667,24 @@
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
+        "sync_course_to_cohort_func",
         "enroll_student_in_cohort",
         "create_cohort_checkout_order",
         "record_successful_payment_and_enroll"
-      ]  
+      ]
+    },
+    {
+      "order": 46,
+      "filename": "20261005000004_fix_cohort_reporting_baseline_and_lesson_progress_queries.sql",
+      "sha256": "10b9b17db93f5a419b805fb392ce6797bcc50380a988be9da4953d540d9e8837",
+      "sizeBytes": 15236,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "get_cohort_reporting_baseline",
+        "admin_delete_module",
+        "admin_delete_lesson"
+      ]
     }
   ]
 }

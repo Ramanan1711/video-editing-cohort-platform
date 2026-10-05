@@ -352,7 +352,7 @@ export async function getCohortReportingBaseline(
           supabase.from('enrollments').select('id, user_id, status, created_at').eq('cohort_id', cohortId),
           supabase.from('modules').select('id, title, position').eq('cohort_id', cohortId),
           supabase.from('lessons').select('id, module_id, title'),
-          supabase.from('lesson_progress').select('id, user_id, lesson_id, completed, watch_percentage'),
+          supabase.from('lesson_progress').select('user_id, lesson_id, completed, watch_percentage'),
           supabase.from('assignments').select('id, title, deadline').eq('cohort_id', cohortId),
           supabase.from('submissions').select('id, assignment_id, student_id, status, is_late, created_at, updated_at'),
           supabase.from('feedback').select('id, submission_id, created_at'),
