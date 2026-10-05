@@ -5,6 +5,8 @@ export interface RazorpayEntity {
   order_id?: string;
   amount?: number;
   currency?: string;
+  status?: string;
+  captured?: boolean;
   notes?: Record<string, string>;
   method?: string;
 }
@@ -203,6 +205,40 @@ export async function handleRazorpayWebhook({
       status: 400,
       data: { error: 'Cohort mismatch for stored order' },
     };
+  }
+
+  // Authoritative actual payment status verification: Must be captured
+  if (paymentEntity?.status && paymentEntity.status !== 'captured') {
+    return {
+      status: 400,
+      data: { error: `Payment status is '${paymentEntity.status}' (not captured)` },
+    };
+  }
+
+  if (paymentEntity && 'captured' in paymentEntity && paymentEntity.captured === false) {
+    return {
+      status: 400,
+      data: { error: 'Payment is authorized but not captured' },
+    };
+  }
+
+  // Authoritative cohort price verification in smallest currency unit (paise)
+  const { data: cohortRecord } = await supabase
+    .from('cohorts')
+    .select('id, price_inr')
+    .eq('id', storedOrder.cohort_id)
+    .single();
+
+  if (cohortRecord?.price_inr) {
+    const expectedCohortPaise = cohortRecord.price_inr * 100;
+    if (storedOrder.amount < expectedCohortPaise || (eventAmount !== undefined && eventAmount < expectedCohortPaise)) {
+      return {
+        status: 400,
+        data: {
+          error: `Payment amount (${eventAmount ?? storedOrder.amount} paise) does not meet authoritative cohort price (${expectedCohortPaise} paise)`,
+        },
+      };
+    }
   }
 
   // Authoritative amount verification

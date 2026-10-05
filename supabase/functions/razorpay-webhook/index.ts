@@ -118,6 +118,8 @@ interface RazorpayEntity {
   order_id?: string;
   amount?: number;
   currency?: string;
+  status?: string;
+  captured?: boolean;
   notes?: Record<string, string>;
   method?: string;
 }
@@ -205,6 +207,43 @@ interface RazorpayWebhookEvent {
         JSON.stringify({ error: 'Cohort mismatch for stored order' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Authoritative payment status verification: Must be captured
+    if (paymentEntity?.status && paymentEntity.status !== 'captured') {
+      console.warn(`Rejected webhook: payment status '${paymentEntity.status}' is not captured`);
+      return new Response(
+        JSON.stringify({ error: `Payment status is '${paymentEntity.status}' (not captured)` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (paymentEntity && 'captured' in paymentEntity && paymentEntity.captured === false) {
+      console.warn('Rejected webhook: payment is authorized but not captured');
+      return new Response(
+        JSON.stringify({ error: 'Payment is authorized but not captured' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Authoritative cohort price verification in smallest currency unit (paise)
+    const { data: cohortRecord } = await supabase
+      .from('cohorts')
+      .select('id, price_inr')
+      .eq('id', storedOrder.cohort_id)
+      .single();
+
+    if (cohortRecord?.price_inr) {
+      const expectedCohortPaise = cohortRecord.price_inr * 100;
+      if (storedOrder.amount < expectedCohortPaise || (eventAmount !== undefined && eventAmount < expectedCohortPaise)) {
+        console.warn(`Rejected webhook: payment amount does not meet cohort price (${expectedCohortPaise} paise)`);
+        return new Response(
+          JSON.stringify({
+            error: `Payment amount does not meet authoritative cohort price (${expectedCohortPaise} paise)`,
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Authoritative Amount check: Prevent underpaid spoofed payments

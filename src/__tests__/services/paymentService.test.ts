@@ -135,6 +135,46 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
     ).rejects.toThrow('Verification server unreachable');
   });
 
+  it('fails closed and rejects if payment is authorized but uncaptured', async () => {
+    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { success: false, verified: false, error: 'Payment is not captured. Current payment status is authorized.' },
+      error: null,
+    });
+
+    await expect(
+      verifyRazorpayPayment(
+        {
+          razorpay_payment_id: 'pay_auth_only',
+          razorpay_order_id: 'order_123',
+          razorpay_signature: 'sig_auth',
+        },
+        'cohort-abc'
+      )
+    ).rejects.toThrow('Payment is not captured');
+  });
+
+  it('fails closed and rejects if payment amount does not match authoritative cohort price', async () => {
+    (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        success: false,
+        verified: false,
+        error: 'Payment amount (100000 paise) does not match required cohort fee (499900 paise)',
+      },
+      error: null,
+    });
+
+    await expect(
+      verifyRazorpayPayment(
+        {
+          razorpay_payment_id: 'pay_underpaid',
+          razorpay_order_id: 'order_underpaid',
+          razorpay_signature: 'sig_underpaid',
+        },
+        'cohort-abc'
+      )
+    ).rejects.toThrow('does not match required cohort fee');
+  });
+
   it('detects existing window.Razorpay when loading script', async () => {
     (window as unknown as { Razorpay: unknown }).Razorpay = class MockRazorpay {};
     const loaded = await loadRazorpayScript();

@@ -402,4 +402,163 @@ describe('Razorpay Webhook Hardening & Verification (Problem 2)', () => {
       expect(result.data.error).toBe('Database constraint violation');
     });
   });
+
+  describe('5. Authoritative Capture and Amount Validation (Problem 3)', () => {
+    it('rejects authorized-but-uncaptured payment even if signature is valid', async () => {
+      const uncapturedPayload = {
+        event: 'payment.captured',
+        id: 'evt_auth_only',
+        payload: {
+          payment: {
+            entity: {
+              id: 'pay_auth_only',
+              order_id: 'order_rzp_777',
+              amount: 499900,
+              currency: 'INR',
+              status: 'authorized',
+              captured: false,
+              notes: {
+                cohort_id: 'cohort-uuid-1',
+                user_id: 'user-uuid-1',
+              },
+            },
+          },
+        },
+      };
+
+      const rawBody = JSON.stringify(uncapturedPayload);
+      const signature = await generateTestSignature(rawBody, TEST_SECRET);
+
+      mockSingle.mockResolvedValue({
+        data: {
+          order_id: 'order_rzp_777',
+          user_id: 'user-uuid-1',
+          cohort_id: 'cohort-uuid-1',
+          amount: 499900,
+          currency: 'INR',
+          status: 'created',
+        },
+        error: null,
+      });
+
+      const result = await handleRazorpayWebhook({
+        supabase: mockSupabase as SupabaseClient,
+        webhookSecret: TEST_SECRET,
+        signature,
+        rawBody,
+      });
+
+      expect(result.status).toBe(400);
+      expect(result.data.error).toContain('not captured');
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('rejects wrong-amount payment where paid amount is less than authoritative cohort fee', async () => {
+      // Example: Student pays ₹1,000 (100000 paise) for a cohort priced at ₹5,000 (500000 paise)
+      const underpaidPayload = {
+        event: 'payment.captured',
+        id: 'evt_underpaid',
+        payload: {
+          payment: {
+            entity: {
+              id: 'pay_underpaid',
+              order_id: 'order_rzp_777',
+              amount: 100000, // ₹1,000 in paise
+              currency: 'INR',
+              status: 'captured',
+              captured: true,
+              notes: {
+                cohort_id: 'cohort-uuid-1',
+                user_id: 'user-uuid-1',
+              },
+            },
+          },
+        },
+      };
+
+      const rawBody = JSON.stringify(underpaidPayload);
+      const signature = await generateTestSignature(rawBody, TEST_SECRET);
+
+      // Order in DB was created for 100000 paise, but cohort price in cohorts table is ₹5,000 (500000 paise)
+      mockSingle
+        .mockResolvedValueOnce({
+          data: {
+            order_id: 'order_rzp_777',
+            user_id: 'user-uuid-1',
+            cohort_id: 'cohort-uuid-1',
+            amount: 100000,
+            currency: 'INR',
+            status: 'created',
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            id: 'cohort-uuid-1',
+            price_inr: 5000, // authoritative price is ₹5,000 (500000 paise)
+          },
+          error: null,
+        });
+
+      const result = await handleRazorpayWebhook({
+        supabase: mockSupabase as SupabaseClient,
+        webhookSecret: TEST_SECRET,
+        signature,
+        rawBody,
+      });
+
+      expect(result.status).toBe(400);
+      expect(result.data.error).toContain('does not meet authoritative cohort price');
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('rejects failed payment notification', async () => {
+      const failedPayload = {
+        event: 'payment.captured',
+        id: 'evt_failed',
+        payload: {
+          payment: {
+            entity: {
+              id: 'pay_failed',
+              order_id: 'order_rzp_777',
+              amount: 499900,
+              currency: 'INR',
+              status: 'failed',
+              captured: false,
+              notes: {
+                cohort_id: 'cohort-uuid-1',
+                user_id: 'user-uuid-1',
+              },
+            },
+          },
+        },
+      };
+
+      const rawBody = JSON.stringify(failedPayload);
+      const signature = await generateTestSignature(rawBody, TEST_SECRET);
+
+      mockSingle.mockResolvedValue({
+        data: {
+          order_id: 'order_rzp_777',
+          user_id: 'user-uuid-1',
+          cohort_id: 'cohort-uuid-1',
+          amount: 499900,
+          currency: 'INR',
+          status: 'created',
+        },
+        error: null,
+      });
+
+      const result = await handleRazorpayWebhook({
+        supabase: mockSupabase as SupabaseClient,
+        webhookSecret: TEST_SECRET,
+        signature,
+        rawBody,
+      });
+
+      expect(result.status).toBe(400);
+      expect(result.data.error).toContain('not captured');
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+  });
 });
