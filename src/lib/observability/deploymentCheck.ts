@@ -34,6 +34,7 @@ export function runDeploymentCheck(): DeploymentReport {
   const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || '';
   const supabaseKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || '';
   const sentryDsn = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SENTRY_DSN) || '';
+  const razorpayKeyId = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_RAZORPAY_KEY_ID) || '';
 
   // 1. Supabase URL Configuration
   if (!supabaseUrl) {
@@ -111,7 +112,42 @@ export function runDeploymentCheck(): DeploymentReport {
     }
   }
 
-  // 3. Sentry / Error Telemetry Configuration
+  // 3. Razorpay Payment Gateway Configuration
+  if (!razorpayKeyId) {
+    items.push({
+      id: 'env_razorpay_key',
+      name: 'Razorpay Public Key Configured',
+      category: 'env',
+      status: isProduction ? 'fail' : 'warn',
+      message: 'VITE_RAZORPAY_KEY_ID is missing in environment variables.',
+      details: 'Define VITE_RAZORPAY_KEY_ID in .env or hosting environment variables.',
+    });
+  } else {
+    const isLiveKey = razorpayKeyId.startsWith('rzp_live_');
+    const isTestKey = razorpayKeyId.startsWith('rzp_test_');
+
+    if (isProduction && isTestKey) {
+      items.push({
+        id: 'env_razorpay_key',
+        name: 'Razorpay Key Mode',
+        category: 'security',
+        status: 'warn',
+        message: 'Production build is configured with a test Razorpay key (rzp_test_...).',
+        details: 'Switch to live key (rzp_live_...) before launching paid cohorts.',
+      });
+    } else {
+      items.push({
+        id: 'env_razorpay_key',
+        name: 'Razorpay Public Key Configured',
+        category: 'env',
+        status: 'pass',
+        message: isLiveKey ? 'Production live Razorpay key active.' : 'Valid Razorpay key configured.',
+        details: `${razorpayKeyId.slice(0, 8)}...`,
+      });
+    }
+  }
+
+  // 4. Sentry / Error Telemetry Configuration
   if (!sentryDsn) {
     items.push({
       id: 'env_sentry_dsn',
