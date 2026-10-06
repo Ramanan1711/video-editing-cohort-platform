@@ -216,30 +216,10 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
   try {
     const order = await createCohortRazorpayOrder(params.cohortId);
 
-    // If order was created in mock development mode, bypass external Razorpay CDN to avoid invalid key crashes
+    // Mock orders are prohibited on production gateway
     if (order.id.startsWith('order_mock_')) {
-      const confirmed = typeof window !== 'undefined' && typeof window.confirm === 'function'
-        ? window.confirm(
-            `[DEV MODE] Simulated Razorpay Checkout:\n\nCohort: ${params.cohortName}\nAmount: ₹${(order.amount / 100).toLocaleString('en-IN')}\nOrder ID: ${order.id}\n\nClick OK to simulate verified payment and complete enrollment.`
-          )
-        : true;
-
-      if (!confirmed) {
-        // User dismissed/declined simulated checkout: immediately release seat reservation
-        void cancelCohortCheckoutReservation(order.id);
-        params.onDismiss?.();
-        return;
-      }
-
-      const mockResponse: RazorpayPaymentResponse = {
-        razorpay_order_id: order.id,
-        razorpay_payment_id: `pay_mock_${Date.now()}`,
-        razorpay_signature: `sig_mock_${Date.now()}`,
-      };
-
-      const verification = await verifyRazorpayPayment(mockResponse, params.cohortId);
-      params.onSuccess(verification.enrollmentId);
-      return;
+      void cancelCohortCheckoutReservation(order.id);
+      throw new Error('Simulated mock orders are not permitted. A genuine Razorpay order is required.');
     }
 
     const scriptLoaded = await loadRazorpayScript();

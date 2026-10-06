@@ -41,7 +41,7 @@ const EDGE_FUNCTIONS: EdgeFunctionSpec[] = [
     path: 'supabase/functions/create-razorpay-order/index.ts',
     description: 'Initializes server-authoritative Razorpay orders and atomically reserves cohort seats',
     requiredSecrets: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET'],
-    optionalSecrets: ['ALLOW_DEV_MOCK_PAYMENTS'],
+    optionalSecrets: [],
     requiresNoVerifyJwt: false,
   },
   {
@@ -49,7 +49,7 @@ const EDGE_FUNCTIONS: EdgeFunctionSpec[] = [
     path: 'supabase/functions/verify-razorpay-payment/index.ts',
     description: 'Verifies Razorpay HMAC-SHA256 signatures and activates student cohort enrollments',
     requiredSecrets: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET'],
-    optionalSecrets: ['ALLOW_DEV_MOCK_PAYMENTS'],
+    optionalSecrets: [],
     requiresNoVerifyJwt: false,
   },
   {

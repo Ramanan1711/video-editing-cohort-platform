@@ -104,18 +104,23 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 3. Cryptographic Signature Verification
-    let isSignatureValid = false;
-
-    if (razorpayKeySecret) {
-      const payloadText = `${orderId}|${paymentId}`;
-      isSignatureValid = await verifyHmacSha256Hex(payloadText, razorpayKeySecret, signature);
-    } else {
-      const allowMock = Deno.env.get('ALLOW_DEV_MOCK_PAYMENTS') === 'true';
-      if (allowMock && orderId.startsWith('order_mock_')) {
-        isSignatureValid = true;
-      }
+    // 3. Reject simulated mock orders and verify cryptographic HMAC signature
+    if (orderId.startsWith('order_mock_')) {
+      return new Response(
+        JSON.stringify({ error: 'Mock orders are strictly prohibited on payment gateway' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    if (!razorpayKeySecret) {
+      return new Response(
+        JSON.stringify({ error: 'Payment gateway credentials are not configured on this server' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const payloadText = `${orderId}|${paymentId}`;
+    const isSignatureValid = await verifyHmacSha256Hex(payloadText, razorpayKeySecret, signature);
 
     if (!isSignatureValid) {
       // Record failed payment attempt in database
@@ -281,13 +286,10 @@ Deno.serve(async (req: Request) => {
         );
       }
     } else {
-      const allowMock = Deno.env.get('ALLOW_DEV_MOCK_PAYMENTS') === 'true';
-      if (!allowMock || !orderId.startsWith('order_mock_')) {
-        return new Response(
-          JSON.stringify({ error: 'Payment gateway credentials are not configured on this server' }),
-          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      return new Response(
+        JSON.stringify({ error: 'Payment gateway credentials are not configured on this server' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // 7. Transactionally record successful payment and activate enrollment via privileged RPC

@@ -163,30 +163,25 @@ Deno.serve(async (req: Request) => {
       const rzpData = await rzpRes.json();
       razorpayOrderId = rzpData.id;
     } else {
-      // In development environments without live credentials, support test order ID
-      const allowMock = Deno.env.get('ALLOW_DEV_MOCK_PAYMENTS') === 'true';
-      if (!allowMock) {
-        // Immediately release the atomic reservation if gateway is unavailable
-        if (reservationId) {
-          await supabase
-            .from('payments')
-            .update({
-              status: 'failed',
-              metadata: {
-                release_reason: 'gateway_unconfigured',
-                failed_at: new Date().toISOString(),
-              },
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', reservationId);
-        }
-
-        return new Response(
-          JSON.stringify({ error: 'Payment gateway is not configured on this server' }),
-          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      // Gateway is unconfigured: fail closed immediately and release the seat reservation
+      if (reservationId) {
+        await supabase
+          .from('payments')
+          .update({
+            status: 'failed',
+            metadata: {
+              release_reason: 'gateway_unconfigured',
+              failed_at: new Date().toISOString(),
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', reservationId);
       }
-      razorpayOrderId = `order_mock_${cohortId.slice(0, 8)}_${Date.now()}`;
+
+      return new Response(
+        JSON.stringify({ error: 'Payment gateway credentials are not configured on this server' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // 5. Critical Gate: Link provider order ID to the atomically reserved payment row
