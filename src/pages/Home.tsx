@@ -38,13 +38,11 @@ import { InteractiveSprintCurriculum } from '../components/home/InteractiveSprin
 import { FreelanceEarningsCalculator } from '../components/home/FreelanceEarningsCalculator';
 import { LandingFAQAccordion } from '../components/home/LandingFAQAccordion';
 import { LazyRobotTerminal } from '../components/home/LazyRobotTerminal';
-import { useSmoothScroll } from '../lib/scroll/useSmoothScroll';
 import { useGsapScrollTrigger } from '../hooks/useGsapScrollTrigger';
 import { soundFx } from '../lib/soundFx';
 
 export function Home() {
-  useSmoothScroll();
-  const { containerRef } = useGsapScrollTrigger();
+  const { containerRef, wrapperRef, contentRef } = useGsapScrollTrigger();
 
   const [selectedTrack, setSelectedTrack] = useState<'coding' | 'creative'>('creative');
   const [activeSprintPhase, setActiveSprintPhase] = useState<'p1' | 'p2' | 'p3'>('p1');
@@ -82,7 +80,10 @@ export function Home() {
 
       <SiteHeader />
 
-      <main>
+      {/* GSAP ScrollSmoother Structure matching gsap.com reference */}
+      <div id="smooth-wrapper" ref={wrapperRef}>
+        <div id="smooth-content" ref={contentRef}>
+          <main id="skip">
         {/* ========================================================================= */}
         {/* HERO SECTION WITH 3D ROBOT TERMINAL & JUNCA STUDIO TYPOGRAPHY */}
         {/* ========================================================================= */}
@@ -2021,6 +2022,8 @@ export function Home() {
       </main>
 
       <SiteFooter />
+        </div>
+      </div>
 
       {/* Fixed bottom architectural telemetry & sound equalizer bar */}
       <StudioBar />
