@@ -9,7 +9,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
 };
 
 Deno.serve(async (req: Request) => {
@@ -30,6 +30,48 @@ Deno.serve(async (req: Request) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // 1. Caller Authorization Check (Fail-Closed)
+    // Permitted callers:
+    // a) External scheduler / cron bearing matching x-cron-secret header
+    // b) Internal service_role bearer token or apikey header
+    // c) Authenticated staff user (role = 'admin' or 'mentor')
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const providedCronSecret = req.headers.get('x-cron-secret');
+    const authHeader = req.headers.get('Authorization') || '';
+    const apiKeyHeader = req.headers.get('apikey') || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+    let isAuthorized = false;
+
+    if (cronSecret && providedCronSecret === cronSecret) {
+      isAuthorized = true;
+    } else if (token === supabaseServiceKey || apiKeyHeader === supabaseServiceKey) {
+      isAuthorized = true;
+    } else if (token) {
+      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+      if (!userError && user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.role === 'admin' || profile?.role === 'mentor') {
+          isAuthorized = true;
+        }
+      }
+    }
+
+    if (!isAuthorized) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Unauthorized: Valid cron secret, service_role key, or admin/mentor authorization required.',
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Parse optional body for cohort-specific unlock
     let cohortId: string | null = null;

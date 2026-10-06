@@ -65,7 +65,7 @@ const EDGE_FUNCTIONS: EdgeFunctionSpec[] = [
     path: 'supabase/functions/unlock-challenges/index.ts',
     description: 'Automated daily challenge scheduler executing midnight unlocks across cohorts',
     requiredSecrets: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
-    optionalSecrets: [],
+    optionalSecrets: ['CRON_SECRET'],
     requiresNoVerifyJwt: false,
   },
   {

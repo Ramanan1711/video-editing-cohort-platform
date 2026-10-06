@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-06T05:37:32.669Z",
-  "migrationCount": 47,
+  "generatedAt": "2026-10-06T06:04:46.745Z",
+  "migrationCount": 48,
   "migrations": [
     {
       "order": 1,
@@ -689,12 +689,24 @@
     {
       "order": 47,
       "filename": "20261006000001_harden_payment_order_lookup_and_concurrency.sql",
-      "sha256": "b39896f2fc868b6b28b4edc9c5a819d8a508145f729f5e75e5b9e37b251e706c",
-      "sizeBytes": 7793,
+      "sha256": "c40755fe3c716fb951eec4fe3e323d6403bfaef6667a4b5c22b69efb772202c5",
+      "sizeBytes": 7794,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
         "record_successful_payment_and_enroll"
+      ]
+    },
+    {
+      "order": 48,
+      "filename": "20261006000002_harden_challenge_unlock_permissions.sql",
+      "sha256": "630c7746489eb682a005e6527eba149ea1bdd3faa860ef2dfa9013fc747ef8cb",
+      "sizeBytes": 4865,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "unlock_scheduled_daily_challenges",
+        "unlock_cohort_daily_challenges"
       ]
     }
   ]
