@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ArrowDown,
   ArrowRight,
@@ -26,7 +26,7 @@ import {
 import { Button } from '../components/ui/Button';
 import { SiteFooter } from '../components/SiteFooter';
 import { SiteHeader } from '../components/SiteHeader';
-import { listCohorts, type Cohort } from '../lib/courseService';
+import { useCohortsQuery } from '../hooks/queries/useCohortsQuery';
 import { DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../lib/paymentService';
 import { setPendingCohortCheckout } from '../lib/cohortCheckoutPersistence';
 import { HeroCanvasSimulator } from '../components/home/HeroCanvasSimulator';
@@ -46,10 +46,14 @@ export function Home() {
   const [activeChatScenario, setActiveChatScenario] = useState<'code' | 'video' | 'nudge'>('video');
   const [activeTransformation, setActiveTransformation] = useState<'creative' | 'coding'>('creative');
 
-  // Real database cohorts fetched dynamically
-  const [cohorts, setCohorts] = useState<Cohort[]>([]);
-  const [loadingCohorts, setLoadingCohorts] = useState<boolean>(true);
-  const [cohortError, setCohortError] = useState<string | null>(null);
+  // Real database cohorts fetched dynamically via unified server-state query
+  const { data: rawCohorts = [], isLoading: loadingCohorts, error: cohortsQueryError } = useCohortsQuery();
+  const cohorts = useMemo(() => {
+    return (rawCohorts || []).filter(
+      (c) => c.status === 'published' || c.visibility === 'public'
+    );
+  }, [rawCohorts]);
+  const cohortError = cohortsQueryError?.message || null;
 
   // Authoritative published cohort and price (synced with admin settings and database)
   const publishedCohort = useMemo(() => {
@@ -59,31 +63,6 @@ export function Home() {
   const publishedPrice = publishedCohort?.price_inr ?? DEFAULT_COHORT_FEE_INR;
   const publishedCurrency = publishedCohort?.currency ?? DEFAULT_CURRENCY;
   const publishedOriginalPrice = Math.round(publishedPrice * 2);
-
-  useEffect(() => {
-    let mounted = true;
-    listCohorts()
-      .then((data) => {
-        if (mounted) {
-          // Filter to public / published cohorts
-          const available = (data || []).filter(
-            (c) => c.status === 'published' || c.visibility === 'public'
-          );
-          setCohorts(available);
-          setLoadingCohorts(false);
-        }
-      })
-      .catch((err) => {
-        if (mounted) {
-          setCohortError(err instanceof Error ? err.message : 'Unable to load cohorts');
-          setLoadingCohorts(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   return (
     <div className="min-h-screen bg-[#030712] text-slate-100 font-sans selection:bg-orange-500 selection:text-white transition-colors relative overflow-x-hidden film-grain">

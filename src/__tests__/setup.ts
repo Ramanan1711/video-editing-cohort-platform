@@ -1,11 +1,13 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
+import { defaultQueryClient } from '../lib/serverState';
 
 // Automatically unmount and cleanup React DOM trees after each test
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  defaultQueryClient.clear();
 });
 
 // Polyfill window.matchMedia for responsive testing

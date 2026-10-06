@@ -15,6 +15,7 @@ import { Home } from './pages/Home';
 import { WorkspaceShell } from './components/WorkspaceShell';
 import { Unauthorized } from './pages/Unauthorized';
 import { LoaderCircle } from 'lucide-react';
+import { QueryClientProvider } from './lib/serverState';
 
 // Dynamic lazy imports for admin, mentor, and complex feature pages
 const AdminCourses = lazy(() => import('./pages/AdminCourses').then((m) => ({ default: m.AdminCourses })));
@@ -49,11 +50,12 @@ initErrorTracking();
 export function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
-        <AuthProvider>
-          <ToastProvider>
-            <SidebarProvider>
-              <BrowserRouter>
+      <QueryClientProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <SidebarProvider>
+                <BrowserRouter>
                 <Suspense fallback={<PageLoadingFallback />}>
                   <Routes>
                     {/* Public Routes */}
@@ -211,7 +213,8 @@ export function App() {
           </ToastProvider>
         </AuthProvider>
       </ThemeProvider>
-    </ErrorBoundary>
+    </QueryClientProvider>
+  </ErrorBoundary>
   );
 }
 
