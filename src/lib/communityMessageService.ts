@@ -185,32 +185,20 @@ const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
   ],
 };
 
-const LOCAL_STORAGE_CHAT_KEY = 'video_editing_community_messages_v1';
-
-function getStoredMessages(): Record<string, ChatMessage[]> {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_CHAT_KEY);
-    if (!raw) return INITIAL_MESSAGES;
-    const parsed = JSON.parse(raw);
-    return { ...INITIAL_MESSAGES, ...parsed };
-  } catch {
-    return INITIAL_MESSAGES;
+// Purge deprecated unverified localStorage chat cache if present
+try {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.removeItem('video_editing_community_messages_v1');
   }
-}
-
-function persistMessages(messages: Record<string, ChatMessage[]>) {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_CHAT_KEY, JSON.stringify(messages));
-  } catch {
-    // Ignore quota or memory errors
-  }
+} catch {
+  // Ignore environments without localStorage access
 }
 
 /**
  * List messages for a specific channel or direct message thread.
+ * Queries public.community_messages with static fallback to seed messages for empty standard channels.
  */
 export async function listChannelMessages(channelId: string): Promise<ChatMessage[]> {
-  // First attempt to load from Supabase if table exists
   try {
     const { data, error } = await supabase
       .from('community_messages')
@@ -218,19 +206,30 @@ export async function listChannelMessages(channelId: string): Promise<ChatMessag
       .eq('channel_id', channelId)
       .order('created_at', { ascending: true });
 
-    if (!error && data && data.length > 0) {
-      return data as ChatMessage[];
+    if (!error && data) {
+      if (data.length > 0) {
+        return data as ChatMessage[];
+      }
+      // If table exists but has no records for this channel, provide default seed messages for standard channels
+      return INITIAL_MESSAGES[channelId] || [];
     }
-  } catch {
-    // Graceful fallback to persistent memory / local storage
+
+    if (error) {
+      console.warn(`Failed to fetch community messages for channel ${channelId}:`, error.message);
+    }
+  } catch (err: unknown) {
+    console.warn('Error querying community messages:', err);
   }
 
-  const all = getStoredMessages();
-  return all[channelId] || [];
+  // Fallback to static seed messages for predefined channels (read-only)
+  return INITIAL_MESSAGES[channelId] || [];
 }
 
 /**
  * Send a message to a channel or direct message thread.
+ * Authoritative: writes directly to public.community_messages in Supabase.
+ * Fails closed if the database write is rejected (e.g. RLS policy violation or network failure),
+ * preventing false illusion of delivery.
  */
 export async function sendChatMessage(
   channelId: string,
@@ -242,55 +241,47 @@ export async function sendChatMessage(
   },
   content: string
 ): Promise<ChatMessage> {
-  const newMessage: ChatMessage = {
-    id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    channel_id: channelId,
-    sender_id: sender.id,
-    sender_name: sender.name,
-    sender_role: sender.role,
-    sender_avatar: sender.avatar,
-    content: content.trim(),
-    created_at: new Date().toISOString(),
-  };
-
-  // Attempt Supabase insert
-  try {
-    const { data, error } = await supabase
-      .from('community_messages')
-      .insert({
-        channel_id: channelId,
-        sender_id: sender.id,
-        sender_name: sender.name,
-        sender_role: sender.role,
-        content: content.trim(),
-      })
-      .select()
-      .single();
-
-    if (!error && data) {
-      return data as ChatMessage;
-    }
-  } catch {
-    // Fallback handled below
+  const trimmed = content.trim();
+  if (!trimmed) {
+    throw new Error('Message content cannot be empty.');
   }
 
-  // Update local persisted storage
-  const current = getStoredMessages();
-  const thread = current[channelId] || [];
-  current[channelId] = [...thread, newMessage];
-  persistMessages(current);
+  if (!sender.id) {
+    throw new Error('Authentication required: valid sender profile ID is required to send messages.');
+  }
 
-  return newMessage;
+  const { data, error } = await supabase
+    .from('community_messages')
+    .insert({
+      channel_id: channelId,
+      sender_id: sender.id,
+      sender_name: sender.name,
+      sender_role: sender.role,
+      sender_avatar: sender.avatar,
+      content: trimmed,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Failed to post community message to Supabase:', error);
+    throw new Error(error.message || 'Failed to deliver message to community.');
+  }
+
+  if (!data) {
+    throw new Error('No message response received from server.');
+  }
+
+  return data as ChatMessage;
 }
 
 /**
- * Subscribes to real-time chat updates with local broadcast channel fallback.
+ * Subscribes to real-time chat updates via Supabase Realtime postgres_changes.
  */
 export function subscribeToChatChannel(
   channelId: string,
   onNewMessage: (msg: ChatMessage) => void
 ): () => void {
-  // Supabase real-time channel
   const channel = supabase
     .channel(`chat-${channelId}`)
     .on(
@@ -309,25 +300,8 @@ export function subscribeToChatChannel(
     )
     .subscribe();
 
-  // Also support window broadcast events for instant multi-tab sync
-  const handleStorageEvent = (e: StorageEvent) => {
-    if (e.key === LOCAL_STORAGE_CHAT_KEY && e.newValue) {
-      try {
-        const parsed = JSON.parse(e.newValue);
-        const thread = parsed[channelId] || [];
-        const latest = thread[thread.length - 1];
-        if (latest) onNewMessage(latest);
-      } catch {
-        // ignore
-      }
-    }
-  };
-
-  window.addEventListener('storage', handleStorageEvent);
-
   return () => {
     supabase.removeChannel(channel);
-    window.removeEventListener('storage', handleStorageEvent);
   };
 }
 
