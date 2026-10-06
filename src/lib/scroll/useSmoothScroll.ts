@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import Lenis from 'lenis';
+import 'lenis/dist/lenis.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -8,27 +9,25 @@ gsap.registerPlugin(ScrollTrigger);
 /**
  * useSmoothScroll
  * Integrates Lenis 60fps momentum scroll with GSAP ScrollTrigger ticker.
- * Automatically respects prefers-reduced-motion for accessibility.
+ * Uses lerp-based damping for an unmistakable, silky-smooth inertia glide.
  */
 export function useSmoothScroll(enabled = true) {
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
-    // Respect accessibility reduced-motion preference
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) {
-      ScrollTrigger.refresh();
-      return;
-    }
-
     const lenis = new Lenis({
-      duration: 1.15,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      orientation: 'vertical',
-      gestureOrientation: 'vertical',
+      lerp: 0.08, // Buttery smooth linear interpolation
+      wheelMultiplier: 1.05,
+      touchMultiplier: 1.2,
       smoothWheel: true,
-      touchMultiplier: 1.5,
+      syncTouch: true,
+      syncTouchLerp: 0.075,
+      touchInertiaExponent: 1.6,
+      autoResize: true,
     });
+
+    // Expose lenis globally for debugging, console inspection, and anchor jumps
+    (window as unknown as { lenis?: Lenis }).lenis = lenis;
 
     // Synchronize Lenis scroll position with ScrollTrigger
     lenis.on('scroll', ScrollTrigger.update);
@@ -40,14 +39,36 @@ export function useSmoothScroll(enabled = true) {
     gsap.ticker.add(tickerCallback);
     gsap.ticker.lagSmoothing(0);
 
-    const refreshTimer = setTimeout(() => {
+    // Staggered layout refreshes as fonts, images, and async queries settle
+    const refreshTimer1 = setTimeout(() => {
+      lenis.resize();
       ScrollTrigger.refresh();
     }, 150);
 
+    const refreshTimer2 = setTimeout(() => {
+      lenis.resize();
+      ScrollTrigger.refresh();
+    }, 600);
+
+    const refreshTimer3 = setTimeout(() => {
+      lenis.resize();
+      ScrollTrigger.refresh();
+    }, 1500);
+
+    const handleResize = () => {
+      lenis.resize();
+      ScrollTrigger.refresh();
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
-      clearTimeout(refreshTimer);
+      clearTimeout(refreshTimer1);
+      clearTimeout(refreshTimer2);
+      clearTimeout(refreshTimer3);
+      window.removeEventListener('resize', handleResize);
       gsap.ticker.remove(tickerCallback);
       lenis.destroy();
+      delete (window as unknown as { lenis?: Lenis }).lenis;
     };
   }, [enabled]);
 }

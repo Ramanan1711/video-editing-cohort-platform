@@ -75,7 +75,7 @@ export function Home() {
       className="min-h-screen bg-[#030712] text-slate-100 font-sans selection:bg-orange-500 selection:text-white transition-colors relative overflow-x-hidden film-grain"
     >
       {/* Top GSAP Scroll Progress Indicator */}
-      <div className="fixed top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-orange-500 via-red-500 to-amber-400 origin-left scale-x-0 z-[100] gsap-scroll-progress pointer-events-none" />
+      <div className="fixed top-0 left-0 right-0 h-[3.5px] bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-400 origin-left scale-x-0 z-[100] gsap-scroll-progress pointer-events-none shadow-[0_0_12px_rgba(249,115,22,0.9)]" />
 
       {/* Junca Studio-inspired custom magnetic cursor follower */}
       <CustomCursor />
