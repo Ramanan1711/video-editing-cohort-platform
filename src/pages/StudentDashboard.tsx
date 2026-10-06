@@ -1,182 +1,104 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  AlertCircle,
-  Award,
-  BookOpen,
-  Calendar,
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Clock3,
-  Compass,
-  ExternalLink,
-  FileArchive,
-  FileText,
-  Flame,
-  Gauge,
-  Image as ImageIcon,
-  Layers,
-  Lightbulb,
-  Lock,
-  Megaphone,
-  MessagesSquare,
-  Play,
-  Radio,
-  RefreshCw,
-  RotateCw,
-  Search,
-  Shield,
-  Sparkles,
-  Trophy,
-  Video,
-  WifiOff,
-  X,
-  Zap,
-} from 'lucide-react';
+import { Lock, WifiOff } from 'lucide-react';
+import { useAuth } from '../context/useAuth';
+import { useStudentDashboard } from '../hooks/useStudentDashboard';
+import { StudentCatalogView } from '../components/student/StudentCatalogView';
+import { StudentPlayerView, LessonPlayer } from '../components/student/StudentPlayerView';
 import { CommunityTopNav } from '../components/community/CommunityTopNav';
 import { LevelUpModal } from '../components/community/LevelUpModal';
 import { WorkshopsModal } from '../components/community/WorkshopsModal';
-import { useAuth } from '../context/useAuth';
-import { useToast } from '../context/useToast';
-import {
-  calculateLearningTime,
-  calculateStreak,
-  formatFileSize,
-  getLessonResourceDownloadUrl,
-  getSecureAssetUrl,
-  getStudentCourseData,
-  isSecurableAsset,
-  listAssignments,
-  listCohorts,
-  listLessonResources,
-  listModules,
-  listMySubmissions,
-  listStudentAnnouncements,
-  listStudentLiveSessions,
-  markLessonComplete,
-  parseVideoUrl,
-  updateLessonWatchProgress,
-  getStudentUnifiedProgress,
-  type Assignment,
-  type Cohort,
-  type Lesson,
-  type LessonResource,
-  type Module,
-  type StudentAnnouncement,
-  type StudentCourseData,
-  type StudentLiveSession,
-  type StudentUnifiedProgress,
-  type Submission,
-} from '../lib/courseService';
-import {
-  calculateGamificationProfile,
-  syncGamificationProfile,
-  type GamificationProfile,
-} from '../lib/gamificationService';
-import {
-  generateSmartRecommendations,
-  type StudioRecommendation,
-} from '../lib/recommendationService';
-import {
-  AssignmentPanel,
-  CohortDiscoveryModal,
-  EnrollmentPanel,
-  MilestonePanel,
-} from '../components/StudentFlowPanels';
-import { CertificateModal } from '../components/CertificateModal';
-import { InternshipReportModal } from '../components/internship/InternshipReportModal';
-import { StudentCalendar } from '../components/StudentCalendar';
-import { CommunityBoard } from '../components/CommunityBoard';
-import { Button } from '../components/ui/Button';
-import { StateFallback } from '../components/ui/StateFallback';
-import { parseDatabaseError, type AppError } from '../lib/errorHandling';
-import { SprintChallengeTracker } from '../components/internship/SprintChallengeTracker';
+import { CohortDiscoveryModal } from '../components/StudentFlowPanels';
 import { WhatsAppSupportWidget } from '../components/internship/WhatsAppSupportWidget';
-import { NotificationCenter } from '../components/NotificationCenter';
-import { getStudentSprintDays, type InternshipDayStatus } from '../lib/internshipService';
-import {
-  resolveTargetCohortId,
-  clearPendingCohortCheckout,
-} from '../lib/cohortCheckoutPersistence';
+import { StateFallback } from '../components/ui/StateFallback';
+import { Button } from '../components/ui/Button';
+import { resolveTargetCohortId } from '../lib/cohortCheckoutPersistence';
 
-const emptyCourse: StudentCourseData = { cohort: null, modules: [], progress: [], enrolledCohorts: [] };
+// Lazy-loaded standalone modals
+const CertificateModal = React.lazy(() =>
+  import('../components/CertificateModal').then((m) => ({ default: m.CertificateModal }))
+);
+const InternshipReportModal = React.lazy(() =>
+  import('../components/internship/InternshipReportModal').then((m) => ({ default: m.InternshipReportModal }))
+);
+const AchievementsModal = React.lazy(() => import('../components/student/AchievementsModal'));
+
+// Backward compatibility re-export for player tests
+export { LessonPlayer };
 
 export function StudentDashboard() {
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const targetCohortId = resolveTargetCohortId(searchParams);
-  const { user, profile } = useAuth();
-  const [course, setCourse] = useState<StudentCourseData>(emptyCourse);
-  const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
-  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
-  const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
-  const [cohortAssignments, setCohortAssignments] = useState<Assignment[]>([]);
-  const [liveSessions, setLiveSessions] = useState<StudentLiveSession[]>([]);
-  const [announcements, setAnnouncements] = useState<StudentAnnouncement[]>([]);
-  const [allCohorts, setAllCohorts] = useState<Cohort[]>([]);
-  const [allModules, setAllModules] = useState<Module[]>([]);
-  const [appError, setAppError] = useState<AppError | null>(null);
-  const [activeTab, setActiveTab] = useState<
-    'curriculum' | 'internship_sprint' | 'assignments' | 'calendar' | 'community' | 'sessions' | 'announcements'
-  >(() => {
-    const t = searchParams.get('tab');
-    if (
-      t === 'internship_sprint' ||
-      t === 'assignments' ||
-      t === 'calendar' ||
-      t === 'community' ||
-      t === 'sessions' ||
-      t === 'announcements'
-    ) {
-      return t;
-    }
-    return 'curriculum';
-  });
-  const [sprintDays, setSprintDays] = useState<InternshipDayStatus[]>([]);
-  const [sprintCompletedCount, setSprintCompletedCount] = useState(0);
-  const [totalSprintDays, setTotalSprintDays] = useState(15);
-  const [unifiedProgress, setUnifiedProgress] = useState<StudentUnifiedProgress | null>(null);
-  const [sprintStreak, setSprintStreak] = useState(0);
-  const [sprintScore, setSprintScore] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [discoveryModalOpen, setDiscoveryModalOpen] = useState(false);
-  const [certificateModalOpen, setCertificateModalOpen] = useState(false);
-  const [reportModalOpen, setReportModalOpen] = useState(() => searchParams.get('tab') === 'internship_report');
-  const [achievementsModalOpen, setAchievementsModalOpen] = useState(false);
-  const [lessonSearchQuery, setLessonSearchQuery] = useState('');
-  const [collapsedModuleIds, setCollapsedModuleIds] = useState<Set<string>>(new Set());
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [engagementAlert, setEngagementAlert] = useState<{ title: string; message: string } | null>(null);
-  const [failedSections, setFailedSections] = useState<string[]>([]);
-  const [nowTimestamp] = useState(() => Date.now());
-  const [isOnline, setIsOnline] = useState<boolean>(() =>
-    typeof navigator !== 'undefined' ? navigator.onLine : true
+
+  const targetCohortId = useMemo(
+    () => resolveTargetCohortId(searchParams),
+    [searchParams]
   );
+
+  const dashboard = useStudentDashboard(user?.id, undefined, targetCohortId);
 
   // Courses Catalog View vs Detailed Player View
   const viewParam = searchParams.get('view');
   const [dashboardView, setDashboardView] = useState<'catalog' | 'player'>(
     viewParam === 'player' ? 'player' : 'catalog'
   );
+
+  useEffect(() => {
+    setDashboardView(viewParam === 'player' ? 'player' : 'catalog');
+  }, [viewParam]);
+
+  const handleSetDashboardView = useCallback(
+    (view: 'catalog' | 'player') => {
+      setDashboardView(view);
+      const newParams = new URLSearchParams(searchParams);
+      if (view === 'player') {
+        newParams.set('view', 'player');
+      } else {
+        newParams.delete('view');
+      }
+      setSearchParams(newParams);
+    },
+    [searchParams, setSearchParams]
+  );
+
+  // Catalog search and filter state
   const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
   const [catalogFilter, setCatalogFilter] = useState<'all' | 'in_progress' | 'completed' | 'expired' | 'paid'>('all');
+
+  const filteredCatalogCourses = useMemo(() => {
+    return dashboard.catalogCourses.filter((c) => {
+      if (catalogFilter === 'in_progress' && c.status !== 'in_progress') return false;
+      if (catalogFilter === 'completed' && c.status !== 'completed') return false;
+      if (catalogFilter === 'paid' && c.status !== 'paid') return false;
+      if (catalogSearchQuery.trim()) {
+        const q = catalogSearchQuery.toLowerCase();
+        return (
+          c.title.toLowerCase().includes(q) ||
+          c.platform.toLowerCase().includes(q) ||
+          c.headline.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [dashboard.catalogCourses, catalogFilter, catalogSearchQuery]);
+
+  const totalCatalogCount = dashboard.catalogCourses.length;
+  const inProgressCatalogCount = dashboard.catalogCourses.filter((c) => c.status === 'in_progress').length;
+  const completedCatalogCount = dashboard.catalogCourses.filter((c) => c.status === 'completed').length;
+
+  // Modals state
   const [levelUpModalOpen, setLevelUpModalOpen] = useState(false);
   const [workshopsModalOpen, setWorkshopsModalOpen] = useState(false);
+  const [discoveryModalOpen, setDiscoveryModalOpen] = useState(false);
+  const [certificateModalOpen, setCertificateModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(() => searchParams.get('tab') === 'internship_report');
+  const [achievementsModalOpen, setAchievementsModalOpen] = useState(false);
 
-  const handleSetDashboardView = useCallback((view: 'catalog' | 'player') => {
-    setDashboardView(view);
-    const newParams = new URLSearchParams(searchParams);
-    if (view === 'player') {
-      newParams.set('view', 'player');
-    } else {
-      newParams.delete('view');
-    }
-    setSearchParams(newParams);
-  }, [searchParams, setSearchParams]);
+  // Online / Offline status
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -191,458 +113,24 @@ export function StudentDashboard() {
     };
   }, []);
 
-  // Fetch course, submissions, live sessions, announcements, assignments
-  useEffect(() => {
-    if (!user) return;
-    const userId = user.id;
-    let active = true;
-
-    async function loadDashboardData() {
-      try {
-        setLoading(true);
-        const [
-          courseRes,
-          submissionsRes,
-          sessionsRes,
-          announcementsRes,
-          assignmentsRes,
-          allCohortsRes,
-          allModulesRes,
-        ] = await Promise.allSettled([
-          getStudentCourseData(userId, selectedCohortId ?? undefined),
-          listMySubmissions(userId),
-          listStudentLiveSessions(),
-          listStudentAnnouncements(selectedCohortId ?? undefined),
-          listAssignments(selectedCohortId ?? undefined),
-          listCohorts(),
-          listModules(),
-        ]);
-
-        if (!active) return;
-
-        if (courseRes.status === 'rejected') {
-          const parsed = parseDatabaseError(courseRes.reason);
-          setAppError(parsed);
-          throw courseRes.reason;
-        }
-
-        setAppError(null);
-        const partialErrors: string[] = [];
-
-        setCourse(courseRes.value);
-
-        if (allCohortsRes.status === 'fulfilled') {
-          setAllCohorts(allCohortsRes.value);
-        } else {
-          console.warn('Cohorts load failure:', allCohortsRes.reason);
-        }
-
-        if (allModulesRes.status === 'fulfilled') {
-          setAllModules(allModulesRes.value);
-        } else {
-          console.warn('Modules load failure:', allModulesRes.reason);
-        }
-
-        if (submissionsRes.status === 'fulfilled') {
-          setMySubmissions(submissionsRes.value);
-        } else {
-          console.warn('Submissions load failure:', submissionsRes.reason);
-          partialErrors.push('submissions');
-        }
-
-        if (sessionsRes.status === 'fulfilled') {
-          setLiveSessions(sessionsRes.value);
-        } else {
-          console.warn('Live sessions load failure:', sessionsRes.reason);
-          partialErrors.push('live sessions');
-        }
-
-        if (announcementsRes.status === 'fulfilled') {
-          setAnnouncements(announcementsRes.value);
-        } else {
-          console.warn('Announcements load failure:', announcementsRes.reason);
-        }
-
-        if (assignmentsRes.status === 'fulfilled') {
-          setCohortAssignments(assignmentsRes.value);
-        } else {
-          console.warn('Cohort assignments load failure:', assignmentsRes.reason);
-          partialErrors.push('assignments');
-        }
-
-        setFailedSections(partialErrors);
-
-        // Fetch dynamic internship sprint progress and unified composite progress
-        if (courseRes.value.cohort) {
-          if (targetCohortId && courseRes.value.cohort.id === targetCohortId) {
-            clearPendingCohortCheckout();
-          }
-          try {
-            const [sprintData, progressData] = await Promise.all([
-              getStudentSprintDays(userId, courseRes.value.cohort.id),
-              getStudentUnifiedProgress(userId, courseRes.value.cohort.id),
-            ]);
-            if (active) {
-              setSprintDays(sprintData.days);
-              setSprintCompletedCount(sprintData.completedCount);
-              setSprintStreak(sprintData.streakCount);
-              setSprintScore(sprintData.overallScore);
-              setTotalSprintDays(sprintData.totalDays || 15);
-              setUnifiedProgress(progressData);
-            }
-          } catch (sprintErr) {
-            console.warn('Failed to load sprint or unified progress:', sprintErr);
-          }
-        }
-
-        // Auto select first lesson if no lesson selected or cohort changed
-        const firstLessonId = courseRes.value.modules[0]?.lessons[0]?.id ?? null;
-        setSelectedLessonId((prev) => {
-          if (!prev) return firstLessonId;
-          const exists = courseRes.value.modules.some((m) => m.lessons.some((l) => l.id === prev));
-          return exists ? prev : firstLessonId;
-        });
-      } catch (fetchError: unknown) {
-        if (active) {
-          const parsed = parseDatabaseError(fetchError);
-          setAppError(parsed);
-          setError(parsed.message);
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    void loadDashboardData();
-    return () => {
-      active = false;
-    };
-  }, [user, selectedCohortId, refreshKey, targetCohortId]);
-
-  const allLessons = useMemo(() => course.modules.flatMap((module) => module.lessons), [course.modules]);
-  const selectedLesson = allLessons.find((lesson) => lesson.id === selectedLessonId) ?? null;
-  const completedIds = useMemo(
-    () => new Set(course.progress.filter((item) => item.completed).map((item) => item.lesson_id)),
-    [course.progress]
+  const handleContinueCourse = useCallback(
+    (cohortId: string) => {
+      dashboard.setSelectedCohortId(cohortId);
+      handleSetDashboardView('player');
+    },
+    [dashboard, handleSetDashboardView]
   );
-  const completedLessons = useMemo(
-    () => allLessons.filter((lesson) => completedIds.has(lesson.id)),
-    [allLessons, completedIds]
+
+  const handleUnlockCourse = useCallback(
+    (cohortId: string) => {
+      dashboard.setSelectedCohortId(cohortId);
+      handleSetDashboardView('player');
+    },
+    [dashboard, handleSetDashboardView]
   );
-  const completedCount = completedLessons.length;
-  const progressPercent = allLessons.length ? Math.round((completedCount / allLessons.length) * 100) : 0;
 
-  // Courses catalog dynamically mapped from existing cohorts in the database
-  const catalogCourses = useMemo(() => {
-    // Gather all existing cohorts from the database
-    let sourceCohorts: Cohort[] = [];
-    if (allCohorts.length > 0) {
-      sourceCohorts = allCohorts;
-    } else if (course.enrolledCohorts && course.enrolledCohorts.length > 0) {
-      sourceCohorts = course.enrolledCohorts;
-    } else if (course.cohort) {
-      sourceCohorts = [course.cohort];
-    }
-
-    const progressMap = new Map(course.progress.map((p) => [p.lesson_id, p]));
-
-    const completedLessonIdSet = new Set(
-      course.progress.filter((p) => p.completed).map((p) => p.lesson_id)
-    );
-
-    const enrolledIdSet = new Set([
-      ...(course.enrolledCohorts || []).map((c) => c.id),
-      ...(course.cohort ? [course.cohort.id] : []),
-    ]);
-
-    return sourceCohorts.map((cohort) => {
-      const isEnrolled = enrolledIdSet.has(cohort.id);
-      const isCurrentActive = course.cohort?.id === cohort.id;
-
-      // Modules and lessons for this cohort
-      const cohortModules = allModules.filter((m) => m.cohort_id === cohort.id);
-      const sectionsCount = isCurrentActive && course.modules.length > 0
-        ? course.modules.length
-        : cohortModules.length;
-
-      const cohortLessons = isCurrentActive && allLessons.length > 0
-        ? allLessons
-        : cohortModules.flatMap((m) => m.lessons || []);
-
-      const lecturesCount = cohortLessons.length;
-
-      // Real progress (using authoritative composite progress for active cohort)
-      let computedProgress = 0;
-      if (isCurrentActive && unifiedProgress) {
-        computedProgress = unifiedProgress.overall.composite_percent;
-      } else if (isEnrolled && lecturesCount > 0) {
-        const completed = cohortLessons.filter((l) => completedLessonIdSet.has(l.id)).length;
-        computedProgress = Math.round((completed / lecturesCount) * 100);
-      } else if (isCurrentActive && progressPercent > 0) {
-        computedProgress = progressPercent;
-      }
-
-      // Check uploaded videos and whether the student has viewed them yet
-      const videoLessons = cohortLessons.filter(
-        (l) => Boolean(l.video_url && l.video_url.trim().length > 0) && l.status !== 'draft'
-      );
-      const totalVideosCount = videoLessons.length;
-      const unviewedVideoLessons = videoLessons.filter((l) => {
-        const p = progressMap.get(l.id);
-        if (!p) return true; // not viewed yet
-        const isViewed = Boolean(p.completed || (p.watch_percentage ?? 0) > 0 || (p.last_position_seconds ?? 0) > 0);
-        return !isViewed;
-      });
-      const unviewedVideoCount = unviewedVideoLessons.length;
-
-      const isCourseDone = isEnrolled && computedProgress === 100;
-      const status: 'in_progress' | 'completed' | 'paid' = isEnrolled
-        ? isCourseDone
-          ? 'completed'
-          : 'in_progress'
-        : 'paid';
-
-      // Clean display typography for the dark cinematic banner
-      const cleanName = (cohort.name || 'COHORT').trim();
-      const nameWithoutBatch = cleanName.replace(/^(b(?:atch)?\s*[-]?\s*\d+\s*[-]?\s*)/i, '').trim();
-      const displayParts = (nameWithoutBatch || cleanName).split(/\s+/);
-      const headline = displayParts.slice(0, 2).join(' ').toUpperCase();
-      const subheadline = displayParts.length > 2 
-        ? displayParts.slice(2).join(' ').toUpperCase() 
-        : 'VIDEO EDITING COHORT';
-
-      const batchMatch = cleanName.match(/\b(b(?:atch)?\s*[-]?\s*\d+)\b/i);
-      const batchTag = batchMatch ? batchMatch[0].toUpperCase() : 'BATCH';
-
-      return {
-        id: cohort.id,
-        title: cleanName,
-        platform: 'ProCut Hub',
-        sections: sectionsCount,
-        lectures: lecturesCount,
-        progress: computedProgress,
-        isLocked: !isEnrolled,
-        status,
-        tag: isEnrolled ? 'Active Enrollment' : undefined,
-        batchTag,
-        headline,
-        subheadline,
-        totalVideosCount,
-        unviewedVideoCount,
-      };
-    });
-  }, [
-    allCohorts,
-    course.enrolledCohorts,
-    course.cohort,
-    course.modules,
-    course.progress,
-    allModules,
-    allLessons,
-    progressPercent,
-    unifiedProgress,
-  ]);
-
-  const filteredCatalogCourses = useMemo(() => {
-    return catalogCourses.filter((item) => {
-      if (catalogSearchQuery.trim()) {
-        const q = catalogSearchQuery.toLowerCase();
-        const matchTitle = item.title.toLowerCase().includes(q);
-        const matchHeadline = item.headline.toLowerCase().includes(q);
-        const matchSub = item.subheadline.toLowerCase().includes(q);
-        if (!matchTitle && !matchHeadline && !matchSub) return false;
-      }
-      if (catalogFilter === 'in_progress') return item.status === 'in_progress';
-      if (catalogFilter === 'completed') return item.status === 'completed';
-      if (catalogFilter === 'paid') return item.isLocked || item.status === 'paid';
-      if (catalogFilter === 'expired') return false;
-      return true;
-    });
-  }, [catalogCourses, catalogSearchQuery, catalogFilter]);
-
-  const inProgressCatalogCount = catalogCourses.filter((c) => c.status === 'in_progress').length;
-  const completedCatalogCount = catalogCourses.filter((c) => c.status === 'completed').length;
-  const totalCatalogCount = catalogCourses.length;
-
-  // Real computed metrics
-  const streak = useMemo(() => {
-    const activityTimestamps = [
-      ...course.progress.map((p) => p.completed_at),
-      ...mySubmissions.map((s) => s.created_at),
-    ];
-    return calculateStreak(activityTimestamps);
-  }, [course.progress, mySubmissions]);
-
-  // Gamification Profile & Badges
-  const gamification: GamificationProfile = useMemo(() => {
-    const allReplies = mySubmissions.flatMap((s) =>
-      (s.feedback_history ?? []).flatMap((f) => f.replies ?? [])
-    );
-    return calculateGamificationProfile(
-      course.progress,
-      mySubmissions,
-      allReplies,
-      streak
-    );
-  }, [course.progress, mySubmissions, streak]);
-
-  // Sync gamification in background (non-blocking)
-  useEffect(() => {
-    if (user?.id && gamification) {
-      void syncGamificationProfile(user.id, gamification);
-    }
-  }, [user?.id, gamification]);
-
-  // Smart Studio AI Recommendations
-  const studioRecommendations: StudioRecommendation[] = useMemo(() => {
-    return generateSmartRecommendations(
-      course.modules,
-      course.progress,
-      cohortAssignments,
-      mySubmissions
-    );
-  }, [course.modules, course.progress, cohortAssignments, mySubmissions]);
-
-  const learningTimeStr = useMemo(() => {
-    return calculateLearningTime(completedLessons);
-  }, [completedLessons]);
-
-  const unreadFeedbackCount = useMemo(() => {
-    let count = 0;
-    for (const sub of mySubmissions) {
-      for (const item of sub.feedback_history ?? []) {
-        if (!item.student_read_at) {
-          count++;
-        }
-      }
-    }
-    return count;
-  }, [mySubmissions]);
-
-  const refreshSubmissions = useCallback(async () => {
-    if (!user) return;
-    try {
-      const submissionsData = await listMySubmissions(user.id);
-      setMySubmissions(submissionsData);
-    } catch (err) {
-      console.warn('Failed to refresh student submissions:', err);
-    }
-  }, [user]);
-
-  const selectLesson = (lesson: Lesson) => {
-    setSelectedLessonId(lesson.id);
-    setActiveTab('curriculum');
-    setSidebarOpen(false);
-  };
-
-  const toggleModuleCollapse = (moduleId: string) => {
-    setCollapsedModuleIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(moduleId)) {
-        next.delete(moduleId);
-      } else {
-        next.add(moduleId);
-      }
-      return next;
-    });
-  };
-
-  const toggleComplete = async () => {
-    if (!user || !selectedLesson) return;
-    const completed = !completedIds.has(selectedLesson.id);
-    const existing = course.progress.find((item) => item.lesson_id === selectedLesson.id);
-    const currentWatchPct = existing?.watch_percentage ?? 0;
-    const hasVideo = Boolean(selectedLesson.video_url && selectedLesson.video_url.trim().length > 0);
-
-    if (completed && hasVideo && currentWatchPct < 80) {
-      setEngagementAlert({
-        title: 'Video Watch Verification Required',
-        message: `You have currently watched ${currentWatchPct}% of "${selectedLesson.title}". CUT / CRAFT requires at least 80% verified video watch progress before marking a lesson complete and issuing milestone credits.`,
-      });
-      return;
-    }
-
-    try {
-      await markLessonComplete(user.id, selectedLesson.id, completed, {
-        watchPercentage: currentWatchPct,
-      });
-      setCourse((current) => ({
-        ...current,
-        progress: [
-          ...current.progress.filter((item) => item.lesson_id !== selectedLesson.id),
-          {
-            lesson_id: selectedLesson.id,
-            completed,
-            completed_at: completed ? new Date().toISOString() : undefined,
-            watch_percentage: completed && hasVideo ? Math.max(currentWatchPct, 80) : currentWatchPct,
-          },
-        ],
-      }));
-    } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : 'Unable to update lesson progress.');
-    }
-  };
-
-  const handleWatchProgress = (lessonId: string, watchPct: number, autoCompleted: boolean) => {
-    setCourse((current) => {
-      const existing = current.progress.find((p) => p.lesson_id === lessonId);
-      const isAlreadyCompleted = existing?.completed || false;
-      const completed = isAlreadyCompleted || autoCompleted;
-
-      return {
-        ...current,
-        progress: [
-          ...current.progress.filter((p) => p.lesson_id !== lessonId),
-          {
-            lesson_id: lessonId,
-            completed,
-            completed_at: completed ? (existing?.completed_at || new Date().toISOString()) : undefined,
-            watch_percentage: Math.max(existing?.watch_percentage ?? 0, watchPct),
-          },
-        ],
-      };
-    });
-  };
-
-  // Prev / Next Lesson Navigation
-  const currentLessonIndex = allLessons.findIndex((l) => l.id === selectedLessonId);
-  const prevLesson = currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null;
-  const nextLesson =
-    currentLessonIndex >= 0 && currentLessonIndex < allLessons.length - 1
-      ? allLessons[currentLessonIndex + 1]
-      : null;
-
-  // Search filtered modules
-  const filteredModules = useMemo(() => {
-    if (!lessonSearchQuery.trim()) return course.modules;
-    const query = lessonSearchQuery.toLowerCase();
-    return course.modules
-      .map((mod) => ({
-        ...mod,
-        lessons: mod.lessons.filter(
-          (l) => l.title.toLowerCase().includes(query) || l.description?.toLowerCase().includes(query)
-        ),
-      }))
-      .filter((mod) => mod.lessons.length > 0);
-  }, [course.modules, lessonSearchQuery]);
-
-  // Guard 1: Missing Session / Unauthenticated User
-  if (!user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] p-6">
-        <StateFallback
-          type="stale-auth"
-          title="Sign In Required"
-          description="Please sign in to access your video editing timeline, assignments, and cohort workspace."
-          actionText="Sign In"
-          onAction={() => navigate('/login')}
-        />
-      </div>
-    );
-  }
-
-  // Guard 2: Initial Platform Loading State
-  if (loading && !course.cohort) {
+  // Initial Platform Loading State
+  if (dashboard.loading && !dashboard.course.cohort) {
     return (
       <div className="min-h-screen bg-[#f8f9fa] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
         <CommunityTopNav
@@ -670,8 +158,8 @@ export function StudentDashboard() {
     );
   }
 
-  // Guard 3: Fatal Error / Connection / Permission / Migration Failure
-  if (appError) {
+  // Fatal Error / Connection / Permission / Migration Failure
+  if (dashboard.appError) {
     return (
       <div className="min-h-screen bg-[#f8f9fa] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
         <CommunityTopNav
@@ -688,10 +176,10 @@ export function StudentDashboard() {
         />
         <div className="mx-auto max-w-2xl py-16 px-6">
           <StateFallback
-            appError={appError}
+            appError={dashboard.appError}
             onAction={() => {
-              setAppError(null);
-              setRefreshKey((k) => k + 1);
+              dashboard.setAppError(null);
+              dashboard.setRefreshKey((k) => k + 1);
             }}
           />
         </div>
@@ -700,1406 +188,159 @@ export function StudentDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      {/* Top Application Bar - CommunityTopNav with activeTab="courses" */}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-white transition-colors duration-200">
+      {/* Universal Top Navigation */}
       <CommunityTopNav
         activeTab="courses"
         onTabChange={(tab) => {
-          if (tab === 'community') {
-            navigate('/community?tab=feed');
-          } else if (tab === 'messages') {
-            navigate('/community?tab=messages');
-          } else if (tab === 'levelup') {
-            navigate('/community?tab=levelup');
-          } else if (tab === 'workshops') {
-            navigate('/workshops');
-          } else if (tab === 'courses') {
-            handleSetDashboardView('catalog');
-          }
+          if (tab === 'community') navigate('/community?tab=feed');
+          else if (tab === 'messages') navigate('/community?tab=messages');
+          else if (tab === 'levelup') navigate('/community?tab=levelup');
+          else if (tab === 'workshops') navigate('/workshops');
+          else if (tab === 'courses') handleSetDashboardView('catalog');
         }}
         onOpenLevelUpModal={() => setLevelUpModalOpen(true)}
         onOpenWorkshopsModal={() => setWorkshopsModalOpen(true)}
       />
 
-      {/* Offline Warning Banner */}
+      {/* Offline banner */}
       {!isOnline && (
-        <div className="sticky top-[73px] z-30 flex items-center justify-center gap-2 border-b border-amber-300 bg-amber-400 px-4 py-2 text-center text-xs font-bold text-amber-950 shadow-sm">
-          <WifiOff size={15} />
-          <span>
-            You are currently offline. Lessons and downloaded media remain accessible; submissions and watch milestones will sync when reconnected.
-          </span>
-        </div>
-      )}
-
-      {/* Partial Data Load Warning Banner */}
-      {failedSections.length > 0 && (
-        <div className="sticky top-[73px] z-30 flex items-center justify-between gap-3 border-b border-orange-200 bg-orange-50 px-4 py-2 text-xs font-semibold text-orange-950 shadow-2xs">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={15} className="text-orange-600 shrink-0" />
-            <span>
-              Some platform data could not be refreshed ({failedSections.join(', ')}). Your current work is safe.
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setRefreshKey((k) => k + 1)}
-            className="inline-flex items-center gap-1 rounded-md bg-orange-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-orange-700 transition shrink-0"
-          >
-            <RefreshCw size={11} /> Retry
-          </button>
-        </div>
-      )}
-
-      {/* View Switch: Courses Catalog vs Curriculum Video Studio */}
-      {dashboardView === 'catalog' ? (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-          {/* Page Title & Subtitle with Refresh Button */}
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                Courses
-              </h1>
-              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                {totalCatalogCount} courses • {inProgressCatalogCount} in progress • {completedCatalogCount} completed
-              </p>
-            </div>
-            <button
-              onClick={() => setRefreshKey((k) => k + 1)}
-              className="flex size-9 items-center justify-center rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs transition active:scale-95"
-              title="Sync and refresh courses"
-              aria-label="Sync and refresh courses"
-            >
-              <RotateCw size={15} className="text-slate-400" />
-            </button>
-          </div>
-
-          {/* Pill Search Bar */}
-          <div className="mt-6 flex items-center rounded-full border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 shadow-2xs focus-within:border-orange-500 transition">
-            <button
-              type="button"
-              className="flex items-center gap-1.5 pr-3 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border-r border-slate-200 dark:border-slate-800 shrink-0"
-            >
-              <span>Course</span>
-              <ChevronDown size={14} className="text-slate-400" />
-            </button>
-            <Search size={16} className="ml-3 text-slate-400 shrink-0" />
-            <input
-              type="text"
-              value={catalogSearchQuery}
-              onChange={(e) => setCatalogSearchQuery(e.target.value)}
-              placeholder="Search by course, chapter, or section title"
-              className="w-full bg-transparent px-3 text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none"
-            />
-            {catalogSearchQuery && (
-              <button
-                type="button"
-                onClick={() => setCatalogSearchQuery('')}
-                className="text-slate-400 hover:text-slate-600 p-1"
-                aria-label="Clear search"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-
-          {/* Filter Pills Row */}
-          <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-            <button
-              onClick={() => setCatalogFilter('all')}
-              className={`rounded-full px-4 py-1.5 text-xs font-bold transition shadow-xs ${
-                catalogFilter === 'all'
-                  ? 'bg-[#ea580c] text-white shadow-orange-500/20'
-                  : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setCatalogFilter('in_progress')}
-              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                catalogFilter === 'in_progress'
-                  ? 'bg-[#ea580c] text-white font-bold'
-                  : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              In Progress
-            </button>
-            <button
-              onClick={() => setCatalogFilter('completed')}
-              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                catalogFilter === 'completed'
-                  ? 'bg-[#ea580c] text-white font-bold'
-                  : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              Completed
-            </button>
-            <button
-              onClick={() => setCatalogFilter('expired')}
-              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                catalogFilter === 'expired'
-                  ? 'bg-[#ea580c] text-white font-bold'
-                  : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              Expired
-            </button>
-            <button
-              onClick={() => setCatalogFilter('paid')}
-              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                catalogFilter === 'paid'
-                  ? 'bg-[#ea580c] text-white font-bold'
-                  : 'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              Paid
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-800 px-4 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0"
-            >
-              <span>Service</span>
-              <ChevronDown size={13} className="text-slate-400" />
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-800 px-4 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0"
-            >
-              <span>Duration</span>
-              <ChevronDown size={13} className="text-slate-400" />
-            </button>
-          </div>
-
-          {/* 3-Column Courses Grid */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCatalogCourses.map((c) => {
-              if (!c.isLocked) {
-                // Card 1: Active Enrolled Course
-                return (
-                  <div
-                    key={c.id}
-                    className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col"
-                  >
-                    {/* Dark Cinematic Banner */}
-                    <div className="relative h-48 bg-gradient-to-b from-[#1b1c20] via-[#121316] to-[#0a0b0d] p-6 flex flex-col items-center justify-center select-none overflow-hidden text-center">
-                      {/* Corner Brackets */}
-                      <span className="absolute top-3.5 left-3.5 size-3 border-t-2 border-l-2 border-white/25 pointer-events-none" />
-                      <span className="absolute top-3.5 right-3.5 size-3 border-t-2 border-r-2 border-white/25 pointer-events-none" />
-                      <span className="absolute bottom-3.5 left-3.5 size-3 border-b-2 border-l-2 border-white/25 pointer-events-none" />
-                      <span className="absolute bottom-3.5 right-3.5 size-3 border-b-2 border-r-2 border-white/25 pointer-events-none" />
-
-                      {/* Top ProCut Logo */}
-                      <div className="flex flex-col items-center leading-none mb-1.5">
-                        <span className="text-xs font-black tracking-widest text-[#f59e0b]">PROCUT</span>
-                        <span className="text-[6px] font-bold tracking-widest text-slate-400 uppercase">HUB</span>
-                      </div>
-
-                      {/* Film Reel Icon */}
-                      <div className="flex items-center justify-center text-[#f59e0b] mb-1">
-                        <Video size={18} className="text-[#f59e0b]" />
-                      </div>
-
-                      {/* Banner Text */}
-                      <h4 className="text-2xl sm:text-3xl font-black tracking-tight text-[#f59e0b] uppercase font-sans leading-none">
-                        {c.headline}
-                      </h4>
-                      <p className="mt-1 text-[9px] font-bold tracking-[0.22em] text-white/90 uppercase">
-                        {c.subheadline}
-                      </p>
-                      <span className="mt-1.5 inline-block text-[8px] font-black tracking-widest text-[#f59e0b] border border-[#f59e0b]/40 rounded px-1.5 py-0.5">
-                        {c.batchTag}
-                      </span>
-                    </div>
-
-                    {/* Body Content */}
-                    <div className="p-5 flex-1 flex flex-col justify-between">
-                      <div>
-                        <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug line-clamp-1">
-                          {c.title}
-                        </h3>
-                        <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                          {c.platform}
-                        </p>
-                        <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                          {c.sections} sections • {c.lectures} lectures
-                        </p>
-
-                        {/* Progress Bar */}
-                        <div className="mt-4">
-                          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                            <span>Progress</span>
-                            <span className="font-bold text-slate-700 dark:text-slate-200">
-                              {c.progress}%
-                            </span>
-                          </div>
-                          <div className="h-1.5 w-full rounded-full bg-orange-100 dark:bg-orange-950/40 overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-orange-500 to-[#ea580c] rounded-full transition-all duration-300"
-                              style={{ width: `${c.progress}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Continue Action Button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (c.id && c.id !== course.cohort?.id) {
-                            setSelectedCohortId(c.id);
-                          }
-                          handleSetDashboardView('player');
-                        }}
-                        className="mt-5 w-full rounded-xl bg-[#ea580c] hover:bg-orange-600 text-white font-bold py-2.5 px-4 text-sm transition shadow-sm hover:shadow active:scale-[0.99] flex items-center justify-center gap-2"
-                      >
-                        Continue
-                      </button>
-                    </div>
-
-                    {/* Card Footer Banner */}
-                    <div className="border-t border-slate-100 dark:border-slate-800/80 px-5 py-3 flex items-center gap-2 bg-slate-50/60 dark:bg-slate-900/60">
-                      {c.unviewedVideoCount > 0 ? (
-                        <>
-                          <span className="rounded-full bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 tracking-wider uppercase">
-                            NEW
-                          </span>
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                            {c.unviewedVideoCount === 1
-                              ? '1 new video recently added'
-                              : `${c.unviewedVideoCount} new videos recently added`}
-                          </span>
-                        </>
-                      ) : c.totalVideosCount > 0 ? (
-                        <>
-                          <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-black px-2 py-0.5 tracking-wider uppercase border border-emerald-500/30">
-                            UP TO DATE
-                          </span>
-                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                            All videos watched
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
-                          No video lessons uploaded yet
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-
-              // Cards 2 & 3: Locked Courses
-              return (
-                <div
-                  key={c.id}
-                  className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col"
-                >
-                  {/* Dark Cinematic Banner with Lock Icon Overlay */}
-                  <div className="relative h-48 bg-gradient-to-b from-[#18191d] via-[#111215] to-[#090a0c] p-6 flex flex-col items-center justify-center select-none overflow-hidden text-center">
-                    {/* Corner Brackets */}
-                    <span className="absolute top-3.5 left-3.5 size-3 border-t-2 border-l-2 border-white/20 pointer-events-none" />
-                    <span className="absolute top-3.5 right-3.5 size-3 border-t-2 border-r-2 border-white/20 pointer-events-none" />
-                    <span className="absolute bottom-3.5 left-3.5 size-3 border-b-2 border-l-2 border-white/20 pointer-events-none" />
-                    <span className="absolute bottom-3.5 right-3.5 size-3 border-b-2 border-r-2 border-white/20 pointer-events-none" />
-
-                    {/* Top right badges */}
-                    {c.unviewedVideoCount > 0 && (
-                      <div className="absolute top-3.5 right-3.5 flex items-center gap-2">
-                        <span className="text-[8px] font-black text-white/90 border border-white/30 rounded px-1.5 py-0.5 uppercase tracking-wider">
-                          NEW
-                        </span>
-                      </div>
-                    )}
-                    <div className="absolute top-3.5 left-3.5">
-                      <div className="flex flex-col items-start leading-none opacity-80">
-                        <span className="text-[9px] font-black tracking-widest text-[#f59e0b]">PRO</span>
-                      </div>
-                    </div>
-
-                    {/* Subtle Background Text */}
-                    <div className="opacity-25 flex flex-col items-center pointer-events-none">
-                      <h4 className="text-2xl font-black tracking-tight text-[#f59e0b] uppercase font-sans">
-                        {c.headline}
-                      </h4>
-                      <p className="text-[8px] tracking-[0.2em] font-bold text-white uppercase">
-                        {c.subheadline}
-                      </p>
-                      <p className="text-[8px] tracking-widest font-black text-[#f59e0b] mt-2">
-                        {c.batchTag}
-                      </p>
-                    </div>
-
-                    {/* Centered Circular Lock Overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex size-14 items-center justify-center rounded-full border border-white/25 bg-black/65 backdrop-blur-xs text-white shadow-xl">
-                        <Lock size={22} className="text-white" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Body Content */}
-                  <div className="p-5 flex-1 flex flex-col justify-between">
-                    <div>
-                      <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug line-clamp-1">
-                        {c.title}
-                      </h3>
-                      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                        {c.platform}
-                      </p>
-                      <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                        {c.sections} sections • {c.lectures} lectures
-                      </p>
-                    </div>
-
-                    {/* Buy Now Button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (c.id) {
-                          setSelectedCohortId(c.id);
-                        }
-                        setDiscoveryModalOpen(true);
-                      }}
-                      className="mt-6 w-full rounded-xl bg-[#ea580c] hover:bg-orange-600 text-white font-bold py-2.5 px-4 text-sm transition shadow-sm hover:shadow active:scale-[0.99] flex items-center justify-center gap-2"
-                    >
-                      Buy now to unlock
-                    </button>
-                  </div>
-
-                  {/* Card Footer Banner */}
-                  <div className="border-t border-slate-100 dark:border-slate-800/80 px-5 py-3 flex items-center gap-2 bg-slate-50/60 dark:bg-slate-900/60">
-                    {c.unviewedVideoCount > 0 ? (
-                      <>
-                        <span className="rounded-full bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 tracking-wider uppercase">
-                          NEW
-                        </span>
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                          {c.unviewedVideoCount === 1
-                            ? '1 new video recently added'
-                            : `${c.unviewedVideoCount} new videos recently added`}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
-                        {c.totalVideosCount > 0 ? `${c.totalVideosCount} videos available` : 'Curriculum in preparation'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {filteredCatalogCourses.length === 0 && (
-            <div className="mt-12 text-center py-16 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-              <BookOpen className="mx-auto text-slate-300 dark:text-slate-600 mb-3" size={32} />
-              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No courses match your filter</p>
-              <button
-                onClick={() => {
-                  setCatalogFilter('all');
-                  setCatalogSearchQuery('');
-                }}
-                className="mt-3 text-xs font-bold text-orange-600 hover:text-orange-700 underline"
-              >
-                Reset filters
-              </button>
-            </div>
-          )}
-        </main>
-      ) : (
-        /* Player View */
-        <div>
-          {/* Top Sub-bar with Back to Courses button */}
-          <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 sm:px-6 py-3 flex items-center justify-between">
-            <button
-              onClick={() => handleSetDashboardView('catalog')}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-            >
-              <ChevronLeft size={16} />
-              <span>Back to Courses</span>
-            </button>
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-slate-500 hidden sm:inline">
-                {course.cohort?.name}
-              </span>
-              {user && <NotificationCenter userId={user.id} />}
-              <button
-                type="button"
-                onClick={() => setAchievementsModalOpen(true)}
-                className="flex items-center gap-2 rounded-xl border border-amber-200/90 bg-gradient-to-r from-amber-50/90 to-orange-50/90 px-3 py-1.5 text-xs font-bold text-amber-950 transition hover:border-amber-300 hover:shadow-xs"
-                title="View Editor Level & Achievements"
-              >
-                <div className="flex size-5 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs">
-                  <Trophy size={11} />
-                </div>
-                <span className="text-[10px] font-black uppercase text-orange-600">
-                  Lvl {gamification.level}
-                </span>
-                <span className="text-[11px] font-black text-slate-800 truncate max-w-28 hidden md:inline">
-                  {gamification.tierTitle}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <div className="mx-auto flex max-w-[1440px]">
-        {/* Left Sidebar: Collapsible Curriculum Navigation */}
-        <aside
-          className={`${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } fixed inset-y-0 left-0 z-40 w-84 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 transition-transform lg:sticky lg:top-[73px] lg:block lg:h-[calc(100vh-73px)] lg:translate-x-0`}
+        <div
+          role="status"
+          aria-live="polite"
+          className="bg-amber-500 text-slate-950 px-4 py-2 text-xs font-bold flex items-center justify-center gap-2"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-orange-500">Curriculum Roadmap</p>
-              <h2 className="mt-0.5 text-base font-black text-slate-950 truncate max-w-56">
-                {course.cohort?.name ?? 'Course Workspace'}
-              </h2>
-            </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="p-2 text-slate-400 hover:text-slate-700 lg:hidden"
-              aria-label="Close course navigation"
-            >
-              <X size={19} />
-            </button>
-          </div>
+          <WifiOff size={14} />
+          <span>You are currently working offline. Cached lessons remain accessible.</span>
+        </div>
+      )}
 
-          {/* Overall Progress Widget */}
-          <div className="border-b border-slate-100 px-6 py-4">
-            <div className="mb-2 flex justify-between text-xs font-bold">
-              <span className="text-slate-500">Overall Track Progress</span>
-              <span className="text-orange-600">
-                {unifiedProgress ? unifiedProgress.overall.composite_percent : progressPercent}%
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-300"
-                style={{ width: `${unifiedProgress ? unifiedProgress.overall.composite_percent : progressPercent}%` }}
-              />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 font-medium">
-              <span>
-                {unifiedProgress
-                  ? `${unifiedProgress.overall.completed_milestones} of ${unifiedProgress.overall.total_milestones} milestones complete`
-                  : `${completedCount} of ${allLessons.length} lessons complete`}
-              </span>
-              {(unifiedProgress ? unifiedProgress.overall.is_completed : progressPercent === 100 && allLessons.length > 0) && (
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
-                  <Award size={13} /> Completed
-                </span>
-              )}
-            </div>
+      {/* Main View Router */}
+      {dashboardView === 'catalog' ? (
+        <StudentCatalogView
+          totalCatalogCount={totalCatalogCount}
+          inProgressCatalogCount={inProgressCatalogCount}
+          completedCatalogCount={completedCatalogCount}
+          catalogSearchQuery={catalogSearchQuery}
+          setCatalogSearchQuery={setCatalogSearchQuery}
+          catalogFilter={catalogFilter}
+          setCatalogFilter={setCatalogFilter}
+          filteredCatalogCourses={filteredCatalogCourses}
+          onRefresh={() => dashboard.setRefreshKey((k) => k + 1)}
+          onContinueCourse={handleContinueCourse}
+          onUnlockCourse={handleUnlockCourse}
+        />
+      ) : (
+        <StudentPlayerView
+          user={user}
+          profile={profile}
+          course={dashboard.course}
+          targetCohortId={targetCohortId}
+          allCohorts={dashboard.allCohorts}
+          allLessons={dashboard.allLessons}
+          selectedLesson={dashboard.selectedLesson}
+          selectedLessonId={dashboard.selectedLessonId}
+          completedIds={dashboard.completedIds}
+          completedCount={dashboard.completedCount}
+          progressPercent={dashboard.progressPercent}
+          unifiedProgress={dashboard.unifiedProgress}
+          sprintDays={dashboard.sprintDays}
+          sprintCompletedCount={dashboard.sprintCompletedCount}
+          sprintStreak={dashboard.sprintStreak}
+          sprintScore={dashboard.sprintScore}
+          totalSprintDays={dashboard.totalSprintDays}
+          streak={dashboard.streak}
+          gamification={dashboard.gamification}
+          studioRecommendations={dashboard.studioRecommendations}
+          learningTimeStr={dashboard.learningTimeStr}
+          unreadFeedbackCount={dashboard.unreadFeedbackCount}
+          liveSessions={dashboard.liveSessions}
+          announcements={dashboard.announcements}
+          loading={dashboard.loading}
+          error={dashboard.error}
+          setError={dashboard.setError}
+          setRefreshKey={dashboard.setRefreshKey}
+          prevLesson={dashboard.prevLesson}
+          nextLesson={dashboard.nextLesson}
+          selectLesson={dashboard.selectLesson}
+          toggleComplete={dashboard.toggleComplete}
+          handleWatchProgress={dashboard.handleWatchProgress}
+          refreshSubmissions={dashboard.refreshSubmissions}
+          onBackToCatalog={() => handleSetDashboardView('catalog')}
+          onOpenAchievements={() => setAchievementsModalOpen(true)}
+          onOpenCertificate={() => setCertificateModalOpen(true)}
+          onOpenReportCard={() => setReportModalOpen(true)}
+        />
+      )}
 
-            {/* Unified 3-Pillar Breakdown */}
-            {unifiedProgress && (
-              <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-3 gap-1.5 text-center text-[10px]">
-                <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
-                  <div className="text-slate-400 font-semibold">Lessons</div>
-                  <div className="font-extrabold text-slate-800">
-                    {unifiedProgress.curriculum.completed_lessons}/{unifiedProgress.curriculum.total_lessons}
-                  </div>
-                </div>
-                <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
-                  <div className="text-slate-400 font-semibold">Tasks</div>
-                  <div className="font-extrabold text-slate-800">
-                    {unifiedProgress.assignments.approved_assignments}/{unifiedProgress.assignments.total_assignments}
-                  </div>
-                </div>
-                <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
-                  <div className="text-slate-400 font-semibold">Sprint</div>
-                  <div className="font-extrabold text-orange-600">
-                    {unifiedProgress.sprint_challenges.completed_challenges}/{unifiedProgress.sprint_challenges.effective_sprint_days}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+      {/* Level Up Modal */}
+      {levelUpModalOpen && (
+        <LevelUpModal
+          isOpen={levelUpModalOpen}
+          onClose={() => setLevelUpModalOpen(false)}
+        />
+      )}
 
-          {/* Lesson Search Bar */}
-          <div className="border-b border-slate-100 px-4 py-3">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                value={lessonSearchQuery}
-                onChange={(e) => setLessonSearchQuery(e.target.value)}
-                placeholder="Search lessons..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-8 text-xs font-medium text-slate-800 outline-none focus:border-orange-400 focus:bg-white"
-              />
-              {lessonSearchQuery && (
-                <button
-                  onClick={() => setLessonSearchQuery('')}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-          </div>
+      {/* Workshops Modal */}
+      {workshopsModalOpen && (
+        <WorkshopsModal
+          isOpen={workshopsModalOpen}
+          onClose={() => setWorkshopsModalOpen(false)}
+        />
+      )}
 
-          {/* Modules & Lessons List */}
-          <nav className="max-h-[calc(100vh-270px)] overflow-y-auto p-4 space-y-3">
-            {loading ? (
-              <SidebarSkeleton />
-            ) : filteredModules.length ? (
-              filteredModules.map((module) => {
-                const isCollapsed = collapsedModuleIds.has(module.id);
-                const modCompletedCount = module.lessons.filter((l) => completedIds.has(l.id)).length;
-                const modTotal = module.lessons.length;
-                const isModComplete = modTotal > 0 && modCompletedCount === modTotal;
+      {/* Cohort Discovery / Switcher Modal */}
+      {user && (
+        <CohortDiscoveryModal
+          userId={user.id}
+          userEmail={user.email}
+          userName={profile?.full_name || user.user_metadata?.full_name}
+          isOpen={discoveryModalOpen}
+          onClose={() => setDiscoveryModalOpen(false)}
+          currentCohortId={dashboard.course.cohort?.id}
+          onSelectCohort={(cohortId) => {
+            dashboard.setSelectedCohortId(cohortId);
+            dashboard.setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
 
-                return (
-                  <div key={module.id} className="rounded-xl border border-slate-100 bg-white shadow-2xs overflow-hidden">
-                    {/* Module Accordion Header */}
-                    <button
-                      onClick={() => toggleModuleCollapse(module.id)}
-                      className="flex w-full items-center justify-between p-3 text-left transition hover:bg-slate-50"
-                    >
-                      <div className="flex-1 pr-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                            Module {module.position}
-                          </span>
-                          {isModComplete ? (
-                            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">
-                              ✓ Complete
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-semibold text-slate-400">
-                              ({modCompletedCount}/{modTotal})
-                            </span>
-                          )}
-                        </div>
-                        <h4 className="mt-0.5 text-xs font-bold text-slate-900 leading-tight">{module.title}</h4>
-                      </div>
-                      <ChevronDown
-                        size={15}
-                        className={`text-slate-400 transition-transform duration-200 shrink-0 ${
-                          isCollapsed ? '-rotate-90' : 'rotate-0'
-                        }`}
-                      />
-                    </button>
-
-                    {/* Lessons inside Module */}
-                    {!isCollapsed && (
-                      <div className="border-t border-slate-100 p-1.5 space-y-1 bg-slate-50/50">
-                        {module.lessons.map((lesson) => {
-                          const isSelected = lesson.id === selectedLessonId;
-                          const isDone = completedIds.has(lesson.id);
-
-                          return (
-                            <button
-                              key={lesson.id}
-                              onClick={() => selectLesson(lesson)}
-                              className={`flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition ${
-                                isSelected
-                                  ? 'bg-orange-500 text-white shadow-xs font-bold'
-                                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
-                              }`}
-                            >
-                              <span
-                                className={`mt-0.5 flex size-4.5 shrink-0 items-center justify-center rounded-full border text-[9px] ${
-                                  isDone
-                                    ? isSelected
-                                      ? 'border-white bg-white text-orange-600 font-bold'
-                                      : 'border-emerald-500 bg-emerald-500 text-white'
-                                    : isSelected
-                                    ? 'border-white/80 bg-white/20 text-white'
-                                    : 'border-slate-300 text-slate-400'
-                                }`}
-                              >
-                                {isDone ? <Check size={11} /> : lesson.position}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs leading-snug truncate">{lesson.title}</p>
-                                {(() => {
-                                  const lProgress = course.progress.find((p) => p.lesson_id === lesson.id);
-                                  const wPct = lProgress?.watch_percentage ?? 0;
-                                  return (
-                                    <p
-                                      className={`text-[10px] mt-0.5 flex items-center gap-1.5 ${
-                                        isSelected ? 'text-white/80' : 'text-slate-400'
-                                      }`}
-                                    >
-                                      {lesson.duration_minutes && <span>{lesson.duration_minutes} mins</span>}
-                                      {!isDone && wPct > 0 && (
-                                        <span
-                                          className={
-                                            isSelected
-                                              ? 'text-white font-medium'
-                                              : 'text-orange-600 font-semibold'
-                                          }
-                                        >
-                                          • {wPct}% watched
-                                        </span>
-                                      )}
-                                    </p>
-                                  );
-                                })()}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            ) : lessonSearchQuery ? (
-              <div className="p-4 text-center text-xs text-slate-400">
-                No lessons found matching &quot;{lessonSearchQuery}&quot;
-              </div>
-            ) : (
-              <EmptyState label="Your lessons will appear here once you are enrolled in a cohort." />
-            )}
-          </nav>
-        </aside>
-
-        {/* Backdrop for Mobile Sidebar */}
-        {sidebarOpen && (
-          <button
-            className="fixed inset-0 z-30 bg-slate-950/40 backdrop-blur-xs lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close navigation overlay"
+      {/* Standalone Modals (Lazy Loaded) */}
+      <Suspense fallback={null}>
+        {achievementsModalOpen && (
+          <AchievementsModal
+            isOpen={achievementsModalOpen}
+            onClose={() => setAchievementsModalOpen(false)}
+            gamification={dashboard.gamification}
           />
         )}
 
-        {/* Main Workspace Area */}
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:py-8">
-          <div className="mx-auto max-w-5xl">
-            {/* Top Student Banner & Welcome */}
-            <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-              <div>
-                <p className="mb-1 text-xs font-bold uppercase tracking-wider text-orange-500">Keep Building Your Edge</p>
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
-                  Welcome back, {profile?.full_name?.split(' ')[0] ?? 'Editor'}.
-                </h1>
-                <p className="mt-1 text-xs sm:text-sm text-slate-500">
-                  Pick up where you left off and polish your creative timeline today.
-                </p>
-              </div>
+        {certificateModalOpen && user && dashboard.course.cohort && (
+          <CertificateModal
+            isOpen={certificateModalOpen}
+            onClose={() => setCertificateModalOpen(false)}
+            studentName={profile?.full_name || 'Student'}
+            cohortName={dashboard.course.cohort.name}
+            cohortId={dashboard.course.cohort.id}
+            studentId={user.id}
+          />
+        )}
 
-              {/* Real Metric Stat Pills */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setAchievementsModalOpen(true)}
-                  className="flex items-center gap-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3.5 py-2 shadow-2xs hover:border-amber-300 transition text-left"
-                  title="Click to inspect Editor Level & Milestones"
-                >
-                  <Trophy size={16} className="text-amber-600" />
-                  <div>
-                    <p className="text-[10px] uppercase font-bold text-amber-800">
-                      Lvl {gamification.level} · {gamification.tierTitle}
-                    </p>
-                    <p className="text-xs font-black text-slate-950">
-                      {gamification.totalXp} XP <span className="text-[10px] font-normal text-slate-500">({gamification.badges.filter((b) => b.unlocked).length}/7 Badges)</span>
-                    </p>
-                  </div>
-                </button>
-
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-2xs">
-                  <Flame size={16} className="text-orange-500" />
-                  <div className="text-left">
-                    <p className="text-[10px] uppercase font-bold text-slate-400">Streak</p>
-                    <p className="text-xs font-black text-slate-950">
-                      {streak} {streak === 1 ? 'day' : 'days'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-2xs">
-                  <Clock3 size={16} className="text-blue-500" />
-                  <div className="text-left">
-                    <p className="text-[10px] uppercase font-bold text-slate-400">Time</p>
-                    <p className="text-xs font-black text-slate-950">{learningTimeStr}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Habit Momentum & 14-Day Activity Heatmap */}
-            <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4.5 sm:p-5 shadow-2xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex size-8 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
-                    <Flame size={18} />
-                  </span>
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
-                      14-Day Editing Momentum &amp; Habit Activity
-                    </h3>
-                    <p className="text-[11px] text-slate-500">
-                      Daily timeline drills reinforce muscle memory and editorial instinct.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                    <Zap size={14} className="text-amber-500" />
-                    <span>
-                      Momentum: {Math.min(100, Math.round((gamification.weeklyActiveCount / gamification.weeklyTarget) * 100))}%
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                    <Shield
-                      size={14}
-                      className={gamification.hasStreakShield ? 'text-emerald-500' : 'text-slate-400'}
-                    />
-                    <span className="text-[11px]">
-                      {gamification.hasStreakShield ? 'Streak Shield Ready' : 'Streak Shield Active'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 14 Days Visual Heatmap Blocks */}
-              <div className="mt-3.5">
-                <div className="flex items-center justify-between gap-1.5 overflow-x-auto pb-1">
-                  {(gamification.recentHeatmap ?? []).map((day) => (
-                    <div
-                      key={day.dateStr}
-                      className="flex flex-col items-center gap-1 flex-1 min-w-[34px]"
-                      title={`${day.dateStr}: ${day.isActive ? 'Active session' : 'Rest day'}`}
-                    >
-                      <div
-                        className={`h-7 w-full rounded-lg border transition-all ${
-                          day.isActive
-                            ? 'bg-orange-500 border-orange-600 text-white shadow-2xs'
-                            : day.isToday
-                            ? 'bg-slate-100 border-dashed border-orange-400'
-                            : 'bg-slate-50 border-slate-200/80'
-                        }`}
-                      />
-                      <span
-                        className={`text-[10px] font-bold ${
-                          day.isToday ? 'text-orange-600 font-black' : 'text-slate-400'
-                        }`}
-                      >
-                        {day.dayLabel}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* AI Studio Copilot Smart Recommendations */}
-            {studioRecommendations.length > 0 && (
-              <div className="mb-6 rounded-2xl border border-orange-200/90 bg-gradient-to-br from-orange-50/40 via-white to-amber-50/40 p-5 shadow-2xs">
-                <div className="flex items-center justify-between border-b border-orange-100/70 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="flex size-7 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs">
-                      <Lightbulb size={15} />
-                    </span>
-                    <div>
-                      <h3 className="text-xs font-black uppercase tracking-wider text-orange-950">
-                        Studio Copilot · Smart Learning Advisor
-                      </h3>
-                      <p className="text-[11px] text-slate-500">
-                        Targeted recommendations grounded in your watch history, submissions, and mentor critique scores.
-                      </p>
-                    </div>
-                  </div>
-                  <span className="hidden sm:inline-block rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-extrabold text-orange-800 uppercase tracking-wider">
-                    AI Guided
-                  </span>
-                </div>
-
-                <div className="mt-3.5 grid gap-3 sm:grid-cols-2">
-                  {studioRecommendations.map((rec, i) => (
-                    <div
-                      key={i}
-                      className="flex flex-col justify-between rounded-xl border border-slate-200/70 bg-white/90 p-3.5 shadow-3xs"
-                    >
-                      <div>
-                        <div className="flex items-center gap-1.5 mb-1 text-[10px] font-black uppercase tracking-wider">
-                          {rec.type === 'next_lesson' ? (
-                            <span className="text-orange-600 flex items-center gap-1">
-                              <Compass size={12} /> Next Up
-                            </span>
-                          ) : rec.type === 'weak_skill' ? (
-                            <span className="text-rose-600 flex items-center gap-1">
-                              <AlertCircle size={12} /> Rubric Focus Area
-                            </span>
-                          ) : rec.type === 'deadline' ? (
-                            <span className="text-amber-600 flex items-center gap-1">
-                              <Clock3 size={12} /> Urgent Deadline
-                            </span>
-                          ) : (
-                            <span className="text-blue-600 flex items-center gap-1">
-                              <Sparkles size={12} /> Pro Polish Tip
-                            </span>
-                          )}
-                        </div>
-                        <h4 className="text-xs font-bold text-slate-950 leading-tight">{rec.title}</h4>
-                        <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">{rec.subtitle}</p>
-                      </div>
-
-                      {rec.actionText && (
-                        <div className="mt-3 pt-2 border-t border-slate-100">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (rec.actionType === 'navigate_lesson' && rec.targetId) {
-                                const target = allLessons.find((l) => l.id === rec.targetId);
-                                if (target) selectLesson(target);
-                              } else if (rec.actionType === 'navigate_assignment') {
-                                setActiveTab('assignments');
-                              } else if (rec.actionType === 'open_modal') {
-                                setAchievementsModalOpen(true);
-                              } else {
-                                setActiveTab('assignments');
-                              }
-                            }}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline"
-                          >
-                            <span>{rec.actionText}</span>
-                            <ChevronRight size={13} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Error Banner with Retry */}
-            {error && (
-              <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-                <div className="flex items-center gap-2.5">
-                  <AlertCircle size={18} className="shrink-0 text-red-600" />
-                  <span>{error}</span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setError(null);
-                      setRefreshKey((k) => k + 1);
-                    }}
-                    className="border-red-200 bg-white text-red-800 hover:bg-red-100 text-xs py-1"
-                  >
-                    <RefreshCw size={12} className="mr-1" /> Retry Connection
-                  </Button>
-                  <button onClick={() => setError(null)} aria-label="Dismiss error" className="text-red-400 hover:text-red-700">
-                    <X size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* If Student is not enrolled in any cohort */}
-            {!course.cohort && !loading ? (
-              user && (
-                <EnrollmentPanel
-                  userId={user.id}
-                  userEmail={user.email}
-                  userName={profile?.full_name || user.user_metadata?.full_name}
-                  initialCohortId={targetCohortId || undefined}
-                  autoCheckout={Boolean(searchParams.get('checkout'))}
-                  onEnrolled={() => {
-                    clearPendingCohortCheckout();
-                    setRefreshKey((k) => k + 1);
-                  }}
-                />
-              )
-            ) : (
-              <>
-                {/* Dynamic Sprint High-Priority Notification Banner */}
-                {course.cohort && (
-                  <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 p-4 shadow-2xs">
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm shrink-0">
-                        <Flame size={20} className="animate-pulse" />
-                      </span>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-orange-600">
-                            {totalSprintDays}-Day Internship Track
-                          </span>
-                          <span className="rounded-full bg-orange-200/80 px-2 py-0.2 text-[9px] font-extrabold text-orange-900">
-                            Day {Math.min(totalSprintDays, sprintCompletedCount + 1)} of {totalSprintDays}
-                          </span>
-                        </div>
-                        <p className="text-xs font-black text-slate-900">
-                          {sprintCompletedCount >= totalSprintDays
-                            ? `All ${totalSprintDays} Sprint challenges completed! Awaiting final graduation certification.`
-                            : `Today's production task is live! Complete and submit your deliverable for mentor critique.`}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setActiveTab('internship_sprint');
-                        const p = new URLSearchParams(searchParams);
-                        p.set('tab', 'internship_sprint');
-                        setSearchParams(p);
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 px-3.5 py-2 text-xs font-black text-white shadow-sm transition shrink-0"
-                    >
-                      <span>Open {totalSprintDays}-Day Sprint</span>
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
-                )}
-
-                {/* Workspace Navigation Tabs */}
-                <div className="mb-6 flex overflow-x-auto border-b border-slate-200 text-sm font-bold gap-4 sm:gap-6">
-                  <button
-                    onClick={() => {
-                      setActiveTab('curriculum');
-                      const p = new URLSearchParams(searchParams);
-                      p.delete('tab');
-                      setSearchParams(p);
-                    }}
-                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
-                      activeTab === 'curriculum'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <Play size={16} />
-                    <span>Curriculum &amp; Player</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setActiveTab('internship_sprint');
-                      const p = new URLSearchParams(searchParams);
-                      p.set('tab', 'internship_sprint');
-                      setSearchParams(p);
-                    }}
-                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
-                      activeTab === 'internship_sprint'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <Flame size={16} className={activeTab === 'internship_sprint' ? 'text-orange-500' : 'text-slate-400'} />
-                    <span>Sprint Track</span>
-                    <span className="rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-[10px] font-black">
-                      {sprintCompletedCount}/{totalSprintDays}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setActiveTab('assignments');
-                      const p = new URLSearchParams(searchParams);
-                      p.set('tab', 'assignments');
-                      setSearchParams(p);
-                    }}
-                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
-                      activeTab === 'assignments'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <BookOpen size={16} />
-                    <span>Assignments &amp; Reviews</span>
-                    {unreadFeedbackCount > 0 && (
-                      <span className="flex size-4.5 items-center justify-center rounded-full bg-orange-500 text-[10px] font-black text-white shadow-2xs animate-pulse">
-                        {unreadFeedbackCount}
-                      </span>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setActiveTab('calendar');
-                      const p = new URLSearchParams(searchParams);
-                      p.set('tab', 'calendar');
-                      setSearchParams(p);
-                    }}
-                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
-                      activeTab === 'calendar'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <Calendar size={16} />
-                    <span>Schedule &amp; Deadlines</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setActiveTab('community');
-                      const p = new URLSearchParams(searchParams);
-                      p.set('tab', 'community');
-                      setSearchParams(p);
-                    }}
-                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
-                      activeTab === 'community'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <MessagesSquare size={16} />
-                    <span>Community Board</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setActiveTab('sessions');
-                      const p = new URLSearchParams(searchParams);
-                      p.set('tab', 'sessions');
-                      setSearchParams(p);
-                    }}
-                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
-                      activeTab === 'sessions'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <Radio size={16} />
-                    <span>Live Sessions ({liveSessions.length})</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setActiveTab('announcements');
-                      const p = new URLSearchParams(searchParams);
-                      p.set('tab', 'announcements');
-                      setSearchParams(p);
-                    }}
-                    className={`pb-3 border-b-2 flex items-center gap-2 shrink-0 transition ${
-                      activeTab === 'announcements'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <Megaphone size={16} />
-                    <span>Announcements ({announcements.length})</span>
-                  </button>
-                </div>
-
-                {/* TAB: Dynamic Production Sprint */}
-                {activeTab === 'internship_sprint' && course.cohort && user && (
-                  <SprintChallengeTracker
-                    cohortId={course.cohort.id}
-                    cohortName={course.cohort.name}
-                    userId={user.id}
-                    studentName={profile?.full_name || 'Student'}
-                    sprintDays={sprintDays}
-                    completedCount={sprintCompletedCount}
-                    streakCount={sprintStreak}
-                    overallScore={sprintScore}
-                    totalDays={totalSprintDays}
-                    onRefresh={() => setRefreshKey((k) => k + 1)}
-                  />
-                )}
-
-                {/* TAB 1: Curriculum & Video Player */}
-                {activeTab === 'curriculum' && (
-                  <div>
-                    {loading ? (
-                      <PlayerSkeleton />
-                    ) : selectedLesson ? (
-                      <div>
-                        <LessonPlayer
-                          key={selectedLesson.id}
-                          lesson={selectedLesson}
-                          completed={completedIds.has(selectedLesson.id)}
-                          onToggleComplete={toggleComplete}
-                          prevLesson={prevLesson}
-                          nextLesson={nextLesson}
-                          onSelectLesson={selectLesson}
-                          userId={user?.id}
-                          cohortId={course.cohort?.id}
-                          initialWatchPercentage={
-                            course.progress.find((p) => p.lesson_id === selectedLesson.id)?.watch_percentage ?? 0
-                          }
-                          initialLastPositionSeconds={
-                            course.progress.find((p) => p.lesson_id === selectedLesson.id)?.last_position_seconds ?? 0
-                          }
-                          onWatchProgressUpdate={handleWatchProgress}
-                        />
-                      </div>
-                    ) : (
-                      <EmptyState label="No lessons have been published for this cohort yet." large />
-                    )}
-
-                    {/* Milestone & Dynamic Metric Cards */}
-                    <div className="mt-8 grid gap-4 sm:grid-cols-3">
-                      <StatCard
-                        icon={<BookOpen size={19} />}
-                        label="Lessons completed"
-                        value={`${completedCount}/${allLessons.length}`}
-                      />
-                      <StatCard
-                        icon={<Clock3 size={19} />}
-                        label="Estimated learning time"
-                        value={learningTimeStr}
-                      />
-                      <StatCard
-                        icon={<Sparkles size={19} />}
-                        label="Current daily streak"
-                        value={`${streak} ${streak === 1 ? 'day' : 'days'}`}
-                      />
-                    </div>
-
-                    <MilestonePanel
-                      progressPercent={unifiedProgress ? unifiedProgress.overall.composite_percent : progressPercent}
-                      completedCount={unifiedProgress ? unifiedProgress.overall.completed_milestones : completedCount}
-                      totalLessons={unifiedProgress ? unifiedProgress.overall.total_milestones : allLessons.length}
-                      label={unifiedProgress ? 'program milestones complete' : 'lessons complete'}
-                      onViewCertificate={() => setCertificateModalOpen(true)}
-                      onViewReportCard={() => setReportModalOpen(true)}
-                    />
-                  </div>
-                )}
-
-                {/* TAB 2: Assignments & Proof Loop */}
-                {activeTab === 'assignments' && user && course.cohort && (
-                  <div>
-                    <AssignmentPanel
-                      userId={user.id}
-                      cohortId={course.cohort.id}
-                      onFeedbackRead={refreshSubmissions}
-                    />
-                  </div>
-                )}
-
-                {/* TAB: Schedule & Deadlines Calendar */}
-                {activeTab === 'calendar' && user && (
-                  <div>
-                    <StudentCalendar userId={user.id} cohortId={course.cohort?.id} />
-                  </div>
-                )}
-
-                {/* TAB: Cohort Community Board */}
-                {activeTab === 'community' && user && (
-                  <div>
-                    <CommunityBoard
-                      userId={user.id}
-                      cohortId={course.cohort?.id}
-                    />
-                  </div>
-                )}
-
-                {/* TAB: Live Sessions */}
-                {activeTab === 'sessions' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-500">Live Mentorship</p>
-                        <h2 className="mt-1 text-2xl font-black text-slate-950">Cohort Live Review Sessions</h2>
-                      </div>
-                      <span className="text-xs font-bold text-slate-500">
-                        {liveSessions.length} {liveSessions.length === 1 ? 'Session' : 'Sessions'} Scheduled
-                      </span>
-                    </div>
-
-                    {liveSessions.length ? (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {liveSessions.map((session) => {
-                          const dateObj = new Date(session.starts_at);
-                          const isUpcoming = dateObj.getTime() > nowTimestamp;
-
-                          return (
-                            <div
-                              key={session.id}
-                              className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs hover:border-orange-300 transition"
-                            >
-                              <div>
-                                <div className="flex items-center justify-between gap-2">
-                                  <span
-                                    className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold ${
-                                      isUpcoming
-                                        ? 'bg-orange-50 text-orange-700'
-                                        : 'bg-slate-100 text-slate-600'
-                                    }`}
-                                  >
-                                    <Radio size={12} className={isUpcoming ? 'animate-pulse text-orange-600' : ''} />
-                                    {isUpcoming ? 'Upcoming Live Session' : 'Past Session'}
-                                  </span>
-                                  <span className="text-xs font-semibold text-slate-500">
-                                    {dateObj.toLocaleDateString([], {
-                                      month: 'short',
-                                      day: 'numeric',
-                                      year: 'numeric',
-                                    })}
-                                  </span>
-                                </div>
-
-                                <h3 className="mt-3 text-lg font-black text-slate-950">{session.title}</h3>
-                                <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-                                  {session.description || 'Live timeline review, critique room, and Q&A with mentors.'}
-                                </p>
-
-                                <div className="mt-4 flex items-center gap-2 text-xs font-bold text-slate-700">
-                                  <Calendar size={14} className="text-orange-500" />
-                                  <span>
-                                    {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="mt-6 pt-4 border-t border-slate-100">
-                                <a
-                                  href={session.meeting_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-orange-600"
-                                >
-                                  <span>Join Video Room (Zoom / Meet)</span>
-                                  <ExternalLink size={13} />
-                                </a>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center">
-                        <Radio size={28} className="mx-auto text-slate-300 mb-2" />
-                        <h3 className="text-sm font-black text-slate-900">No Live Sessions Scheduled</h3>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Check back soon! Mentors post weekly critique and Q&amp;A sessions here.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* TAB 4: Student Announcements */}
-                {activeTab === 'announcements' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-500">Studio Dispatch</p>
-                        <h2 className="mt-1 text-2xl font-black text-slate-950">Cohort Announcements</h2>
-                      </div>
-                    </div>
-
-                    {announcements.length ? (
-                      <div className="space-y-4">
-                        {announcements.map((announcement) => (
-                          <div
-                            key={announcement.id}
-                            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs hover:border-slate-300 transition"
-                          >
-                            <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                              <div className="flex items-center gap-2">
-                                <span className="flex size-7 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
-                                  <Megaphone size={14} />
-                                </span>
-                                <div>
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <h3 className="text-base font-black text-slate-950">{announcement.title}</h3>
-                                    {announcement.cohort_id ? (
-                                      <span className="rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
-                                        {allCohorts.find((c) => c.id === announcement.cohort_id)?.name ||
-                                          allCohorts.find((c) => c.id === announcement.cohort_id)?.title ||
-                                          'Cohort Announcement'}
-                                      </span>
-                                    ) : (
-                                      <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                                        Platform Broadcast
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <span className="text-xs font-semibold text-slate-400">
-                                {new Date(announcement.created_at).toLocaleDateString([], {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric',
-                                })}
-                              </span>
-                            </div>
-                            <p className="mt-3 text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">
-                              {announcement.body}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center">
-                        <Megaphone size={28} className="mx-auto text-slate-300 mb-2" />
-                        <h3 className="text-sm font-black text-slate-900">No Announcements Yet</h3>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Instructors and mentors will broadcast milestones, updates, and reminders here.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </main>
-      </div>
-    </div>
-  )}
-
-  {/* Level Up Modal */}
-  {levelUpModalOpen && (
-    <LevelUpModal
-      isOpen={levelUpModalOpen}
-      onClose={() => setLevelUpModalOpen(false)}
-    />
-  )}
-
-  {/* Workshops Modal */}
-  {workshopsModalOpen && (
-    <WorkshopsModal
-      isOpen={workshopsModalOpen}
-      onClose={() => setWorkshopsModalOpen(false)}
-    />
-  )}
-
-  {/* Cohort Discovery / Switcher Modal */}
-  {user && (
-    <CohortDiscoveryModal
-      userId={user.id}
-      userEmail={user.email}
-      userName={profile?.full_name || user.user_metadata?.full_name}
-      isOpen={discoveryModalOpen}
-      onClose={() => setDiscoveryModalOpen(false)}
-      currentCohortId={course.cohort?.id}
-      onSelectCohort={(cohortId) => {
-        setSelectedCohortId(cohortId);
-        setRefreshKey((k) => k + 1);
-      }}
-    />
-  )}
-
-      {/* Certificate Modal */}
-      {user && course.cohort && (
-        <CertificateModal
-          isOpen={certificateModalOpen}
-          onClose={() => setCertificateModalOpen(false)}
-          studentName={profile?.full_name || 'Student'}
-          cohortName={course.cohort.name}
-          cohortId={course.cohort.id}
-          studentId={user.id}
-        />
-      )}
-
-      {/* Formal Internship Report Card Modal */}
-      {user && course.cohort && (
-        <InternshipReportModal
-          isOpen={reportModalOpen}
-          onClose={() => setReportModalOpen(false)}
-          cohortId={course.cohort.id}
-          cohortName={course.cohort.name}
-          studentId={user.id}
-          studentName={profile?.full_name || 'Student'}
-          canEdit={false}
-        />
-      )}
+        {reportModalOpen && user && dashboard.course.cohort && (
+          <InternshipReportModal
+            isOpen={reportModalOpen}
+            onClose={() => setReportModalOpen(false)}
+            cohortId={dashboard.course.cohort.id}
+            cohortName={dashboard.course.cohort.name}
+            studentId={user.id}
+            studentName={profile?.full_name || 'Student'}
+            canEdit={false}
+          />
+        )}
+      </Suspense>
 
       {/* Engagement & Watch Progress Warning Modal */}
-      {engagementAlert && (
+      {dashboard.engagementAlert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 text-left">
             <div className="flex items-center gap-3 text-amber-600 mb-3">
@@ -2107,135 +348,16 @@ export function StudentDashboard() {
                 <Lock size={20} />
               </div>
               <div>
-                <h3 className="text-base font-black text-slate-950">{engagementAlert.title}</h3>
+                <h3 className="text-base font-black text-slate-950">{dashboard.engagementAlert.title}</h3>
                 <p className="text-[11px] font-bold text-amber-700">Watch Verification Required</p>
               </div>
             </div>
             <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-              {engagementAlert.message}
+              {dashboard.engagementAlert.message}
             </p>
             <div className="mt-5 flex justify-end">
-              <Button variant="primary" size="sm" onClick={() => setEngagementAlert(null)}>
+              <Button variant="primary" size="sm" onClick={() => dashboard.setEngagementAlert(null)}>
                 Understood, Continue Watching
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Level Up Progression & Milestone Achievements Modal */}
-      {achievementsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto text-left">
-            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md">
-                  <Trophy size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-950">
-                    Level {gamification.level}: {gamification.tierTitle}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Challenge progression milestones &amp; master editor achievements.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setAchievementsModalOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Level XP Progress Bar */}
-            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-              <div className="flex items-center justify-between text-xs font-bold text-amber-950 mb-2">
-                <span>XP Progression</span>
-                <span>
-                  {gamification.totalXp} / {gamification.nextLevelXp || 'Max'} XP
-                </span>
-              </div>
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-amber-200/70">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500"
-                  style={{
-                    width: `${gamification.progressPercent}%`,
-                  }}
-                />
-              </div>
-              <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-600">
-                <span>
-                  Next Rank:{' '}
-                  <strong>
-                    {gamification.level >= 5
-                      ? 'Master Lead Editor (Max Level)'
-                      : `Level ${gamification.level + 1} • ${gamification.nextTierTitle}`}
-                  </strong>
-                </span>
-                <span>
-                  {gamification.nextLevelXp && gamification.totalXp < gamification.nextLevelXp
-                    ? `${gamification.nextLevelXp - gamification.totalXp} XP to next level`
-                    : 'Max rank achieved!'}
-                </span>
-              </div>
-            </div>
-
-            {/* Milestone Badges Grid */}
-            <div className="mt-6">
-              <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-3">
-                Milestone Badges ({gamification.badges.filter((b) => b.unlocked).length} of{' '}
-                {gamification.badges.length} Unlocked)
-              </h4>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {gamification.badges.map((badge) => (
-                  <div
-                    key={badge.id}
-                    className={`flex items-start gap-3 rounded-xl border p-3.5 transition ${
-                      badge.unlocked
-                        ? 'border-amber-200 bg-gradient-to-br from-amber-50/50 to-white text-slate-900 shadow-2xs'
-                        : 'border-slate-200 bg-slate-50/60 opacity-60'
-                    }`}
-                  >
-                    <div
-                      className={`flex size-9 shrink-0 items-center justify-center rounded-xl text-base ${
-                        badge.unlocked ? 'bg-amber-100' : 'bg-slate-200'
-                      }`}
-                    >
-                      {badge.category === 'craft' ? (
-                        <Award size={18} className="text-amber-600" />
-                      ) : badge.category === 'consistency' ? (
-                        <Flame size={18} className="text-orange-500" />
-                      ) : badge.category === 'timeline' ? (
-                        <Layers size={18} className="text-blue-500" />
-                      ) : (
-                        <Sparkles size={18} className="text-purple-500" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <h5 className="text-xs font-bold text-slate-950 truncate">{badge.name}</h5>
-                        {badge.unlocked ? (
-                          <span className="rounded bg-emerald-100 px-1.5 py-0.2 text-[9px] font-black text-emerald-800 uppercase">
-                            Unlocked
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-0.5 text-[9px] font-bold text-slate-400">
-                            <Lock size={9} /> Locked
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-0.5 text-[11px] text-slate-500 leading-snug">{badge.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
-              <Button size="sm" variant="secondary" onClick={() => setAchievementsModalOpen(false)}>
-                Close
               </Button>
             </div>
           </div>
@@ -2247,8 +369,8 @@ export function StudentDashboard() {
         <WhatsAppSupportWidget
           userId={user.id}
           studentName={profile?.full_name || 'Student'}
-          cohortName={course.cohort?.name}
-          currentDay={Math.min(totalSprintDays, sprintCompletedCount + 1)}
+          cohortName={dashboard.course.cohort?.name}
+          currentDay={Math.min(dashboard.totalSprintDays, dashboard.sprintCompletedCount + 1)}
           initialPhone={profile?.whatsapp_number || ''}
         />
       )}
@@ -2256,793 +378,4 @@ export function StudentDashboard() {
   );
 }
 
-// Enhanced Video Player & Resource Manager
-interface LessonPlayerProps {
-  lesson: Lesson;
-  completed: boolean;
-  onToggleComplete: () => void;
-  prevLesson: Lesson | null;
-  nextLesson: Lesson | null;
-  onSelectLesson: (lesson: Lesson) => void;
-  userId?: string;
-  cohortId?: string | null;
-  initialWatchPercentage?: number;
-  initialLastPositionSeconds?: number;
-  onWatchProgressUpdate?: (lessonId: string, watchPercentage: number, autoCompleted: boolean) => void;
-}
-
-export function LessonPlayer({
-  lesson,
-  completed,
-  onToggleComplete,
-  prevLesson,
-  nextLesson,
-  onSelectLesson,
-  userId,
-  cohortId,
-  initialWatchPercentage = 0,
-  initialLastPositionSeconds = 0,
-  onWatchProgressUpdate,
-}: LessonPlayerProps) {
-  const toast = useToast();
-  const [activeTab, setActiveTab] = useState<'overview' | 'resources' | 'notes' | 'discussion'>('overview');
-  const [resources, setResources] = useState<LessonResource[]>([]);
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
-  const [watchPercentage, setWatchPercentage] = useState<number>(initialWatchPercentage);
-  const [downloadingResourceId, setDownloadingResourceId] = useState<string | null>(null);
-  const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(lesson.video_url);
-  const [showResumePrompt, setShowResumePrompt] = useState<boolean>(
-    () => initialLastPositionSeconds > 10 && !completed
-  );
-  const [isRefreshingStream, setIsRefreshingStream] = useState<boolean>(false);
-  const [streamError, setStreamError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const lastSyncTimeRef = useRef<number>(0);
-  const lastKnownTimeRef = useRef<number>(initialLastPositionSeconds || 0);
-  const signedAtRef = useRef<number>(Date.now());
-  const isRefreshingRef = useRef<boolean>(false);
-  const refreshAttemptsRef = useRef<number>(0);
-  const wasPlayingRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    setStreamError(null);
-    refreshAttemptsRef.current = 0;
-
-    if (!lesson.video_url) {
-      setResolvedVideoUrl(null);
-      return;
-    }
-    if (isSecurableAsset(lesson.video_url)) {
-      void getSecureAssetUrl(lesson.video_url)
-        .then((signed) => {
-          if (isMounted) {
-            signedAtRef.current = Date.now();
-            setResolvedVideoUrl(signed);
-          }
-        })
-        .catch((err) => {
-          if (isMounted) {
-            console.error('Initial secure asset resolution error:', err);
-            setStreamError('Could not authorize video stream access. Please refresh.');
-          }
-        });
-    } else {
-      setResolvedVideoUrl(lesson.video_url);
-    }
-    return () => {
-      isMounted = false;
-    };
-  }, [lesson.video_url]);
-
-  const videoMeta = parseVideoUrl(resolvedVideoUrl);
-
-  const refreshSignedUrl = useCallback(
-    async (resumeAt?: number, autoResume = true) => {
-      if (!lesson.video_url) return;
-      if (isRefreshingRef.current) return;
-      isRefreshingRef.current = true;
-      setIsRefreshingStream(true);
-
-      const targetPos =
-        resumeAt !== undefined
-          ? resumeAt
-          : videoRef.current
-          ? videoRef.current.currentTime
-          : lastKnownTimeRef.current;
-
-      try {
-        const freshSignedUrl = await getSecureAssetUrl(lesson.video_url, 3600);
-        signedAtRef.current = Date.now();
-        setResolvedVideoUrl(freshSignedUrl);
-        setStreamError(null);
-
-        if (videoRef.current) {
-          const vid = videoRef.current;
-          if (vid.src !== freshSignedUrl) {
-            vid.src = freshSignedUrl;
-          }
-          vid.load();
-
-          const restorePlayback = () => {
-            if (targetPos > 0) {
-              try {
-                vid.currentTime = targetPos;
-              } catch {
-                // Ignore if media not seekable yet
-              }
-            }
-            if (autoResume) {
-              vid.play().catch(() => {});
-            }
-          };
-
-          if (vid.readyState >= 1) {
-            restorePlayback();
-          } else {
-            vid.addEventListener('loadedmetadata', restorePlayback, { once: true });
-            vid.addEventListener('canplay', restorePlayback, { once: true });
-          }
-        }
-
-        toast.info('Video stream re-authenticated. Resuming playback...', 'Stream Renewed');
-      } catch (err: unknown) {
-        console.error('Failed to renew video signed URL:', err);
-        setStreamError('Playback session expired or chunk fetch failed (HTTP 403). Click below to reconnect.');
-      } finally {
-        isRefreshingRef.current = false;
-        setIsRefreshingStream(false);
-      }
-    },
-    [lesson.video_url, toast]
-  );
-
-  const handleVideoError = useCallback(async () => {
-    if (isRefreshingRef.current) return;
-
-    const currentVideo = videoRef.current;
-    const currentSrc = currentVideo?.src || resolvedVideoUrl || '';
-    const currentPos = currentVideo?.currentTime || lastKnownTimeRef.current;
-
-    const isSecurable = isSecurableAsset(lesson.video_url) || isSecurableAsset(currentSrc);
-    if (!isSecurable) {
-      setStreamError('Video could not be loaded. Please check your network connection.');
-      return;
-    }
-
-    if (refreshAttemptsRef.current >= 3) {
-      setStreamError('Playback session expired (HTTP 403) and auto-recovery failed. Click below to reconnect.');
-      return;
-    }
-
-    refreshAttemptsRef.current += 1;
-
-    // Check if chunk / range request returns 403 Forbidden
-    let is403 = false;
-    try {
-      if (currentSrc && (currentSrc.startsWith('http://') || currentSrc.startsWith('https://'))) {
-        const probeRes = await fetch(currentSrc, {
-          method: 'GET',
-          headers: { Range: 'bytes=0-0' },
-        });
-        if (probeRes.status === 403 || probeRes.status === 401) {
-          is403 = true;
-        }
-      }
-    } catch {
-      // In case of CORS or network error on probe, still attempt recovery for securable assets
-      is403 = true;
-    }
-
-    const elapsedMs = Date.now() - signedAtRef.current;
-    const isExpired = elapsedMs > 50 * 60 * 1000;
-
-    if (is403 || isExpired || isSecurable) {
-      await refreshSignedUrl(currentPos, wasPlayingRef.current || true);
-    }
-  }, [lesson.video_url, resolvedVideoUrl, refreshSignedUrl]);
-
-  const handlePlay = () => {
-    wasPlayingRef.current = true;
-    setStreamError(null);
-    const isSecurable = isSecurableAsset(lesson.video_url) || isSecurableAsset(resolvedVideoUrl);
-    // If paused for > 50 mins, proactively refresh before chunk request fails with 403
-    if (isSecurable && Date.now() - signedAtRef.current > 50 * 60 * 1000) {
-      const cur = videoRef.current ? videoRef.current.currentTime : lastKnownTimeRef.current;
-      void refreshSignedUrl(cur, true);
-    }
-  };
-
-  const handlePause = () => {
-    wasPlayingRef.current = false;
-    if (videoRef.current) {
-      lastKnownTimeRef.current = videoRef.current.currentTime;
-    }
-  };
-
-  const handlePlaying = () => {
-    refreshAttemptsRef.current = 0;
-    setStreamError(null);
-  };
-
-  const handleDownloadResource = async (resource: LessonResource) => {
-    setDownloadingResourceId(resource.id);
-    try {
-      const secureUrl = await getLessonResourceDownloadUrl(resource.id, resource.url);
-      if (!secureUrl) throw new Error('Could not resolve download link.');
-      window.open(secureUrl, '_blank', 'noopener,noreferrer');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to download resource.';
-      if (message.includes('LOCKED_RESOURCE')) {
-        toast.error('Mark this lesson complete first to unlock this download.');
-      } else if (message.includes('UNAUTHORIZED')) {
-        toast.error('You must be actively enrolled in this cohort to download this file.');
-      } else {
-        toast.error(message, 'Download Failed');
-      }
-    } finally {
-      setDownloadingResourceId(null);
-    }
-  };
-
-  const tabs = [
-    { id: 'overview' as const, label: 'Overview' },
-    { id: 'resources' as const, label: `Downloads & Resources (${resources.length})` },
-    { id: 'notes' as const, label: 'Timeline Notes' },
-    { id: 'discussion' as const, label: 'Lesson Q&A & Discussion' },
-  ];
-
-  useEffect(() => {
-    void listLessonResources(lesson.id).then(setResources);
-  }, [lesson.id]);
-
-  const handleSpeedChange = (speed: number) => {
-    setPlaybackSpeed(speed);
-    if (videoRef.current) {
-      videoRef.current.playbackRate = speed;
-    }
-  };
-
-  const syncWatchProgress = (pct: number, currentTime: number) => {
-    if (!userId) return;
-    const isAutoCompleted = pct >= 80;
-    void updateLessonWatchProgress(userId, lesson.id, pct, currentTime, playbackSpeed);
-    if (onWatchProgressUpdate) {
-      onWatchProgressUpdate(lesson.id, pct, isAutoCompleted);
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    if (!videoRef.current) return;
-    const cur = videoRef.current.currentTime;
-    lastKnownTimeRef.current = cur;
-    const dur = videoRef.current.duration;
-    if (!dur || isNaN(dur)) return;
-
-    const pct = Math.min(100, Math.round((cur / dur) * 100));
-    if (pct > watchPercentage) {
-      setWatchPercentage(pct);
-    }
-
-    const now = Date.now();
-    if (now - lastSyncTimeRef.current > 5000 || (pct >= 80 && watchPercentage < 80)) {
-      lastSyncTimeRef.current = now;
-      syncWatchProgress(Math.max(watchPercentage, pct), cur);
-    }
-  };
-
-  const handleEnded = () => {
-    setWatchPercentage(100);
-    if (videoRef.current) {
-      syncWatchProgress(100, videoRef.current.duration || 0);
-    }
-  };
-
-  const handleResumePlayback = () => {
-    if (videoRef.current && initialLastPositionSeconds > 0) {
-      videoRef.current.currentTime = initialLastPositionSeconds;
-      lastKnownTimeRef.current = initialLastPositionSeconds;
-      void videoRef.current.play().catch(() => {});
-    }
-    setShowResumePrompt(false);
-  };
-
-  return (
-    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-950/5">
-      {/* Video Display Container */}
-      <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
-        {/* Floating Resume Playback Prompt */}
-        {showResumePrompt && initialLastPositionSeconds > 0 && (
-          <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900/90 p-3.5 text-white backdrop-blur-md border border-white/10 shadow-2xl">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-7 items-center justify-center rounded-lg bg-orange-500 text-white shadow-xs">
-                <Play size={13} fill="currentColor" />
-              </span>
-              <div>
-                <p className="text-xs font-bold">
-                  Resume playback from {Math.floor(initialLastPositionSeconds / 60)}:
-                  {String(Math.floor(initialLastPositionSeconds % 60)).padStart(2, '0')}?
-                </p>
-                <p className="text-[10px] text-slate-300">
-                  Pick up where you left off during your last editing session.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleResumePlayback}
-                className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600 transition shadow-2xs"
-              >
-                Resume ({Math.floor(initialLastPositionSeconds / 60)}:{String(Math.floor(initialLastPositionSeconds % 60)).padStart(2, '0')})
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowResumePrompt(false)}
-                className="rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition"
-              >
-                Start Over
-              </button>
-            </div>
-          </div>
-        )}
-
-        {videoMeta.type === 'embed' ? (
-          <iframe
-            src={videoMeta.embedUrl!}
-            title={lesson.title}
-            className="absolute inset-0 size-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
-        ) : videoMeta.type === 'video' ? (
-          <>
-            <video
-              ref={videoRef}
-              key={lesson.id}
-              className="absolute inset-0 size-full object-contain bg-black"
-              controls
-              src={videoMeta.directUrl!}
-              onTimeUpdate={handleTimeUpdate}
-              onEnded={handleEnded}
-              onError={handleVideoError}
-              onPlay={handlePlay}
-              onPause={handlePause}
-              onPlaying={handlePlaying}
-            />
-
-            {/* In-place Re-authenticating / Refreshing Overlay */}
-            {isRefreshingStream && !streamError && (
-              <div
-                data-testid="video-reauthenticating-overlay"
-                className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/75 backdrop-blur-xs text-white"
-              >
-                <RefreshCw size={28} className="animate-spin text-orange-400 mb-2" />
-                <p className="text-xs font-semibold text-slate-200">Re-authenticating secure stream...</p>
-                <p className="text-[11px] text-slate-400">
-                  Restoring playback from your last position...
-                </p>
-              </div>
-            )}
-
-            {/* Stream Error / Reconnect Fallback UI */}
-            {streamError && (
-              <div
-                data-testid="video-stream-error-overlay"
-                className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 p-6 text-center backdrop-blur-sm"
-              >
-                <div className="flex size-14 items-center justify-center rounded-2xl bg-orange-500/20 text-orange-400 mb-3">
-                  <RefreshCw size={24} className={isRefreshingStream ? 'animate-spin' : ''} />
-                </div>
-                <h4 className="text-base font-bold text-white">Playback Interrupted</h4>
-                <p className="mt-1 text-xs text-slate-300 max-w-sm mb-4">
-                  {streamError}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    refreshAttemptsRef.current = 0;
-                    void refreshSignedUrl(lastKnownTimeRef.current, true);
-                  }}
-                  disabled={isRefreshingStream}
-                  className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white hover:bg-orange-600 transition shadow-lg disabled:opacity-50"
-                >
-                  <RefreshCw size={14} className={isRefreshingStream ? 'animate-spin' : ''} />
-                  {isRefreshingStream ? 'Renewing Access...' : 'Reconnect Video Stream'}
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-orange-950/40 p-6 text-center">
-            <div className="flex size-16 items-center justify-center rounded-2xl bg-white/10 text-orange-400 backdrop-blur-md shadow-2xl mb-3">
-              <Play size={28} fill="currentColor" className="ml-1" />
-            </div>
-            <h4 className="text-sm font-bold text-white">Video Lesson Stream</h4>
-            <p className="mt-1 text-xs text-slate-400 max-w-sm">
-              Source timeline or lesson video is being finalized by instructor.
-            </p>
-          </div>
-        )}
-
-        {/* Video Overlays */}
-        <div className="pointer-events-none absolute top-4 left-4">
-          <span className="rounded-md bg-black/60 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
-            Lesson {lesson.position}
-          </span>
-        </div>
-
-        {lesson.duration_minutes && (
-          <div className="pointer-events-none absolute top-4 right-4">
-            <span className="rounded-md bg-black/60 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
-              {lesson.duration_minutes} mins
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Video Watch Progress & Controls Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-2.5 text-xs">
-        <div className="flex items-center gap-3">
-          <span className="font-bold text-slate-700 flex items-center gap-1.5">
-            <Clock3 size={13} className="text-orange-500" />
-            Watch Progress:
-          </span>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-28 sm:w-44 overflow-hidden rounded-full bg-slate-200">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  watchPercentage >= 80 || completed ? 'bg-emerald-500' : 'bg-orange-500'
-                }`}
-                style={{ width: `${Math.max(watchPercentage, completed ? 100 : 0)}%` }}
-              />
-            </div>
-            <span className="font-mono font-bold text-slate-700">
-              {Math.max(watchPercentage, completed ? 100 : 0)}%
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-500 hidden sm:inline">
-            {watchPercentage >= 80 || completed ? (
-              <span className="font-bold text-emerald-600">✓ Completed (≥80% watched)</span>
-            ) : (
-              <span>(80% required to verify)</span>
-            )}
-          </span>
-        </div>
-
-        {videoMeta.type === 'video' && (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 font-bold text-slate-600">
-              <Gauge size={13} className="text-orange-500" />
-              <span>Speed:</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {[0.75, 1, 1.25, 1.5, 2].map((speed) => (
-                <button
-                  key={speed}
-                  onClick={() => handleSpeedChange(speed)}
-                  className={`rounded-md px-2 py-0.5 font-bold transition text-[11px] ${
-                    playbackSpeed === speed
-                      ? 'bg-orange-500 text-white shadow-2xs'
-                      : 'bg-white text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {speed}x
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Lesson Details & Prev/Next Controls */}
-      <div className="p-6 sm:p-8">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-          <div className="flex-1">
-            <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-orange-500">Active Lesson</p>
-            <h2 className="text-2xl font-black tracking-tight text-slate-950">{lesson.title}</h2>
-            <p className="mt-2 text-xs sm:text-sm leading-6 text-slate-600">
-              {lesson.description ??
-                'Sharpen your editing reflexes, storytelling pace, and master the technical timeline craft.'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {(() => {
-              const hasVideo = Boolean(lesson.video_url && lesson.video_url.trim().length > 0);
-              const isLocked = !completed && hasVideo && watchPercentage < 80;
-
-              return (
-                <button
-                  onClick={onToggleComplete}
-                  disabled={isLocked}
-                  title={
-                    isLocked
-                      ? `Watch at least 80% to mark complete (currently ${watchPercentage}%)`
-                      : completed
-                      ? 'Click to toggle incomplete'
-                      : 'Mark lesson as complete'
-                  }
-                  className={`rounded-xl px-4 py-2.5 text-xs font-bold transition shadow-xs ${
-                    completed
-                      ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                      : isLocked
-                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                      : 'bg-slate-950 text-white hover:bg-orange-600'
-                  }`}
-                >
-                  {completed ? (
-                    <span className="flex items-center gap-1.5">
-                      <Check size={15} /> Completed
-                    </span>
-                  ) : isLocked ? (
-                    <span className="flex items-center gap-1.5">
-                      <Lock size={13} className="text-slate-400" /> Watch 80% to Complete ({watchPercentage}%)
-                    </span>
-                  ) : (
-                    'Mark as Complete'
-                  )}
-                </button>
-              );
-            })()}
-          </div>
-        </div>
-
-        {/* Prev / Next Lesson Navigation Buttons */}
-        <div className="mt-6 flex items-center justify-between border-y border-slate-100 py-3 text-xs font-bold">
-          {prevLesson ? (
-            <button
-              onClick={() => onSelectLesson(prevLesson)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-            >
-              <ChevronLeft size={16} />
-              <span className="hidden sm:inline">Previous:</span> {prevLesson.title}
-            </button>
-          ) : (
-            <div />
-          )}
-
-          {nextLesson ? (
-            <button
-              onClick={() => onSelectLesson(nextLesson)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 px-3 py-1.5 text-orange-700 hover:bg-orange-100 transition"
-            >
-              <span className="hidden sm:inline">Next:</span> {nextLesson.title}
-              <ChevronRight size={16} />
-            </button>
-          ) : (
-            <div />
-          )}
-        </div>
-
-        {/* Tabs */}
-        <div className="mt-6 flex gap-6 border-b border-slate-100 text-xs sm:text-sm font-bold">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`${
-                activeTab === tab.id
-                  ? 'border-b-2 border-orange-500 text-orange-600'
-                  : 'text-slate-400 hover:text-slate-700'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        <div className="min-h-24 pt-5 text-xs sm:text-sm leading-relaxed text-slate-600">
-          {activeTab === 'overview' && (
-            <div className="space-y-3">
-              <p>
-                Watch the complete demonstration, apply the key cutting and pacing concepts in your timeline, and mark the
-                lesson complete to track your streak.
-              </p>
-              <p className="text-slate-500">
-                Completing this lesson also automatically unlocks restricted downloadable resources and sample project
-                files attached below.
-              </p>
-            </div>
-          )}
-
-          {activeTab === 'resources' && (
-            <div>
-              {resources.length ? (
-                <div className="space-y-3">
-                  {resources.map((resource) => {
-                    const isLocked = resource.visibility === 'after_completion' && !completed;
-
-                    if (isLocked) {
-                      return (
-                        <div
-                          key={resource.id}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 transition"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-                              <Lock size={16} />
-                            </div>
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <strong className="text-xs sm:text-sm font-bold text-slate-900">{resource.name}</strong>
-                                <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                                  Locked Resource
-                                </span>
-                                {resource.file_size && (
-                                  <span className="text-[10px] text-slate-400">
-                                    ({formatFileSize(resource.file_size)})
-                                  </span>
-                                )}
-                              </div>
-                              <p className="mt-1 text-xs text-amber-700">
-                                Mark this lesson as complete to unlock this download (e.g. project files, source media, or LUTs).
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={onToggleComplete}
-                            className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 shadow-2xs hover:bg-amber-100"
-                          >
-                            Mark complete to unlock
-                          </button>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div
-                        key={resource.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-orange-300"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-                            {getStudentResourceIcon(resource.resource_type)}
-                          </div>
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <strong className="text-xs sm:text-sm font-bold text-slate-900">{resource.name}</strong>
-                              {resource.visibility === 'after_completion' && (
-                                <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                                  ✓ Unlocked
-                                </span>
-                              )}
-                              {resource.visibility === 'public' && (
-                                <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                                  Public Preview
-                                </span>
-                              )}
-                              {resource.file_size && (
-                                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                                  {formatFileSize(resource.file_size)}
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-0.5 text-[11px] capitalize text-slate-400">
-                              {resource.resource_type ? resource.resource_type.replace('_', ' ') : 'Downloadable Asset'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={downloadingResourceId === resource.id}
-                          onClick={() => void handleDownloadResource(resource)}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-orange-600 disabled:opacity-60 cursor-pointer"
-                        >
-                          {downloadingResourceId === resource.id ? (
-                            <>
-                              <span className="inline-block animate-spin text-[10px]">⏳</span>
-                              <span>Resolving link...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>Download / Open</span>
-                              <ExternalLink size={13} />
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-slate-400">No downloadable resources attached to this lesson.</p>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'notes' && (
-            <div className="space-y-3">
-              <p>
-                Keep a dedicated notebook or editing journal to jot down timecodes, audio transition notes, and shortcut
-                combinations demonstrated in this lesson.
-              </p>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs">
-                <strong className="block font-bold text-slate-800 mb-1">Editor Pro-Tip:</strong>
-                Always cut on subject action or kinetic eye-movement to disguise hard transitions and maintain viewer focus.
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'discussion' && (
-            <div className="pt-2">
-              <CommunityBoard
-                userId={userId || ''}
-                cohortId={cohortId}
-                lessonId={lesson.id}
-                isInlineLesson
-              />
-            </div>
-          )}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function getStudentResourceIcon(type?: string) {
-  switch (type) {
-    case 'video':
-      return <Video size={16} className="text-emerald-500" />;
-    case 'pdf':
-      return <FileText size={16} className="text-red-500" />;
-    case 'document':
-      return <FileText size={16} className="text-blue-500" />;
-    case 'image':
-      return <ImageIcon size={16} className="text-purple-500" />;
-    case 'project_file':
-      return <FileArchive size={16} className="text-orange-500" />;
-    default:
-      return <FileText size={16} className="text-slate-500" />;
-  }
-}
-
-function StatCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
-      <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
-        {icon}
-      </div>
-      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="mt-1 text-xl font-black text-slate-950">{value}</p>
-    </div>
-  );
-}
-
-function EmptyState({ label, large = false }: { label: string; large?: boolean }) {
-  return (
-    <div className={`rounded-2xl border border-dashed border-slate-300 bg-white text-center ${large ? 'px-6 py-24' : 'px-4 py-8'}`}>
-      <BookOpen className="mx-auto mb-3 text-slate-300" size={large ? 30 : 22} />
-      <p className="mx-auto max-w-xs text-xs sm:text-sm text-slate-500">{label}</p>
-    </div>
-  );
-}
-
-function SidebarSkeleton() {
-  return (
-    <div className="space-y-4">
-      {[1, 2, 3].map((item) => (
-        <div key={item} className="space-y-2">
-          <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
-          <div className="h-10 animate-pulse rounded-xl bg-slate-50" />
-          <div className="h-10 animate-pulse rounded-xl bg-slate-50" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function PlayerSkeleton() {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <div className="aspect-video animate-pulse bg-slate-200" />
-      <div className="space-y-4 p-8">
-        <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
-        <div className="h-8 w-2/3 animate-pulse rounded bg-slate-100" />
-        <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
-      </div>
-    </div>
-  );
-}
+export default StudentDashboard;

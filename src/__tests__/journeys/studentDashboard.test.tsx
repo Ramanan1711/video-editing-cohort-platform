@@ -119,6 +119,7 @@ vi.mock('../../lib/courseService', () => ({
   calculateLearningTime: vi.fn().mockReturnValue('0h 0m'),
   calculateStreak: vi.fn().mockReturnValue(1),
   formatFileSize: vi.fn().mockReturnValue('10 MB'),
+  getStudentUnifiedProgress: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('../../lib/gamificationService', () => ({
