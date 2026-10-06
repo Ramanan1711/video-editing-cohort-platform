@@ -39,6 +39,7 @@ import {
   addFeedbackReply,
   listFeedbackReplies,
   markFeedbackRead,
+  getStudentCourseData,
 } from '../../lib/courseService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -2047,6 +2048,144 @@ describe('Course Service: Enrollment, Lesson Verification & Submissions', () => 
           student_read_at: expect.any(String),
         })
       );
+    });
+  });
+
+  describe('getStudentCourseData Scoped Lesson Progress Queries', () => {
+    it('scopes lesson_progress query with .in(lesson_id, targetLessonIds) matching the target cohort lessons', async () => {
+      const mockEnrollments = [{ cohort_id: 'c1', status: 'enrolled', created_at: '2026-01-01' }];
+      const mockCohorts = [{ id: 'c1', title: 'Batch 15', description: 'Video Editing' }];
+      const mockModules = [
+        {
+          id: 'm1',
+          cohort_id: 'c1',
+          title: 'Module 1',
+          position: 1,
+          status: 'published',
+          lessons: [
+            { id: 'l1', module_id: 'm1', title: 'L1', position: 1, duration_minutes: 10 },
+            { id: 'l2', module_id: 'm1', title: 'L2', position: 2, duration_minutes: 15 },
+          ],
+        },
+      ];
+      const mockProgress = [
+        { lesson_id: 'l1', completed: true, completed_at: '2026-01-02', watch_percentage: 100, last_position_seconds: 600 },
+      ];
+
+      const inLessonProgressMock = vi.fn().mockResolvedValue({ data: mockProgress, error: null });
+      const eqLessonProgressMock = vi.fn().mockReturnValue({ in: inLessonProgressMock });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockReturnValue({
+                  order: vi.fn().mockResolvedValue({ data: mockEnrollments, error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: mockCohorts, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'modules') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: mockModules, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'lesson_progress') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: eqLessonProgressMock,
+            }),
+          };
+        }
+        return {};
+      });
+
+      const res = await getStudentCourseData('user-uuid-1', 'c1');
+
+      expect(res.cohort?.id).toBe('c1');
+      expect(res.modules.length).toBe(1);
+      expect(res.modules[0].lessons.length).toBe(2);
+      expect(res.progress).toEqual(mockProgress);
+
+      // Verify lesson_progress query was scoped to target cohort's lesson IDs ['l1', 'l2']
+      expect(eqLessonProgressMock).toHaveBeenCalledWith('user_id', 'user-uuid-1');
+      expect(inLessonProgressMock).toHaveBeenCalledWith('lesson_id', ['l1', 'l2']);
+    });
+
+    it('skips querying lesson_progress when the target cohort contains zero lessons', async () => {
+      const mockEnrollments = [{ cohort_id: 'c1', status: 'enrolled', created_at: '2026-01-01' }];
+      const mockCohorts = [{ id: 'c1', title: 'Empty Batch', description: 'No lessons yet' }];
+      const mockModules = [
+        {
+          id: 'm1',
+          cohort_id: 'c1',
+          title: 'Empty Module',
+          position: 1,
+          status: 'published',
+          lessons: [],
+        },
+      ];
+
+      const lessonProgressSelectMock = vi.fn();
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockReturnValue({
+                  order: vi.fn().mockResolvedValue({ data: mockEnrollments, error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: mockCohorts, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'modules') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: mockModules, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'lesson_progress') {
+          return {
+            select: lessonProgressSelectMock,
+          };
+        }
+        return {};
+      });
+
+      const res = await getStudentCourseData('user-uuid-1', 'c1');
+
+      expect(res.progress).toEqual([]);
+      // Should not query lesson_progress if there are 0 lessons
+      expect(lessonProgressSelectMock).not.toHaveBeenCalled();
     });
   });
 });

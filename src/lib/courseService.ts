@@ -469,40 +469,76 @@ export async function getStudentCourseData(userId: string, cohortId?: string): P
     return { cohort: null, modules: [], progress: [], enrolledCohorts };
   }
 
-  let progressData: LessonProgress[];
-  const [{ data: rawModules, error: modulesError }, { data: rawProgress, error: progressError }] = await Promise.all([
-    supabase.from('modules').select(courseSelect).eq('cohort_id', targetCohort.id).order('position', { ascending: true }),
-    supabase.from('lesson_progress').select('lesson_id, completed, completed_at, watch_percentage, last_position_seconds').eq('user_id', userId),
-  ]);
+  // 1. Fetch modules and lessons for the target cohort
+  let modules: Module[];
+  const { data: rawModules, error: modulesError } = await supabase
+    .from('modules')
+    .select(courseSelect)
+    .eq('cohort_id', targetCohort.id)
+    .order('position', { ascending: true });
 
-  if (progressError && (progressError.message.includes('watch_percentage') || progressError.message.includes('last_position_seconds'))) {
-    const { data: fallbackProgress } = await supabase
-      .from('lesson_progress')
-      .select('lesson_id, completed, completed_at')
-      .eq('user_id', userId);
-    progressData = (fallbackProgress ?? []) as LessonProgress[];
-  } else if (progressError) {
-    throw progressError;
-  } else {
-    progressData = (rawProgress ?? []) as LessonProgress[];
-  }
-
-  let modules: Module[] | null = (rawModules ?? []) as Module[];
   if (modulesError) {
-    const fallbackRes = await supabase.from('modules').select(courseSelectLegacy).eq('cohort_id', targetCohort.id).order('position', { ascending: true });
+    const fallbackRes = await supabase
+      .from('modules')
+      .select(courseSelectLegacy)
+      .eq('cohort_id', targetCohort.id)
+      .order('position', { ascending: true });
     if (fallbackRes.error) throw modulesError;
     modules = ((fallbackRes.data ?? []) as unknown as Module[]).map((m) => ({
       ...m,
       lessons: (m.lessons || []).map((l) => ({ ...l, status: l.status ?? 'published' })),
     }));
+  } else {
+    modules = (rawModules ?? []) as Module[];
+  }
+
+  const sortedModules: Module[] = (modules ?? []).map((module) => ({
+    ...module,
+    lessons: [...(module.lessons ?? [])].sort((a, b) => a.position - b.position),
+  }));
+
+  // 2. Extract lesson IDs scoped strictly to this target cohort
+  const targetLessonIds = Array.from(
+    new Set(sortedModules.flatMap((m) => (m.lessons || []).map((l) => l.id)).filter(Boolean))
+  );
+
+  // 3. Fetch progress scoped strictly to the target cohort's lesson IDs
+  let progressData: LessonProgress[] = [];
+  if (targetLessonIds.length > 0) {
+    const progressQuery = supabase
+      .from('lesson_progress')
+      .select('lesson_id, completed, completed_at, watch_percentage, last_position_seconds')
+      .eq('user_id', userId);
+
+    const { data: rawProgress, error: progressError } =
+      typeof (progressQuery as unknown as { in?: unknown })?.in === 'function'
+        ? await (progressQuery as unknown as { in: (col: string, vals: string[]) => Promise<{ data: unknown; error: { message: string } | null }> }).in('lesson_id', targetLessonIds)
+        : await progressQuery;
+
+    if (
+      progressError &&
+      (progressError.message.includes('watch_percentage') || progressError.message.includes('last_position_seconds'))
+    ) {
+      const fallbackQuery = supabase
+        .from('lesson_progress')
+        .select('lesson_id, completed, completed_at')
+        .eq('user_id', userId);
+
+      const { data: fallbackProgress } =
+        typeof (fallbackQuery as unknown as { in?: unknown })?.in === 'function'
+          ? await (fallbackQuery as unknown as { in: (col: string, vals: string[]) => Promise<{ data: unknown; error: { message: string } | null }> }).in('lesson_id', targetLessonIds)
+          : await fallbackQuery;
+      progressData = ((fallbackProgress ?? []) as LessonProgress[]).filter((p) => targetLessonIds.includes(p.lesson_id));
+    } else if (progressError) {
+      throw progressError;
+    } else {
+      progressData = ((rawProgress ?? []) as LessonProgress[]).filter((p) => targetLessonIds.includes(p.lesson_id));
+    }
   }
 
   return {
     cohort: targetCohort,
-    modules: ((modules ?? []) as Module[]).map((module) => ({
-      ...module,
-      lessons: [...(module.lessons ?? [])].sort((a, b) => a.position - b.position),
-    })),
+    modules: sortedModules,
     progress: progressData,
     enrolledCohorts,
   };
