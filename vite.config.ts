@@ -17,6 +17,9 @@ export default defineConfig({
             if (id.includes('three')) {
               return 'vendor-three';
             }
+            if (id.includes('gsap') || id.includes('lenis')) {
+              return 'vendor-anim';
+            }
             if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
               return 'vendor-react';
             }

@@ -38,9 +38,14 @@ import { InteractiveSprintCurriculum } from '../components/home/InteractiveSprin
 import { FreelanceEarningsCalculator } from '../components/home/FreelanceEarningsCalculator';
 import { LandingFAQAccordion } from '../components/home/LandingFAQAccordion';
 import { LazyRobotTerminal } from '../components/home/LazyRobotTerminal';
+import { useSmoothScroll } from '../lib/scroll/useSmoothScroll';
+import { useGsapScrollTrigger } from '../hooks/useGsapScrollTrigger';
 import { soundFx } from '../lib/soundFx';
 
 export function Home() {
+  useSmoothScroll();
+  const { containerRef } = useGsapScrollTrigger();
+
   const [selectedTrack, setSelectedTrack] = useState<'coding' | 'creative'>('creative');
   const [activeSprintPhase, setActiveSprintPhase] = useState<'p1' | 'p2' | 'p3'>('p1');
   const [activeChatScenario, setActiveChatScenario] = useState<'code' | 'video' | 'nudge'>('video');
@@ -65,7 +70,13 @@ export function Home() {
   const publishedOriginalPrice = Math.round(publishedPrice * 2);
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 font-sans selection:bg-orange-500 selection:text-white transition-colors relative overflow-x-hidden film-grain">
+    <div
+      ref={containerRef}
+      className="min-h-screen bg-[#030712] text-slate-100 font-sans selection:bg-orange-500 selection:text-white transition-colors relative overflow-x-hidden film-grain"
+    >
+      {/* Top GSAP Scroll Progress Indicator */}
+      <div className="fixed top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-orange-500 via-red-500 to-amber-400 origin-left scale-x-0 z-[100] gsap-scroll-progress pointer-events-none" />
+
       {/* Junca Studio-inspired custom magnetic cursor follower */}
       <CustomCursor />
 
@@ -77,8 +88,8 @@ export function Home() {
         {/* ========================================================================= */}
         <section className="hero relative overflow-hidden bg-[#080808] border-b border-white/10 min-h-[92vh] lg:min-h-screen flex items-end pb-16 lg:pb-28">
           {/* Atmospheric crimson volumetric gradient inspired by Junca Studio */}
-          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_75%_55%_at_70%_40%,rgba(220,38,38,0.22),transparent_70%)]" />
-          <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-red-600/10 blur-[140px]" />
+          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_75%_55%_at_70%_40%,rgba(220,38,38,0.22),transparent_70%)] gsap-parallax-slow" />
+          <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-red-600/10 blur-[140px] gsap-parallax-slow" />
 
           {/* Interactive 3D / Gradient WebGL Canvas Hero Simulator */}
           <HeroCanvasSimulator />
@@ -94,7 +105,7 @@ export function Home() {
               {/* Verified Status Pill */}
               <div
                 data-cursor="COHORT TELEMETRY"
-                className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-orange-500/30 bg-[#090d16]/80 px-4 py-1.5 shadow-lg shadow-orange-500/10 backdrop-blur-xl"
+                className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-orange-500/30 bg-[#090d16]/80 px-4 py-1.5 shadow-lg shadow-orange-500/10 backdrop-blur-xl gsap-metric-reveal"
               >
                 <span className="flex size-2 rounded-full bg-orange-500 animate-ping" />
                 <span className="text-[11px] font-black uppercase tracking-wider text-orange-400 font-mono">
@@ -368,7 +379,7 @@ export function Home() {
         {/* ========================================================================= */}
         <section id="active-cohorts" className="py-20 lg:py-28 bg-[#030712] relative">
           <div className="mx-auto max-w-7xl px-5 lg:px-8">
-            <div className="text-center max-w-2xl mx-auto mb-14">
+            <div className="text-center max-w-2xl mx-auto mb-14 gsap-header-reveal">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-400">
                 Live Cohort Registry
               </p>
@@ -394,7 +405,7 @@ export function Home() {
                 </Button>
               </div>
             ) : cohorts.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 gsap-cards-group">
                 {cohorts.map((cohort) => (
                   <TiltCard
                     key={cohort.id}
@@ -472,7 +483,7 @@ export function Home() {
         {/* ========================================================================= */}
         <section id="comparison" className="py-20 lg:py-28 border-t border-white/10 bg-[#070b16] relative">
           <div className="mx-auto max-w-7xl px-5 lg:px-8">
-            <div className="text-center max-w-2xl mx-auto mb-14">
+            <div className="text-center max-w-2xl mx-auto mb-14 gsap-header-reveal">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-400">
                 The Core Difference
               </p>
@@ -484,7 +495,7 @@ export function Home() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 gsap-cards-group">
               {/* Old Way */}
               <TiltCard
                 maxTilt={5}
@@ -587,7 +598,7 @@ export function Home() {
         {/* ========================================================================= */}
         <section id="how-it-works" className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative">
           <div className="mx-auto max-w-7xl px-5 lg:px-8">
-            <div className="text-center max-w-2xl mx-auto mb-16">
+            <div className="text-center max-w-2xl mx-auto mb-16 gsap-header-reveal">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-400">
                 The Daily Rhythm
               </p>
@@ -599,7 +610,7 @@ export function Home() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 gsap-cards-group">
               <TiltCard maxTilt={6} className="glass-obsidian p-6 border-white/10 hover:border-orange-500/40 space-y-4 shadow-xl transition-all">
                 <div className="flex items-center justify-between">
                   <span className="rounded-full bg-orange-500/15 border border-orange-500/30 px-3 py-1 text-xs font-black text-orange-400 font-mono">
@@ -716,7 +727,7 @@ export function Home() {
         {/* ========================================================================= */}
         <section id="tracks" className="border-t border-white/10 bg-[#060911] py-20 lg:py-28 relative">
           <div className="mx-auto max-w-7xl px-5 lg:px-8">
-            <div className="text-center max-w-2xl mx-auto mb-12">
+            <div className="text-center max-w-2xl mx-auto mb-12 gsap-header-reveal">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-400">
                 Specialized Disciplines
               </p>
@@ -979,7 +990,7 @@ export function Home() {
         {/* ========================================================================= */}
         <section id="assets" className="border-t border-white/10 bg-[#070b16] py-20 lg:py-28 relative">
           <div className="mx-auto max-w-7xl px-5 lg:px-8">
-            <div className="text-center max-w-2xl mx-auto mb-16">
+            <div className="text-center max-w-2xl mx-auto mb-16 gsap-header-reveal">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-400">
                 Production-Ready Resources
               </p>
@@ -991,7 +1002,7 @@ export function Home() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 gsap-cards-group">
               <TiltCard maxTilt={6} className="glass-obsidian p-6 border-white/10 hover:border-orange-500/40 space-y-3 shadow-xl transition-all">
                 <div className="flex size-11 items-center justify-center rounded-2xl bg-orange-500/15 border border-orange-500/30 text-orange-400">
                   <Video size={20} />
@@ -1060,11 +1071,11 @@ export function Home() {
         {/* ========================================================================= */}
         <section id="mentorship" className="py-20 lg:py-28 bg-[#070b16] border-t border-white/10 relative overflow-hidden">
           {/* Ambient Lighting Orb */}
-          <div className="absolute top-1/4 -right-40 size-96 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+          <div className="absolute top-1/4 -right-40 size-96 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none gsap-parallax-slow" />
 
           <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div>
+              <div className="gsap-header-reveal">
                 <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-black text-emerald-400 mb-4">
                   <MessageCircle size={14} />
                   <span>Real-Time Accountability</span>
@@ -1237,7 +1248,7 @@ export function Home() {
         {/* ========================================================================= */}
         <section id="rubric" className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden">
           <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
-            <div className="text-center max-w-2xl mx-auto mb-16">
+            <div className="gsap-header-reveal text-center max-w-2xl mx-auto mb-16">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">
                 Rigorous Evaluation Standards
               </p>
@@ -1249,7 +1260,7 @@ export function Home() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="gsap-cards-group grid grid-cols-1 md:grid-cols-5 gap-4">
               <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-3 hover:border-orange-500/40 transition">
                 <span className="text-3xl font-black bg-gradient-to-r from-orange-400 to-amber-500 bg-clip-text text-transparent">01</span>
                 <h4 className="text-xs font-black text-white">Technical Execution</h4>
@@ -1299,11 +1310,11 @@ export function Home() {
         {/* ========================================================================= */}
         <section className="border-t border-white/10 bg-[#070b16] py-20 lg:py-28 relative overflow-hidden">
           {/* Ambient Lighting Orb */}
-          <div className="absolute top-1/2 -left-40 size-96 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
+          <div className="gsap-parallax-slow absolute top-1/2 -left-40 size-96 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
 
           <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div className="space-y-6">
+              <div className="gsap-header-reveal space-y-6">
                 <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-1 text-xs font-black text-orange-400">
                   <Trophy size={14} />
                   <span>The Psychology of Finishing</span>
@@ -1514,7 +1525,7 @@ export function Home() {
         {/* ========================================================================= */}
         <section id="deliverables" className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden fw">
           <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
+            <div className="gsap-header-reveal flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
               <div>
                 <span className="dot-label dot-label--emerald text-orange-400 font-bold mb-2">
                   Featured Deliverables
@@ -1528,7 +1539,7 @@ export function Home() {
               </p>
             </div>
 
-            <ul className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-14">
+            <ul className="gsap-cards-group grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-14">
               <FwCard
                 figure={{
                   imgSrc: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1280&q=80',
@@ -1685,11 +1696,11 @@ export function Home() {
         {/* ========================================================================= */}
         <section id="credentials" className="border-t border-white/10 bg-[#070b16] py-20 lg:py-28 text-white relative overflow-hidden">
           {/* Ambient Amber Glow */}
-          <div className="absolute top-1/2 -right-40 size-96 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+          <div className="gsap-parallax-slow absolute top-1/2 -right-40 size-96 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
 
           <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div className="space-y-6">
+              <div className="gsap-header-reveal space-y-6">
                 <div className="inline-flex items-center gap-2 rounded-full bg-amber-400/10 border border-amber-400/20 px-3 py-1 text-xs font-black text-amber-300">
                   <Award size={14} />
                   <span>Proof of Competence</span>
@@ -1778,19 +1789,19 @@ export function Home() {
         {/* ========================================================================= */}
         <section className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden">
           <div className="mx-auto max-w-7xl px-5 lg:px-8 text-center relative z-10">
-            <div className="max-w-2xl mx-auto space-y-3">
+            <div className="gsap-header-reveal max-w-2xl mx-auto space-y-3">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">
                 Career &amp; Client Standards
               </p>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
                 Proof-of-Work Over Static Paper Resumes
               </h2>
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <p className="mt-3 text-sm text-slate-400 leading-relaxed">
                 Modern software teams and production agencies value verifiable code repositories, live production deployments, and finished commercial reels over certificates of attendance.
               </p>
             </div>
 
-            <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto text-left">
+            <div className="gsap-cards-group mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto text-left">
               <TiltCard className="p-6 border border-white/10 bg-white/[0.03] rounded-2xl space-y-2 hover:border-orange-500/40 transition">
                 <span className="text-xs font-black text-orange-400 uppercase">01 · Live Code &amp; Timelines</span>
                 <h4 className="text-sm font-black text-white">Inspectable GitHub &amp; Video Links</h4>
@@ -1831,11 +1842,11 @@ export function Home() {
         {/* ========================================================================= */}
         <section className="bg-[#030712] border-t border-white/10 py-20 lg:py-28 text-white relative overflow-hidden">
           {/* Ambient Warm Glow */}
-          <div className="absolute top-1/2 left-1/4 -translate-y-1/2 size-96 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
+          <div className="gsap-parallax-slow absolute top-1/2 left-1/4 -translate-y-1/2 size-96 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
 
           <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1 space-y-4">
+              <div className="gsap-header-reveal lg:col-span-1 space-y-4">
                 <Quote size={36} className="text-orange-500/40" />
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
                   "I finally finished work I am proud to send to clients."
@@ -1845,7 +1856,7 @@ export function Home() {
                 </p>
               </div>
 
-              <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="gsap-cards-group lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <TiltCard className="bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-xl border border-white/10 p-6 rounded-2xl text-white space-y-3 shadow-xl hover:border-orange-500/30 transition">
                   <div className="flex text-amber-400">
                     {Array.from({ length: 5 }).map((_, i) => (
@@ -1885,87 +1896,91 @@ export function Home() {
         {/* ========================================================================= */}
         <section id="pricing" className="py-20 lg:py-28 bg-[#070b16] border-t border-white/10 relative overflow-hidden">
           <div className="mx-auto max-w-7xl px-5 lg:px-8 text-center relative z-10">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">
-              Transparent Enrollment
-            </p>
-            <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
-              One Clear Investment. Full 15-Day Access.
-            </h2>
-            <p className="mt-3 text-sm text-slate-400 max-w-xl mx-auto">
-              Everything you need to ship daily work, receive continuous feedback, and graduate with an industry credential.
-            </p>
+            <div className="gsap-header-reveal">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">
+                Transparent Enrollment
+              </p>
+              <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
+                One Clear Investment. Full 15-Day Access.
+              </h2>
+              <p className="mt-3 text-sm text-slate-400 max-w-xl mx-auto">
+                Everything you need to ship daily work, receive continuous feedback, and graduate with an industry credential.
+              </p>
+            </div>
 
-            <TiltCard
-              maxTilt={5}
-              glareColor="rgba(249, 115, 22, 0.2)"
-              className="mx-auto mt-12 max-w-2xl overflow-hidden border border-orange-500/40 bg-gradient-to-b from-[#0e1628] via-[#070b16] to-[#030712] backdrop-blur-2xl rounded-3xl shadow-2xl shadow-orange-500/10 text-left"
-            >
-              <div className="grid gap-8 p-7 sm:grid-cols-[1fr_auto] sm:p-10">
-                <div>
-                  <span className="rounded-full bg-orange-500/15 border border-orange-500/30 px-3 py-1 text-xs font-black uppercase tracking-wider text-orange-400">
-                    15-Day Sprint Pass
-                  </span>
-                  <h3 className="mt-4 text-2xl font-black text-white">
-                    Full Cohort Membership
-                  </h3>
-                  <div className="mt-6 grid gap-3 text-xs text-slate-300 sm:grid-cols-2">
-                    {[
-                      '15 Daily Production Challenges',
-                      '1-on-1 WhatsApp Mentor Support',
-                      'Weekly Live Masterclass Workshops',
-                      'Verified Digital Certificate',
-                      'Mentor Letter of Recommendation',
-                      'Community Board & Peer Network',
-                      'Downloadable Starter Project Assets',
-                      'Lifetime Access to Course Replays',
-                    ].map((item) => (
-                      <span key={item} className="flex items-center gap-2">
-                        <Check className="text-emerald-400 shrink-0" size={15} />
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex flex-col justify-between sm:items-end border-t sm:border-t-0 sm:border-l border-white/10 pt-6 sm:pt-0 sm:pl-8">
+            <div className="gsap-cards-group">
+              <TiltCard
+                maxTilt={5}
+                glareColor="rgba(249, 115, 22, 0.2)"
+                className="mx-auto mt-12 max-w-2xl overflow-hidden border border-orange-500/40 bg-gradient-to-b from-[#0e1628] via-[#070b16] to-[#030712] backdrop-blur-2xl rounded-3xl shadow-2xl shadow-orange-500/10 text-left"
+              >
+                <div className="grid gap-8 p-7 sm:grid-cols-[1fr_auto] sm:p-10">
                   <div>
-                    <span className="text-xs text-slate-500 line-through">₹{publishedOriginalPrice.toLocaleString('en-IN')}</span>
-                    <p className="text-4xl font-black text-white font-mono">₹{publishedPrice.toLocaleString('en-IN')}</p>
-                    <p className="text-[11px] text-slate-400">One-time payment ({publishedCurrency})</p>
-                    {publishedCohort?.name && (
-                      <p className="text-[10px] text-orange-400/90 font-mono mt-0.5 truncate max-w-[200px]">{publishedCohort.name}</p>
-                    )}
+                    <span className="rounded-full bg-orange-500/15 border border-orange-500/30 px-3 py-1 text-xs font-black uppercase tracking-wider text-orange-400">
+                      15-Day Sprint Pass
+                    </span>
+                    <h3 className="mt-4 text-2xl font-black text-white">
+                      Full Cohort Membership
+                    </h3>
+                    <div className="mt-6 grid gap-3 text-xs text-slate-300 sm:grid-cols-2">
+                      {[
+                        '15 Daily Production Challenges',
+                        '1-on-1 WhatsApp Mentor Support',
+                        'Weekly Live Masterclass Workshops',
+                        'Verified Digital Certificate',
+                        'Mentor Letter of Recommendation',
+                        'Community Board & Peer Network',
+                        'Downloadable Starter Project Assets',
+                        'Lifetime Access to Course Replays',
+                      ].map((item) => (
+                        <span key={item} className="flex items-center gap-2">
+                          <Check className="text-emerald-400 shrink-0" size={15} />
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <Button
-                    href={publishedCohort?.id ? `/register?cohort=${publishedCohort.id}` : '/register'}
-                    data-cursor="SAVE SEAT"
-                    onClick={() => {
-                      if (publishedCohort?.id) {
-                        setPendingCohortCheckout(
-                          publishedCohort.id,
-                          publishedCohort.name,
-                          publishedCohort.price_inr,
-                          publishedCohort.currency
-                        );
-                      }
-                      soundFx.playSweep(280, 840, 0.15, 0.05);
-                    }}
-                    className="mt-6 w-full justify-center shadow-lg shadow-orange-500/25"
-                    withArrow
-                  >
-                    Save My Seat
-                  </Button>
-                </div>
-              </div>
 
-              <div className="border-t border-white/10 bg-white/[0.02] p-4 px-7 sm:px-10 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
-                <span className="flex items-center gap-1.5 font-bold text-white">
-                  <Shield size={14} className="text-emerald-400" />
-                  100% 5-Day Money-Back Guarantee
-                </span>
-                <span>If unsatisfied during Days 1–3, request a full refund before Day 5.</span>
-              </div>
-            </TiltCard>
+                  <div className="flex flex-col justify-between sm:items-end border-t sm:border-t-0 sm:border-l border-white/10 pt-6 sm:pt-0 sm:pl-8">
+                    <div>
+                      <span className="text-xs text-slate-500 line-through">₹{publishedOriginalPrice.toLocaleString('en-IN')}</span>
+                      <p className="text-4xl font-black text-white font-mono">₹{publishedPrice.toLocaleString('en-IN')}</p>
+                      <p className="text-[11px] text-slate-400">One-time payment ({publishedCurrency})</p>
+                      {publishedCohort?.name && (
+                        <p className="text-[10px] text-orange-400/90 font-mono mt-0.5 truncate max-w-[200px]">{publishedCohort.name}</p>
+                      )}
+                    </div>
+                    <Button
+                      href={publishedCohort?.id ? `/register?cohort=${publishedCohort.id}` : '/register'}
+                      data-cursor="SAVE SEAT"
+                      onClick={() => {
+                        if (publishedCohort?.id) {
+                          setPendingCohortCheckout(
+                            publishedCohort.id,
+                            publishedCohort.name,
+                            publishedCohort.price_inr,
+                            publishedCohort.currency
+                          );
+                        }
+                        soundFx.playSweep(280, 840, 0.15, 0.05);
+                      }}
+                      className="mt-6 w-full justify-center shadow-lg shadow-orange-500/25"
+                      withArrow
+                    >
+                      Save My Seat
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="border-t border-white/10 bg-white/[0.02] p-4 px-7 sm:px-10 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
+                  <span className="flex items-center gap-1.5 font-bold text-white">
+                    <Shield size={14} className="text-emerald-400" />
+                    100% 5-Day Money-Back Guarantee
+                  </span>
+                  <span>If unsatisfied during Days 1–3, request a full refund before Day 5.</span>
+                </div>
+              </TiltCard>
+            </div>
           </div>
         </section>
 
@@ -1978,8 +1993,8 @@ export function Home() {
         {/* SECTION 18: FINAL LAUNCHPAD */}
         {/* ========================================================================= */}
         <section className="bg-gradient-to-b from-[#070b16] via-[#030712] to-[#02040a] px-5 py-28 text-center text-white relative overflow-hidden border-t border-white/10">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[32rem] rounded-full bg-gradient-to-r from-orange-500/20 to-amber-500/20 blur-3xl pointer-events-none" />
-          <div className="relative z-10 max-w-3xl mx-auto space-y-4">
+          <div className="gsap-parallax-slow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[32rem] rounded-full bg-gradient-to-r from-orange-500/20 to-amber-500/20 blur-3xl pointer-events-none" />
+          <div className="gsap-header-reveal relative z-10 max-w-3xl mx-auto space-y-4">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-orange-400">
               15 Days From Now
             </p>
