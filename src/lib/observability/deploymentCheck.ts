@@ -126,14 +126,25 @@ export function runDeploymentCheck(): DeploymentReport {
     const isLiveKey = razorpayKeyId.startsWith('rzp_live_');
     const isTestKey = razorpayKeyId.startsWith('rzp_test_');
 
-    if (isProduction && isTestKey) {
+    const allowTestInProd = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ALLOW_TEST_PAYMENTS_IN_PROD) === 'true';
+
+    if (isProduction && isTestKey && !allowTestInProd) {
       items.push({
         id: 'env_razorpay_key',
         name: 'Razorpay Key Mode',
         category: 'security',
         status: 'fail',
         message: 'CRITICAL: Production build is configured with a test Razorpay key (rzp_test_...).',
-        details: 'Switch to live key (rzp_live_...) before launching paid cohorts to prevent zero-cost test card enrollments.',
+        details: 'Switch to live key (rzp_live_...) before launching paid cohorts, or set VITE_ALLOW_TEST_PAYMENTS_IN_PROD=true for staging preview testing.',
+      });
+    } else if (isProduction && isTestKey && allowTestInProd) {
+      items.push({
+        id: 'env_razorpay_key',
+        name: 'Razorpay Key Mode (Staging)',
+        category: 'security',
+        status: 'warn',
+        message: 'Staging Mode: Test key (rzp_test_...) active via VITE_ALLOW_TEST_PAYMENTS_IN_PROD.',
+        details: 'Test cards are accepted. Switch to rzp_live_... and remove this flag before public launch.',
       });
     } else {
       items.push({
