@@ -68,6 +68,14 @@ const EDGE_FUNCTIONS: EdgeFunctionSpec[] = [
     optionalSecrets: [],
     requiresNoVerifyJwt: false,
   },
+  {
+    name: 'dispatch-whatsapp-queue',
+    path: 'supabase/functions/dispatch-whatsapp-queue/index.ts',
+    description: 'Automated WhatsApp queue worker dispatching queued notifications to Meta & Twilio',
+    requiredSecrets: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
+    optionalSecrets: ['WHATSAPP_ACCESS_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'CRON_SECRET'],
+    requiresNoVerifyJwt: false,
+  },
 ];
 
 async function main() {

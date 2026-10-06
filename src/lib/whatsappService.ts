@@ -924,6 +924,43 @@ export async function processPendingWhatsAppRetries(maxBatchSize = 20): Promise<
 }
 
 /**
+ * Triggers the server-side Edge Function to dispatch queued WhatsApp notifications.
+ * Executes with secure server-side secrets (Meta/Twilio) without exposing tokens in the browser.
+ */
+export async function triggerServerWhatsAppQueueDispatch(maxBatchSize = 25): Promise<{
+  success: boolean;
+  processed: number;
+  sent: number;
+  failed: number;
+  message?: string;
+  error?: string;
+}> {
+  try {
+    const { data, error } = await supabase.functions.invoke('dispatch-whatsapp-queue', {
+      body: { maxBatchSize },
+    });
+
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to dispatch WhatsApp queue on server');
+    }
+
+    return data;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn('Server-side WhatsApp dispatch notice:', message);
+    // Fallback to client-side retry handler if edge function is not deployed locally
+    const fallbackSummary = await processPendingWhatsAppRetries(maxBatchSize);
+    return {
+      success: true,
+      processed: fallbackSummary.attempted,
+      sent: fallbackSummary.succeeded,
+      failed: fallbackSummary.failed,
+      message: 'Fallback client queue processing executed',
+    };
+  }
+}
+
+/**
  * Manually retry a specific WhatsApp message by log ID
  */
 export async function retrySingleWhatsAppMessage(logId: string): Promise<WhatsAppDispatchResult> {
