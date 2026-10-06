@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDown,
   ArrowRight,
@@ -37,11 +37,8 @@ import { FwCard } from '../components/home/FwCard';
 import { InteractiveSprintCurriculum } from '../components/home/InteractiveSprintCurriculum';
 import { FreelanceEarningsCalculator } from '../components/home/FreelanceEarningsCalculator';
 import { LandingFAQAccordion } from '../components/home/LandingFAQAccordion';
+import { LazyRobotTerminal } from '../components/home/LazyRobotTerminal';
 import { soundFx } from '../lib/soundFx';
-
-const RobotTerminal = React.lazy(() =>
-  import('../components/home/RobotTerminal').then((m) => ({ default: m.RobotTerminal }))
-);
 
 export function Home() {
   const [selectedTrack, setSelectedTrack] = useState<'coding' | 'creative'>('creative');
@@ -109,9 +106,7 @@ export function Home() {
 
           {/* 3D Retro-Futuristic Robot Terminal Character with Visor CRT & Fan */}
           <div className="absolute right-0 sm:right-2 lg:right-4 xl:right-8 top-1/2 -translate-y-1/2 z-10 hidden md:flex items-center justify-center pointer-events-none">
-            <Suspense fallback={<div className="w-[320px] h-[360px]" />}>
-              <RobotTerminal />
-            </Suspense>
+            <LazyRobotTerminal />
           </div>
 
           {/* Exact Requested Hero Content Markup */}
