@@ -238,7 +238,19 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
       // Configuration invalid: release seat reservation
       void cancelCohortCheckoutReservation(order.id);
       throw new Error(
-        'Razorpay Key ID is not configured or invalid. Please configure RAZORPAY_KEY_ID (e.g. rzp_test_...) in your Supabase Edge Function secrets or set VITE_RAZORPAY_KEY_ID in your .env file.'
+        'Razorpay Key ID is not configured or invalid. Please configure RAZORPAY_KEY_ID in your Supabase Edge Function secrets or set VITE_RAZORPAY_KEY_ID in your .env file.'
+      );
+    }
+
+    // Production safety lock: prohibit test keys in production unless explicitly permitted for staging
+    if (
+      import.meta.env.PROD &&
+      effectiveKey.startsWith('rzp_test_') &&
+      import.meta.env.VITE_ALLOW_TEST_PAYMENTS_IN_PROD !== 'true'
+    ) {
+      void cancelCohortCheckoutReservation(order.id);
+      throw new Error(
+        'PRODUCTION PAYMENT SAFETY LOCK: Platform is configured with Razorpay Test Mode keys (rzp_test_...). Live cohort enrollments require rzp_live_... keys. Please configure live credentials in production environment variables and Supabase secrets.'
       );
     }
 

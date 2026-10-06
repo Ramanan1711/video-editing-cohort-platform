@@ -131,9 +131,9 @@ export function runDeploymentCheck(): DeploymentReport {
         id: 'env_razorpay_key',
         name: 'Razorpay Key Mode',
         category: 'security',
-        status: 'warn',
-        message: 'Production build is configured with a test Razorpay key (rzp_test_...).',
-        details: 'Switch to live key (rzp_live_...) before launching paid cohorts.',
+        status: 'fail',
+        message: 'CRITICAL: Production build is configured with a test Razorpay key (rzp_test_...).',
+        details: 'Switch to live key (rzp_live_...) before launching paid cohorts to prevent zero-cost test card enrollments.',
       });
     } else {
       items.push({

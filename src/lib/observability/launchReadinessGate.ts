@@ -236,7 +236,17 @@ export async function evaluateLaunchReadinessGate(): Promise<LaunchGateReport> {
         }
 
         if (rpcReady) {
-          flowSafetyEvidence = 'Paid-only launch policy verified (zero free cohorts); atomic seat reservation RPC and payment checkout contracts verified.';
+          const envMode = (typeof import.meta !== 'undefined' && import.meta.env?.MODE) || 'development';
+          const isProduction = envMode === 'production';
+          const razorpayKeyId = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_RAZORPAY_KEY_ID) || '';
+          const allowTestInProd = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ALLOW_TEST_PAYMENTS_IN_PROD) === 'true';
+
+          if (isProduction && razorpayKeyId.startsWith('rzp_test_') && !allowTestInProd) {
+            flowSafetyPassed = false;
+            flowSafetyEvidence = 'Payment gateway safety violation: Production build is configured with Razorpay Test Key (rzp_test_...). Live payments require rzp_live_... credentials.';
+          } else {
+            flowSafetyEvidence = 'Paid-only launch policy verified (zero free cohorts); atomic seat reservation RPC and payment checkout contracts verified.';
+          }
         }
       }
     }

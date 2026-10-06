@@ -452,5 +452,38 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
         p_order_id: 'order_failed_event_456',
       });
     });
+
+    it('blocks checkout with PRODUCTION PAYMENT SAFETY LOCK if test keys are used when PROD is true', async () => {
+      const originalProd = import.meta.env.PROD;
+      try {
+        (import.meta.env as unknown as { PROD: boolean }).PROD = true;
+
+        (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: {
+            orderId: 'order_test_prod_123',
+            amount: 499900,
+            currency: 'INR',
+            keyId: 'rzp_test_forbidden_in_prod',
+          },
+          error: null,
+        });
+
+        const onError = vi.fn();
+        await startCohortCheckout({
+          cohortId: 'cohort-prod-test',
+          cohortName: 'Test Cohort',
+          onSuccess: vi.fn(),
+          onError,
+        });
+
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: expect.stringContaining('PRODUCTION PAYMENT SAFETY LOCK'),
+          })
+        );
+      } finally {
+        (import.meta.env as unknown as { PROD: boolean }).PROD = originalProd;
+      }
+    });
   });
 });
