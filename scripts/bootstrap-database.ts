@@ -22,6 +22,7 @@ const REQUIRED_TABLES = [
   'submission_versions',
   'feedback',
   'feedback_replies',
+  'live_sessions',
   'session_attendance',
   'announcements',
   'notifications',
@@ -35,7 +36,9 @@ const REQUIRED_TABLES = [
   'community_comments',
   'community_reactions',
   'community_reports',
+  'community_messages',
   'certificates',
+  'payments',
 ];
 
 function loadEnvFile(): Record<string, string> {
@@ -115,7 +118,7 @@ async function main() {
     console.log('\n🔧 Action Required: Apply bootstrap schema to target database.');
     printBootstrapInstructions();
   } else {
-    console.log('   🎉 All 28 required tables are present in the target database catalog!');
+    console.log(`   🎉 All ${REQUIRED_TABLES.length} required tables are present in the target database catalog!`);
   }
 }
 
