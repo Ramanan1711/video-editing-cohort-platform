@@ -15,6 +15,8 @@ import { soundFx } from '../../lib/soundFx';
  * - Directional crimson studio lighting and EXR environment reflections
  * - Resilient CSS 3D fallback for headless/jsdom or environments without WebGL
  */
+export type RobotTerminalMode = 'sprint' | 'pipeline' | 'brief';
+
 export const RobotTerminal: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -23,11 +25,13 @@ export const RobotTerminal: React.FC = () => {
 
   // Mouse tracking state
   const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, active: false });
-  const [rpm, setRpm] = useState(62);
-  const rpmRef = useRef(62);
+  const [rpm, setRpm] = useState(1240);
+  const rpmRef = useRef(1240);
   const fanSpeedRef = useRef(1.0);
+  const [uptimeSeconds, setUptimeSeconds] = useState(160);
   const uptimeSecondsRef = useRef(160);
-  const statusModeRef = useRef<'status' | 'awaiting'>('status');
+  const [terminalMode, setTerminalMode] = useState<RobotTerminalMode>('sprint');
+  const terminalModeRef = useRef<RobotTerminalMode>('sprint');
 
   // Fallback CSS 3D head transform states (used when WebGL is unavailable)
   const [fallbackTransform, setFallbackTransform] = useState({
@@ -122,63 +126,138 @@ export const RobotTerminal: React.FC = () => {
         if (!sCtx) return;
 
         // Dark CRT glass background
-        sCtx.fillStyle = '#060203';
+        sCtx.fillStyle = '#050203';
         sCtx.fillRect(0, 0, 512, 512);
 
         // CRT phosphor glow gradient
-        const radGlow = sCtx.createRadialGradient(256, 256, 40, 256, 256, 320);
-        radGlow.addColorStop(0, 'rgba(239, 68, 68, 0.12)');
-        radGlow.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+        const radGlow = sCtx.createRadialGradient(256, 256, 30, 256, 256, 300);
+        radGlow.addColorStop(0, 'rgba(239, 68, 68, 0.16)');
+        radGlow.addColorStop(0.6, 'rgba(185, 28, 28, 0.05)');
+        radGlow.addColorStop(1, 'rgba(0, 0, 0, 0.98)');
         sCtx.fillStyle = radGlow;
         sCtx.fillRect(0, 0, 512, 512);
 
         // CRT Scanlines
-        sCtx.fillStyle = 'rgba(239, 68, 68, 0.04)';
+        sCtx.fillStyle = 'rgba(239, 68, 68, 0.035)';
         for (let y = 0; y < 512; y += 4) {
           sCtx.fillRect(0, y, 512, 2);
         }
 
-        sCtx.font = '22px monospace';
-        sCtx.textBaseline = 'top';
-
         const blink = Math.floor(timeSec * 2) % 2 === 0;
+        const mins = Math.floor(uptimeSecondsRef.current / 60);
+        const secs = uptimeSecondsRef.current % 60;
+        const uptimeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        const mode = terminalModeRef.current;
 
-        if (statusModeRef.current === 'status') {
-          // Red phosphor header
-          sCtx.fillStyle = '#ef4444';
-          sCtx.fillText('> status', 45, 60);
+        // Header Background Plate
+        sCtx.fillStyle = 'rgba(220, 38, 38, 0.16)';
+        sCtx.fillRect(42, 52, 268, 32);
+        sCtx.strokeStyle = 'rgba(239, 68, 68, 0.45)';
+        sCtx.lineWidth = 1;
+        sCtx.strokeRect(42, 52, 268, 32);
 
-          sCtx.font = '20px monospace';
-          sCtx.fillStyle = 'rgba(248, 113, 113, 0.9)';
-          sCtx.fillText('  env ........ ok', 45, 110);
-          sCtx.fillText('  lightmap ... ok', 45, 150);
-          sCtx.fillText('  rig ........ ok', 45, 190);
-          sCtx.fillText(`  fan ........ ${rpmRef.current} rpm`, 45, 230);
+        // Header Text
+        sCtx.font = 'bold 15px monospace';
+        sCtx.textBaseline = 'middle';
+        sCtx.fillStyle = '#ff4444';
 
-          const mins = Math.floor(uptimeSecondsRef.current / 60);
-          const secs = uptimeSecondsRef.current % 60;
-          const uptimeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-          sCtx.fillText(`  uptime ..... ${uptimeStr}`, 45, 270);
-        } else {
-          sCtx.fillStyle = '#ef4444';
-          sCtx.fillText('> awaiting input ' + (blink ? '_' : ' '), 45, 120);
+        const headerTitle =
+          mode === 'sprint'
+            ? '> SPRINT OS'
+            : mode === 'pipeline'
+            ? '> STUDIO 4K'
+            : '> DAILY BRIEF';
 
-          sCtx.font = '18px monospace';
-          sCtx.fillStyle = 'rgba(248, 113, 113, 0.7)';
-          sCtx.fillText('  core active', 45, 180);
-          sCtx.fillText('  telemetry synced', 45, 220);
-        }
-
-        // Screen footer bar
-        sCtx.fillStyle = 'rgba(239, 68, 68, 0.3)';
-        sCtx.fillRect(45, 410, 422, 1);
-
-        sCtx.font = '16px monospace';
-        sCtx.fillStyle = 'rgba(239, 68, 68, 0.8)';
-        sCtx.fillText('JUNCA OS  v0.1', 45, 430);
+        sCtx.fillText(headerTitle + (blink ? '_' : ' '), 50, 68);
 
         sCtx.textAlign = 'right';
-        sCtx.fillText(blink ? 'ATTENTIF' : '#TT84F2F', 467, 430);
+        sCtx.font = 'bold 12px monospace';
+        sCtx.fillStyle = '#fca5a5';
+        const modeBadge = mode === 'sprint' ? '[1/3]' : mode === 'pipeline' ? '[2/3]' : '[3/3]';
+        sCtx.fillText(modeBadge, 304, 68);
+        sCtx.textAlign = 'left';
+
+        // Telemetry Data Rows (Fitted strictly inside CRT visor safe zone)
+        interface TelemetryRow {
+          label: string;
+          value: string;
+          valueColor?: string;
+        }
+
+        let rows: TelemetryRow[];
+
+        if (mode === 'sprint') {
+          rows = [
+            { label: 'COHORT', value: 'VIDEO EDIT' },
+            { label: 'BATCH', value: '#15 COHORT' },
+            { label: 'STAGE', value: 'DAY 07 / 15', valueColor: '#fbbf24' },
+            { label: 'BRIEFS', value: '15 SYNCED', valueColor: '#4ade80' },
+            { label: 'COOLING', value: `${rpmRef.current} RPM`, valueColor: '#ffedd5' },
+            { label: 'UPTIME', value: uptimeStr, valueColor: '#38bdf8' },
+          ];
+        } else if (mode === 'pipeline') {
+          rows = [
+            { label: 'CODEC', value: 'PRORES 422' },
+            { label: 'CANVAS', value: '4K 60FPS' },
+            { label: 'AUDIO', value: '48k / 24-BIT' },
+            { label: 'COLOR', value: 'REC.709 LUT', valueColor: '#fbbf24' },
+            { label: 'ENGINE', value: 'M-PRO 82%', valueColor: '#4ade80' },
+            { label: 'COOLING', value: `${rpmRef.current} RPM`, valueColor: '#ffedd5' },
+          ];
+        } else {
+          rows = [
+            { label: 'BRIEF', value: 'COMMERCIAL' },
+            { label: 'ASSETS', value: '4K MULTI-CAM' },
+            { label: 'DUE', value: '23:59 TODAY', valueColor: '#fbbf24' },
+            { label: 'MENTOR', value: '1-ON-1 ONLINE', valueColor: '#4ade80' },
+            { label: 'REWARD', value: '1,450 XP', valueColor: '#fbbf24' },
+            { label: 'COOLING', value: `${rpmRef.current} RPM`, valueColor: '#ffedd5' },
+          ];
+        }
+
+        sCtx.textBaseline = 'top';
+        const startY = 96;
+        const rowHeight = 29;
+
+        rows.forEach((row, i) => {
+          const y = startY + i * rowHeight;
+
+          // Label
+          sCtx.font = 'bold 13.5px monospace';
+          sCtx.fillStyle = 'rgba(248, 113, 113, 0.9)';
+          sCtx.fillText(row.label, 48, y + 2);
+
+          // Dot leaders connecting label and value
+          const labelW = sCtx.measureText(row.label).width;
+          const valW = sCtx.measureText(row.value).width;
+          const dotsStart = 48 + labelW + 6;
+          const dotsEnd = 304 - valW - 6;
+          if (dotsEnd > dotsStart + 8) {
+            const dotCount = Math.floor((dotsEnd - dotsStart) / 7);
+            sCtx.fillStyle = 'rgba(239, 68, 68, 0.35)';
+            sCtx.fillText('.'.repeat(Math.max(1, dotCount)), dotsStart, y + 2);
+          }
+
+          // Value
+          sCtx.textAlign = 'right';
+          sCtx.fillStyle = row.valueColor || '#ffffff';
+          sCtx.fillText(row.value, 304, y + 2);
+          sCtx.textAlign = 'left';
+        });
+
+        // Screen footer divider
+        sCtx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+        sCtx.fillRect(42, 280, 268, 1);
+
+        // Screen footer hint & OS label
+        sCtx.font = 'bold 11px monospace';
+        sCtx.fillStyle = 'rgba(248, 113, 113, 0.85)';
+        sCtx.fillText('JUNCA OS v2.4', 46, 290);
+
+        sCtx.textAlign = 'right';
+        sCtx.font = 'bold 11.5px monospace';
+        sCtx.fillStyle = blink ? '#ff4444' : '#fb923c';
+        sCtx.fillText('CLICK TO CYCLE >', 304, 290);
         sCtx.textAlign = 'left';
 
         if (screenTexture) {
@@ -421,10 +500,12 @@ export const RobotTerminal: React.FC = () => {
 
       // Telemetry tickers
       const intervalId = setInterval(() => {
-        const nextRpm = 60 + Math.floor(Math.random() * 5);
+        const baseSpeed = fanSpeedRef.current;
+        const nextRpm = Math.round(1240 * baseSpeed + (Math.random() * 30 - 15));
         rpmRef.current = nextRpm;
         setRpm(nextRpm);
         uptimeSecondsRef.current += 1;
+        setUptimeSeconds((prev) => prev + 1);
       }, 1000);
 
       let lastTime = performance.now();
@@ -639,22 +720,45 @@ export const RobotTerminal: React.FC = () => {
 
     startFallbackLoop();
 
+    const fallbackIntervalId = setInterval(() => {
+      const baseSpeed = fanSpeedRef.current;
+      const nextRpm = Math.round(1240 * baseSpeed + (Math.random() * 30 - 15));
+      rpmRef.current = nextRpm;
+      setRpm(nextRpm);
+      setUptimeSeconds((prev) => prev + 1);
+    }, 1000);
+
     return () => {
       stopFallbackLoop();
       io.disconnect();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(fallbackIntervalId);
       window.removeEventListener('mousemove', handleMouseMove);
     };
   }, [hasError]);
 
   const handleClick = () => {
     soundFx.playSweep(260, 720, 0.12, 0.06);
-    statusModeRef.current = statusModeRef.current === 'status' ? 'awaiting' : 'status';
+    const nextMode: RobotTerminalMode =
+      terminalModeRef.current === 'sprint'
+        ? 'pipeline'
+        : terminalModeRef.current === 'pipeline'
+        ? 'brief'
+        : 'sprint';
+    terminalModeRef.current = nextMode;
+    setTerminalMode(nextMode);
     fanSpeedRef.current = 2.4;
+    const boostRpm = 2840;
+    rpmRef.current = boostRpm;
+    setRpm(boostRpm);
     setTimeout(() => {
       fanSpeedRef.current = 1.0;
     }, 1200);
   };
+
+  const uptimeMins = Math.floor(uptimeSeconds / 60);
+  const uptimeSecs = uptimeSeconds % 60;
+  const uptimeDisplay = `${uptimeMins}:${uptimeSecs.toString().padStart(2, '0')}`;
 
   return (
     <div
@@ -662,7 +766,7 @@ export const RobotTerminal: React.FC = () => {
       data-cursor="ROBOT"
       onClick={handleClick}
       onMouseEnter={() => soundFx.playBlip(540, 0.03, 'sine', 0.03)}
-      className="relative w-[380px] sm:w-[460px] md:w-[540px] lg:w-[640px] xl:w-[720px] 2xl:w-[800px] h-[580px] sm:h-[660px] md:h-[720px] lg:h-[820px] xl:h-[900px] 2xl:h-[980px] flex items-center justify-center select-none pointer-events-auto cursor-pointer"
+      className="relative w-[340px] sm:w-[420px] md:w-[480px] lg:w-[560px] xl:w-[640px] 2xl:w-[720px] h-[500px] sm:h-[580px] md:h-[640px] lg:h-[720px] xl:h-[780px] 2xl:h-[840px] max-h-[85vh] max-w-[48vw] flex items-center justify-center select-none pointer-events-auto cursor-pointer"
     >
       {/* ================= VOLUMETRIC CRIMSON BACKGROUND NEBULA ================= */}
       <div className="pointer-events-none absolute -inset-24 -z-10 overflow-hidden">
@@ -721,17 +825,46 @@ export const RobotTerminal: React.FC = () => {
                 >
                   <div className="relative size-full rounded-lg bg-[#070204] p-3 flex flex-col justify-between font-mono text-[11px] leading-relaxed text-red-400">
                     <div>
-                      <div className="text-red-500 font-bold">&gt; status</div>
-                      <div className="mt-1 space-y-0.5 text-[10px]">
-                        <div>env ........ ok</div>
-                        <div>lightmap ... ok</div>
-                        <div>rig ........ ok</div>
-                        <div>fan ........ {rpm} rpm</div>
+                      <div className="text-red-500 font-bold flex items-center justify-between border-b border-red-900/40 pb-1">
+                        <span>{terminalMode === 'sprint' ? '> SPRINT OS' : terminalMode === 'pipeline' ? '> STUDIO 4K' : '> DAILY BRIEF'}</span>
+                        <span className="text-[10px] text-red-300">[{terminalMode === 'sprint' ? '1/3' : terminalMode === 'pipeline' ? '2/3' : '3/3'}]</span>
+                      </div>
+                      <div className="mt-1.5 space-y-0.5 text-[9.5px]">
+                        {terminalMode === 'sprint' && (
+                          <>
+                            <div className="flex justify-between"><span>COHORT</span><span className="text-white font-bold">VIDEO EDIT</span></div>
+                            <div className="flex justify-between"><span>BATCH</span><span className="text-white font-bold">#15 COHORT</span></div>
+                            <div className="flex justify-between"><span>STAGE</span><span className="text-amber-400 font-bold">DAY 07 / 15</span></div>
+                            <div className="flex justify-between"><span>BRIEFS</span><span className="text-emerald-400 font-bold">15 SYNCED</span></div>
+                            <div className="flex justify-between"><span>COOLING</span><span className="text-white font-bold">{rpm} RPM</span></div>
+                            <div className="flex justify-between"><span>UPTIME</span><span className="text-sky-400 font-bold">{uptimeDisplay}</span></div>
+                          </>
+                        )}
+                        {terminalMode === 'pipeline' && (
+                          <>
+                            <div className="flex justify-between"><span>CODEC</span><span className="text-white font-bold">PRORES 422</span></div>
+                            <div className="flex justify-between"><span>CANVAS</span><span className="text-white font-bold">4K 60FPS</span></div>
+                            <div className="flex justify-between"><span>AUDIO</span><span className="text-white font-bold">48k / 24-BIT</span></div>
+                            <div className="flex justify-between"><span>COLOR</span><span className="text-amber-400 font-bold">REC.709 LUT</span></div>
+                            <div className="flex justify-between"><span>ENGINE</span><span className="text-emerald-400 font-bold">M-PRO 82%</span></div>
+                            <div className="flex justify-between"><span>COOLING</span><span className="text-white font-bold">{rpm} RPM</span></div>
+                          </>
+                        )}
+                        {terminalMode === 'brief' && (
+                          <>
+                            <div className="flex justify-between"><span>BRIEF</span><span className="text-white font-bold">COMMERCIAL</span></div>
+                            <div className="flex justify-between"><span>ASSETS</span><span className="text-white font-bold">4K MULTI-CAM</span></div>
+                            <div className="flex justify-between"><span>DUE</span><span className="text-amber-400 font-bold">23:59 TODAY</span></div>
+                            <div className="flex justify-between"><span>MENTOR</span><span className="text-emerald-400 font-bold">1-ON-1 ONLINE</span></div>
+                            <div className="flex justify-between"><span>REWARD</span><span className="text-amber-400 font-bold">1,450 XP</span></div>
+                            <div className="flex justify-between"><span>COOLING</span><span className="text-white font-bold">{rpm} RPM</span></div>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="flex justify-between border-t border-red-900/40 pt-1 text-[9px]">
-                      <span>JUNCA OS v0.1</span>
-                      <span className="text-red-300 font-bold">ATTENTIF</span>
+                      <span>JUNCA OS v2.4</span>
+                      <span className="text-red-300 font-bold">CLICK TO CYCLE &gt;</span>
                     </div>
                   </div>
                 </div>
