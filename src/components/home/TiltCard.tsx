@@ -99,7 +99,7 @@ export const TiltCard: React.FC<TiltCardProps> = ({
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       style={{ ...transformStyle, ...style }}
-      className={`relative group rounded-2xl will-change-transform ${className}`}
+      className={`relative group rounded-2xl will-change-transform shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] ${className}`}
       {...props}
     >
       {/* Specular Glare Overlay */}

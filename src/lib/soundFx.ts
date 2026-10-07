@@ -36,8 +36,24 @@ class SoundFxService {
     }
   }
 
+  private listeners: Set<(enabled: boolean) => void> = new Set();
+
   public isEnabled(): boolean {
     return this.enabled;
+  }
+
+  public subscribe(listener: (enabled: boolean) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notify() {
+    this.listeners.forEach((l) => l(this.enabled));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('soundfx-toggled', { detail: this.enabled }));
+    }
   }
 
   public toggle(): boolean {
@@ -45,6 +61,7 @@ class SoundFxService {
     if (typeof window !== 'undefined') {
       localStorage.setItem('procut_sound_enabled', String(this.enabled));
     }
+    this.notify();
     if (this.enabled) {
       this.initContext();
       this.playBlip(520, 0.08, 'sine');
@@ -57,6 +74,7 @@ class SoundFxService {
     if (typeof window !== 'undefined') {
       localStorage.setItem('procut_sound_enabled', String(this.enabled));
     }
+    this.notify();
     if (this.enabled) {
       this.initContext();
     }

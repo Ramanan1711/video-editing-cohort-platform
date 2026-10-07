@@ -72,7 +72,7 @@ export function Home() {
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-[#030712] text-slate-100 font-sans selection:bg-orange-500 selection:text-white transition-colors relative overflow-x-hidden film-grain"
+      className="min-h-screen bg-surface-base text-slate-100 font-sans selection:bg-orange-500 selection:text-white transition-colors relative overflow-x-hidden film-grain"
     >
       {/* Top GSAP Scroll Progress Indicator */}
       <div className="fixed top-0 left-0 right-0 h-[3.5px] bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-400 origin-left scale-x-0 z-[100] gsap-scroll-progress pointer-events-none shadow-[0_0_12px_rgba(249,115,22,0.9)]" />
@@ -195,7 +195,7 @@ export function Home() {
                 perspective={1200}
                 glareOpacity={0.2}
                 glareColor="rgba(251, 146, 60, 0.3)"
-                className="relative rounded-3xl border border-white/10 bg-[#090d16]/90 backdrop-blur-2xl shadow-2xl overflow-hidden"
+                className="relative rounded-3xl border border-surface-subtle bg-surface-card/90 backdrop-blur-2xl shadow-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] overflow-hidden"
               >
                 {/* Mock Browser Header */}
                 <div className="flex items-center justify-between border-b border-white/10 bg-[#060911]/80 px-5 py-3.5">
@@ -1178,7 +1178,7 @@ export function Home() {
               <TiltCard
                 maxTilt={6}
                 glareColor="rgba(16, 185, 129, 0.15)"
-                className="rounded-3xl border border-white/10 bg-[#030712]/95 backdrop-blur-xl p-6 sm:p-7 shadow-2xl shadow-emerald-950/20 space-y-4"
+                className="rounded-3xl border border-surface-subtle bg-surface-card/95 backdrop-blur-xl p-6 sm:p-7 shadow-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] shadow-emerald-950/20 space-y-4"
               >
                 <div className="flex items-center gap-3 border-b border-white/10 pb-4">
                   <div className="relative">
@@ -1912,7 +1912,7 @@ export function Home() {
               <TiltCard
                 maxTilt={5}
                 glareColor="rgba(249, 115, 22, 0.2)"
-                className="mx-auto mt-12 max-w-2xl overflow-hidden border border-orange-500/40 bg-gradient-to-b from-[#0e1628] via-[#070b16] to-[#030712] backdrop-blur-2xl rounded-3xl shadow-2xl shadow-orange-500/10 text-left"
+                className="mx-auto mt-12 max-w-2xl overflow-hidden border border-surface-subtle bg-gradient-to-b from-surface-elevated via-surface-card to-surface-base backdrop-blur-2xl rounded-3xl shadow-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] shadow-orange-500/10 text-left"
               >
                 <div className="grid gap-8 p-7 sm:grid-cols-[1fr_auto] sm:p-10">
                   <div>
