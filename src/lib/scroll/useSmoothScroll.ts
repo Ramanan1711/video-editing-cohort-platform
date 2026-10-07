@@ -29,6 +29,13 @@ export function useSmoothScroll(enabled = true) {
     // Expose lenis globally for debugging, console inspection, and anchor jumps
     (window as unknown as { lenis?: Lenis }).lenis = lenis;
 
+    // Smoothly scroll to initial hash target if present in URL
+    if (window.location.hash) {
+      setTimeout(() => {
+        lenis.scrollTo(window.location.hash, { offset: -72, duration: 1.2 });
+      }, 300);
+    }
+
     // Synchronize Lenis scroll position with ScrollTrigger
     lenis.on('scroll', ScrollTrigger.update);
 

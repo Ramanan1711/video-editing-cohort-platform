@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -47,17 +47,13 @@ function PageLoadingFallback() {
 // Initialize production observability & error tracking
 initErrorTracking();
 
-export function App() {
+function AnimatedRoutes() {
+  const location = useLocation();
+
   return (
-    <ErrorBoundary>
-      <QueryClientProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <SidebarProvider>
-                <BrowserRouter>
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <Routes>
+    <div key={location.pathname} className="animate-in fade-in duration-300 w-full min-h-screen">
+      <Suspense fallback={<PageLoadingFallback />}>
+        <Routes>
                     {/* Public Routes */}
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
@@ -207,14 +203,28 @@ export function App() {
                       }
                     />
                   </Routes>
-                </Suspense>
-              </BrowserRouter>
-            </SidebarProvider>
-          </ToastProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
+      </Suspense>
+    </div>
+  );
+}
+
+export function App() {
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <SidebarProvider>
+                <BrowserRouter>
+                  <AnimatedRoutes />
+                </BrowserRouter>
+              </SidebarProvider>
+            </ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

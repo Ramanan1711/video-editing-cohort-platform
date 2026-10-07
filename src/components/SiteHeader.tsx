@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, Sparkles, X, ArrowRight, Volume2, VolumeX } from 'lucide-react';
 import { Button } from './ui/Button';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
@@ -8,6 +8,8 @@ import { soundFx } from '../lib/soundFx';
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [sfxEnabled, setSfxEnabled] = useState(() => soundFx.isEnabled());
+  const location = useLocation();
+  const navigate = useNavigate();
   useModalScrollLock(open);
 
   useEffect(() => {
@@ -19,6 +21,26 @@ export function SiteHeader() {
   const handleToggleSfx = () => {
     const next = soundFx.toggle();
     setSfxEnabled(next);
+  };
+
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, target: string) => {
+    e.preventDefault();
+    if (open) setOpen(false);
+
+    if (location.pathname === '/') {
+      const lenis = (window as unknown as { lenis?: { scrollTo: (target: string, options?: { offset?: number; duration?: number }) => void } }).lenis;
+      if (lenis && typeof lenis.scrollTo === 'function') {
+        lenis.scrollTo(target, { offset: -72, duration: 1.2 });
+      } else {
+        const el = document.querySelector(target);
+        if (el) {
+          const y = el.getBoundingClientRect().top + window.pageYOffset - 72;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+      }
+    } else {
+      navigate('/' + target);
+    }
   };
 
   const links = [
@@ -57,6 +79,7 @@ export function SiteHeader() {
             <a
               key={link.href}
               href={link.href}
+              onClick={(e) => handleAnchorClick(e, link.href)}
               className="text-xs font-bold text-slate-300 hover:text-orange-400 transition-colors"
             >
               {link.label}
@@ -144,7 +167,7 @@ export function SiteHeader() {
               <a
                 key={link.href}
                 href={link.href}
-                onClick={() => setOpen(false)}
+                onClick={(e) => handleAnchorClick(e, link.href)}
                 className="rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-300 hover:bg-white/10 hover:text-white transition"
               >
                 {link.label}
