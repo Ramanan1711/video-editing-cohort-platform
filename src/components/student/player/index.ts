@@ -2,4 +2,9 @@ export * from './VideoScreen';
 export * from './LessonSidebar';
 export * from './ResourceList';
 export * from './AssignmentSubmitCard';
-
+export * from './LessonPlayer';
+export * from './PlayerSkeletons';
+export * from './HabitHeatmapCard';
+export * from './StudioCopilotCard';
+export * from './LiveSessionsTab';
+export * from './AnnouncementsTab';
