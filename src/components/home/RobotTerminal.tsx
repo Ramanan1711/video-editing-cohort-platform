@@ -24,6 +24,7 @@ export const RobotTerminal: React.FC = () => {
   // Mouse tracking state
   const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, active: false });
   const [rpm, setRpm] = useState(62);
+  const rpmRef = useRef(62);
   const fanSpeedRef = useRef(1.0);
   const uptimeSecondsRef = useRef(160);
   const statusModeRef = useRef<'status' | 'awaiting'>('status');
@@ -152,7 +153,7 @@ export const RobotTerminal: React.FC = () => {
           sCtx.fillText('  env ........ ok', 45, 110);
           sCtx.fillText('  lightmap ... ok', 45, 150);
           sCtx.fillText('  rig ........ ok', 45, 190);
-          sCtx.fillText(`  fan ........ ${rpm} rpm`, 45, 230);
+          sCtx.fillText(`  fan ........ ${rpmRef.current} rpm`, 45, 230);
 
           const mins = Math.floor(uptimeSecondsRef.current / 60);
           const secs = uptimeSecondsRef.current % 60;
@@ -420,7 +421,9 @@ export const RobotTerminal: React.FC = () => {
 
       // Telemetry tickers
       const intervalId = setInterval(() => {
-        setRpm(60 + Math.floor(Math.random() * 5));
+        const nextRpm = 60 + Math.floor(Math.random() * 5);
+        rpmRef.current = nextRpm;
+        setRpm(nextRpm);
         uptimeSecondsRef.current += 1;
       }, 1000);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
@@ -55,7 +55,7 @@ export function InternshipMonitoringHub({
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [showWhatsAppHub, setShowWhatsAppHub] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [internsData, reportsData] = await Promise.all([
@@ -70,7 +70,7 @@ export function InternshipMonitoringHub({
     } finally {
       setLoading(false);
     }
-  };
+  }, [cohortId, toast]);
 
   const reportsByStudentId = useMemo(() => {
     return new Map(reports.map((r) => [r.student_id, r]));
@@ -115,7 +115,7 @@ export function InternshipMonitoringHub({
     if (cohortId) {
       loadData();
     }
-  }, [cohortId]);
+  }, [cohortId, loadData]);
 
   // Telemetry metrics
   const stats = useMemo(() => {

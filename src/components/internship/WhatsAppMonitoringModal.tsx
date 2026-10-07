@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
@@ -60,7 +60,7 @@ export function WhatsAppMonitoringModal({
 
   const activeProvider = useMemo(() => getWhatsAppProvider().name, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [fetchedLogs, fetchedStats] = await Promise.all([
@@ -75,13 +75,13 @@ export function WhatsAppMonitoringModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [cohortId, toast]);
 
   useEffect(() => {
     if (isOpen) {
       loadData();
     }
-  }, [isOpen, cohortId]);
+  }, [isOpen, loadData]);
 
   const handleProcessRetries = async () => {
     try {

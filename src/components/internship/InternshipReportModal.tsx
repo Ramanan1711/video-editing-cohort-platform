@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Award,
@@ -63,7 +63,7 @@ export function InternshipReportModal({
   const [growthAreas, setGrowthAreas] = useState('');
   const [recommendation, setRecommendation] = useState<InternshipReport['recommendation']>('recommend');
 
-  const loadReport = async () => {
+  const loadReport = useCallback(async () => {
     try {
       setLoading(true);
       const existing = await getStudentInternshipReport(cohortId, studentId);
@@ -84,14 +84,14 @@ export function InternshipReportModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [cohortId, studentId, toast]);
 
   useEffect(() => {
     if (isOpen && cohortId && studentId) {
       loadReport();
       setIsEditing(false);
     }
-  }, [isOpen, cohortId, studentId]);
+  }, [isOpen, cohortId, studentId, loadReport]);
 
   const handleGenerate = async () => {
     try {
