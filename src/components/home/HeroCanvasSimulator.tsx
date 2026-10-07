@@ -58,7 +58,6 @@ export const HeroCanvasSimulator: React.FC = () => {
     let width = 0;
     let height = 0;
     let dpr = 1;
-    let isVisible = true;
     let particles: Particle[] = [];
     let lastFrameTime = performance.now();
     let frameCount = 0;
@@ -178,40 +177,14 @@ export const HeroCanvasSimulator: React.FC = () => {
     const ro = new ResizeObserver(resize);
     if (containerRef.current) ro.observe(containerRef.current);
 
-    const handleVisibilityChange = () => {
-      isVisible = !document.hidden;
-      if (isVisible) {
-        lastFrameTime = performance.now();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Mouse listeners on container
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      mouseRef.current.targetX = e.clientX - rect.left;
-      mouseRef.current.targetY = e.clientY - rect.top;
-      mouseRef.current.isInside = true;
-    };
-
-    const handleMouseLeave = () => {
-      mouseRef.current.isInside = false;
-      mouseRef.current.targetX = width / 2;
-      mouseRef.current.targetY = height * 0.45;
-    };
-
-    const el = containerRef.current;
-    if (el) {
-      el.addEventListener('mousemove', handleMouseMove);
-      el.addEventListener('mouseleave', handleMouseLeave);
-    }
+    let isIntersecting = true;
+    let isTabVisible = !document.hidden;
+    let isRunning = false;
 
     // Animation Render Loop
     let time = 0;
     const render = (now: number) => {
-      animationFrameId = requestAnimationFrame(render);
-      if (!isVisible) return;
+      if (!isRunning) return;
 
       const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
       lastFrameTime = now;
@@ -380,12 +353,76 @@ export const HeroCanvasSimulator: React.FC = () => {
       }
 
       ctx.globalAlpha = 1.0;
+      animationFrameId = requestAnimationFrame(render);
     };
 
-    animationFrameId = requestAnimationFrame(render);
+    const startLoop = () => {
+      if (isRunning || !isIntersecting || !isTabVisible) return;
+      isRunning = true;
+      lastFrameTime = performance.now();
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    const stopLoop = () => {
+      isRunning = false;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+
+    // IntersectionObserver to suspend simulation when scrolled offscreen
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        isIntersecting = entry.isIntersecting;
+        if (isIntersecting) {
+          startLoop();
+        } else {
+          stopLoop();
+        }
+      },
+      { threshold: 0.05 }
+    );
+
+    if (containerRef.current) {
+      io.observe(containerRef.current);
+    }
+
+    const handleVisibilityChange = () => {
+      isTabVisible = !document.hidden;
+      if (isTabVisible && isIntersecting) {
+        startLoop();
+      } else {
+        stopLoop();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Mouse listeners on container
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      mouseRef.current.targetX = e.clientX - rect.left;
+      mouseRef.current.targetY = e.clientY - rect.top;
+      mouseRef.current.isInside = true;
+    };
+
+    const handleMouseLeave = () => {
+      mouseRef.current.isInside = false;
+      mouseRef.current.targetX = width / 2;
+      mouseRef.current.targetY = height * 0.45;
+    };
+
+    const el = containerRef.current;
+    if (el) {
+      el.addEventListener('mousemove', handleMouseMove);
+      el.addEventListener('mouseleave', handleMouseLeave);
+    }
+
+    startLoop();
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      stopLoop();
+      io.disconnect();
       ro.disconnect();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (el) {

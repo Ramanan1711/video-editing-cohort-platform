@@ -430,9 +430,12 @@ export const RobotTerminal: React.FC = () => {
       let currentHeadRoll = 0;
       let currentBodyYaw = 0;
       let currentBodyPitch = 0;
+      let isIntersecting = true;
+      let isTabVisible = !document.hidden;
+      let isRunning = false;
 
       const animate = (time: number) => {
-        if (disposed) return;
+        if (disposed || !isRunning) return;
 
         const delta = Math.min((time - lastTime) * 0.001, 0.05);
         lastTime = time;
@@ -482,7 +485,48 @@ export const RobotTerminal: React.FC = () => {
         animId = requestAnimationFrame(animate);
       };
 
-      animId = requestAnimationFrame(animate);
+      const startLoop = () => {
+        if (disposed || isRunning || !isIntersecting || !isTabVisible) return;
+        isRunning = true;
+        lastTime = performance.now();
+        animId = requestAnimationFrame(animate);
+      };
+
+      const stopLoop = () => {
+        isRunning = false;
+        if (animId) {
+          cancelAnimationFrame(animId);
+        }
+      };
+
+      // IntersectionObserver: suspend WebGL loop when out of viewport
+      const io = new IntersectionObserver(
+        ([entry]) => {
+          isIntersecting = entry.isIntersecting;
+          if (isIntersecting) {
+            startLoop();
+          } else {
+            stopLoop();
+          }
+        },
+        { threshold: 0.05 }
+      );
+
+      if (container) {
+        io.observe(container);
+      }
+
+      const handleVisibilityChange = () => {
+        isTabVisible = !document.hidden;
+        if (isTabVisible && isIntersecting) {
+          startLoop();
+        } else {
+          stopLoop();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      startLoop();
 
       // Resize handler
       const handleResize = () => {
@@ -498,7 +542,9 @@ export const RobotTerminal: React.FC = () => {
 
       return () => {
         disposed = true;
-        cancelAnimationFrame(animId);
+        stopLoop();
+        io.disconnect();
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         clearInterval(intervalId);
         window.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseleave', handleMouseLeave);
@@ -526,6 +572,8 @@ export const RobotTerminal: React.FC = () => {
     let targetY = 0;
     let currX = 0;
     let currY = 0;
+    let isIntersecting = true;
+    let isRunning = false;
 
     const handleMouseMove = (e: MouseEvent) => {
       targetX = (e.clientX / window.innerWidth - 0.5) * 2;
@@ -535,6 +583,8 @@ export const RobotTerminal: React.FC = () => {
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
 
     const animateFallback = () => {
+      if (!isRunning) return;
+
       currX += (targetX - currX) * 0.08;
       currY += (targetY - currY) * 0.08;
 
@@ -551,11 +601,46 @@ export const RobotTerminal: React.FC = () => {
       animId = requestAnimationFrame(animateFallback);
     };
 
-    animId = requestAnimationFrame(animateFallback);
+    const startFallbackLoop = () => {
+      if (isRunning || !isIntersecting || document.hidden) return;
+      isRunning = true;
+      animId = requestAnimationFrame(animateFallback);
+    };
+
+    const stopFallbackLoop = () => {
+      isRunning = false;
+      if (animId) cancelAnimationFrame(animId);
+    };
+
+    const io = new IntersectionObserver(([entry]) => {
+      isIntersecting = entry.isIntersecting;
+      if (isIntersecting) {
+        startFallbackLoop();
+      } else {
+        stopFallbackLoop();
+      }
+    }, { threshold: 0.05 });
+
+    if (containerRef.current) {
+      io.observe(containerRef.current);
+    }
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isIntersecting) {
+        startFallbackLoop();
+      } else {
+        stopFallbackLoop();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    startFallbackLoop();
 
     return () => {
+      stopFallbackLoop();
+      io.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('mousemove', handleMouseMove);
-      cancelAnimationFrame(animId);
     };
   }, [hasError]);
 
