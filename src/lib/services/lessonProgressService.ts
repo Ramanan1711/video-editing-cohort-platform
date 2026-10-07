@@ -22,10 +22,20 @@ export async function getStudentCourseData(userId: string, cohortId?: string): P
     .from('enrollments')
     .select('cohort_id, status, created_at')
     .eq('user_id', userId)
-    .in('status', ['enrolled', 'active'])
+    .in('status', ['enrolled', 'active', 'completed', 'inactive'])
     .order('created_at', { ascending: false });
 
   if (enrollmentError) throw enrollmentError;
+
+  // Background self-heal for legacy inactive enrollments from old single-active-cohort policy
+  const inactiveCohortIds = (enrollments ?? []).filter((e) => e.status === 'inactive').map((e) => e.cohort_id);
+  if (inactiveCohortIds.length > 0) {
+    void supabase
+      .from('enrollments')
+      .update({ status: 'enrolled', updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .in('cohort_id', inactiveCohortIds);
+  }
 
   const enrolledCohortIds = (enrollments ?? []).map((e) => e.cohort_id);
   if (!enrolledCohortIds.length) {

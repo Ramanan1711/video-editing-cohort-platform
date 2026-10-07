@@ -195,5 +195,69 @@ describe('Course Enrollment Access Guard (Paid-Only Policy Enforcement)', () => 
     expect(rustResult.cohort).toBeNull();
     expect(rustResult.modules).toEqual([]);
   });
+
+  it('recognizes legacy inactive enrollment and allows seamless access while triggering self-healing', async () => {
+    // When a user enrolled in Java, their previous Python enrollment was legacy-marked 'inactive'
+    const mockEnrollments = [
+      { cohort_id: 'cohort-java', status: 'enrolled', created_at: '2026-10-01T00:00:00Z' },
+      { cohort_id: 'cohort-python', status: 'inactive', created_at: '2026-09-15T00:00:00Z' },
+    ];
+    const mockCohorts = [
+      { id: 'cohort-java', title: 'Java Masterclass', description: 'Comprehensive Java Course' },
+      { id: 'cohort-python', title: 'Python for AI', description: 'Comprehensive Python Course' },
+    ];
+    const mockPythonModules = [
+      { id: 'mod-python', cohort_id: 'cohort-python', title: 'Python Core', position: 1, lessons: [] },
+    ];
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ error: null }),
+      }),
+    });
+
+    (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+      if (table === 'enrollments') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: mockEnrollments, error: null }),
+              }),
+            }),
+          }),
+          update: mockUpdate,
+        };
+      }
+      if (table === 'cohorts') {
+        return {
+          select: vi.fn().mockReturnValue({
+            in: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: mockCohorts, error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === 'modules') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: mockPythonModules, error: null }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn() };
+    });
+
+    const result = await getStudentCourseData('user-student-1', 'cohort-python');
+    expect(result.cohort).not.toBeNull();
+    expect(result.cohort?.id).toBe('cohort-python');
+    expect(result.modules).toHaveLength(1);
+    expect(result.modules[0].title).toBe('Python Core');
+    expect(result.enrolledCohorts).toHaveLength(2);
+    // Background self-healing should have fired for the inactive python enrollment
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: 'enrolled' }));
+  });
 });
 

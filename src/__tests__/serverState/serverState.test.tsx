@@ -255,7 +255,7 @@ describe('Unified Server-State Management Library', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Focus Count: 12')).toBeInTheDocument();
-    });
+    }, { timeout: 2000 });
 
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });

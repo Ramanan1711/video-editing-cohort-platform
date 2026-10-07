@@ -193,9 +193,13 @@ export function StudentDashboard() {
   const handleContinueCourse = useCallback(
     (cohortId: string) => {
       dashboard.setSelectedCohortId(cohortId);
-      handleSetDashboardView('player');
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('cohortId', cohortId);
+      newParams.set('view', 'player');
+      setSearchParams(newParams);
+      setDashboardView('player');
     },
-    [dashboard, handleSetDashboardView]
+    [dashboard, searchParams, setSearchParams]
   );
 
   const handleUnlockCourse = useCallback(
@@ -382,6 +386,9 @@ export function StudentDashboard() {
           targetCohortId={selectedCohortForDiscovery}
           onSelectCohort={(cohortId) => {
             dashboard.setSelectedCohortId(cohortId);
+            const newParams = new URLSearchParams(searchParams);
+            newParams.set('cohortId', cohortId);
+            setSearchParams(newParams);
             dashboard.setRefreshKey((k) => k + 1);
           }}
         />

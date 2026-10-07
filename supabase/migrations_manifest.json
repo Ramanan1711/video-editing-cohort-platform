@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-07T11:18:48.683Z",
-  "migrationCount": 51,
+  "generatedAt": "2026-10-07T11:49:24.395Z",
+  "migrationCount": 52,
   "migrations": [
     {
       "order": 1,
@@ -736,11 +736,23 @@
     {
       "order": 51,
       "filename": "20261007000003_secure_lessons_modules_paid_enrollment_rls.sql",
-      "sha256": "ef86996e1fa7ede79c0200f76cb2185819e5fab2516a70bd8945b62df08b89e7",
-      "sizeBytes": 2151,
+      "sha256": "05f60abc30796463d998521b4aa49c41745e32ac092dc6c79be066c3c88479a3",
+      "sizeBytes": 2152,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": []
+    },
+    {
+      "order": 52,
+      "filename": "20261007000004_support_multi_cohort_concurrent_enrollment.sql",
+      "sha256": "e0ea2b7cc976ecfac7b6ee8a4d050dfab4fa24f36176b589d4019de80f52c903",
+      "sizeBytes": 11977,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "enroll_student_in_cohort",
+        "record_successful_cohort_payment"
+      ]
     }
   ]
 }

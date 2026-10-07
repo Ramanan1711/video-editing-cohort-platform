@@ -180,7 +180,7 @@ export async function listAvailableCohorts(userId: string): Promise<Cohort[]> {
     .from('enrollments')
     .select('cohort_id')
     .eq('user_id', userId)
-    .in('status', ['enrolled', 'active']);
+    .in('status', ['enrolled', 'active', 'completed', 'inactive']);
   if (enrollmentError) throw enrollmentError;
   const enrolledIds = (enrollments ?? []).map((enrollment) => enrollment.cohort_id);
   const cohorts = await listCohorts();
@@ -191,7 +191,8 @@ export async function listEnrolledCohorts(userId: string): Promise<Cohort[]> {
   const { data: enrollments, error: enrollmentsError } = await supabase
     .from('enrollments')
     .select('cohort_id')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .in('status', ['enrolled', 'active', 'completed', 'inactive']);
 
   if (enrollmentsError) throw enrollmentsError;
   const cohortIds = (enrollments ?? []).map((e) => e.cohort_id);
@@ -210,7 +211,7 @@ export async function listEnrolledCohorts(userId: string): Promise<Cohort[]> {
 export async function listAllStudentCohorts(userId: string): Promise<(Cohort & { isEnrolled: boolean })[]> {
   const [{ data: allCohorts, error: cohortsError }, { data: enrollments, error: enrollmentsError }] = await Promise.all([
     supabase.from('cohorts').select('id, title, description').order('title'),
-    supabase.from('enrollments').select('cohort_id').eq('user_id', userId).in('status', ['enrolled', 'active']),
+    supabase.from('enrollments').select('cohort_id').eq('user_id', userId).in('status', ['enrolled', 'active', 'completed', 'inactive']),
   ]);
 
   if (cohortsError) throw cohortsError;
@@ -264,19 +265,7 @@ export async function enrollInCohort(userId: string, cohortId: string): Promise<
     }
   }
 
-  // 1. Deactivate any existing active enrollments for this student in other cohorts
-  try {
-    await supabase
-      .from('enrollments')
-      .update({ status: 'inactive' })
-      .eq('user_id', userId)
-      .neq('cohort_id', cohortId)
-      .in('status', ['active', 'enrolled']);
-  } catch (deactivateErr) {
-    console.warn('Could not deactivate prior enrollments client-side:', deactivateErr);
-  }
-
-  // 2. Attempt validated server-side RPC (enforces capacity, enrollment window, active user status, and emits audit log)
+  // 1. Attempt validated server-side RPC (enforces capacity, enrollment window, active user status, and emits audit log)
   const { data: rpcData, error: rpcError } = await supabase.rpc('enroll_student_in_cohort', {
     p_cohort_id: cohortId,
     p_student_id: userId,

@@ -251,6 +251,16 @@ export async function getUserProfileOverview(userId: string): Promise<UserProfil
       if (mods) modulesList = mods as typeof modulesList;
     }
 
+    // Resilient background auto-heal for legacy inactive enrollments
+    const inactiveCohortIds = (enrollmentsData || []).filter((e) => e.status === 'inactive').map((e) => e.cohort_id);
+    if (inactiveCohortIds.length > 0) {
+      void supabase
+        .from('enrollments')
+        .update({ status: 'enrolled', updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .in('cohort_id', inactiveCohortIds);
+    }
+
     const completedLessonIds = new Set(
       (progressRes.data || []).filter((p) => p.completed).map((p) => p.lesson_id)
     );
@@ -270,7 +280,7 @@ export async function getUserProfileOverview(userId: string): Promise<UserProfil
         cohortId: enrollment.cohort_id,
         cohortTitle: title,
         courseTitle: cohort?.description || title,
-        status: (enrollment.status as EnrolledCourseDetail['status']) || 'active',
+        status: enrollment.status === 'inactive' ? 'active' : ((enrollment.status as EnrolledCourseDetail['status']) || 'active'),
         enrolledAt: enrollment.enrolled_at || enrollment.created_at || new Date().toISOString(),
         priceInr: cohort?.price_inr ?? 4999,
         currency: cohort?.currency || 'INR',
