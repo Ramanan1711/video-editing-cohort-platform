@@ -89,7 +89,16 @@ export async function getActiveAdvertisements(): Promise<Advertisement[]> {
       .order('created_at', { ascending: false });
 
     if (!error && Array.isArray(data)) {
-      return data as Advertisement[];
+      const ads = data as Advertisement[];
+      return Promise.all(
+        ads.map(async (ad) => {
+          if (ad.image_url) {
+            const resolved = await resolveAdvertisementImageUrl(ad.image_url);
+            return { ...ad, image_url: resolved };
+          }
+          return ad;
+        })
+      );
     }
   } catch {
     // Fall back to local storage if network or table fails
@@ -97,12 +106,22 @@ export async function getActiveAdvertisements(): Promise<Advertisement[]> {
 
   const local = getLocalAds();
   const now = Date.now();
-  return local.filter((ad) => {
+  const activeLocal = local.filter((ad) => {
     if (!ad.is_active) return false;
     if (ad.expires_at && new Date(ad.expires_at).getTime() <= now) return false;
     if (ad.starts_at && new Date(ad.starts_at).getTime() > now) return false;
     return true;
   });
+
+  return Promise.all(
+    activeLocal.map(async (ad) => {
+      if (ad.image_url) {
+        const resolved = await resolveAdvertisementImageUrl(ad.image_url);
+        return { ...ad, image_url: resolved };
+      }
+      return ad;
+    })
+  );
 }
 
 /**
@@ -117,13 +136,31 @@ export async function listAdvertisements(): Promise<Advertisement[]> {
       .order('created_at', { ascending: false });
 
     if (!error && Array.isArray(data)) {
-      return data as Advertisement[];
+      const ads = data as Advertisement[];
+      return Promise.all(
+        ads.map(async (ad) => {
+          if (ad.image_url) {
+            const resolved = await resolveAdvertisementImageUrl(ad.image_url);
+            return { ...ad, image_url: resolved };
+          }
+          return ad;
+        })
+      );
     }
   } catch {
     // Fall back to local storage
   }
 
-  return getLocalAds();
+  const local = getLocalAds();
+  return Promise.all(
+    local.map(async (ad) => {
+      if (ad.image_url) {
+        const resolved = await resolveAdvertisementImageUrl(ad.image_url);
+        return { ...ad, image_url: resolved };
+      }
+      return ad;
+    })
+  );
 }
 
 /**
@@ -133,11 +170,12 @@ export async function createAdvertisement(
   input: CreateAdvertisementInput,
   createdBy?: string
 ): Promise<Advertisement> {
+  const resolvedImageUrl = input.image_url ? await resolveAdvertisementImageUrl(input.image_url) : null;
   const payload = {
     title: input.title.trim(),
     tagline: input.tagline?.trim() || null,
     description: input.description?.trim() || null,
-    image_url: input.image_url?.trim() || null,
+    image_url: resolvedImageUrl,
     cta_text: input.cta_text?.trim() || 'Learn More',
     cta_link: input.cta_link?.trim() || '#pricing',
     badge_text: input.badge_text?.trim() || 'SPECIAL OFFER',
@@ -190,7 +228,9 @@ export async function updateAdvertisement(
   if (input.title !== undefined) updates.title = input.title.trim();
   if (input.tagline !== undefined) updates.tagline = input.tagline?.trim() || null;
   if (input.description !== undefined) updates.description = input.description?.trim() || null;
-  if (input.image_url !== undefined) updates.image_url = input.image_url?.trim() || null;
+  if (input.image_url !== undefined) {
+    updates.image_url = input.image_url ? await resolveAdvertisementImageUrl(input.image_url) : null;
+  }
   if (input.cta_text !== undefined) updates.cta_text = input.cta_text?.trim() || 'Learn More';
   if (input.cta_link !== undefined) updates.cta_link = input.cta_link?.trim() || '#pricing';
   if (input.badge_text !== undefined) updates.badge_text = input.badge_text?.trim() || null;
@@ -257,8 +297,54 @@ export async function deleteAdvertisement(id: string): Promise<void> {
 }
 
 /**
+ * Resolves an advertisement image URL to an accessible URL.
+ * If the image is stored in course-assets, creates a long-lived signed URL so it doesn't fail with 400 Bad Request.
+ */
+export async function resolveAdvertisementImageUrl(fileUrl: string | null | undefined): Promise<string> {
+  if (!fileUrl || !fileUrl.trim()) return '';
+
+  const cleanUrl = fileUrl.trim();
+
+  // If already a signed URL with active token query param, return as is
+  if (cleanUrl.includes('/object/sign/') && cleanUrl.includes('token=')) {
+    return cleanUrl;
+  }
+
+  // If external non-Supabase URL (e.g. Unsplash, Cloudinary), return as is
+  if (!cleanUrl.includes('/course-assets/') && !cleanUrl.startsWith('course-assets/')) {
+    return cleanUrl;
+  }
+
+  // Extract relative storage path inside course-assets
+  let objectPath = cleanUrl;
+  if (cleanUrl.includes('/course-assets/')) {
+    objectPath = cleanUrl.split('/course-assets/')[1];
+  } else if (cleanUrl.startsWith('course-assets/')) {
+    objectPath = cleanUrl.slice('course-assets/'.length);
+  }
+  objectPath = objectPath.split('?')[0].split('#')[0];
+  objectPath = decodeURIComponent(objectPath).replace(/^\/+/, '');
+
+  if (!objectPath) return cleanUrl;
+
+  try {
+    const { data: signed, error: signErr } = await supabase.storage
+      .from('course-assets')
+      .createSignedUrl(objectPath, 60 * 60 * 24 * 365); // 1-year valid signed URL
+
+    if (!signErr && signed?.signedUrl) {
+      return signed.signedUrl;
+    }
+  } catch {
+    // Return original url if signing fails
+  }
+
+  return cleanUrl;
+}
+
+/**
  * Upload an advertisement image file to Supabase storage.
- * Returns the resolved public/signed URL or object URL fallback.
+ * Returns a long-lived signed URL that can be viewed publicly without 400 Bad Request.
  */
 export async function uploadAdvertisementImage(file: File): Promise<string> {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
@@ -273,27 +359,20 @@ export async function uploadAdvertisementImage(file: File): Promise<string> {
       });
 
     if (!uploadError) {
-      // Create public or persistent signed URL
-      const { data: publicUrlData } = supabase.storage
+      // Create a 1-year signed URL so private bucket returns 200 OK
+      const { data: signedData, error: signedError } = await supabase.storage
         .from('course-assets')
-        .getPublicUrl(path);
+        .createSignedUrl(path, 60 * 60 * 24 * 365);
 
-      if (publicUrlData?.publicUrl) {
-        return publicUrlData.publicUrl;
-      }
-
-      const { data: signedData } = await supabase.storage
-        .from('course-assets')
-        .createSignedUrl(path, 60 * 60 * 24 * 365); // 1-year validity
-
-      if (signedData?.signedUrl) {
+      if (!signedError && signedData?.signedUrl) {
         return signedData.signedUrl;
       }
     }
-  } catch {
-    // Fall back to FileReader base64 or Object URL for local/offline resilience
+  } catch (err) {
+    console.error('Storage upload error:', err);
   }
 
+  // Fall back to FileReader base64 or Object URL for local/offline resilience
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onloadend = () => {

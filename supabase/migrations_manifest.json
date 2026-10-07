@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-07T09:47:12.824Z",
-  "migrationCount": 49,
+  "generatedAt": "2026-10-07T10:14:08.755Z",
+  "migrationCount": 50,
   "migrations": [
     {
       "order": 1,
@@ -712,14 +712,25 @@
     {
       "order": 49,
       "filename": "20261007000001_canonical_homepage_advertisements.sql",
-      "sha256": "5c345dfb6056f029c68abcae7a326f67431db01d775ca326ac7824fd93c4cba9",
-      "sizeBytes": 3936,
+      "sha256": "ef9cfca8f61e9bc3925cbec5e55fc0f49040ac33bdfd34efb2c17bd38a4bc1f2",
+      "sizeBytes": 3937,
       "hasSecurityDefinerWithoutSearchPath": true,
       "tableCreations": [
         "homepage_advertisements"
       ],
       "rpcDefinitions": [
         "set_advertisement_timestamp"
+      ]
+    },
+    {
+      "order": 50,
+      "filename": "20261007000002_allow_public_advertisements_storage.sql",
+      "sha256": "732c84de179147d19f83f04eb48a8676e4e176928b4b9a5c1a554ef6aaa24290",
+      "sizeBytes": 2940,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "can_access_course_asset"
       ]
     }
   ]

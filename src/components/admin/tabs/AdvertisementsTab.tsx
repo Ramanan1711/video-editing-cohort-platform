@@ -23,6 +23,7 @@ import {
   type AdvertisementDisplayType,
   type CreateAdvertisementInput,
   type UpdateAdvertisementInput,
+  resolveAdvertisementImageUrl,
   uploadAdvertisementImage,
 } from '../../../lib/advertisementService';
 
@@ -303,6 +304,16 @@ export function AdvertisementsTab({
                         src={ad.image_url}
                         alt={ad.title}
                         className="h-full w-full object-cover"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          void resolveAdvertisementImageUrl(ad.image_url).then((resolved) => {
+                            if (resolved && resolved !== target.src) {
+                              target.src = resolved;
+                            } else {
+                              target.style.display = 'none';
+                            }
+                          });
+                        }}
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center text-slate-600 gap-1.5 p-4 text-center">
@@ -562,7 +573,19 @@ export function AdvertisementsTab({
 
                 {formImageUrl && (
                   <div className="mt-2.5 relative aspect-video w-48 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-950">
-                    <img src={formImageUrl} alt="Preview" className="h-full w-full object-cover" />
+                    <img
+                      src={formImageUrl}
+                      alt="Preview"
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        void resolveAdvertisementImageUrl(formImageUrl).then((resolved) => {
+                          if (resolved && resolved !== target.src) {
+                            target.src = resolved;
+                          }
+                        });
+                      }}
+                    />
                     <button
                       type="button"
                       onClick={() => setFormImageUrl('')}
@@ -689,7 +712,21 @@ export function AdvertisementsTab({
 
             {previewAd.image_url && (
               <div className="relative aspect-video w-full rounded-2xl overflow-hidden mb-4 border border-surface-subtle shadow-lg">
-                <img src={previewAd.image_url} alt={previewAd.title} className="h-full w-full object-cover" />
+                <img
+                  src={previewAd.image_url}
+                  alt={previewAd.title}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    void resolveAdvertisementImageUrl(previewAd.image_url).then((resolved) => {
+                      if (resolved && resolved !== target.src) {
+                        target.src = resolved;
+                      } else {
+                        target.style.display = 'none';
+                      }
+                    });
+                  }}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-surface-card via-transparent to-transparent opacity-60" />
               </div>
             )}

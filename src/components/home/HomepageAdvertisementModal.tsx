@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ExternalLink, Gift, Sparkles, X } from 'lucide-react';
-import { getActiveAdvertisements, type Advertisement } from '../../lib/advertisementService';
+import {
+  getActiveAdvertisements,
+  resolveAdvertisementImageUrl,
+  type Advertisement,
+} from '../../lib/advertisementService';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 export function HomepageAdvertisementModal() {
   const [activeAd, setActiveAd] = useState<Advertisement | null>(null);
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string>('');
+  const [imageFailed, setImageFailed] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
   const navigate = useNavigate();
@@ -44,6 +50,34 @@ export function HomepageAdvertisementModal() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (activeAd?.image_url) {
+      setResolvedImageUrl(activeAd.image_url);
+      setImageFailed(false);
+    } else {
+      setResolvedImageUrl('');
+      setImageFailed(false);
+    }
+  }, [activeAd]);
+
+  const handleImageError = () => {
+    if (
+      resolvedImageUrl &&
+      (resolvedImageUrl.includes('/course-assets/') || resolvedImageUrl.startsWith('course-assets/')) &&
+      !resolvedImageUrl.includes('/object/sign/')
+    ) {
+      void resolveAdvertisementImageUrl(resolvedImageUrl).then((signed) => {
+        if (signed && signed !== resolvedImageUrl) {
+          setResolvedImageUrl(signed);
+          return;
+        }
+        setImageFailed(true);
+      });
+      return;
+    }
+    setImageFailed(true);
+  };
 
   if (!activeAd) return null;
 
@@ -146,9 +180,14 @@ export function HomepageAdvertisementModal() {
           <X size={14} />
         </button>
 
-        {activeAd.image_url && (
+        {resolvedImageUrl && !imageFailed && (
           <div className="relative aspect-video w-full rounded-xl overflow-hidden mb-3 border border-surface-subtle">
-            <img src={activeAd.image_url} alt={activeAd.title} className="h-full w-full object-cover" />
+            <img
+              src={resolvedImageUrl}
+              alt={activeAd.title}
+              className="h-full w-full object-cover"
+              onError={handleImageError}
+            />
           </div>
         )}
 
@@ -235,12 +274,13 @@ export function HomepageAdvertisementModal() {
             )}
 
             {/* Poster Image (if uploaded) */}
-            {activeAd.image_url && (
+            {resolvedImageUrl && !imageFailed && (
               <div className="relative aspect-video w-full rounded-2xl overflow-hidden mb-4 border border-surface-subtle bg-slate-950 shadow-lg">
                 <img
-                  src={activeAd.image_url}
+                  src={resolvedImageUrl}
                   alt={activeAd.title}
                   className="h-full w-full object-cover"
+                  onError={handleImageError}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-surface-card via-transparent to-transparent opacity-50" />
               </div>

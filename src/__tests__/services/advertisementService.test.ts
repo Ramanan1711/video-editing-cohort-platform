@@ -4,6 +4,7 @@ import {
   deleteAdvertisement,
   getActiveAdvertisements,
   listAdvertisements,
+  resolveAdvertisementImageUrl,
   toggleAdvertisementActive,
   updateAdvertisement,
   uploadAdvertisementImage,
@@ -163,5 +164,56 @@ describe('Advertisement Service (Authoritative CRUD & Public Delivery)', () => {
 
     const active = await getActiveAdvertisements();
     expect(active.some((a) => a.title === 'Offline Fallback Ad')).toBe(true);
+  });
+
+  describe('resolveAdvertisementImageUrl (400 Bad Request Fix & Resolution)', () => {
+    it('converts public course-assets URLs into long-lived signed URLs', async () => {
+      const publicUrl =
+        'https://betuukklywzbikcbtdvz.supabase.co/storage/v1/object/public/course-assets/advertisements/1791367797295-utow3o-Gemini_Generated_Image_9268839268839268.png';
+      const expectedSignedUrl =
+        'https://betuukklywzbikcbtdvz.supabase.co/storage/v1/object/sign/course-assets/advertisements/1791367797295-utow3o-Gemini_Generated_Image_9268839268839268.png?token=mocktoken';
+
+      const createSignedUrlMock = vi.fn().mockResolvedValue({
+        data: { signedUrl: expectedSignedUrl },
+        error: null,
+      });
+
+      vi.mocked(supabase.storage.from).mockReturnValue({
+        createSignedUrl: createSignedUrlMock,
+      } as unknown as ReturnType<typeof supabase.storage.from>);
+
+      const result = await resolveAdvertisementImageUrl(publicUrl);
+      expect(result).toBe(expectedSignedUrl);
+      expect(createSignedUrlMock).toHaveBeenCalledWith(
+        'advertisements/1791367797295-utow3o-Gemini_Generated_Image_9268839268839268.png',
+        31536000
+      );
+    });
+
+    it('preserves already signed URLs without redundant signing calls', async () => {
+      const alreadySigned =
+        'https://betuukklywzbikcbtdvz.supabase.co/storage/v1/object/sign/course-assets/advertisements/image.png?token=validtoken';
+      const createSignedUrlMock = vi.fn();
+
+      vi.mocked(supabase.storage.from).mockReturnValue({
+        createSignedUrl: createSignedUrlMock,
+      } as unknown as ReturnType<typeof supabase.storage.from>);
+
+      const result = await resolveAdvertisementImageUrl(alreadySigned);
+      expect(result).toBe(alreadySigned);
+      expect(createSignedUrlMock).not.toHaveBeenCalled();
+    });
+
+    it('preserves external image URLs directly', async () => {
+      const externalUrl = 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809';
+      const result = await resolveAdvertisementImageUrl(externalUrl);
+      expect(result).toBe(externalUrl);
+    });
+
+    it('returns empty string for null, undefined, or blank values', async () => {
+      expect(await resolveAdvertisementImageUrl(null)).toBe('');
+      expect(await resolveAdvertisementImageUrl(undefined)).toBe('');
+      expect(await resolveAdvertisementImageUrl('   ')).toBe('');
+    });
   });
 });
