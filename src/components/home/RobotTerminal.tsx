@@ -271,19 +271,20 @@ export const RobotTerminal: React.FC = () => {
         }),
         ScreenGlow: new THREE.MeshBasicMaterial({
           name: 'ScreenGlow',
-          color: new THREE.Color(0x000000),
+          color: new THREE.Color(0xff3333),
           transparent: true,
-          opacity: 0.4,
+          opacity: 0.15,
+          blending: THREE.AdditiveBlending,
           depthWrite: false,
         }),
         mat_glass: new THREE.MeshPhysicalMaterial({
           name: 'mat_glass',
           color: new THREE.Color(0x180505),
-          metalness: 0.1,
-          roughness: 0.04,
-          transmission: 0.6,
+          metalness: 0.05,
+          roughness: 0.08,
+          transmission: 0.85,
           transparent: true,
-          opacity: 0.45,
+          opacity: 0.35,
           clearcoat: 1.0,
           clearcoatRoughness: 0.03,
           side: THREE.DoubleSide,
@@ -304,7 +305,6 @@ export const RobotTerminal: React.FC = () => {
         'Cube_Plate.001',
         'Cube_Plate_Piece.001',
         'Slice.004',
-        'Slice.005',
         'Slice.006',
         'Slice.007',
         'Slice.008',
@@ -319,22 +319,27 @@ export const RobotTerminal: React.FC = () => {
           gltf.scene.traverse((obj) => {
             if ((obj as THREE.Mesh).isMesh) {
               const mesh = obj as THREE.Mesh;
-              const matName = Array.isArray(mesh.material)
-                ? mesh.material[0]?.name
-                : mesh.material?.name;
-
-              if (matName && materials[matName]) {
-                mesh.material = materials[matName];
-              } else if (mesh.name.toLowerCase().includes('glass')) {
-                mesh.material = materials.mat_glass;
-              } else if (mesh.name === 'fan_blades') {
-                mesh.material = materials.mat_fan;
-              } else if (mesh.name === 'Cylinder' || mesh.name === 'Cou') {
-                mesh.material = materials.mat_chrome;
-              } else if (mesh.name.includes('LED')) {
-                mesh.material = materials.LED_pwr;
+              if (Array.isArray(mesh.material)) {
+                mesh.material = mesh.material.map((m) => {
+                  if (m?.name && materials[m.name]) return materials[m.name];
+                  if (m?.name?.toLowerCase().includes('glass')) return materials.mat_glass;
+                  return m;
+                });
               } else {
-                mesh.material = materials.mat_case_alu;
+                const matName = mesh.material?.name;
+                if (matName && materials[matName]) {
+                  mesh.material = materials[matName];
+                } else if (mesh.name.toLowerCase().includes('glass')) {
+                  mesh.material = materials.mat_glass;
+                } else if (mesh.name === 'fan_blades') {
+                  mesh.material = materials.mat_fan;
+                } else if (mesh.name === 'Cylinder' || mesh.name === 'Cou') {
+                  mesh.material = materials.mat_chrome;
+                } else if (mesh.name.includes('LED')) {
+                  mesh.material = materials.LED_pwr;
+                } else {
+                  mesh.material = materials.mat_case_alu;
+                }
               }
             }
 
@@ -343,28 +348,30 @@ export const RobotTerminal: React.FC = () => {
             }
           });
 
-          // Compute Head Bounding Box to find the exact pivot point (at top of neck)
-          const headBox = new THREE.Box3();
+          // Compute neck center dynamically to pin the head pivot exactly on the neck cylinder
+          const neckCenter = new THREE.Vector3(0.105, 0.498, -0.129);
+          const couObj = gltf.scene.getObjectByName('Cou');
+          if (couObj) {
+            const couBox = new THREE.Box3().setFromObject(couObj);
+            couBox.getCenter(neckCenter);
+            neckCenter.y = couBox.max.y;
+          }
+
           const headObjects: THREE.Object3D[] = [];
           const bodyObjects: THREE.Object3D[] = [];
 
           gltf.scene.children.slice().forEach((child) => {
             if (headNodes.has(child.name)) {
               headObjects.push(child);
-              headBox.expandByObject(child);
             } else {
               bodyObjects.push(child);
             }
           });
 
-          const pivotCenter = new THREE.Vector3();
-          headBox.getCenter(pivotCenter);
-          pivotCenter.y = headBox.min.y;
-
-          headPivot.position.copy(pivotCenter);
+          headPivot.position.copy(neckCenter);
 
           headObjects.forEach((obj) => {
-            obj.position.sub(pivotCenter);
+            obj.position.sub(neckCenter);
             headPivot.add(obj);
           });
 
@@ -440,23 +447,24 @@ export const RobotTerminal: React.FC = () => {
         let targetRoll: number;
 
         if (mouseRef.current.active) {
-          // Front-facing mouse tracking (X is forward, Y is vertical up, Z is horizontal side)
-          targetYaw = mouseRef.current.x * 0.45;
-          targetPitch = -mouseRef.current.y * 0.28;
-          targetRoll = -mouseRef.current.x * 0.06;
+          // Front-facing mouse tracking centered on neck axis
+          targetYaw = mouseRef.current.x * 0.22;
+          targetPitch = -mouseRef.current.y * 0.14;
+          targetRoll = -mouseRef.current.x * 0.035;
         } else {
           const elapsed = time * 0.001;
-          targetYaw = Math.sin(elapsed * 0.8) * 0.10;
-          targetPitch = Math.cos(elapsed * 1.2) * 0.05;
-          targetRoll = Math.sin(elapsed * 0.6) * 0.02;
+          targetYaw = Math.sin(elapsed * 0.8) * 0.06;
+          targetPitch = Math.cos(elapsed * 1.2) * 0.03;
+          targetRoll = Math.sin(elapsed * 0.6) * 0.015;
         }
 
         currentHeadYaw += (targetYaw - currentHeadYaw) * 0.08;
         currentHeadPitch += (targetPitch - currentHeadPitch) * 0.08;
         currentHeadRoll += (targetRoll - currentHeadRoll) * 0.08;
 
-        currentBodyYaw += (targetYaw * 0.18 - currentBodyYaw) * 0.05;
-        currentBodyPitch += (targetPitch * 0.12 - currentBodyPitch) * 0.05;
+        // Torso stays grounded with subtle micro-reaction
+        currentBodyYaw += (targetYaw * 0.05 - currentBodyYaw) * 0.04;
+        currentBodyPitch += (targetPitch * 0.03 - currentBodyPitch) * 0.04;
 
         // In front-facing view, Z is pitch (nod up/down), Y is yaw (turn left/right), X is roll
         headPivot.rotation.set(currentHeadRoll, currentHeadYaw, currentHeadPitch, 'ZYX');
@@ -531,13 +539,13 @@ export const RobotTerminal: React.FC = () => {
       currY += (targetY - currY) * 0.08;
 
       setFallbackTransform({
-        yaw: currX * 26 + 10,
-        pitch: -currY * 16,
-        roll: -currX * 3.5,
-        glareX: -currX * 20,
-        glareY: -currY * 20,
-        torsoYaw: currX * 5 + 4,
-        torsoPitch: -currY * 3,
+        yaw: currX * 14 + 10,
+        pitch: -currY * 9,
+        roll: -currX * 2.0,
+        glareX: -currX * 14,
+        glareY: -currY * 14,
+        torsoYaw: currX * 2.5 + 4,
+        torsoPitch: -currY * 1.5,
       });
 
       animId = requestAnimationFrame(animateFallback);
