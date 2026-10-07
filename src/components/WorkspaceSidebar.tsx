@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   BarChart3,
@@ -16,21 +15,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { useSidebar } from '../context/useSidebar';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 export function WorkspaceSidebar() {
   const { profile } = useAuth();
   const { collapsed, toggleCollapsed, mobileOpen, setMobileOpen } = useSidebar();
 
-  useEffect(() => {
-    if (mobileOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [mobileOpen]);
+  useModalScrollLock(mobileOpen);
 
   const isAdmin = profile?.role === 'admin';
   const isMentor = profile?.role === 'mentor';

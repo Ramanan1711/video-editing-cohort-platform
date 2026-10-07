@@ -23,6 +23,7 @@ import {
   updateInternshipReport,
   type InternshipReport,
 } from '../../lib/internshipReportService';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface InternshipReportModalProps {
   isOpen: boolean;
@@ -45,6 +46,7 @@ export function InternshipReportModal({
   canEdit = true,
   onReportUpdated,
 }: InternshipReportModalProps) {
+  useModalScrollLock(isOpen);
   const toast = useToast();
   const [report, setReport] = useState<InternshipReport | null>(null);
   const [loading, setLoading] = useState(true);

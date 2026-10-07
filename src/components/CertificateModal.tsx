@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { verifyCertificateEligibility, type CertificateEligibilityResult } from '../lib/courseService';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface CertificateModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export function CertificateModal({
   studentId,
   completedDate,
 }: CertificateModalProps) {
+  useModalScrollLock(isOpen);
   const [eligibility, setEligibility] = useState<CertificateEligibilityResult | null>(null);
   const [verifying, setVerifying] = useState(true);
 

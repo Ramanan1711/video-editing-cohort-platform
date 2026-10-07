@@ -21,6 +21,7 @@ import {
 } from '../../lib/attendanceService';
 import { Button } from '../ui/Button';
 import { useToast } from '../../context/useToast';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface AttendanceRosterModalProps {
   sessionId: string;
@@ -39,6 +40,7 @@ export function AttendanceRosterModal({
   onClose,
   onSaved,
 }: AttendanceRosterModalProps) {
+  useModalScrollLock(true);
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

@@ -4,6 +4,7 @@ import {
   listStudentLiveSessions,
   type StudentLiveSession,
 } from '../../lib/courseService';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface WorkshopsModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ interface FormattedWorkshop {
 }
 
 export const WorkshopsModal: React.FC<WorkshopsModalProps> = ({ isOpen, onClose }) => {
+  useModalScrollLock(isOpen);
   const [workshops, setWorkshops] = useState<FormattedWorkshop[]>([]);
   const [loading, setLoading] = useState(true);
 

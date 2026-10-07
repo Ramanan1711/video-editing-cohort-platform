@@ -17,6 +17,7 @@ import {
   uploadCommunityMedia,
   detectMediaType,
 } from '../../lib/communityService';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface CreatePostModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   onClose,
   onPostCreated,
 }) => {
+  useModalScrollLock(isOpen);
   const { profile, user } = useAuth();
   const [channel, setChannel] = useState('feed');
   const [title, setTitle] = useState('');

@@ -26,6 +26,7 @@ import {
   getWhatsAppProvider,
 } from '../../lib/whatsappService';
 import { useToast } from '../../context/useToast';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface WhatsAppMonitoringModalProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export function WhatsAppMonitoringModal({
   cohortId,
   cohortName,
 }: WhatsAppMonitoringModalProps) {
+  useModalScrollLock(isOpen);
   const toast = useToast();
   const [logs, setLogs] = useState<WhatsAppLog[]>([]);
   const [stats, setStats] = useState<WhatsAppCohortStats | null>(null);

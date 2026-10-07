@@ -1,6 +1,7 @@
 import { Award, Flame, Layers, Lock, Sparkles, Trophy, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import type { GamificationProfile } from '../../lib/gamificationService';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 export interface AchievementsModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export function AchievementsModal({
   onClose,
   gamification,
 }: AchievementsModalProps) {
+  useModalScrollLock(isOpen);
   if (!isOpen) return null;
 
   return (

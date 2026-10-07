@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, Sparkles, X, ArrowRight } from 'lucide-react';
 import { Button } from './ui/Button';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  useModalScrollLock(open);
 
   const links = [
     { label: '15-Day Sprint', href: '#sprint' },

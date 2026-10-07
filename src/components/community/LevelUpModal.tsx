@@ -21,6 +21,7 @@ import {
   type LeaderboardMember,
   type CourseOption,
 } from '../../lib/gamificationService';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface LevelUpModalProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ const PRO_HISTORY_TRANSACTIONS = [
 ];
 
 export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) => {
+  useModalScrollLock(isOpen);
   const { user, profile } = useAuth();
   const [showHabits, setShowHabits] = useState(true);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
