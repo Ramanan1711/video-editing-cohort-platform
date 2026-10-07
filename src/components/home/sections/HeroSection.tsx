@@ -58,7 +58,7 @@ export function HeroSection({
         </div>
 
         {/* Exact Requested Hero Content Markup */}
-        <div className="container hero__content mx-auto max-w-7xl px-5 lg:px-8 relative z-10 w-full" data-astro-cid-lcdefpme="">
+        <div className="container hero__content mx-auto max-w-7xl px-5 lg:px-8 relative z-20 w-full" data-astro-cid-lcdefpme="">
           <div className="flex flex-col items-start text-left max-w-3xl">
             {/* Verified Status Pill */}
             <div

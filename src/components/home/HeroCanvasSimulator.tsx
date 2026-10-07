@@ -37,14 +37,21 @@ export const HeroCanvasSimulator: React.FC = () => {
   });
 
   const modeRef = useRef<SimulatorMode>(mode);
+  const reinitParticlesRef = useRef<((targetMode: SimulatorMode) => void) | null>(null);
+
   useEffect(() => {
     modeRef.current = mode;
+    if (reinitParticlesRef.current) {
+      reinitParticlesRef.current(mode);
+    }
   }, [mode]);
 
   // Handle canvas click to trigger shockwave
-  const handleCanvasClick = (_e: React.MouseEvent<HTMLDivElement>) => {
+  const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
+    mouseRef.current.targetX = e.clientX - rect.left;
+    mouseRef.current.targetY = e.clientY - rect.top;
     mouseRef.current.clickBurst = 1.0;
   };
 
@@ -171,6 +178,12 @@ export const HeroCanvasSimulator: React.FC = () => {
       ctx.scale(dpr, dpr);
 
       initParticles(width, height, modeRef.current);
+
+      reinitParticlesRef.current = (targetMode: SimulatorMode) => {
+        if (width > 0 && height > 0) {
+          initParticles(width, height, targetMode);
+        }
+      };
     };
 
     resize();
@@ -333,7 +346,10 @@ export const HeroCanvasSimulator: React.FC = () => {
           }
         }
       } else {
-        // Quantum Grid mode
+        // Quantum Grid mode with perspective wireframe mesh
+        const cols = 49; // 2 * 24 + 1
+        const rows = 15;
+
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
           const dx = p.baseX - curMouseX;
@@ -341,14 +357,49 @@ export const HeroCanvasSimulator: React.FC = () => {
           const dist = Math.sqrt(dx * dx + dy * dy);
           const warp = Math.max(0, 1 - dist / 280) * 35;
 
-          const projX = p.baseX + (dx / (dist || 1)) * warp * 0.5;
-          const projY = p.baseY + Math.sin(time * 2 + p.phase) * 6 - warp;
+          p.x = p.baseX + (dx / (dist || 1)) * warp * 0.5;
+          p.y = p.baseY + Math.sin(time * 2 + p.phase) * 6 - warp;
 
           ctx.beginPath();
-          ctx.arc(projX, projY, p.size * (1 + (warp > 0 ? 0.6 : 0)), 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, p.size * (1 + (warp > 0 ? 0.6 : 0)), 0, Math.PI * 2);
           ctx.fillStyle = p.color;
           ctx.globalAlpha = p.alpha;
           ctx.fill();
+        }
+
+        // Draw perspective grid wireframe lines
+        for (let c = 0; c < cols; c++) {
+          for (let r = 0; r < rows; r++) {
+            const idx = c * rows + r;
+            const p = particles[idx];
+            if (!p) continue;
+
+            if (r < rows - 1) {
+              const nextRowP = particles[idx + 1];
+              if (nextRowP) {
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(nextRowP.x, nextRowP.y);
+                ctx.strokeStyle = p.color;
+                ctx.globalAlpha = Math.min(0.3, p.alpha * 0.35);
+                ctx.lineWidth = 0.6;
+                ctx.stroke();
+              }
+            }
+
+            if (c < cols - 1) {
+              const nextColP = particles[(c + 1) * rows + r];
+              if (nextColP) {
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(nextColP.x, nextColP.y);
+                ctx.strokeStyle = p.color;
+                ctx.globalAlpha = Math.min(0.2, p.alpha * 0.2);
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+              }
+            }
+          }
         }
       }
 
@@ -421,6 +472,7 @@ export const HeroCanvasSimulator: React.FC = () => {
     startLoop();
 
     return () => {
+      reinitParticlesRef.current = null;
       stopLoop();
       io.disconnect();
       ro.disconnect();
@@ -433,31 +485,33 @@ export const HeroCanvasSimulator: React.FC = () => {
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      onClick={handleCanvasClick}
-      className="absolute inset-0 z-0 overflow-hidden pointer-events-auto cursor-crosshair select-none"
-      aria-hidden="true"
-    >
-      {/* Hardware-Accelerated 3D WebGL / HTML5 Canvas */}
-      <canvas ref={canvasRef} className="absolute inset-0 size-full will-change-transform block" />
-
-      {/* Cinematic Vignette Overlay */}
-      <div className="pointer-events-none absolute inset-0 bg-radial-gradient from-transparent via-[#030712]/40 to-[#030712] z-10" />
-
-      {/* Cyber Grid Lines Background Accent */}
+    <>
       <div
-        className="pointer-events-none absolute inset-0 z-10 opacity-20"
-        style={{
-          backgroundImage: `linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px)`,
-          backgroundSize: '48px 48px',
-          maskImage: 'radial-gradient(ellipse 65% 50% at 50% 45%, black 40%, transparent 85%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 65% 50% at 50% 45%, black 40%, transparent 85%)',
-        }}
-      />
+        ref={containerRef}
+        onClick={handleCanvasClick}
+        className="absolute inset-0 z-0 overflow-hidden pointer-events-auto cursor-crosshair select-none"
+        aria-hidden="true"
+      >
+        {/* Hardware-Accelerated 3D WebGL / HTML5 Canvas */}
+        <canvas ref={canvasRef} className="absolute inset-0 size-full will-change-transform block" />
+
+        {/* Cinematic Vignette Overlay */}
+        <div className="pointer-events-none absolute inset-0 bg-radial-gradient from-transparent via-[#030712]/40 to-[#030712] z-10" />
+
+        {/* Cyber Grid Lines Background Accent */}
+        <div
+          className="pointer-events-none absolute inset-0 z-10 opacity-20"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px)`,
+            backgroundSize: '48px 48px',
+            maskImage: 'radial-gradient(ellipse 65% 50% at 50% 45%, black 40%, transparent 85%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 65% 50% at 50% 45%, black 40%, transparent 85%)',
+          }}
+        />
+      </div>
 
       {/* Interactive Simulator HUD Badge (Floating Bottom Right Control) */}
-      <div className="absolute bottom-5 right-5 z-20 hidden md:flex items-center gap-2 rounded-xl border border-white/10 bg-[#090d16]/80 px-3 py-1.5 backdrop-blur-xl shadow-2xl text-[11px] font-mono text-slate-300">
+      <div className="absolute bottom-5 right-5 z-40 pointer-events-auto hidden md:flex items-center gap-2 rounded-xl border border-white/10 bg-[#090d16]/90 px-3 py-1.5 backdrop-blur-xl shadow-2xl text-[11px] font-mono text-slate-300">
         <div className="flex items-center gap-1.5 text-orange-400 font-bold">
           <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
           <span>WebGL 3D Core</span>
@@ -479,7 +533,7 @@ export const HeroCanvasSimulator: React.FC = () => {
                 setMode(m);
                 soundFx.playSweep(220, 660, 0.09, 0.05);
               }}
-              className={`rounded px-2 py-0.5 text-[10px] font-bold capitalize transition cursor-pointer ${
+              className={`rounded px-2.5 py-1 text-[10px] font-bold capitalize transition cursor-pointer ${
                 mode === m
                   ? 'bg-orange-500 text-white shadow-xs'
                   : 'text-slate-400 hover:text-white hover:bg-white/10'
@@ -490,6 +544,6 @@ export const HeroCanvasSimulator: React.FC = () => {
           ))}
         </div>
       </div>
-    </div>
+    </>
   );
 };
