@@ -47,8 +47,11 @@ export async function getStudentCourseData(userId: string, cohortId?: string): P
     description: c.description,
   }));
 
-  // Target cohort: either requested or default to first enrolled
-  const targetCohort = (cohortId && enrolledCohorts.find((c) => c.id === cohortId)) || enrolledCohorts[0];
+  // Target cohort: if a specific cohortId is requested, it MUST be an enrolled cohort.
+  // Otherwise default to the first enrolled cohort.
+  const targetCohort = cohortId
+    ? enrolledCohorts.find((c) => c.id === cohortId) || null
+    : enrolledCohorts[0] || null;
   if (!targetCohort) {
     return { cohort: null, modules: [], progress: [], enrolledCohorts };
   }

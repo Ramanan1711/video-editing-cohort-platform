@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -173,6 +173,16 @@ export function StudentPlayerView({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [nowTimestamp] = useState(() => Date.now());
 
+  const isCohortAuthorized = useMemo(() => {
+    if (!course.cohort) return false;
+    const isEnrolled = (course.enrolledCohorts || []).some((c) => c.id === course.cohort?.id);
+    if (!isEnrolled) return false;
+    if (targetCohortId && targetCohortId !== course.cohort.id) {
+      return false;
+    }
+    return true;
+  }, [course.cohort, course.enrolledCohorts, targetCohortId]);
+
   const handleTabChange = useCallback(
     (tab: 'curriculum' | 'internship_sprint' | 'assignments' | 'calendar' | 'community' | 'sessions' | 'announcements') => {
       setActiveTab(tab);
@@ -224,86 +234,25 @@ export function StudentPlayerView({
 
       <div className="mx-auto flex max-w-[1440px]">
         {/* Left Sidebar: Collapsible Curriculum Navigation */}
-        <LessonSidebar
-          sidebarOpen={sidebarOpen}
-          onCloseSidebar={() => setSidebarOpen(false)}
-          course={course}
-          unifiedProgress={unifiedProgress}
-          progressPercent={progressPercent}
-          completedCount={completedCount}
-          allLessons={allLessons}
-          completedIds={completedIds}
-          selectedLessonId={selectedLessonId}
-          onSelectLesson={selectLesson}
-          loading={loading}
-        />
+        {isCohortAuthorized && (
+          <LessonSidebar
+            sidebarOpen={sidebarOpen}
+            onCloseSidebar={() => setSidebarOpen(false)}
+            course={course}
+            unifiedProgress={unifiedProgress}
+            progressPercent={progressPercent}
+            completedCount={completedCount}
+            allLessons={allLessons}
+            completedIds={completedIds}
+            selectedLessonId={selectedLessonId}
+            onSelectLesson={selectLesson}
+            loading={loading}
+          />
+        )}
 
         {/* Main Workspace Area */}
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:py-8">
           <div className="mx-auto max-w-5xl">
-            {/* Top Student Banner & Welcome */}
-            <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-              <div>
-                <p className="mb-1 text-xs font-bold uppercase tracking-wider text-orange-500">Keep Building Your Edge</p>
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
-                  Welcome back, {profile?.full_name?.split(' ')[0] ?? 'Editor'}.
-                </h1>
-                <p className="mt-1 text-xs sm:text-sm text-slate-500">
-                  Pick up where you left off and polish your creative timeline today.
-                </p>
-              </div>
-
-              {/* Real Metric Stat Pills */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={onOpenAchievements}
-                  className="flex items-center gap-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3.5 py-2 shadow-2xs hover:border-amber-300 transition text-left"
-                  title="Click to inspect Editor Level & Milestones"
-                >
-                  <Trophy size={16} className="text-amber-600" />
-                  <div>
-                    <p className="text-[10px] uppercase font-bold text-amber-800">
-                      Lvl {gamification.level} · {gamification.tierTitle}
-                    </p>
-                    <p className="text-xs font-black text-slate-950">
-                      {gamification.totalXp} XP <span className="text-[10px] font-normal text-slate-500">({gamification.badges.filter((b) => b.unlocked).length}/7 Badges)</span>
-                    </p>
-                  </div>
-                </button>
-
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-2xs">
-                  <Flame size={16} className="text-orange-500" />
-                  <div className="text-left">
-                    <p className="text-[10px] uppercase font-bold text-slate-400">Streak</p>
-                    <p className="text-xs font-black text-slate-950">
-                      {streak} {streak === 1 ? 'day' : 'days'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-2xs">
-                  <Clock3 size={16} className="text-blue-500" />
-                  <div className="text-left">
-                    <p className="text-[10px] uppercase font-bold text-slate-400">Time</p>
-                    <p className="text-xs font-black text-slate-950">{learningTimeStr}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Habit Momentum & 14-Day Activity Heatmap */}
-            <HabitHeatmapCard gamification={gamification} />
-
-            {/* AI Studio Copilot Smart Recommendations */}
-            <StudioCopilotCard
-              studioRecommendations={studioRecommendations}
-              allLessons={allLessons}
-              selectLesson={selectLesson}
-              onTabChange={handleTabChange}
-              onOpenAchievements={onOpenAchievements}
-            />
-
             {/* Error Banner with Retry */}
             {error && (
               <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
@@ -330,26 +279,92 @@ export function StudentPlayerView({
               </div>
             )}
 
-            {/* If Student is not enrolled in any cohort */}
-            {!course.cohort && !loading ? (
+            {/* If Student is not enrolled in the requested cohort */}
+            {!isCohortAuthorized && !loading ? (
               user && (
-                <EnrollmentPanel
-                  userId={user.id}
-                  userEmail={user.email}
-                  userName={profile?.full_name || user.user_metadata?.full_name}
-                  initialCohortId={targetCohortId || undefined}
-                  autoCheckout={Boolean(searchParams.get('checkout'))}
-                  onEnrolled={() => {
-                    const matchedCohort = allCohorts.find((c) => c.id === targetCohortId);
-                    markJustEnrolledCohort(targetCohortId || '', matchedCohort?.name);
-                    clearPendingCohortCheckout();
-                    onEnrollmentSuccess?.(targetCohortId || '', matchedCohort?.name);
-                    setRefreshKey((k) => k + 1);
-                  }}
-                />
+                <div className="py-6">
+                  <EnrollmentPanel
+                    userId={user.id}
+                    userEmail={user.email}
+                    userName={profile?.full_name || user.user_metadata?.full_name}
+                    initialCohortId={targetCohortId || course.cohort?.id || undefined}
+                    autoCheckout={Boolean(searchParams.get('checkout'))}
+                    onEnrolled={() => {
+                      const matchedId = targetCohortId || course.cohort?.id || '';
+                      const matchedCohort = allCohorts.find((c) => c.id === matchedId);
+                      markJustEnrolledCohort(matchedId, matchedCohort?.name);
+                      clearPendingCohortCheckout();
+                      onEnrollmentSuccess?.(matchedId, matchedCohort?.name);
+                      setRefreshKey((k) => k + 1);
+                    }}
+                  />
+                </div>
               )
             ) : (
               <>
+                {/* Top Student Banner & Welcome */}
+                <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                  <div>
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-orange-500">Keep Building Your Edge</p>
+                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+                      Welcome back, {profile?.full_name?.split(' ')[0] ?? 'Editor'}.
+                    </h1>
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                      Pick up where you left off and polish your creative timeline today.
+                    </p>
+                  </div>
+
+                  {/* Real Metric Stat Pills */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={onOpenAchievements}
+                      className="flex items-center gap-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3.5 py-2 shadow-2xs hover:border-amber-300 transition text-left"
+                      title="Click to inspect Editor Level & Milestones"
+                    >
+                      <Trophy size={16} className="text-amber-600" />
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-amber-800">
+                          Lvl {gamification.level} · {gamification.tierTitle}
+                        </p>
+                        <p className="text-xs font-black text-slate-950">
+                          {gamification.totalXp} XP <span className="text-[10px] font-normal text-slate-500">({gamification.badges.filter((b) => b.unlocked).length}/7 Badges)</span>
+                        </p>
+                      </div>
+                    </button>
+
+                    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-2xs">
+                      <Flame size={16} className="text-orange-500" />
+                      <div className="text-left">
+                        <p className="text-[10px] uppercase font-bold text-slate-400">Streak</p>
+                        <p className="text-xs font-black text-slate-950">
+                          {streak} {streak === 1 ? 'day' : 'days'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-2xs">
+                      <Clock3 size={16} className="text-blue-500" />
+                      <div className="text-left">
+                        <p className="text-[10px] uppercase font-bold text-slate-400">Time</p>
+                        <p className="text-xs font-black text-slate-950">{learningTimeStr}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Habit Momentum & 14-Day Activity Heatmap */}
+                <HabitHeatmapCard gamification={gamification} />
+
+                {/* AI Studio Copilot Smart Recommendations */}
+                <StudioCopilotCard
+                  studioRecommendations={studioRecommendations}
+                  allLessons={allLessons}
+                  selectLesson={selectLesson}
+                  onTabChange={handleTabChange}
+                  onOpenAchievements={onOpenAchievements}
+                />
+
                 {/* Dynamic Sprint High-Priority Notification Banner */}
                 {course.cohort && (
                   <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 p-4 shadow-2xs">

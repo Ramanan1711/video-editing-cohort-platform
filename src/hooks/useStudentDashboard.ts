@@ -117,7 +117,7 @@ export function useStudentDashboard(
   targetCohortId?: string | null
 ): UseStudentDashboardReturn {
   const [course, setCourse] = useState<StudentCourseData>(emptyCourse);
-  const [selectedCohortId, setSelectedCohortId] = useState<string | null>(initialCohortId ?? null);
+  const [selectedCohortId, setSelectedCohortId] = useState<string | null>(initialCohortId ?? targetCohortId ?? null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
   const [cohortAssignments, setCohortAssignments] = useState<Assignment[]>([]);
@@ -139,12 +139,14 @@ export function useStudentDashboard(
   const [engagementAlert, setEngagementAlert] = useState<{ title: string; message: string } | null>(null);
   const [failedSections, setFailedSections] = useState<string[]>([]);
 
-  // Update selectedCohortId if initialCohortId changes
+  // Update selectedCohortId if initialCohortId or targetCohortId changes
   useEffect(() => {
-    if (initialCohortId !== undefined) {
+    if (initialCohortId !== undefined && initialCohortId !== null) {
       setSelectedCohortId(initialCohortId);
+    } else if (targetCohortId !== undefined && targetCohortId !== null) {
+      setSelectedCohortId(targetCohortId);
     }
-  }, [initialCohortId]);
+  }, [initialCohortId, targetCohortId]);
 
   // Fetch course, submissions, live sessions, announcements, assignments
   useEffect(() => {
@@ -155,6 +157,7 @@ export function useStudentDashboard(
     async function loadDashboardData() {
       try {
         setLoading(true);
+        const effectiveCohortId = selectedCohortId ?? targetCohortId ?? undefined;
         const [
           courseRes,
           submissionsRes,
@@ -164,11 +167,11 @@ export function useStudentDashboard(
           allCohortsRes,
           allModulesRes,
         ] = await Promise.allSettled([
-          getStudentCourseData(currentUserId, selectedCohortId ?? undefined),
+          getStudentCourseData(currentUserId, effectiveCohortId),
           listMySubmissions(currentUserId),
           listStudentLiveSessions(),
-          listStudentAnnouncements(selectedCohortId ?? undefined),
-          listAssignments(selectedCohortId ?? undefined),
+          listStudentAnnouncements(effectiveCohortId),
+          listAssignments(effectiveCohortId),
           listCohorts(),
           listModules(),
         ]);

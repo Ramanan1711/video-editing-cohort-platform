@@ -54,8 +54,20 @@ export function StudentDashboard() {
     setDashboardView(viewParam === 'player' ? 'player' : 'catalog');
   }, [viewParam]);
 
+  const [discoveryModalOpen, setDiscoveryModalOpen] = useState(false);
+  const [selectedCohortForDiscovery, setSelectedCohortForDiscovery] = useState<string | null>(null);
+
   const handleSetDashboardView = useCallback(
     (view: 'catalog' | 'player') => {
+      if (view === 'player') {
+        const enrolledIds = (dashboard.course.enrolledCohorts || []).map((c) => c.id);
+        const activeCohortId = dashboard.selectedCohortId || targetCohortId || dashboard.course.cohort?.id;
+        if (activeCohortId && enrolledIds.length > 0 && !enrolledIds.includes(activeCohortId)) {
+          setSelectedCohortForDiscovery(activeCohortId);
+          setDiscoveryModalOpen(true);
+          return;
+        }
+      }
       setDashboardView(view);
       const newParams = new URLSearchParams(searchParams);
       if (view === 'player') {
@@ -65,7 +77,7 @@ export function StudentDashboard() {
       }
       setSearchParams(newParams);
     },
-    [searchParams, setSearchParams]
+    [dashboard.course.enrolledCohorts, dashboard.course.cohort?.id, dashboard.selectedCohortId, targetCohortId, searchParams, setSearchParams]
   );
 
   // Catalog search and filter state
@@ -96,7 +108,6 @@ export function StudentDashboard() {
   // Modals state
   const [levelUpModalOpen, setLevelUpModalOpen] = useState(false);
   const [workshopsModalOpen, setWorkshopsModalOpen] = useState(false);
-  const [discoveryModalOpen, setDiscoveryModalOpen] = useState(false);
   const [certificateModalOpen, setCertificateModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(() => searchParams.get('tab') === 'internship_report');
   const [achievementsModalOpen, setAchievementsModalOpen] = useState(false);
@@ -189,10 +200,10 @@ export function StudentDashboard() {
 
   const handleUnlockCourse = useCallback(
     (cohortId: string) => {
-      dashboard.setSelectedCohortId(cohortId);
-      handleSetDashboardView('player');
+      setSelectedCohortForDiscovery(cohortId);
+      setDiscoveryModalOpen(true);
     },
-    [dashboard, handleSetDashboardView]
+    [setSelectedCohortForDiscovery, setDiscoveryModalOpen]
   );
 
   // Initial Platform Loading State
@@ -363,8 +374,12 @@ export function StudentDashboard() {
           userEmail={user.email}
           userName={profile?.full_name || user.user_metadata?.full_name}
           isOpen={discoveryModalOpen}
-          onClose={() => setDiscoveryModalOpen(false)}
+          onClose={() => {
+            setDiscoveryModalOpen(false);
+            setSelectedCohortForDiscovery(null);
+          }}
           currentCohortId={dashboard.course.cohort?.id}
+          targetCohortId={selectedCohortForDiscovery}
           onSelectCohort={(cohortId) => {
             dashboard.setSelectedCohortId(cohortId);
             dashboard.setRefreshKey((k) => k + 1);

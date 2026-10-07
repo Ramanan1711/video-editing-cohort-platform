@@ -227,6 +227,7 @@ export function CohortDiscoveryModal({
   isOpen,
   onClose,
   currentCohortId,
+  targetCohortId,
   onSelectCohort,
 }: {
   userId: string;
@@ -235,6 +236,7 @@ export function CohortDiscoveryModal({
   isOpen: boolean;
   onClose: () => void;
   currentCohortId?: string | null;
+  targetCohortId?: string | null;
   onSelectCohort: (cohortId: string) => void;
 }) {
   const [cohorts, setCohorts] = useState<(Cohort & { isEnrolled: boolean })[]>([]);
@@ -335,15 +337,21 @@ export function CohortDiscoveryModal({
               No active cohorts available right now.
             </div>
           ) : (
-            cohorts.map((cohort) => {
+            (targetCohortId
+              ? [...cohorts].sort((a, b) => (a.id === targetCohortId ? -1 : b.id === targetCohortId ? 1 : 0))
+              : cohorts
+            ).map((cohort) => {
               const isCurrent = cohort.id === currentCohortId;
               const isEnrolled = cohort.isEnrolled;
+              const isTargetUnpaid = cohort.id === targetCohortId && !isEnrolled;
 
               return (
                 <div
                   key={cohort.id}
                   className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border p-4 transition ${
-                    isCurrent
+                    isTargetUnpaid
+                      ? 'border-orange-500 ring-2 ring-orange-400/30 bg-orange-50/40 shadow-sm'
+                      : isCurrent
                       ? 'border-orange-400 bg-orange-50/50'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
@@ -351,6 +359,11 @@ export function CohortDiscoveryModal({
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h4 className="font-bold text-sm text-slate-950">{cohort.name}</h4>
+                      {isTargetUnpaid && (
+                        <span className="rounded-md bg-orange-500 text-white px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">
+                          Selected Course
+                        </span>
+                      )}
                       {isCurrent && (
                         <span className="rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700">
                           Active View
