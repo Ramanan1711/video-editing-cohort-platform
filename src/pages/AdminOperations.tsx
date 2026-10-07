@@ -92,6 +92,17 @@ import { LiveSessionsTab } from '../components/admin/tabs/LiveSessionsTab';
 import { CommunityTab } from '../components/admin/tabs/CommunityTab';
 import { AuditLogsTab } from '../components/admin/tabs/AuditLogsTab';
 import { SystemHealthTab } from '../components/admin/tabs/SystemHealthTab';
+import { AdvertisementsTab } from '../components/admin/tabs/AdvertisementsTab';
+import {
+  listAdvertisements,
+  createAdvertisement,
+  updateAdvertisement,
+  deleteAdvertisement,
+  toggleAdvertisementActive,
+  type Advertisement,
+  type CreateAdvertisementInput,
+  type UpdateAdvertisementInput,
+} from '../lib/advertisementService';
 
 const emptyStats: AdminStats = {
   users: 0,
@@ -113,6 +124,7 @@ type AdminTab =
   | 'users'
   | 'enrollments'
   | 'announcements'
+  | 'advertisements'
   | 'sessions'
   | 'community'
   | 'audit'
@@ -138,6 +150,8 @@ export function AdminOperations() {
   const [enrollments, setEnrollments] = useState<AdminEnrollment[]>([]);
   const [mentorAssignments, setMentorAssignments] = useState<MentorCohortAssignment[]>([]);
   const [announcements, setAnnouncements] = useState<AdminAnnouncement[]>([]);
+  const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
+  const [adsLoading, setAdsLoading] = useState(false);
   const [sessions, setSessions] = useState<LiveSession[]>([]);
   const [posts, setPosts] = useState<AdminCommunityPost[]>([]);
   const [reports, setReports] = useState<CommunityReport[]>([]);
@@ -202,6 +216,7 @@ export function AdminOperations() {
       listCohorts(),
       listCohortEnrollments(),
       listAnnouncements(),
+      listAdvertisements(),
       listLiveSessions(),
       listCommunityPostsWithAuthors(),
       getAdminExecutiveMetrics(selectedTimeframe),
@@ -218,6 +233,7 @@ export function AdminOperations() {
           nextCohorts,
           nextEnrollments,
           nextAnnouncements,
+          nextAds,
           nextSessions,
           nextPosts,
           nextMetrics,
@@ -232,6 +248,7 @@ export function AdminOperations() {
         if (nextCohorts.status === 'fulfilled') setCohorts(nextCohorts.value);
         if (nextEnrollments.status === 'fulfilled') setEnrollments(nextEnrollments.value);
         if (nextAnnouncements.status === 'fulfilled') setAnnouncements(nextAnnouncements.value);
+        if (nextAds.status === 'fulfilled') setAdvertisements(nextAds.value);
         if (nextSessions.status === 'fulfilled') setSessions(nextSessions.value);
         if (nextPosts.status === 'fulfilled') setPosts(nextPosts.value);
         if (nextMetrics.status === 'fulfilled') {
@@ -877,6 +894,61 @@ export function AdminOperations() {
     }
   };
 
+  // --- ADVERTISEMENT ACTIONS ---
+  const handleSaveAdvertisement = async (
+    input: CreateAdvertisementInput | UpdateAdvertisementInput,
+    editingId?: string
+  ) => {
+    setAdsLoading(true);
+    try {
+      if (editingId) {
+        const updated = await updateAdvertisement(editingId, input);
+        setAdvertisements((prev) => prev.map((a) => (a.id === editingId ? updated : a)));
+        setSuccess('Advertisement updated successfully.');
+        toast.success('Advertisement updated successfully.');
+      } else {
+        const created = await createAdvertisement(input as CreateAdvertisementInput, user?.id);
+        setAdvertisements((prev) => [created, ...prev]);
+        setSuccess('Advertisement published live on Homepage.');
+        toast.success('Advertisement published live on Homepage.');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save advertisement.';
+      setError(msg);
+      toast.error(msg);
+      throw err;
+    } finally {
+      setAdsLoading(false);
+    }
+  };
+
+  const handleDeleteAdvertisement = async (id: string) => {
+    try {
+      await deleteAdvertisement(id);
+      setAdvertisements((prev) => prev.filter((a) => a.id !== id));
+      setSuccess('Advertisement deleted.');
+      toast.info('Advertisement deleted.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete advertisement.';
+      setError(msg);
+      toast.error(msg);
+    }
+  };
+
+  const handleToggleAdActive = async (id: string, nextActive: boolean) => {
+    try {
+      const updated = await toggleAdvertisementActive(id, nextActive);
+      setAdvertisements((prev) => prev.map((a) => (a.id === id ? updated : a)));
+      const msg = nextActive ? 'Advertisement activated on Homepage.' : 'Advertisement paused.';
+      setSuccess(msg);
+      toast.success(msg);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to toggle status.';
+      setError(msg);
+      toast.error(msg);
+    }
+  };
+
   // --- LIVE SESSION ACTIONS ---
   const handleSaveSession = async (
     data: { title: string; description: string; starts_at: string; meeting_url: string },
@@ -997,6 +1069,12 @@ export function AdminOperations() {
     { id: 'users', label: 'Users & Roles', count: stats.users, permission: 'manage_roles' },
     { id: 'enrollments', label: 'Cohort Enrollments', count: stats.enrollments, permission: 'manage_enrollments' },
     { id: 'announcements', label: 'Announcements', count: stats.announcements, permission: 'broadcast_announcements' },
+    {
+      id: 'advertisements',
+      label: 'Homepage Ads & Promos',
+      count: advertisements.filter((a) => a.is_active).length,
+      permission: 'broadcast_announcements',
+    },
     { id: 'sessions', label: 'Live Sessions', count: stats.sessions, permission: 'schedule_sessions' },
     { id: 'community', label: 'Community Moderation', count: stats.posts, permission: 'moderate_community' },
     { id: 'audit', label: 'Audit Trail', count: auditLogs.length, permission: 'view_audit_logs' },
@@ -1200,6 +1278,17 @@ export function AdminOperations() {
                 canBroadcastAnnouncements={canBroadcastAnnouncements}
                 onSaveAnnouncement={handleSaveAnnouncement}
                 onDeleteAnnouncement={handleDeleteAnnouncement}
+              />
+            )}
+
+            {/* TAB: HOMEPAGE ADVERTISEMENTS & PROMOTIONS */}
+            {tab === 'advertisements' && (
+              <AdvertisementsTab
+                advertisements={advertisements}
+                loading={adsLoading}
+                onSaveAdvertisement={handleSaveAdvertisement}
+                onDeleteAdvertisement={handleDeleteAdvertisement}
+                onToggleActive={handleToggleAdActive}
               />
             )}
 

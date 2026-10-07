@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-06T06:04:46.745Z",
-  "migrationCount": 48,
+  "generatedAt": "2026-10-07T09:47:12.824Z",
+  "migrationCount": 49,
   "migrations": [
     {
       "order": 1,
@@ -707,6 +707,19 @@
       "rpcDefinitions": [
         "unlock_scheduled_daily_challenges",
         "unlock_cohort_daily_challenges"
+      ]
+    },
+    {
+      "order": 49,
+      "filename": "20261007000001_canonical_homepage_advertisements.sql",
+      "sha256": "5c345dfb6056f029c68abcae7a326f67431db01d775ca326ac7824fd93c4cba9",
+      "sizeBytes": 3936,
+      "hasSecurityDefinerWithoutSearchPath": true,
+      "tableCreations": [
+        "homepage_advertisements"
+      ],
+      "rpcDefinitions": [
+        "set_advertisement_timestamp"
       ]
     }
   ]

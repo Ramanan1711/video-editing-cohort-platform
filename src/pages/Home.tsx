@@ -13,6 +13,7 @@ import { CurriculumSection } from '../components/home/sections/CurriculumSection
 import { MentorshipSection } from '../components/home/sections/MentorshipSection';
 import { TestimonialsSection } from '../components/home/sections/TestimonialsSection';
 import { PricingSection } from '../components/home/sections/PricingSection';
+import { HomepageAdvertisementModal } from '../components/home/HomepageAdvertisementModal';
 
 export function Home() {
   useSmoothScroll();
@@ -43,6 +44,9 @@ export function Home() {
     >
       {/* Top GSAP Scroll Progress Indicator */}
       <div className="fixed top-0 left-0 right-0 h-[3.5px] bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-400 origin-left scale-x-0 z-[100] gsap-scroll-progress pointer-events-none shadow-[0_0_12px_rgba(249,115,22,0.9)]" />
+
+      {/* Dynamic Homepage Advertisement / Promotion (Popup, Banner or Floating Card) */}
+      <HomepageAdvertisementModal />
 
       {/* Junca Studio-inspired custom magnetic cursor follower */}
       <CustomCursor />
