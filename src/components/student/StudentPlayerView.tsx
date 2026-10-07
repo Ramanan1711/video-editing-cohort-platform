@@ -1,22 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import React, { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
-  Award,
   BookOpen,
   Calendar,
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
   Compass,
   ExternalLink,
-  FileArchive,
-  FileText,
   Flame,
-  Gauge,
-  Image as ImageIcon,
   Lightbulb,
   Lock,
   Megaphone,
@@ -24,18 +18,14 @@ import {
   Play,
   Radio,
   RefreshCw,
-  RotateCcw,
-  Search,
   Shield,
   Sparkles,
   Trophy,
-  Video,
   X,
   Zap,
 } from 'lucide-react';
 import { useToast } from '../../context/useToast';
 import {
-  formatFileSize,
   getLessonResourceDownloadUrl,
   getSecureAssetUrl,
   isSecurableAsset,
@@ -45,7 +35,6 @@ import {
   type Cohort,
   type Lesson,
   type LessonResource,
-  type Module,
   type StudentAnnouncement,
   type StudentCourseData,
   type StudentLiveSession,
@@ -61,6 +50,14 @@ import { SprintChallengeTracker } from '../internship/SprintChallengeTracker';
 import { StudentCalendar } from '../StudentCalendar';
 import { CommunityBoard } from '../CommunityBoard';
 import { Button } from '../ui/Button';
+import {
+  VideoScreen,
+  LessonSidebar,
+  ResourceList,
+  AssignmentSubmitCard,
+} from './player';
+
+export { VideoScreen, LessonSidebar, ResourceList, AssignmentSubmitCard };
 
 export interface StudentPlayerViewProps {
   user: { id: string; email?: string; user_metadata?: { full_name?: string } } | null;
@@ -165,8 +162,6 @@ export function StudentPlayerView({
   });
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [lessonSearchQuery, setLessonSearchQuery] = useState('');
-  const [collapsedModuleIds, setCollapsedModuleIds] = useState<Set<string>>(new Set());
   const [nowTimestamp] = useState(() => Date.now());
 
   const handleTabChange = useCallback(
@@ -182,29 +177,6 @@ export function StudentPlayerView({
     },
     [searchParams, setSearchParams]
   );
-
-  const toggleModuleCollapse = useCallback((moduleId: string) => {
-    setCollapsedModuleIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(moduleId)) {
-        next.delete(moduleId);
-      } else {
-        next.add(moduleId);
-      }
-      return next;
-    });
-  }, []);
-
-  const filteredModules = useMemo(() => {
-    if (!lessonSearchQuery.trim()) return course.modules;
-    const q = lessonSearchQuery.toLowerCase();
-    return course.modules
-      .map((mod: Module) => ({
-        ...mod,
-        lessons: mod.lessons.filter((l) => l.title.toLowerCase().includes(q)),
-      }))
-      .filter((mod) => mod.lessons.length > 0);
-  }, [course.modules, lessonSearchQuery]);
 
   return (
     <div>
@@ -243,228 +215,19 @@ export function StudentPlayerView({
 
       <div className="mx-auto flex max-w-[1440px]">
         {/* Left Sidebar: Collapsible Curriculum Navigation */}
-        <aside
-          className={`${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } fixed inset-y-0 left-0 z-40 w-84 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 transition-transform lg:sticky lg:top-[73px] lg:block lg:h-[calc(100vh-73px)] lg:translate-x-0`}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-orange-500">Curriculum Roadmap</p>
-              <h2 className="mt-0.5 text-base font-black text-slate-950 truncate max-w-56">
-                {course.cohort?.name ?? 'Course Workspace'}
-              </h2>
-            </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="p-2 text-slate-400 hover:text-slate-700 lg:hidden"
-              aria-label="Close course navigation"
-            >
-              <X size={19} />
-            </button>
-          </div>
-
-          {/* Overall Progress Widget */}
-          <div className="border-b border-slate-100 px-6 py-4">
-            <div className="mb-2 flex justify-between text-xs font-bold">
-              <span className="text-slate-500">Overall Track Progress</span>
-              <span className="text-orange-600">
-                {unifiedProgress ? unifiedProgress.overall.composite_percent : progressPercent}%
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-300"
-                style={{ width: `${unifiedProgress ? unifiedProgress.overall.composite_percent : progressPercent}%` }}
-              />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 font-medium">
-              <span>
-                {unifiedProgress
-                  ? `${unifiedProgress.overall.completed_milestones} of ${unifiedProgress.overall.total_milestones} milestones complete`
-                  : `${completedCount} of ${allLessons.length} lessons complete`}
-              </span>
-              {(unifiedProgress ? unifiedProgress.overall.is_completed : progressPercent === 100 && allLessons.length > 0) && (
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
-                  <Award size={13} /> Completed
-                </span>
-              )}
-            </div>
-
-            {/* Unified 3-Pillar Breakdown */}
-            {unifiedProgress && (
-              <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-3 gap-1.5 text-center text-[10px]">
-                <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
-                  <div className="text-slate-400 font-semibold">Lessons</div>
-                  <div className="font-extrabold text-slate-800">
-                    {unifiedProgress.curriculum.completed_lessons}/{unifiedProgress.curriculum.total_lessons}
-                  </div>
-                </div>
-                <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
-                  <div className="text-slate-400 font-semibold">Tasks</div>
-                  <div className="font-extrabold text-slate-800">
-                    {unifiedProgress.assignments.approved_assignments}/{unifiedProgress.assignments.total_assignments}
-                  </div>
-                </div>
-                <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
-                  <div className="text-slate-400 font-semibold">Sprint</div>
-                  <div className="font-extrabold text-orange-600">
-                    {unifiedProgress.sprint_challenges.completed_challenges}/{unifiedProgress.sprint_challenges.effective_sprint_days}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Lesson Search Bar */}
-          <div className="border-b border-slate-100 px-4 py-3">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                value={lessonSearchQuery}
-                onChange={(e) => setLessonSearchQuery(e.target.value)}
-                placeholder="Search lessons..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-8 text-xs font-medium text-slate-800 outline-none focus:border-orange-400 focus:bg-white"
-              />
-              {lessonSearchQuery && (
-                <button
-                  onClick={() => setLessonSearchQuery('')}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Modules & Lessons List */}
-          <nav className="max-h-[calc(100vh-270px)] overflow-y-auto p-4 space-y-3">
-            {loading ? (
-              <SidebarSkeleton />
-            ) : filteredModules.length ? (
-              filteredModules.map((module) => {
-                const isCollapsed = collapsedModuleIds.has(module.id);
-                const modCompletedCount = module.lessons.filter((l) => completedIds.has(l.id)).length;
-                const modTotal = module.lessons.length;
-                const isModComplete = modTotal > 0 && modCompletedCount === modTotal;
-
-                return (
-                  <div key={module.id} className="rounded-xl border border-slate-100 bg-white shadow-2xs overflow-hidden">
-                    {/* Module Accordion Header */}
-                    <button
-                      onClick={() => toggleModuleCollapse(module.id)}
-                      className="flex w-full items-center justify-between p-3 text-left transition hover:bg-slate-50"
-                    >
-                      <div className="flex-1 pr-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                            Module {module.position}
-                          </span>
-                          {isModComplete ? (
-                            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">
-                              ✓ Complete
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-semibold text-slate-400">
-                              ({modCompletedCount}/{modTotal})
-                            </span>
-                          )}
-                        </div>
-                        <h4 className="mt-0.5 text-xs font-bold text-slate-900 leading-tight">{module.title}</h4>
-                      </div>
-                      <ChevronDown
-                        size={15}
-                        className={`text-slate-400 transition-transform duration-200 shrink-0 ${
-                          isCollapsed ? '-rotate-90' : 'rotate-0'
-                        }`}
-                      />
-                    </button>
-
-                    {/* Lessons inside Module */}
-                    {!isCollapsed && (
-                      <div className="border-t border-slate-100 p-1.5 space-y-1 bg-slate-50/50">
-                        {module.lessons.map((lesson) => {
-                          const isSelected = lesson.id === selectedLessonId;
-                          const isDone = completedIds.has(lesson.id);
-
-                          return (
-                            <button
-                              key={lesson.id}
-                              onClick={() => selectLesson(lesson)}
-                              className={`flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition ${
-                                isSelected
-                                  ? 'bg-orange-500 text-white shadow-xs font-bold'
-                                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
-                              }`}
-                            >
-                              <span
-                                className={`mt-0.5 flex size-4.5 shrink-0 items-center justify-center rounded-full border text-[9px] ${
-                                  isDone
-                                    ? isSelected
-                                      ? 'border-white bg-white text-orange-600 font-bold'
-                                      : 'border-emerald-500 bg-emerald-500 text-white'
-                                    : isSelected
-                                    ? 'border-white/80 bg-white/20 text-white'
-                                    : 'border-slate-300 text-slate-400'
-                                }`}
-                              >
-                                {isDone ? <Check size={11} /> : lesson.position}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs leading-snug truncate">{lesson.title}</p>
-                                {(() => {
-                                  const lProgress = course.progress.find((p) => p.lesson_id === lesson.id);
-                                  const wPct = lProgress?.watch_percentage ?? 0;
-                                  return (
-                                    <p
-                                      className={`text-[10px] mt-0.5 flex items-center gap-1.5 ${
-                                        isSelected ? 'text-white/80' : 'text-slate-400'
-                                      }`}
-                                    >
-                                      {lesson.duration_minutes && <span>{lesson.duration_minutes} mins</span>}
-                                      {!isDone && wPct > 0 && (
-                                        <span
-                                          className={
-                                            isSelected
-                                              ? 'text-white font-medium'
-                                              : 'text-orange-600 font-semibold'
-                                          }
-                                        >
-                                          • {wPct}% watched
-                                        </span>
-                                      )}
-                                    </p>
-                                  );
-                                })()}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            ) : lessonSearchQuery ? (
-              <div className="p-4 text-center text-xs text-slate-400">
-                No lessons found matching &quot;{lessonSearchQuery}&quot;
-              </div>
-            ) : (
-              <EmptyState label="Your lessons will appear here once you are enrolled in a cohort." />
-            )}
-          </nav>
-        </aside>
-
-        {/* Backdrop for Mobile Sidebar */}
-        {sidebarOpen && (
-          <button
-            className="fixed inset-0 z-30 bg-slate-950/40 backdrop-blur-xs lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close navigation overlay"
-          />
-        )}
+        <LessonSidebar
+          sidebarOpen={sidebarOpen}
+          onCloseSidebar={() => setSidebarOpen(false)}
+          course={course}
+          unifiedProgress={unifiedProgress}
+          progressPercent={progressPercent}
+          completedCount={completedCount}
+          allLessons={allLessons}
+          completedIds={completedIds}
+          selectedLessonId={selectedLessonId}
+          onSelectLesson={selectLesson}
+          loading={loading}
+        />
 
         {/* Main Workspace Area */}
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:py-8">
@@ -1505,220 +1268,33 @@ export function LessonPlayer({
 
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-950/5">
-      {/* Video Display Container */}
-      <div ref={videoContainerRef} className="relative aspect-video w-full overflow-hidden bg-slate-950">
-        {/* Visual HUD Overlay for Space/F/Arrow shortcuts */}
-        {hudMessage && (
-          <div
-            data-testid="video-hud-overlay"
-            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex items-center gap-2.5 rounded-2xl bg-black/85 px-5 py-3 text-white backdrop-blur-md border border-white/15 shadow-2xl animate-in fade-in zoom-in-90 duration-150"
-          >
-            {hudMessage.icon === 'play' && <Play size={20} fill="currentColor" className="text-orange-400" />}
-            {hudMessage.icon === 'pause' && (
-              <div className="flex gap-1 size-5 items-center justify-center">
-                <div className="w-1.5 h-4 bg-orange-400 rounded-xs" />
-                <div className="w-1.5 h-4 bg-orange-400 rounded-xs" />
-              </div>
-            )}
-            {hudMessage.icon === 'rewind' && <RotateCcw size={18} className="text-orange-400" />}
-            {hudMessage.icon === 'forward' && <Sparkles size={18} className="text-orange-400" />}
-            {hudMessage.icon === 'fullscreen' && <Gauge size={18} className="text-orange-400" />}
-            <span className="text-xs font-mono font-bold tracking-wider uppercase">{hudMessage.text}</span>
-          </div>
-        )}
-
-        {/* Floating Resume Playback Prompt */}
-        {showResumePrompt && initialLastPositionSeconds > 0 && (
-          <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900/90 p-3.5 text-white backdrop-blur-md border border-white/10 shadow-2xl">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-7 items-center justify-center rounded-lg bg-orange-500 text-white shadow-xs">
-                <Play size={13} fill="currentColor" />
-              </span>
-              <div>
-                <p className="text-xs font-bold">
-                  Resume playback from {Math.floor(initialLastPositionSeconds / 60)}:
-                  {String(Math.floor(initialLastPositionSeconds % 60)).padStart(2, '0')}?
-                </p>
-                <p className="text-[10px] text-slate-300">
-                  Pick up where you left off during your last editing session.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleResumePlayback}
-                className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600 transition shadow-2xs"
-              >
-                Resume ({Math.floor(initialLastPositionSeconds / 60)}:{String(Math.floor(initialLastPositionSeconds % 60)).padStart(2, '0')})
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowResumePrompt(false)}
-                className="rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition"
-              >
-                Start Over
-              </button>
-            </div>
-          </div>
-        )}
-
-        {videoMeta.type === 'embed' ? (
-          <iframe
-            src={videoMeta.embedUrl!}
-            title={lesson.title}
-            className="absolute inset-0 size-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
-        ) : videoMeta.type === 'video' ? (
-          <>
-            <video
-              ref={videoRef}
-              key={lesson.id}
-              className="absolute inset-0 size-full object-contain bg-black"
-              controls
-              src={videoMeta.directUrl!}
-              onTimeUpdate={handleTimeUpdate}
-              onEnded={handleEnded}
-              onError={handleVideoError}
-              onPlay={handlePlay}
-              onPause={handlePause}
-              onPlaying={handlePlaying}
-            />
-
-            {/* In-place Re-authenticating / Refreshing Overlay */}
-            {isRefreshingStream && !streamError && (
-              <div
-                data-testid="video-reauthenticating-overlay"
-                className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/75 backdrop-blur-xs text-white"
-              >
-                <RefreshCw size={28} className="animate-spin text-orange-400 mb-2" />
-                <p className="text-xs font-semibold text-slate-200">Re-authenticating secure stream...</p>
-                <p className="text-[11px] text-slate-400">
-                  Restoring playback from your last position...
-                </p>
-              </div>
-            )}
-
-            {/* Stream Error / Reconnect Fallback UI */}
-            {streamError && (
-              <div
-                data-testid="video-stream-error-overlay"
-                className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 p-6 text-center backdrop-blur-sm"
-              >
-                <div className="flex size-14 items-center justify-center rounded-2xl bg-orange-500/20 text-orange-400 mb-3">
-                  <RefreshCw size={24} className={isRefreshingStream ? 'animate-spin' : ''} />
-                </div>
-                <h4 className="text-base font-bold text-white">Playback Interrupted</h4>
-                <p className="mt-1 text-xs text-slate-300 max-w-sm mb-4">
-                  {streamError}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    refreshAttemptsRef.current = 0;
-                    void refreshSignedUrl(lastKnownTimeRef.current, true);
-                  }}
-                  disabled={isRefreshingStream}
-                  className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white hover:bg-orange-600 transition shadow-lg disabled:opacity-50"
-                >
-                  <RefreshCw size={14} className={isRefreshingStream ? 'animate-spin' : ''} />
-                  {isRefreshingStream ? 'Renewing Access...' : 'Reconnect Video Stream'}
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-orange-950/40 p-6 text-center">
-            <div className="flex size-16 items-center justify-center rounded-2xl bg-white/10 text-orange-400 backdrop-blur-md shadow-2xl mb-3">
-              <Play size={28} fill="currentColor" className="ml-1" />
-            </div>
-            <h4 className="text-sm font-bold text-white">Video Lesson Stream</h4>
-            <p className="mt-1 text-xs text-slate-400 max-w-sm">
-              Source timeline or lesson video is being finalized by instructor.
-            </p>
-          </div>
-        )}
-
-        {/* Video Overlays */}
-        <div className="pointer-events-none absolute top-4 left-4">
-          <span className="rounded-md bg-black/60 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
-            Lesson {lesson.position}
-          </span>
-        </div>
-
-        {lesson.duration_minutes && (
-          <div className="pointer-events-none absolute top-4 right-4">
-            <span className="rounded-md bg-black/60 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
-              {lesson.duration_minutes} mins
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Video Watch Progress & Controls Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-2.5 text-xs">
-        <div className="flex items-center gap-3">
-          <span className="font-bold text-slate-700 flex items-center gap-1.5">
-            <Clock3 size={13} className="text-orange-500" />
-            Watch Progress:
-          </span>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-28 sm:w-44 overflow-hidden rounded-full bg-slate-200">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  watchPercentage >= 80 || effectiveCompleted ? 'bg-emerald-500' : 'bg-orange-500'
-                }`}
-                style={{ width: `${Math.max(watchPercentage, effectiveCompleted ? 100 : 0)}%` }}
-              />
-            </div>
-            <span className="font-mono font-bold text-slate-700">
-              {Math.max(watchPercentage, effectiveCompleted ? 100 : 0)}%
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-500 hidden sm:inline">
-            {watchPercentage >= 80 || effectiveCompleted ? (
-              <span className="font-bold text-emerald-600">✓ Completed (≥80% watched)</span>
-            ) : (
-              <span>(80% required to verify)</span>
-            )}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          {/* Keyboard shortcut guide badge */}
-          <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-400 font-mono">
-            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-slate-700 font-bold">Space</span> Play
-            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-slate-700 font-bold">F</span> Fullscreen
-            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-slate-700 font-bold">←/→</span> ±5s
-          </div>
-
-          {videoMeta.type === 'video' && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 font-bold text-slate-600">
-                <Gauge size={13} className="text-orange-500" />
-                <span>Speed:</span>
-              </div>
-              <div className="flex items-center gap-1">
-                {[0.75, 1, 1.25, 1.5, 2].map((speed) => (
-                  <button
-                    key={speed}
-                    onClick={() => handleSpeedChange(speed)}
-                    className={`rounded-md px-2 py-0.5 font-bold transition text-[11px] ${
-                      playbackSpeed === speed
-                        ? 'bg-orange-500 text-white shadow-2xs'
-                        : 'bg-white text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {speed}x
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Video Screen Component */}
+      <VideoScreen
+        lesson={lesson}
+        videoRef={videoRef}
+        videoContainerRef={videoContainerRef}
+        videoMeta={videoMeta}
+        hudMessage={hudMessage}
+        showResumePrompt={showResumePrompt}
+        initialLastPositionSeconds={initialLastPositionSeconds}
+        handleResumePlayback={handleResumePlayback}
+        setShowResumePrompt={setShowResumePrompt}
+        isRefreshingStream={isRefreshingStream}
+        streamError={streamError}
+        refreshSignedUrl={refreshSignedUrl}
+        watchPercentage={watchPercentage}
+        effectiveCompleted={effectiveCompleted}
+        playbackSpeed={playbackSpeed}
+        handleSpeedChange={handleSpeedChange}
+        handleTimeUpdate={handleTimeUpdate}
+        handleEnded={handleEnded}
+        handleVideoError={handleVideoError}
+        handlePlay={handlePlay}
+        handlePause={handlePause}
+        handlePlaying={handlePlaying}
+        lastKnownTimeRef={lastKnownTimeRef}
+        refreshAttemptsRef={refreshAttemptsRef}
+      />
 
       {/* Lesson Details & Prev/Next Controls */}
       <div className="p-6 sm:p-8">
@@ -1833,109 +1409,13 @@ export function LessonPlayer({
           )}
 
           {activeTab === 'resources' && (
-            <div>
-              {resources.length ? (
-                <div className="space-y-3">
-                  {resources.map((resource) => {
-                    const isLocked = resource.visibility === 'after_completion' && !completed;
-
-                    if (isLocked) {
-                      return (
-                        <div
-                          key={resource.id}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 transition"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-                              <Lock size={16} />
-                            </div>
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <strong className="text-xs sm:text-sm font-bold text-slate-900">{resource.name}</strong>
-                                <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                                  Locked Resource
-                                </span>
-                                {resource.file_size && (
-                                  <span className="text-[10px] text-slate-400">
-                                    ({formatFileSize(resource.file_size)})
-                                  </span>
-                                )}
-                              </div>
-                              <p className="mt-1 text-xs text-amber-700">
-                                Mark this lesson as complete to unlock this download (e.g. project files, source media, or LUTs).
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={onToggleComplete}
-                            className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 shadow-2xs hover:bg-amber-100"
-                          >
-                            Mark complete to unlock
-                          </button>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div
-                        key={resource.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-orange-300"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-                            {getStudentResourceIcon(resource.resource_type)}
-                          </div>
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <strong className="text-xs sm:text-sm font-bold text-slate-900">{resource.name}</strong>
-                              {resource.visibility === 'after_completion' && (
-                                <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                                  ✓ Unlocked
-                                </span>
-                              )}
-                              {resource.visibility === 'public' && (
-                                <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                                  Public Preview
-                                </span>
-                              )}
-                              {resource.file_size && (
-                                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                                  {formatFileSize(resource.file_size)}
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-0.5 text-[11px] capitalize text-slate-400">
-                              {resource.resource_type ? resource.resource_type.replace('_', ' ') : 'Downloadable Asset'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={downloadingResourceId === resource.id}
-                          onClick={() => void handleDownloadResource(resource)}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-orange-600 disabled:opacity-60 cursor-pointer"
-                        >
-                          {downloadingResourceId === resource.id ? (
-                            <>
-                              <span className="inline-block animate-spin text-[10px]">⏳</span>
-                              <span>Resolving link...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>Download / Open</span>
-                              <ExternalLink size={13} />
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-slate-400">No downloadable resources attached to this lesson.</p>
-              )}
-            </div>
+            <ResourceList
+              resources={resources}
+              completed={effectiveCompleted}
+              onToggleComplete={handleToggleComplete}
+              downloadingResourceId={downloadingResourceId}
+              onDownloadResource={handleDownloadResource}
+            />
           )}
 
           {activeTab === 'notes' && (
@@ -1967,22 +1447,6 @@ export function LessonPlayer({
   );
 }
 
-function getStudentResourceIcon(type?: string) {
-  switch (type) {
-    case 'video':
-      return <Video size={16} className="text-emerald-500" />;
-    case 'pdf':
-      return <FileText size={16} className="text-red-500" />;
-    case 'document':
-      return <FileText size={16} className="text-blue-500" />;
-    case 'image':
-      return <ImageIcon size={16} className="text-purple-500" />;
-    case 'project_file':
-      return <FileArchive size={16} className="text-orange-500" />;
-    default:
-      return <FileText size={16} className="text-slate-500" />;
-  }
-}
 
 export function StatCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (

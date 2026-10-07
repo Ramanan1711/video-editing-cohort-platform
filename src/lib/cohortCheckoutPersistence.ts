@@ -42,8 +42,8 @@ function getSafeStorage(): Storage | null {
 export function setPendingCohortCheckout(
   cohortId: string,
   cohortName?: string,
-  priceInr?: number,
-  currency?: string
+  priceInr?: number | null,
+  currency?: string | null
 ): void {
   if (!cohortId || typeof cohortId !== 'string') return;
   const storage = getSafeStorage();
@@ -52,7 +52,7 @@ export function setPendingCohortCheckout(
   const data: PendingCohortCheckout = {
     cohortId: cohortId.trim(),
     cohortName: cohortName?.trim(),
-    priceInr,
+    priceInr: priceInr ?? undefined,
     currency: currency || 'INR',
     timestamp: Date.now(),
   };
