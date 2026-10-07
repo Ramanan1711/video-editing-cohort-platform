@@ -13,6 +13,7 @@ import type {
   StudentCourseData,
   StudentUnifiedProgress,
 } from '../../../lib/courseService';
+import { useModalScrollLock } from '../../../hooks/useModalScrollLock';
 
 export interface LessonSidebarProps {
   sidebarOpen: boolean;
@@ -64,6 +65,7 @@ export function LessonSidebar({
   onSelectLesson,
   loading,
 }: LessonSidebarProps) {
+  useModalScrollLock(sidebarOpen);
   const [lessonSearchQuery, setLessonSearchQuery] = useState('');
   const [collapsedModuleIds, setCollapsedModuleIds] = useState<Set<string>>(new Set());
 

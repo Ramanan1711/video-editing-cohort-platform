@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink } from 'react-router-dom';
 import {
@@ -25,6 +25,8 @@ import { useTheme } from '../../context/useTheme';
 import { UserProfileDropdown } from '../UserProfileDropdown';
 import { NotificationCenter } from '../NotificationCenter';
 
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
+
 export type TopNavTab = 'community' | 'messages' | 'levelup' | 'workshops' | 'courses';
 
 interface CommunityTopNavProps {
@@ -47,17 +49,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   const { user, profile, signOut } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
-
-  useEffect(() => {
-    if (navDrawerOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [navDrawerOpen]);
+  useModalScrollLock(navDrawerOpen);
 
   const isAdmin = profile?.role === 'admin';
   const isMentor = profile?.role === 'mentor';
