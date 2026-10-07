@@ -15,14 +15,14 @@ export function useSmoothScroll(enabled = true) {
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
+    const isFinePointer = window.matchMedia('(pointer: fine)').matches;
+
     const lenis = new Lenis({
-      lerp: 0.08, // Buttery smooth linear interpolation
+      lerp: 0.08, // Buttery smooth linear interpolation on desktop
       wheelMultiplier: 1.05,
-      touchMultiplier: 1.2,
-      smoothWheel: true,
-      syncTouch: true,
-      syncTouchLerp: 0.075,
-      touchInertiaExponent: 1.6,
+      touchMultiplier: 1.0,
+      smoothWheel: isFinePointer,
+      syncTouch: false, // Mobile devices retain native 120Hz ProMotion momentum
       autoResize: true,
     });
 
@@ -37,7 +37,7 @@ export function useSmoothScroll(enabled = true) {
       lenis.raf(time * 1000);
     };
     gsap.ticker.add(tickerCallback);
-    gsap.ticker.lagSmoothing(0);
+    gsap.ticker.lagSmoothing(500, 33);
 
     // Staggered layout refreshes as fonts, images, and async queries settle
     const refreshTimer1 = setTimeout(() => {
