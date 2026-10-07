@@ -81,7 +81,7 @@ export function WhatsAppMonitoringModal({
     if (isOpen) {
       loadData();
     }
-  }, [isOpen, loadData]);
+  }, [isOpen, cohortId, loadData]);
 
   const handleProcessRetries = async () => {
     try {
