@@ -40,6 +40,7 @@ describe('UserProfileDropdown Component Suite', () => {
     fireEvent.click(avatarBtn);
     expect(screen.getByText('John Doe')).toBeInTheDocument();
     expect(screen.getByText('admin')).toBeInTheDocument();
+    expect(screen.getByText('My Profile')).toBeInTheDocument();
     expect(screen.getByText('My Courses')).toBeInTheDocument();
     expect(screen.getByText('Admin Control Room')).toBeInTheDocument();
     expect(screen.getByText('Community Hub')).toBeInTheDocument();

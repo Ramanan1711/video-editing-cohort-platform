@@ -9,6 +9,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
 
   const isTopNavRoute =
     location.pathname.startsWith('/student') ||
+    location.pathname.startsWith('/profile') ||
     location.pathname.startsWith('/community') ||
     location.pathname.startsWith('/messages') ||
     location.pathname.startsWith('/workshops');

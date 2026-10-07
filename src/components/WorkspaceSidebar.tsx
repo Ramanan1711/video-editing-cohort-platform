@@ -10,6 +10,7 @@ import {
   Home,
   Menu,
   Sparkles,
+  User,
   Users,
   X,
 } from 'lucide-react';
@@ -35,6 +36,7 @@ export function WorkspaceSidebar() {
         { to: '/review/submissions', label: 'Review queue', icon: FileCheck2, end: false },
         { to: '/mentor/students', label: 'Student progress', icon: GraduationCap, end: false },
         { to: '/student/dashboard', label: 'Student view', icon: Home, end: false },
+        { to: '/profile', label: 'My profile', icon: User, end: false },
       ]
     : isMentor
     ? [
@@ -43,10 +45,12 @@ export function WorkspaceSidebar() {
         { to: '/review/submissions', label: 'Review queue', icon: FileCheck2, end: false },
         { to: '/mentor/students', label: 'Student progress', icon: GraduationCap, end: false },
         { to: '/student/dashboard', label: 'Student view', icon: Home, end: false },
+        { to: '/profile', label: 'My profile', icon: User, end: false },
       ]
     : [
         { to: '/student/dashboard', label: 'Student view', icon: Home, end: false },
         { to: '/community', label: 'Community hub', icon: Users, end: false },
+        { to: '/profile', label: 'My profile', icon: User, end: false },
       ];
 
   const navigation = (

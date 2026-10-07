@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { User, Sparkles, Users, LogOut } from 'lucide-react';
+import { User, Sparkles, Users, LogOut, BookOpen } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 
 export const UserProfileDropdown: React.FC = () => {
@@ -64,11 +64,18 @@ export const UserProfileDropdown: React.FC = () => {
 
           <div className="py-1">
             <Link
+              to="/profile"
+              onClick={() => setShowProfileMenu(false)}
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <User size={14} /> My Profile
+            </Link>
+            <Link
               to="/student/dashboard"
               onClick={() => setShowProfileMenu(false)}
               className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              <User size={14} /> My Courses
+              <BookOpen size={14} /> My Courses
             </Link>
             {profile?.role === 'admin' && (
               <Link

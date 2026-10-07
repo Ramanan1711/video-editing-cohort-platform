@@ -1,4 +1,5 @@
-import { BookOpen, ChevronDown, Lock, RotateCw, Search, Video, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { BookOpen, ChevronDown, Lock, RotateCw, Search, User, Video, X } from 'lucide-react';
 import type { CatalogCourseItem } from '../../hooks/useStudentDashboard';
 
 export interface StudentCatalogViewProps {
@@ -40,14 +41,23 @@ export function StudentCatalogView({
             {totalCatalogCount} courses • {inProgressCatalogCount} in progress • {completedCatalogCount} completed
           </p>
         </div>
-        <button
-          onClick={onRefresh}
-          className="flex size-9 items-center justify-center rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs transition active:scale-95"
-          title="Sync and refresh courses"
-          aria-label="Sync and refresh courses"
-        >
-          <RotateCw size={15} className="text-slate-400" />
-        </button>
+        <div className="flex items-center gap-2.5">
+          <Link
+            to="/profile"
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-orange-200 dark:border-surface-subtle bg-orange-50 dark:bg-surface-card px-3.5 py-1.5 text-xs font-bold text-orange-700 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-surface-elevated transition shadow-2xs"
+          >
+            <User size={13} />
+            <span>My Profile &amp; Attendance</span>
+          </Link>
+          <button
+            onClick={onRefresh}
+            className="flex size-9 items-center justify-center rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs transition active:scale-95"
+            title="Sync and refresh courses"
+            aria-label="Sync and refresh courses"
+          >
+            <RotateCw size={15} className="text-slate-400" />
+          </button>
+        </div>
       </div>
 
       {/* Pill Search Bar */}

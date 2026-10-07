@@ -27,6 +27,7 @@ const StudentDashboard = lazy(() => import('./pages/StudentDashboard').then((m) 
 const CommunityHub = lazy(() => import('./pages/CommunityHub').then((m) => ({ default: m.CommunityHub })));
 const WorkshopsPage = lazy(() => import('./pages/WorkshopsPage').then((m) => ({ default: m.WorkshopsPage })));
 const VerifyCertificate = lazy(() => import('./pages/VerifyCertificate').then((m) => ({ default: m.VerifyCertificate })));
+const UserProfile = lazy(() => import('./pages/UserProfile').then((m) => ({ default: m.UserProfile })));
 
 // Accessible fallback loader matching design system
 function PageLoadingFallback() {
@@ -73,6 +74,30 @@ function AnimatedRoutes() {
                           <WorkspaceShell>
                             <Suspense fallback={<PageLoadingFallback />}>
                               <StudentDashboard />
+                            </Suspense>
+                          </WorkspaceShell>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+                          <WorkspaceShell>
+                            <Suspense fallback={<PageLoadingFallback />}>
+                              <UserProfile />
+                            </Suspense>
+                          </WorkspaceShell>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/student/profile"
+                      element={
+                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+                          <WorkspaceShell>
+                            <Suspense fallback={<PageLoadingFallback />}>
+                              <UserProfile />
                             </Suspense>
                           </WorkspaceShell>
                         </ProtectedRoute>
