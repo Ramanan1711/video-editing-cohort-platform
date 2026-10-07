@@ -138,3 +138,77 @@ export function buildCohortRedirectUrl(
   }
   return typeof window !== 'undefined' ? `${url.pathname}${url.search}` : url.toString();
 }
+
+export const JUST_ENROLLED_STORAGE_KEY = 'iunoware_just_enrolled_cohort';
+
+export interface JustEnrolledCohort {
+  cohortId: string;
+  cohortName?: string;
+  timestamp: number;
+}
+
+/**
+ * Flags that a student just completed cohort enrollment so the dashboard triggers celebration
+ */
+export function markJustEnrolledCohort(cohortId: string, cohortName?: string): void {
+  if (!cohortId) return;
+  const storage = getSafeStorage();
+  if (!storage) return;
+
+  const data: JustEnrolledCohort = {
+    cohortId: cohortId.trim(),
+    cohortName: cohortName?.trim(),
+    timestamp: Date.now(),
+  };
+
+  try {
+    storage.setItem(JUST_ENROLLED_STORAGE_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.warn('Unable to mark just enrolled cohort:', err);
+  }
+}
+
+/**
+ * Consumes the just-enrolled cohort flag and clears it from storage
+ */
+export function consumeJustEnrolledCohort(): JustEnrolledCohort | null {
+  const storage = getSafeStorage();
+  if (!storage) return null;
+
+  try {
+    const raw = storage.getItem(JUST_ENROLLED_STORAGE_KEY);
+    if (!raw) return null;
+    storage.removeItem(JUST_ENROLLED_STORAGE_KEY);
+    const parsed: JustEnrolledCohort = JSON.parse(raw);
+    // Ignore if older than 1 hour
+    if (Date.now() - parsed.timestamp > 60 * 60 * 1000) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Checks whether the student has already seen the onboarding celebration for a cohort
+ */
+export function hasSeenCohortOnboarding(cohortId: string, userId: string): boolean {
+  if (!cohortId || !userId) return false;
+  const storage = getSafeStorage();
+  if (!storage) return false;
+  return storage.getItem(`iunoware_onboarded_${cohortId}_${userId}`) === 'true';
+}
+
+/**
+ * Marks that the student has completed/seen the onboarding celebration
+ */
+export function markCohortOnboardingSeen(cohortId: string, userId: string): void {
+  if (!cohortId || !userId) return;
+  const storage = getSafeStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(`iunoware_onboarded_${cohortId}_${userId}`, 'true');
+  } catch {
+    // Ignore storage errors
+  }
+}
+

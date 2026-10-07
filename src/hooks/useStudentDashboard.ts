@@ -471,23 +471,28 @@ export function useStudentDashboard(
       return;
     }
 
+    // Optimistic UI: Apply completion state locally immediately
+    const rollbackCourse = course;
+    setCourse((current) => ({
+      ...current,
+      progress: [
+        ...current.progress.filter((item) => item.lesson_id !== selectedLesson.id),
+        {
+          lesson_id: selectedLesson.id,
+          completed,
+          completed_at: completed ? new Date().toISOString() : undefined,
+          watch_percentage: completed && hasVideo ? Math.max(currentWatchPct, 80) : currentWatchPct,
+        },
+      ],
+    }));
+
     try {
       await markLessonComplete(userId, selectedLesson.id, completed, {
         watchPercentage: currentWatchPct,
       });
-      setCourse((current) => ({
-        ...current,
-        progress: [
-          ...current.progress.filter((item) => item.lesson_id !== selectedLesson.id),
-          {
-            lesson_id: selectedLesson.id,
-            completed,
-            completed_at: completed ? new Date().toISOString() : undefined,
-            watch_percentage: completed && hasVideo ? Math.max(currentWatchPct, 80) : currentWatchPct,
-          },
-        ],
-      }));
     } catch (updateError) {
+      // Rollback to previous course progress on mutation failure
+      setCourse(rollbackCourse);
       setError(updateError instanceof Error ? updateError.message : 'Unable to update lesson progress.');
     }
   };

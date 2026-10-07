@@ -12,7 +12,13 @@ import { CohortDiscoveryModal } from '../components/StudentFlowPanels';
 import { WhatsAppSupportWidget } from '../components/internship/WhatsAppSupportWidget';
 import { StateFallback } from '../components/ui/StateFallback';
 import { Button } from '../components/ui/Button';
-import { resolveTargetCohortId } from '../lib/cohortCheckoutPersistence';
+import { CelebrationOnboardingModal } from '../components/student/CelebrationOnboardingModal';
+import {
+  resolveTargetCohortId,
+  consumeJustEnrolledCohort,
+  hasSeenCohortOnboarding,
+  markCohortOnboardingSeen,
+} from '../lib/cohortCheckoutPersistence';
 
 // Lazy-loaded standalone modals
 const CertificateModal = React.lazy(() =>
@@ -94,6 +100,66 @@ export function StudentDashboard() {
   const [certificateModalOpen, setCertificateModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(() => searchParams.get('tab') === 'internship_report');
   const [achievementsModalOpen, setAchievementsModalOpen] = useState(false);
+
+  // Celebratory first-time onboarding modal state
+  const [celebrationModalOpen, setCelebrationModalOpen] = useState(false);
+  const [celebratedCohortInfo, setCelebratedCohortInfo] = useState<{ id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    // 1. Check if user just completed enrollment via persistence marker
+    const justEnrolled = consumeJustEnrolledCohort();
+    if (justEnrolled && user) {
+      setCelebratedCohortInfo({
+        id: justEnrolled.cohortId,
+        name: justEnrolled.cohortName || dashboard.course.cohort?.name || '15-Day Video Sprint',
+      });
+      setCelebrationModalOpen(true);
+      markCohortOnboardingSeen(justEnrolled.cohortId, user.id);
+      return;
+    }
+
+    // 2. Check if URL has ?checkout=success or ?enrolled=true
+    const isEnrolledQuery =
+      searchParams.get('checkout') === 'success' ||
+      searchParams.get('checkout') === 'true' ||
+      searchParams.get('enrolled') === 'true';
+
+    if (isEnrolledQuery && dashboard.course.cohort && user) {
+      if (!hasSeenCohortOnboarding(dashboard.course.cohort.id, user.id)) {
+        setCelebratedCohortInfo({
+          id: dashboard.course.cohort.id,
+          name: dashboard.course.cohort.name,
+        });
+        setCelebrationModalOpen(true);
+        markCohortOnboardingSeen(dashboard.course.cohort.id, user.id);
+      }
+    }
+  }, [searchParams, dashboard.course.cohort, user]);
+
+  const handleLaunchLesson1 = useCallback(() => {
+    if (dashboard.course.cohort) {
+      dashboard.setSelectedCohortId(dashboard.course.cohort.id);
+    }
+    const firstLesson = dashboard.allLessons[0];
+    if (firstLesson) {
+      dashboard.selectLesson(firstLesson);
+    }
+    handleSetDashboardView('player');
+  }, [dashboard, handleSetDashboardView]);
+
+  const handleEnrollmentSuccess = useCallback(
+    (cohortId: string, cohortName?: string) => {
+      setCelebratedCohortInfo({
+        id: cohortId,
+        name: cohortName || dashboard.course.cohort?.name || '15-Day Video Sprint',
+      });
+      setCelebrationModalOpen(true);
+      if (user) {
+        markCohortOnboardingSeen(cohortId, user.id);
+      }
+    },
+    [dashboard.course.cohort?.name, user]
+  );
 
   // Online / Offline status
   const [isOnline, setIsOnline] = useState<boolean>(() =>
@@ -270,6 +336,7 @@ export function StudentDashboard() {
           onOpenAchievements={() => setAchievementsModalOpen(true)}
           onOpenCertificate={() => setCertificateModalOpen(true)}
           onOpenReportCard={() => setReportModalOpen(true)}
+          onEnrollmentSuccess={handleEnrollmentSuccess}
         />
       )}
 
@@ -362,6 +429,18 @@ export function StudentDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Celebratory First-Time Onboarding Modal */}
+      {celebrationModalOpen && celebratedCohortInfo && (
+        <CelebrationOnboardingModal
+          isOpen={celebrationModalOpen}
+          onClose={() => setCelebrationModalOpen(false)}
+          cohortName={celebratedCohortInfo.name}
+          cohortId={celebratedCohortInfo.id}
+          studentName={profile?.full_name || user?.user_metadata?.full_name || 'Editor'}
+          onLaunchLesson1={handleLaunchLesson1}
+        />
       )}
 
       {/* WhatsApp Floating Mentor Support */}

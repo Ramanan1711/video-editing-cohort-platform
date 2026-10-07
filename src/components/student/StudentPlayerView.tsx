@@ -24,6 +24,7 @@ import {
   Play,
   Radio,
   RefreshCw,
+  RotateCcw,
   Search,
   Shield,
   Sparkles,
@@ -53,7 +54,7 @@ import {
 import type { GamificationProfile } from '../../lib/gamificationService';
 import type { StudioRecommendation } from '../../lib/recommendationService';
 import type { InternshipDayStatus } from '../../lib/internshipService';
-import { clearPendingCohortCheckout } from '../../lib/cohortCheckoutPersistence';
+import { clearPendingCohortCheckout, markJustEnrolledCohort } from '../../lib/cohortCheckoutPersistence';
 import { NotificationCenter } from '../NotificationCenter';
 import { MilestonePanel, EnrollmentPanel, AssignmentPanel } from '../StudentFlowPanels';
 import { SprintChallengeTracker } from '../internship/SprintChallengeTracker';
@@ -100,6 +101,7 @@ export interface StudentPlayerViewProps {
   onOpenAchievements: () => void;
   onOpenCertificate: () => void;
   onOpenReportCard: () => void;
+  onEnrollmentSuccess?: (cohortId: string, cohortName?: string) => void;
 }
 
 export function StudentPlayerView({
@@ -141,6 +143,7 @@ export function StudentPlayerView({
   onOpenAchievements,
   onOpenCertificate,
   onOpenReportCard,
+  onEnrollmentSuccess,
 }: StudentPlayerViewProps) {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -704,7 +707,10 @@ export function StudentPlayerView({
                   initialCohortId={targetCohortId || undefined}
                   autoCheckout={Boolean(searchParams.get('checkout'))}
                   onEnrolled={() => {
+                    const matchedCohort = allCohorts.find((c) => c.id === targetCohortId);
+                    markJustEnrolledCohort(targetCohortId || '', matchedCohort?.name);
                     clearPendingCohortCheckout();
+                    onEnrollmentSuccess?.(targetCohortId || '', matchedCohort?.name);
                     setRefreshKey((k) => k + 1);
                   }}
                 />
@@ -1142,6 +1148,104 @@ export function LessonPlayer({
   const [isRefreshingStream, setIsRefreshingStream] = useState<boolean>(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
+
+  // Optimistic UI for 80% watch completion and instant toggle
+  const [optimisticCompleted, setOptimisticCompleted] = useState<boolean>(completed);
+  useEffect(() => {
+    setOptimisticCompleted(completed);
+  }, [completed]);
+  const effectiveCompleted = optimisticCompleted || completed || watchPercentage >= 80;
+
+  // Video HUD feedback for keyboard interactions
+  const [hudMessage, setHudMessage] = useState<{
+    text: string;
+    icon: 'play' | 'pause' | 'rewind' | 'forward' | 'fullscreen';
+  } | null>(null);
+  const hudTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerHud = useCallback(
+    (text: string, icon: 'play' | 'pause' | 'rewind' | 'forward' | 'fullscreen') => {
+      setHudMessage({ text, icon });
+      if (hudTimerRef.current) clearTimeout(hudTimerRef.current);
+      hudTimerRef.current = setTimeout(() => setHudMessage(null), 1200);
+    },
+    []
+  );
+
+  // Keyboard controls: Space (play/pause), F (fullscreen), ← / → (5s scrub)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.tagName === 'SELECT' ||
+          (activeEl as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+
+      if (document.body.style.overflow === 'hidden') {
+        return;
+      }
+
+      const vid = videoRef.current;
+      if (!vid) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (vid.paused) {
+          vid.play().catch(() => {});
+          triggerHud('Playing', 'play');
+        } else {
+          vid.pause();
+          triggerHud('Paused', 'pause');
+        }
+        return;
+      }
+
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        const container = videoContainerRef.current || vid;
+        if (!document.fullscreenElement) {
+          if (container.requestFullscreen) {
+            void container.requestFullscreen();
+            triggerHud('Fullscreen', 'fullscreen');
+          }
+        } else {
+          if (document.exitFullscreen) {
+            void document.exitFullscreen();
+            triggerHud('Exit Fullscreen', 'fullscreen');
+          }
+        }
+        return;
+      }
+
+      if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        vid.currentTime = Math.max(0, vid.currentTime - 5);
+        triggerHud('-5s Rewind', 'rewind');
+        return;
+      }
+
+      if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        const dur = vid.duration || Infinity;
+        vid.currentTime = Math.min(dur, vid.currentTime + 5);
+        triggerHud('+5s Skip', 'forward');
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (hudTimerRef.current) clearTimeout(hudTimerRef.current);
+    };
+  }, [triggerHud]);
+
   const lastSyncTimeRef = useRef<number>(0);
   const lastKnownTimeRef = useRef<number>(initialLastPositionSeconds || 0);
   const signedAtRef = useRef<number>(Date.now());
@@ -1345,10 +1449,14 @@ export function LessonPlayer({
   const syncWatchProgress = (pct: number, currentTime: number) => {
     if (!userId) return;
     const isAutoCompleted = pct >= 80;
-    void updateLessonWatchProgress(userId, lesson.id, pct, currentTime, playbackSpeed);
+    if (isAutoCompleted) {
+      setOptimisticCompleted(true);
+    }
+    // Optimistic UI: notify parent state immediately before background promise
     if (onWatchProgressUpdate) {
       onWatchProgressUpdate(lesson.id, pct, isAutoCompleted);
     }
+    void updateLessonWatchProgress(userId, lesson.id, pct, currentTime, playbackSpeed);
   };
 
   const handleTimeUpdate = () => {
@@ -1362,6 +1470,9 @@ export function LessonPlayer({
     if (pct > watchPercentage) {
       setWatchPercentage(pct);
     }
+    if (pct >= 80 && !optimisticCompleted) {
+      setOptimisticCompleted(true);
+    }
 
     const now = Date.now();
     if (now - lastSyncTimeRef.current > 5000 || (pct >= 80 && watchPercentage < 80)) {
@@ -1372,6 +1483,7 @@ export function LessonPlayer({
 
   const handleEnded = () => {
     setWatchPercentage(100);
+    setOptimisticCompleted(true);
     if (videoRef.current) {
       syncWatchProgress(100, videoRef.current.duration || 0);
     }
@@ -1386,10 +1498,35 @@ export function LessonPlayer({
     setShowResumePrompt(false);
   };
 
+  const handleToggleComplete = () => {
+    setOptimisticCompleted(!effectiveCompleted);
+    onToggleComplete();
+  };
+
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-950/5">
       {/* Video Display Container */}
-      <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
+      <div ref={videoContainerRef} className="relative aspect-video w-full overflow-hidden bg-slate-950">
+        {/* Visual HUD Overlay for Space/F/Arrow shortcuts */}
+        {hudMessage && (
+          <div
+            data-testid="video-hud-overlay"
+            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 flex items-center gap-2.5 rounded-2xl bg-black/85 px-5 py-3 text-white backdrop-blur-md border border-white/15 shadow-2xl animate-in fade-in zoom-in-90 duration-150"
+          >
+            {hudMessage.icon === 'play' && <Play size={20} fill="currentColor" className="text-orange-400" />}
+            {hudMessage.icon === 'pause' && (
+              <div className="flex gap-1 size-5 items-center justify-center">
+                <div className="w-1.5 h-4 bg-orange-400 rounded-xs" />
+                <div className="w-1.5 h-4 bg-orange-400 rounded-xs" />
+              </div>
+            )}
+            {hudMessage.icon === 'rewind' && <RotateCcw size={18} className="text-orange-400" />}
+            {hudMessage.icon === 'forward' && <Sparkles size={18} className="text-orange-400" />}
+            {hudMessage.icon === 'fullscreen' && <Gauge size={18} className="text-orange-400" />}
+            <span className="text-xs font-mono font-bold tracking-wider uppercase">{hudMessage.text}</span>
+          </div>
+        )}
+
         {/* Floating Resume Playback Prompt */}
         {showResumePrompt && initialLastPositionSeconds > 0 && (
           <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-900/90 p-3.5 text-white backdrop-blur-md border border-white/10 shadow-2xl">
@@ -1531,17 +1668,17 @@ export function LessonPlayer({
             <div className="h-2 w-28 sm:w-44 overflow-hidden rounded-full bg-slate-200">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
-                  watchPercentage >= 80 || completed ? 'bg-emerald-500' : 'bg-orange-500'
+                  watchPercentage >= 80 || effectiveCompleted ? 'bg-emerald-500' : 'bg-orange-500'
                 }`}
-                style={{ width: `${Math.max(watchPercentage, completed ? 100 : 0)}%` }}
+                style={{ width: `${Math.max(watchPercentage, effectiveCompleted ? 100 : 0)}%` }}
               />
             </div>
             <span className="font-mono font-bold text-slate-700">
-              {Math.max(watchPercentage, completed ? 100 : 0)}%
+              {Math.max(watchPercentage, effectiveCompleted ? 100 : 0)}%
             </span>
           </div>
           <span className="text-[11px] text-slate-500 hidden sm:inline">
-            {watchPercentage >= 80 || completed ? (
+            {watchPercentage >= 80 || effectiveCompleted ? (
               <span className="font-bold text-emerald-600">✓ Completed (≥80% watched)</span>
             ) : (
               <span>(80% required to verify)</span>
@@ -1549,29 +1686,38 @@ export function LessonPlayer({
           </span>
         </div>
 
-        {videoMeta.type === 'video' && (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 font-bold text-slate-600">
-              <Gauge size={13} className="text-orange-500" />
-              <span>Speed:</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {[0.75, 1, 1.25, 1.5, 2].map((speed) => (
-                <button
-                  key={speed}
-                  onClick={() => handleSpeedChange(speed)}
-                  className={`rounded-md px-2 py-0.5 font-bold transition text-[11px] ${
-                    playbackSpeed === speed
-                      ? 'bg-orange-500 text-white shadow-2xs'
-                      : 'bg-white text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {speed}x
-                </button>
-              ))}
-            </div>
+        <div className="flex items-center gap-4">
+          {/* Keyboard shortcut guide badge */}
+          <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-slate-700 font-bold">Space</span> Play
+            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-slate-700 font-bold">F</span> Fullscreen
+            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-slate-700 font-bold">←/→</span> ±5s
           </div>
-        )}
+
+          {videoMeta.type === 'video' && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 font-bold text-slate-600">
+                <Gauge size={13} className="text-orange-500" />
+                <span>Speed:</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {[0.75, 1, 1.25, 1.5, 2].map((speed) => (
+                  <button
+                    key={speed}
+                    onClick={() => handleSpeedChange(speed)}
+                    className={`rounded-md px-2 py-0.5 font-bold transition text-[11px] ${
+                      playbackSpeed === speed
+                        ? 'bg-orange-500 text-white shadow-2xs'
+                        : 'bg-white text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {speed}x
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Lesson Details & Prev/Next Controls */}
@@ -1589,28 +1735,28 @@ export function LessonPlayer({
           <div className="flex items-center gap-2 shrink-0">
             {(() => {
               const hasVideo = Boolean(lesson.video_url && lesson.video_url.trim().length > 0);
-              const isLocked = !completed && hasVideo && watchPercentage < 80;
+              const isLocked = !effectiveCompleted && hasVideo && watchPercentage < 80;
 
               return (
                 <button
-                  onClick={onToggleComplete}
+                  onClick={handleToggleComplete}
                   disabled={isLocked}
                   title={
                     isLocked
                       ? `Watch at least 80% to mark complete (currently ${watchPercentage}%)`
-                      : completed
+                      : effectiveCompleted
                       ? 'Click to toggle incomplete'
                       : 'Mark lesson as complete'
                   }
                   className={`rounded-xl px-4 py-2.5 text-xs font-bold transition shadow-xs ${
-                    completed
+                    effectiveCompleted
                       ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
                       : isLocked
                       ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                       : 'bg-slate-950 text-white hover:bg-orange-600'
                   }`}
                 >
-                  {completed ? (
+                  {effectiveCompleted ? (
                     <span className="flex items-center gap-1.5">
                       <Check size={15} /> Completed
                     </span>
