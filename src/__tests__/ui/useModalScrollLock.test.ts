@@ -9,7 +9,7 @@ describe('useModalScrollLock', () => {
   beforeEach(() => {
     mockStart = vi.fn();
     mockStop = vi.fn();
-    (window as unknown as { lenis?: { start: () => void; stop: () => void } }).lenis = {
+    (window as unknown as { lenis?: Record<string, unknown> }).lenis = {
       start: mockStart,
       stop: mockStop,
     };
