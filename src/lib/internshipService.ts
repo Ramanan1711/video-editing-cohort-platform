@@ -1,6 +1,25 @@
 import { supabase } from './supabaseClient';
 import { parseDatabaseError } from './errorHandling';
 import { getSecureSubmissionUrl } from './services/assetStorageService';
+import {
+  type CurriculumDay,
+  DEFAULT_15_DAY_CURRICULUM,
+  VIDEO_EDITING_15_DAY_CURRICULUM,
+  CODING_FULLSTACK_15_DAY_CURRICULUM,
+  MOTION_GRAPHICS_15_DAY_CURRICULUM,
+  getCurriculumBlueprintForCohort,
+  getCurriculumForCohort,
+} from './curriculum';
+
+export type { CurriculumDay };
+export {
+  DEFAULT_15_DAY_CURRICULUM,
+  VIDEO_EDITING_15_DAY_CURRICULUM,
+  CODING_FULLSTACK_15_DAY_CURRICULUM,
+  MOTION_GRAPHICS_15_DAY_CURRICULUM,
+  getCurriculumBlueprintForCohort,
+  getCurriculumForCohort,
+};
 
 export interface DailyChallenge {
   id: string;
@@ -60,182 +79,6 @@ export interface InternMonitoringRecord {
   dayStatuses: Record<number, 'accepted' | 'pending' | 'missed' | 'locked'>;
 }
 
-/**
- * Default curated 15-Day Internship Curriculum Blueprint
- */
-export const DEFAULT_15_DAY_CURRICULUM: Omit<DailyChallenge, 'id' | 'cohort_id'>[] = [
-  // Sprint 1: Days 1-5 (Fundamentals & Kinetic Drills)
-  {
-    day_number: 1,
-    title: 'Day 01: Production Setup & First Kinetic Cut',
-    description: 'Establish project directory structure, import raw footage/starter repo, and ship first edit.',
-    instructions: 'Submit your Day 1 repository PR or Google Drive cut link before midnight.',
-    starter_files_url: 'https://drive.google.com/drive/folders/sample-day-1',
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: true,
-  },
-  {
-    day_number: 2,
-    title: 'Day 02: Pacing, Micro-Transitions & Retention',
-    description: 'Learn fast-paced cuts, J/L audio cuts, and maintaining 70%+ audience watch retention.',
-    instructions: 'Produce a 30-second timeline maintaining retention peaks at seconds 3, 7, and 15.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: false,
-  },
-  {
-    day_number: 3,
-    title: 'Day 03: Sound Design, SFX Stems & Audio Layering',
-    description: 'Layer whooshes, risers, foley hits, and balance speech volume levels to -6dB True Peak.',
-    instructions: 'Include at least 4 distinct audio stem layers and export your clean WAV/MP4 master.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: false,
-  },
-  {
-    day_number: 4,
-    title: 'Day 04: Kinetic Typography & Motion Graphics',
-    description: 'Sync word-by-word highlighted captions and title lower-thirds to voice cadence.',
-    instructions: 'Submit a 45-second commercial segment featuring dynamic kinetic typography.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: false,
-  },
-  {
-    day_number: 5,
-    title: 'Day 05: Sprint 1 Milestone — First Client Simulation',
-    description: 'Integrate Days 1–4 techniques into a complete 60s vertical product ad or full code module.',
-    instructions: 'Submit your Sprint 1 final export for weekend mentor live grading.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 48,
-    is_published: false,
-  },
-
-  // Sprint 2: Days 6-10 (Advanced Workflows & Commercial Polish)
-  {
-    day_number: 6,
-    title: 'Day 06: Cinematic Color Grading & Tone Curves',
-    description: 'Color balance Log footage, create a moody contrast curve, and export Rec.709 clean grades.',
-    instructions: 'Submit a side-by-side Before/After color comparison video.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: false,
-  },
-  {
-    day_number: 7,
-    title: 'Day 07: Speed Ramping, Optical Flow & Match Cuts',
-    description: 'Execute smooth seamless speed-ramps between action sequences using bezier handles.',
-    instructions: 'Deliver a 20-second dynamic sports or fitness montage with 3 speed ramps.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: false,
-  },
-  {
-    day_number: 8,
-    title: 'Day 08: Visual FX, Green Screen & Rotoscoping',
-    description: 'Mask foreground subjects, layer background lighting effects, and clean edge bleed.',
-    instructions: 'Submit your composite shot file and render proof.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: false,
-  },
-  {
-    day_number: 9,
-    title: 'Day 09: Music Video Rhythm & Beat Synchronicity',
-    description: 'Cut to dynamic tempo shifts and transient drum peaks for maximum emotional punch.',
-    instructions: 'Sync 8 fast-cut b-roll scenes to acoustic/electronic tempo drop.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: false,
-  },
-  {
-    day_number: 10,
-    title: 'Day 10: Sprint 2 Milestone — Mid-Term Portfolio Review',
-    description: 'Consolidated commercial cut incorporating color, sound, typography, and speed ramps.',
-    instructions: 'Submit for mid-term mentor feedback audit and cohort leaderboard score.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 48,
-    is_published: false,
-  },
-
-  // Sprint 3: Days 11-15 (Capstone Project & Graduation Proof)
-  {
-    day_number: 11,
-    title: 'Day 11: Production Capstone — Storyboard & Raw Assembly',
-    description: 'Begin your final 15-day capstone client project. Assemble the A-roll timeline.',
-    instructions: 'Submit rough narrative sequence cut.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: false,
-  },
-  {
-    day_number: 12,
-    title: 'Day 12: Production Capstone — Sound Design & Foley Polish',
-    description: 'Add music transitions, SFX sweetening, and vocal clarity EQ pass.',
-    instructions: 'Submit second cut with completed audio stems.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: false,
-  },
-  {
-    day_number: 13,
-    title: 'Day 13: Production Capstone — Motion & Color Mastering',
-    description: 'Fine-tune color consistency across all takes, add typography overlays, and sharpen details.',
-    instructions: 'Submit near-final client master for preliminary mentor critique.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: false,
-  },
-  {
-    day_number: 14,
-    title: 'Day 14: Final Capstone Master Export & Showcase',
-    description: 'Deliver the client-ready 4K and vertical master exports with complete source project bundle.',
-    instructions: 'Submit high-bitrate export link along with written production notes.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'drive_link',
-    deadline_hours: 24,
-    is_published: false,
-  },
-  {
-    day_number: 15,
-    title: 'Day 15: Graduation, Exit Evaluation & Letter of Recommendation',
-    description: 'Final mentor grading, portfolio verification, and release of your verified Internship Certificate.',
-    instructions: 'Complete the exit survey and claim your verifiable digital certificate.',
-    starter_files_url: null,
-    track_type: 'general',
-    submission_type: 'text',
-    deadline_hours: 24,
-    is_published: false,
-  },
-];
-
 export async function listDailyChallenges(cohortId: string): Promise<DailyChallenge[]> {
   const { data, error } = await supabase
     .from('daily_challenges')
@@ -266,9 +109,22 @@ export async function listDailyChallenges(cohortId: string): Promise<DailyChalle
     console.warn('ensure_cohort_daily_challenges RPC unavailable:', seedCatch);
   }
 
-  // Fallback: If RPC is unavailable, seed default curriculum directly into Supabase so real database records with UUIDs are generated
+  // Fallback: If RPC is unavailable, resolve course blueprint dynamically and seed directly into Supabase
   try {
-    const payload = DEFAULT_15_DAY_CURRICULUM.map((item) => ({
+    let cohortDetails = null;
+    try {
+      const { data: cData } = await supabase
+        .from('cohorts')
+        .select('id, title, name, track_type')
+        .eq('id', cohortId)
+        .maybeSingle();
+      cohortDetails = cData;
+    } catch {
+      // Ignore query error when resolving cohort metadata
+    }
+
+    const blueprint = getCurriculumBlueprintForCohort(cohortDetails);
+    const payload = blueprint.map((item) => ({
       ...item,
       cohort_id: cohortId,
     }));
@@ -469,7 +325,20 @@ export async function seedCohortDailyChallenges(cohortId: string): Promise<Daily
   }
 
   // Direct table insert with real UUIDs generated by PostgreSQL
-  const payload = DEFAULT_15_DAY_CURRICULUM.map((item) => ({
+  let cohortDetails = null;
+  try {
+    const { data: cData } = await supabase
+      .from('cohorts')
+      .select('id, title, name, track_type')
+      .eq('id', cohortId)
+      .maybeSingle();
+    cohortDetails = cData;
+  } catch {
+    // Ignore query error when resolving cohort metadata
+  }
+
+  const blueprint = getCurriculumBlueprintForCohort(cohortDetails);
+  const payload = blueprint.map((item) => ({
     ...item,
     cohort_id: cohortId,
   }));
