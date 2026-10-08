@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "generatedAt": "2026-10-08T06:50:53.443Z",
-  "migrationCount": 53,
+  "migrationCount": 55,
   "migrations": [
     {
       "order": 1,
@@ -773,6 +773,21 @@
       "sizeBytes": 2923,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
+      "rpcDefinitions": [
+        "can_access_course_asset"
+      ]
+    },
+    {
+      "order": 55,
+      "filename": "20261008000003_course_challenges_and_authoring.sql",
+      "sha256": "bf5f5fb76f182ff4b93389308693828b7d347ba1eccbeb85b2f1c06bd11502cd",
+      "sizeBytes": 6068,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "course_challenges",
+        "course_challenge_participants",
+        "course_challenge_submissions"
+      ],
       "rpcDefinitions": [
         "can_access_course_asset"
       ]

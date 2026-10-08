@@ -29,6 +29,7 @@ import {
   Flame,
   Lock,
   BookOpen,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import {
@@ -38,6 +39,14 @@ import {
   type LeaderboardMember,
   type CourseOption,
 } from '../../lib/gamificationService';
+import {
+  fetchCourseChallenges,
+  joinCourseChallenge,
+  submitCourseChallenge,
+  getDefaultChallengesForCohort,
+  type CourseChallengeItem,
+} from '../../lib/courseChallengeService';
+import { UploadChallengeModal } from './UploadChallengeModal';
 
 export type LevelUpSubTab = 'dashboard' | 'habits' | 'challenges';
 
@@ -63,74 +72,7 @@ const PRO_HISTORY_TRANSACTIONS = [
   { id: 'tx-6', title: '7-Day Editing Streak Shield Claimed', date: 'Sep 15, 2026', points: '+94 PRO', type: 'streak' },
 ];
 
-interface ChallengeItem {
-  id: string;
-  type: 'PROJECT' | 'TASK';
-  week: string;
-  title: string;
-  startDate: string;
-  endDate: string;
-  durationLabel: string;
-  status: 'active' | 'upcoming' | 'completed';
-  participantsJoined: number;
-  proReward: number;
-  isJoined?: boolean;
-}
-
-const INITIAL_CHALLENGES: ChallengeItem[] = [
-  {
-    id: 'ch-w3-proj',
-    type: 'PROJECT',
-    week: 'WEEK 3',
-    title: 'B15 W3 Project - 3 Remix the emotion',
-    startDate: '7 Sep',
-    endDate: '13 Sep 2026',
-    durationLabel: '7 days',
-    status: 'active',
-    participantsJoined: 4,
-    proReward: 50,
-    isJoined: false,
-  },
-  {
-    id: 'ch-w3-task',
-    type: 'TASK',
-    week: 'WEEK 3',
-    title: 'B15 W3 Task 3 - Design sounds for the video',
-    startDate: '7 Sep',
-    endDate: '10 Sep 2026',
-    durationLabel: '4 days',
-    status: 'active',
-    participantsJoined: 3,
-    proReward: 50,
-    isJoined: true,
-  },
-  {
-    id: 'ch-w2-proj',
-    type: 'PROJECT',
-    week: 'WEEK 2',
-    title: 'B15 W2 Project - Color Grading & Polish',
-    startDate: '31 Aug',
-    endDate: '6 Sep 2026',
-    durationLabel: '7 days',
-    status: 'completed',
-    participantsJoined: 38,
-    proReward: 100,
-    isJoined: true,
-  },
-  {
-    id: 'ch-w4-proj',
-    type: 'PROJECT',
-    week: 'WEEK 4',
-    title: 'B15 W4 Project - Final Narrative Capstone',
-    startDate: '14 Sep',
-    endDate: '21 Sep 2026',
-    durationLabel: '7 days',
-    status: 'upcoming',
-    participantsJoined: 24,
-    proReward: 150,
-    isJoined: false,
-  },
-];
+export type ChallengeItem = CourseChallengeItem;
 
 export const LevelUpView: React.FC<LevelUpViewProps> = ({
   onClose,
@@ -146,6 +88,12 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
   const [initialCohortResolved, setInitialCohortResolved] = useState<boolean>(false);
+
+  // Selected course details
+  const selectedCourse = useMemo(() => {
+    if (selectedCohortId === 'all') return null;
+    return courses.find((c) => c.id === selectedCohortId) || null;
+  }, [courses, selectedCohortId]);
 
   // Fetch available courses and resolve user's primary enrolled course
   useEffect(() => {
@@ -272,14 +220,16 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   const [todayHabitDismissed, setTodayHabitDismissed] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Challenges state
-  const [challenges, setChallenges] = useState<ChallengeItem[]>(INITIAL_CHALLENGES);
+  // Dynamic Challenges state per course
+  const [challenges, setChallenges] = useState<ChallengeItem[]>(() => getDefaultChallengesForCohort());
+  const [loadingChallenges, setLoadingChallenges] = useState<boolean>(false);
+  const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
   const [challengeFilter, setChallengeFilter] = useState<'active' | 'all' | 'completed' | 'upcoming'>('active');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const queryChallengeId = searchParams.get('challenge');
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeItem | null>(() => {
     if (queryChallengeId) {
-      return INITIAL_CHALLENGES.find((c) => c.id === queryChallengeId) || null;
+      return getDefaultChallengesForCohort().find((c) => c.id === queryChallengeId) || null;
     }
     return null;
   });
@@ -291,13 +241,13 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
 
   // Joined challenges state (tracks whether current user has joined the challenge)
   const [joinedChallengeIds, setJoinedChallengeIds] = useState<string[]>(() =>
-    INITIAL_CHALLENGES.filter((c) => c.isJoined).map((c) => c.id)
+    getDefaultChallengesForCohort().filter((c) => c.isJoined).map((c) => c.id)
   );
 
   // Checkin Modal state (Matching user's reference image for Task check-in)
   const [showCheckinModal, setShowCheckinModal] = useState<boolean>(() => {
     if (queryChallengeId) {
-      const initialCh = INITIAL_CHALLENGES.find((c) => c.id === queryChallengeId);
+      const initialCh = getDefaultChallengesForCohort().find((c) => c.id === queryChallengeId);
       return Boolean(initialCh?.isJoined);
     }
     return false;
@@ -307,7 +257,42 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   const [showCheckinSubmitForm, setShowCheckinSubmitForm] = useState(false);
   const [submittedCheckinIds, setSubmittedCheckinIds] = useState<string[]>([]);
 
+  // Load dynamic challenges whenever selectedCohortId or selected course changes
+  useEffect(() => {
+    let isMounted = true;
+    async function loadChallenges() {
+      setLoadingChallenges(true);
+      const data = await fetchCourseChallenges(
+        selectedCohortId !== 'all' ? selectedCohortId : undefined,
+        selectedCourse?.title
+      );
+      if (!isMounted) return;
+      setChallenges(data);
+      setLoadingChallenges(false);
+
+      // Populate joined challenge ids
+      const joined = data.filter((c) => c.isJoined).map((c) => c.id);
+      setJoinedChallengeIds((prev) => Array.from(new Set([...prev, ...joined])));
+
+      // Sync selected challenge if requested in URL
+      if (queryChallengeId) {
+        const found = data.find((c) => c.id === queryChallengeId);
+        if (found) {
+          setSelectedChallenge(found);
+          if (found.isJoined) {
+            setShowCheckinModal(true);
+          }
+        }
+      }
+    }
+    loadChallenges();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedCohortId, selectedCourse?.title, queryChallengeId]);
+
   const handleJoinChallenge = (challengeId: string) => {
+    void joinCourseChallenge(challengeId, user?.id);
     setJoinedChallengeIds((prev) => (prev.includes(challengeId) ? prev : [...prev, challengeId]));
     setChallenges((prev) =>
       prev.map((c) => (c.id === challengeId ? { ...c, isJoined: true, participantsJoined: c.participantsJoined + 1 } : c))
@@ -363,12 +348,6 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
     .join('')
     .slice(0, 2)
     .toUpperCase();
-
-  // Selected course details
-  const selectedCourse = useMemo(() => {
-    if (selectedCohortId === 'all') return null;
-    return courses.find((c) => c.id === selectedCohortId) || null;
-  }, [courses, selectedCohortId]);
 
   // Habit chart data for the past 7 days
   const chartDays = [
@@ -1362,11 +1341,14 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                       </p>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                        {[
-                          { title: 'Documentary Footage Pack', size: '1.4 GB', type: '.zip / ProRes 422' },
-                          { title: 'Sound Design & Foley FX Bed', size: '320 MB', type: '.zip / 24-bit WAV' },
-                          { title: 'NLE Starter Project Templates', size: '45 MB', type: '.drp & .prproj' },
-                        ].map((asset, i) => (
+                        {(selectedChallenge.assets && selectedChallenge.assets.length > 0
+                          ? selectedChallenge.assets
+                          : [
+                              { title: 'Project Starter Footage Pack', size: '1.4 GB', type: '.zip / ProRes 422' },
+                              { title: 'Sound Design & Foley FX Bed', size: '320 MB', type: '.zip / 24-bit WAV' },
+                              { title: 'NLE Starter Project Templates', size: '45 MB', type: '.drp & .prproj' },
+                            ]
+                        ).map((asset, i) => (
                           <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 flex flex-col justify-between">
                             <div>
                               <span className="flex size-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 mb-2">
@@ -1375,16 +1357,29 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                               <h4 className="text-xs font-black text-slate-900 dark:text-white">{asset.title}</h4>
                               <p className="text-[10px] text-slate-400">{asset.type} • {asset.size}</p>
                             </div>
-                            <button
-                              onClick={() => {
-                                setToastMessage(`Downloading ${asset.title}...`);
-                                setTimeout(() => setToastMessage(null), 3000);
-                              }}
-                              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 flex items-center justify-center gap-1.5 transition"
-                            >
-                              <Download size={13} />
-                              <span>Download Asset</span>
-                            </button>
+                            {asset.url ? (
+                              <a
+                                href={asset.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download
+                                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 flex items-center justify-center gap-1.5 transition"
+                              >
+                                <Download size={13} />
+                                <span>Download Asset</span>
+                              </a>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setToastMessage(`Downloading ${asset.title}...`);
+                                  setTimeout(() => setToastMessage(null), 3000);
+                                }}
+                                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 flex items-center justify-center gap-1.5 transition"
+                              >
+                                <Download size={13} />
+                                <span>Download Asset</span>
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1421,25 +1416,36 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                           </div>
                           <button
                             onClick={() => handleSelectChallenge(null)}
-                            className="rounded-xl bg-slate-900 text-white px-5 py-2 text-xs font-black dark:bg-white dark:text-slate-950 hover:bg-slate-800 transition"
+                            className="rounded-xl bg-slate-900 text-white px-5 py-2 text-xs font-black dark:bg-white dark:text-slate-950 hover:bg-slate-800 transition cursor-pointer"
                           >
                             Return to Challenges
                           </button>
                         </div>
                       ) : (
                         <form
-                          onSubmit={(e) => {
+                          onSubmit={async (e) => {
                             e.preventDefault();
                             if (!submissionUrl.trim()) return;
                             setIsSubmitting(true);
-                            setTimeout(() => {
-                              setIsSubmitting(false);
+                            try {
+                              await submitCourseChallenge(
+                                selectedChallenge.id,
+                                user?.id || 'student-user',
+                                submissionUrl.trim(),
+                                submissionNotes.trim()
+                              );
                               setSubmittedChallengeIds((prev) => [...prev, selectedChallenge.id]);
                               setToastMessage(`🎉 Entry Submitted! +${selectedChallenge.proReward} PRO Points Claimed!`);
                               setSubmissionUrl('');
                               setSubmissionNotes('');
-                              setTimeout(() => setToastMessage(null), 4000);
-                            }, 500);
+                            } catch (err) {
+                              console.warn('Submission record error:', err);
+                              setSubmittedChallengeIds((prev) => [...prev, selectedChallenge.id]);
+                              setToastMessage(`🎉 Entry Submitted! +${selectedChallenge.proReward} PRO Points Claimed!`);
+                            } finally {
+                              setIsSubmitting(false);
+                            }
+                            setTimeout(() => setToastMessage(null), 4000);
                           }}
                           className="space-y-4"
                         >
@@ -1533,188 +1539,261 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                 /* Challenges 2.0 List Grid (Matching User Reference Image Exactly) */
                 /* ================================================================= */
                 <>
-                  {/* Header with Title and Filter Dropdown */}
-                  <div className="flex items-center justify-between">
+                  {/* Header with Title, Course Selector, Filter Dropdown, and Upload Challenge Button */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
                         Challenges
                       </h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {selectedCourse
+                          ? `Showing weekly challenges for ${selectedCourse.title}`
+                          : 'Showing challenges across all enrolled tracks'}
+                      </p>
                     </div>
 
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                        className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-                      >
-                        <span className="capitalize">{challengeFilter}</span>
-                        <Filter size={13} className="text-slate-400" />
-                        <ChevronDown size={14} className="text-slate-400" />
-                      </button>
-
-                      {showFilterDropdown && (
-                        <div className="absolute right-0 mt-1 w-36 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 shadow-xl z-20">
-                          {(['active', 'upcoming', 'completed', 'all'] as const).map((opt) => (
-                            <button
-                              key={opt}
-                              onClick={() => {
-                                setChallengeFilter(opt);
-                                setShowFilterDropdown(false);
-                              }}
-                              className={`flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-bold capitalize transition ${
-                                challengeFilter === opt
-                                  ? 'bg-amber-50 text-amber-950 dark:bg-amber-950/40 dark:text-amber-200'
-                                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-                              }`}
-                            >
-                              <span>{opt}</span>
-                              {challengeFilter === opt && <Check size={12} />}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Challenge Cards Grid (Matching Reference Image 2) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredChallenges.map((challenge) => {
-                      const isProject = challenge.type === 'PROJECT';
-
-                      return (
-                        <div
-                          key={challenge.id}
-                          onClick={() => handleSelectChallenge(challenge)}
-                          className="group cursor-pointer rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs hover:border-amber-400 dark:hover:border-amber-500/70 hover:shadow-lg transition-all flex flex-col justify-between"
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      {/* Course Selector Dropdown */}
+                      <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 shadow-2xs">
+                        <BookOpen size={14} className="text-amber-500 shrink-0" />
+                        <select
+                          value={selectedCohortId}
+                          onChange={(e) => setSelectedCohortId(e.target.value)}
+                          className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-hidden cursor-pointer max-w-[170px] truncate"
+                          aria-label="Filter challenges by course"
                         >
-                          {/* Top Graphic Banner with Styled SVGs matching screenshot */}
-                          <div className="relative h-44 sm:h-48 w-full bg-[#13161c] flex flex-col items-center justify-center p-4 border-b border-slate-800">
-                            {/* Top-Right ACTIVE Green Ribbon */}
-                            <div className="absolute top-0 right-0">
-                              <span
-                                className={`inline-block px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-bl-xl shadow-xs text-white ${
-                                  challenge.status === 'active'
-                                    ? 'bg-emerald-600'
-                                    : challenge.status === 'completed'
-                                    ? 'bg-blue-600'
-                                    : 'bg-purple-600'
+                          <option value="all">All Tracks &amp; Courses</option>
+                          {courses.map((course) => (
+                            <option key={course.id} value={course.id}>
+                              {course.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Status Filter Dropdown */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                          className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                        >
+                          <span className="capitalize">{challengeFilter}</span>
+                          <Filter size={13} className="text-slate-400" />
+                          <ChevronDown size={14} className="text-slate-400" />
+                        </button>
+
+                        {showFilterDropdown && (
+                          <div className="absolute right-0 mt-1 w-36 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 shadow-xl z-20">
+                            {(['active', 'upcoming', 'completed', 'all'] as const).map((opt) => (
+                              <button
+                                key={opt}
+                                onClick={() => {
+                                  setChallengeFilter(opt);
+                                  setShowFilterDropdown(false);
+                                }}
+                                className={`flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-bold capitalize transition ${
+                                  challengeFilter === opt
+                                    ? 'bg-amber-50 text-amber-950 dark:bg-amber-950/40 dark:text-amber-200'
+                                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
                                 }`}
                               >
-                                {challenge.status}
-                              </span>
-                            </div>
-
-                            {/* Vector Graphic: Laptop Screen (Project) vs Notepad (Task) */}
-                            <div className="flex flex-col items-center justify-center space-y-1">
-                              {isProject ? (
-                                // Golden Laptop Vector Art
-                                <div className="relative">
-                                  <svg width="68" height="48" viewBox="0 0 68 48" fill="none" className="text-amber-400">
-                                    <rect x="8" y="4" width="52" height="32" rx="3" stroke="currentColor" strokeWidth="2.5" />
-                                    <path d="M4 36H64C65.1046 36 66 36.8954 66 38V40H2V38C2 36.8954 2.89543 36 4 36Z" fill="currentColor" fillOpacity="0.3" stroke="currentColor" strokeWidth="2" />
-                                    <rect x="14" y="10" width="40" height="20" rx="1.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
-                                    <polygon points="30,16 40,20 30,24" fill="currentColor" />
-                                    <line x1="16" y1="26" x2="52" y2="26" stroke="currentColor" strokeWidth="1.5" />
-                                  </svg>
-                                </div>
-                              ) : (
-                                // Golden Notepad & Pencil Vector Art
-                                <div className="relative">
-                                  <svg width="56" height="48" viewBox="0 0 56 48" fill="none" className="text-amber-400">
-                                    <rect x="10" y="4" width="34" height="40" rx="4" stroke="currentColor" strokeWidth="2.5" />
-                                    <line x1="16" y1="14" x2="30" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                    <line x1="16" y1="20" x2="36" y2="20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                    <line x1="16" y1="26" x2="26" y2="26" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                    {/* Tilted Pencil */}
-                                    <g transform="translate(24, 6) rotate(32)">
-                                      <polygon points="16,2 20,4 6,28 2,26" fill="currentColor" stroke="currentColor" strokeWidth="1" />
-                                      <polygon points="2,26 6,28 0,32" fill="#f59e0b" />
-                                    </g>
-                                  </svg>
-                                </div>
-                              )}
-
-                              {/* Bold Graphic Typography */}
-                              <div className="text-center font-black tracking-wider uppercase text-amber-400">
-                                <span className="block text-xl tracking-widest drop-shadow-[0_2px_8px_rgba(245,158,11,0.4)]">
-                                  {challenge.type}
-                                </span>
-                                <span className="block text-sm tracking-wider text-amber-300 font-extrabold">
-                                  {challenge.week}
-                                </span>
-                              </div>
-                            </div>
+                                <span>{opt}</span>
+                                {challengeFilter === opt && <Check size={12} />}
+                              </button>
+                            ))}
                           </div>
+                        )}
+                      </div>
 
-                          {/* Card Body */}
-                          <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                            <div className="space-y-2.5">
-                              {/* Duration Pill */}
-                              <div className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                                <span>{challenge.startDate} - {challenge.endDate} • {challenge.durationLabel}</span>
+                      {/* Upload Challenge Button */}
+                      <button
+                        type="button"
+                        onClick={() => setShowUploadModal(true)}
+                        className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 hover:brightness-105 px-4 py-2 text-xs font-black text-slate-950 shadow-md shadow-amber-900/20 active:scale-95 transition cursor-pointer"
+                        title="Upload a new challenge for a course"
+                      >
+                        <Upload size={14} />
+                        <span>Upload Challenge</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Loading State vs Empty State vs Challenge Cards Grid */}
+                  {loadingChallenges && challenges.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 space-y-3">
+                      <Loader2 size={30} className="animate-spin text-amber-500" />
+                      <p className="text-xs font-bold text-slate-500">Loading course challenges...</p>
+                    </div>
+                  ) : filteredChallenges.length === 0 ? (
+                    <div className="rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 p-12 text-center space-y-4 bg-white/50 dark:bg-slate-900/40">
+                      <div className="flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 mx-auto">
+                        <Upload size={24} />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-slate-900 dark:text-white">
+                          No Challenges Found for this Filter
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                          There are no {challengeFilter !== 'all' ? challengeFilter : ''} challenges for{' '}
+                          {selectedCourse ? selectedCourse.title : 'this course track'} yet.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowUploadModal(true)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-105 text-slate-950 px-5 py-2.5 text-xs font-black shadow-md transition cursor-pointer"
+                      >
+                        <Upload size={14} />
+                        <span>Upload Challenge for this Course</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredChallenges.map((challenge) => {
+                        const isProject = challenge.type === 'PROJECT';
+
+                        return (
+                          <div
+                            key={challenge.id}
+                            onClick={() => handleSelectChallenge(challenge)}
+                            className="group cursor-pointer rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs hover:border-amber-400 dark:hover:border-amber-500/70 hover:shadow-lg transition-all flex flex-col justify-between"
+                          >
+                            {/* Top Graphic Banner with Styled SVGs matching screenshot */}
+                            <div className="relative h-44 sm:h-48 w-full bg-[#13161c] flex flex-col items-center justify-center p-4 border-b border-slate-800">
+                              {/* Top-Right ACTIVE Green Ribbon */}
+                              <div className="absolute top-0 right-0">
+                                <span
+                                  className={`inline-block px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-bl-xl shadow-xs text-white ${
+                                    challenge.status === 'active'
+                                      ? 'bg-emerald-600'
+                                      : challenge.status === 'completed'
+                                      ? 'bg-blue-600'
+                                      : 'bg-purple-600'
+                                  }`}
+                                >
+                                  {challenge.status}
+                                </span>
                               </div>
 
-                              {/* Challenge Title */}
-                              <h3 className="text-sm font-black text-slate-900 dark:text-white leading-snug group-hover:text-amber-500 transition-colors">
-                                {challenge.title}
-                              </h3>
+                              {/* Vector Graphic: Laptop Screen (Project) vs Notepad (Task) */}
+                              <div className="flex flex-col items-center justify-center space-y-1">
+                                {isProject ? (
+                                  // Golden Laptop Vector Art
+                                  <div className="relative">
+                                    <svg width="68" height="48" viewBox="0 0 68 48" fill="none" className="text-amber-400">
+                                      <rect x="8" y="4" width="52" height="32" rx="3" stroke="currentColor" strokeWidth="2.5" />
+                                      <path d="M4 36H64C65.1046 36 66 36.8954 66 38V40H2V38C2 36.8954 2.89543 36 4 36Z" fill="currentColor" fillOpacity="0.3" stroke="currentColor" strokeWidth="2" />
+                                      <rect x="14" y="10" width="40" height="20" rx="1.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
+                                      <polygon points="30,16 40,20 30,24" fill="currentColor" />
+                                      <line x1="16" y1="26" x2="52" y2="26" stroke="currentColor" strokeWidth="1.5" />
+                                    </svg>
+                                  </div>
+                                ) : (
+                                  // Golden Notepad & Pencil Vector Art
+                                  <div className="relative">
+                                    <svg width="56" height="48" viewBox="0 0 56 48" fill="none" className="text-amber-400">
+                                      <rect x="10" y="4" width="34" height="40" rx="4" stroke="currentColor" strokeWidth="2.5" />
+                                      <line x1="16" y1="14" x2="30" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                      <line x1="16" y1="20" x2="36" y2="20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                      <line x1="16" y1="26" x2="26" y2="26" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                      {/* Tilted Pencil */}
+                                      <g transform="translate(24, 6) rotate(32)">
+                                        <polygon points="16,2 20,4 6,28 2,26" fill="currentColor" stroke="currentColor" strokeWidth="1" />
+                                        <polygon points="2,26 6,28 0,32" fill="#f59e0b" />
+                                      </g>
+                                    </svg>
+                                  </div>
+                                )}
 
-                              {/* Participants & Social Proof */}
-                              <div className="flex items-center gap-2 pt-1">
-                                <div className="flex -space-x-1.5 overflow-hidden">
-                                  <img
-                                    className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
-                                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64&q=80"
-                                    alt="User"
-                                  />
-                                  <img
-                                    className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
-                                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&h=64&q=80"
-                                    alt="User"
-                                  />
-                                  {challenge.participantsJoined > 2 && (
+                                {/* Bold Graphic Typography */}
+                                <div className="text-center font-black tracking-wider uppercase text-amber-400">
+                                  <span className="block text-xl tracking-widest drop-shadow-[0_2px_8px_rgba(245,158,11,0.4)]">
+                                    {challenge.type}
+                                  </span>
+                                  <span className="block text-sm tracking-wider text-amber-300 font-extrabold">
+                                    {challenge.week}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Card Body */}
+                            <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                              <div className="space-y-2.5">
+                                {/* Course Badge if viewing all courses */}
+                                {challenge.cohortTitle && selectedCohortId === 'all' && (
+                                  <span className="text-[10px] font-extrabold text-amber-500 uppercase tracking-wider block truncate">
+                                    {challenge.cohortTitle}
+                                  </span>
+                                )}
+
+                                {/* Duration Pill */}
+                                <div className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                                  <span>{challenge.startDate} - {challenge.endDate} • {challenge.durationLabel}</span>
+                                </div>
+
+                                {/* Challenge Title */}
+                                <h3 className="text-sm font-black text-slate-900 dark:text-white leading-snug group-hover:text-amber-500 transition-colors">
+                                  {challenge.title}
+                                </h3>
+
+                                {/* Participants & Social Proof */}
+                                <div className="flex items-center gap-2 pt-1">
+                                  <div className="flex -space-x-1.5 overflow-hidden">
                                     <img
                                       className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
-                                      src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=64&h=64&q=80"
+                                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64&q=80"
                                       alt="User"
                                     />
-                                  )}
+                                    <img
+                                      className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
+                                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&h=64&q=80"
+                                      alt="User"
+                                    />
+                                    {challenge.participantsJoined > 2 && (
+                                      <img
+                                        className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
+                                        src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=64&h=64&q=80"
+                                        alt="User"
+                                      />
+                                    )}
+                                  </div>
+                                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                    +{challenge.participantsJoined - 1} participants joined
+                                  </span>
                                 </div>
-                                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                  +{challenge.participantsJoined - 1} participants joined
-                                </span>
+                              </div>
+
+                              {/* Divider & Footer (Matching Screenshot Exactly) */}
+                              <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
+                                {challenge.isJoined ? (
+                                  <div className="flex items-center">
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                      Joined
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-slate-500">
+                                      Join &amp; stand a chance to earn
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleJoinChallenge(challenge.id);
+                                      }}
+                                      className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 px-3 py-1 text-xs font-black text-amber-800 dark:text-amber-300 hover:bg-amber-100 active:scale-95 transition shadow-2xs"
+                                    >
+                                      <span>🪙 {challenge.proReward} PRO</span>
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
-
-                            {/* Divider & Footer (Matching Screenshot Exactly) */}
-                            <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
-                              {challenge.isJoined ? (
-                                <div className="flex items-center">
-                                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                                    Joined
-                                  </span>
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-medium text-slate-500">
-                                    Join &amp; stand a chance to earn
-                                  </span>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleJoinChallenge(challenge.id);
-                                    }}
-                                    className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 px-3 py-1 text-xs font-black text-amber-800 dark:text-amber-300 hover:bg-amber-100 active:scale-95 transition shadow-2xs"
-                                  >
-                                    <span>🪙 {challenge.proReward} PRO</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -2486,6 +2565,20 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
             </div>
           </div>
         )}
+
+        {/* Upload Challenge Modal */}
+        <UploadChallengeModal
+          isOpen={showUploadModal}
+          onClose={() => setShowUploadModal(false)}
+          courses={courses}
+          defaultCohortId={selectedCohortId}
+          onChallengeCreated={(newChallenge) => {
+            setChallenges((prev) => [newChallenge, ...prev]);
+            setSelectedChallenge(newChallenge);
+            setToastMessage(`🎉 Successfully published challenge "${newChallenge.title}"!`);
+            setTimeout(() => setToastMessage(null), 4000);
+          }}
+        />
       </div>
     </div>
   );
