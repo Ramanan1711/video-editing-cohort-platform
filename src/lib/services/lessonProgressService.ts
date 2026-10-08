@@ -244,7 +244,8 @@ export async function updateLessonWatchProgress(
   positionSeconds: number = 0,
   playbackRate: number = 1.0
 ): Promise<void> {
-  const isAutoCompleted = watchPercentage >= 80;
+  const roundedWatchPct = Math.min(100, Math.max(0, Math.round(watchPercentage)));
+  const isAutoCompleted = roundedWatchPct >= 80;
 
   // 1. Authoritative server-side heartbeat tracking
   try {
@@ -256,6 +257,12 @@ export async function updateLessonWatchProgress(
     });
 
     if (!heartbeatErr && heartbeatRes) {
+      if (isAutoCompleted && !(heartbeatRes as { completed?: boolean }).completed) {
+        void markLessonComplete(userId, lessonId, true, {
+          watchPercentage: roundedWatchPct,
+          positionSeconds,
+        }).catch(() => {});
+      }
       return;
     }
   } catch (rpcErr) {

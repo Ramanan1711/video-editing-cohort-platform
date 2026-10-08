@@ -287,7 +287,12 @@ export function useStudentDashboard(
   const allLessons = useMemo(() => course.modules.flatMap((module) => module.lessons), [course.modules]);
   const selectedLesson = allLessons.find((lesson) => lesson.id === selectedLessonId) ?? null;
   const completedIds = useMemo(
-    () => new Set(course.progress.filter((item) => item.completed).map((item) => item.lesson_id)),
+    () =>
+      new Set(
+        course.progress
+          .filter((item) => item.completed || (item.watch_percentage ?? 0) >= 80)
+          .map((item) => item.lesson_id)
+      ),
     [course.progress]
   );
   const completedLessons = useMemo(
@@ -511,7 +516,8 @@ export function useStudentDashboard(
     setCourse((current) => {
       const existing = current.progress.find((p) => p.lesson_id === lessonId);
       const isAlreadyCompleted = existing?.completed || false;
-      const completed = isAlreadyCompleted || autoCompleted;
+      const effectivePct = Math.min(100, Math.max(0, Math.round(watchPct)));
+      const completed = isAlreadyCompleted || autoCompleted || effectivePct >= 80;
 
       return {
         ...current,
@@ -521,7 +527,7 @@ export function useStudentDashboard(
             lesson_id: lessonId,
             completed,
             completed_at: completed ? (existing?.completed_at || new Date().toISOString()) : undefined,
-            watch_percentage: Math.max(existing?.watch_percentage ?? 0, watchPct),
+            watch_percentage: Math.max(existing?.watch_percentage ?? 0, effectivePct),
           },
         ],
       };

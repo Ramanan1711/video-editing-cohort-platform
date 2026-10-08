@@ -197,7 +197,11 @@ export function LessonSidebar({
           ) : filteredModules.length ? (
             filteredModules.map((module) => {
               const isCollapsed = collapsedModuleIds.has(module.id);
-              const modCompletedCount = module.lessons.filter((l) => completedIds.has(l.id)).length;
+              const modCompletedCount = module.lessons.filter((l) => {
+                const lp = course.progress.find((p) => p.lesson_id === l.id);
+                const wp = lp?.watch_percentage ?? 0;
+                return completedIds.has(l.id) || Boolean(lp?.completed) || wp >= 80;
+              }).length;
               const modTotal = module.lessons.length;
               const isModComplete = modTotal > 0 && modCompletedCount === modTotal;
 
@@ -238,7 +242,13 @@ export function LessonSidebar({
                     <div className="border-t border-slate-100 p-1.5 space-y-1 bg-slate-50/50">
                       {module.lessons.map((lesson) => {
                         const isSelected = lesson.id === selectedLessonId;
-                        const isDone = completedIds.has(lesson.id);
+                        const lProgress = course.progress.find((p) => p.lesson_id === lesson.id);
+                        const rawPct = lProgress?.watch_percentage ?? 0;
+                        const wPct = Math.min(100, Math.max(0, Math.round(rawPct)));
+                        const isDone =
+                          completedIds.has(lesson.id) ||
+                          Boolean(lProgress?.completed) ||
+                          wPct >= 80;
 
                         return (
                           <button
@@ -265,30 +275,34 @@ export function LessonSidebar({
                             </span>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs leading-snug truncate">{lesson.title}</p>
-                              {(() => {
-                                const lProgress = course.progress.find((p) => p.lesson_id === lesson.id);
-                                const wPct = lProgress?.watch_percentage ?? 0;
-                                return (
-                                  <p
-                                    className={`text-[10px] mt-0.5 flex items-center gap-1.5 ${
-                                      isSelected ? 'text-white/80' : 'text-slate-400'
-                                    }`}
+                              <p
+                                className={`text-[10px] mt-0.5 flex items-center gap-1.5 ${
+                                  isSelected ? 'text-white/80' : 'text-slate-400'
+                                }`}
+                              >
+                                {lesson.duration_minutes && <span>{lesson.duration_minutes} mins</span>}
+                                {isDone ? (
+                                  <span
+                                    className={
+                                      isSelected
+                                        ? 'text-white font-medium'
+                                        : 'text-emerald-600 font-semibold dark:text-emerald-400'
+                                    }
                                   >
-                                    {lesson.duration_minutes && <span>{lesson.duration_minutes} mins</span>}
-                                    {!isDone && wPct > 0 && (
-                                      <span
-                                        className={
-                                          isSelected
-                                            ? 'text-white font-medium'
-                                            : 'text-orange-600 font-semibold'
-                                        }
-                                      >
-                                        • {wPct}% watched
-                                      </span>
-                                    )}
-                                  </p>
-                                );
-                              })()}
+                                    • Completed
+                                  </span>
+                                ) : wPct > 0 ? (
+                                  <span
+                                    className={
+                                      isSelected
+                                        ? 'text-white font-medium'
+                                        : 'text-orange-600 font-semibold'
+                                    }
+                                  >
+                                    • {wPct}% watched
+                                  </span>
+                                ) : null}
+                              </p>
                             </div>
                           </button>
                         );
