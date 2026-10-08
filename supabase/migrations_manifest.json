@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-07T11:49:24.395Z",
-  "migrationCount": 52,
+  "generatedAt": "2026-10-08T06:50:53.443Z",
+  "migrationCount": 53,
   "migrations": [
     {
       "order": 1,
@@ -745,13 +745,25 @@
     {
       "order": 52,
       "filename": "20261007000004_support_multi_cohort_concurrent_enrollment.sql",
-      "sha256": "e0ea2b7cc976ecfac7b6ee8a4d050dfab4fa24f36176b589d4019de80f52c903",
-      "sizeBytes": 11977,
+      "sha256": "b5254530a2bf447b67cb27c2b0c18f929a892f92f2b6b843f2133d1a94e5d32f",
+      "sizeBytes": 11978,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
         "enroll_student_in_cohort",
         "record_successful_cohort_payment"
+      ]
+    },
+    {
+      "order": 53,
+      "filename": "20261008000001_domain_aware_cohort_challenges_seeding.sql",
+      "sha256": "5fe9ef21a4576d0241e462f417e813ec510c5a05b09ff689acf0fb1d3b951941",
+      "sizeBytes": 27242,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "ensure_cohort_daily_challenges",
+        "trigger_ensure_cohort_daily_challenges"
       ]
     }
   ]
