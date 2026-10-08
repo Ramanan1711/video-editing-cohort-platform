@@ -8,6 +8,7 @@ vi.mock('../../lib/services/assetStorageService', async () => {
   return {
     ...actual,
     uploadSubmissionFile: vi.fn(),
+    getSecureSubmissionUrl: vi.fn().mockImplementation((url: string) => Promise.resolve(`${url}?token=signed-1h`)),
   };
 });
 
@@ -202,7 +203,9 @@ describe('DynamicChallengeSubmissionBox Component', () => {
     expect(screen.getByPlaceholderText(/https:\/\/loom\.com/i)).toBeInTheDocument();
   });
 
-  it('renders existing file attachment when initialUrl is a direct file', () => {
+  it('renders existing file attachment with expiring signed URL resolution', async () => {
+    const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+
     render(
       <DynamicChallengeSubmissionBox
         userId="user-123"
@@ -214,8 +217,28 @@ describe('DynamicChallengeSubmissionBox Component', () => {
     );
 
     expect(screen.getByText(/previously attached deliverable/i)).toBeInTheDocument();
+    expect(screen.getByText(/private storage • expiring token/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /replace file/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /update submission/i })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(assetStorageService.getSecureSubmissionUrl).toHaveBeenCalledWith(
+        'https://xyz.supabase.co/storage/v1/object/submissions/user-123/cut.mp4',
+        3600
+      );
+    });
+
+    const inspectLink = screen.getByRole('link', { name: /inspect/i });
+    fireEvent.click(inspectLink);
+
+    await waitFor(() => {
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        expect.stringContaining('token=signed-1h'),
+        '_blank',
+        'noopener,noreferrer'
+      );
+    });
+    windowOpenSpy.mockRestore();
   });
 });
 

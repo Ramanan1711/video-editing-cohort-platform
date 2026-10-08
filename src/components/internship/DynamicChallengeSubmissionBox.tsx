@@ -20,11 +20,13 @@ import {
   Info,
   Loader2,
   MessageSquare,
+  Lock,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import {
   uploadSubmissionFile,
   formatFileSize,
+  getSecureSubmissionUrl,
 } from '../../lib/services/assetStorageService';
 import { generateWhatsAppClickToChatUrl } from '../../lib/whatsappService';
 import {
@@ -92,6 +94,8 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
   const [existingFileUrl, setExistingFileUrl] = useState<string | null>(
     safeInitialUrl && isDirectFileUrl(safeInitialUrl) ? safeInitialUrl : null
   );
+  const [resolvedExistingUrl, setResolvedExistingUrl] = useState<string | null>(null);
+  const [isResolvingSignedUrl, setIsResolvingSignedUrl] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -99,6 +103,34 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Automatically generate a secure expiring signed URL for existing private deliverables
+  useEffect(() => {
+    if (!existingFileUrl) {
+      setResolvedExistingUrl(null);
+      return;
+    }
+    let active = true;
+    setIsResolvingSignedUrl(true);
+    getSecureSubmissionUrl(existingFileUrl, 3600)
+      .then((url) => {
+        if (active) {
+          setResolvedExistingUrl(url);
+          setIsResolvingSignedUrl(false);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not generate secure signed URL for existing deliverable:', err);
+        if (active) {
+          setResolvedExistingUrl(existingFileUrl);
+          setIsResolvingSignedUrl(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [existingFileUrl]);
 
   // Auto-detect cloud platform
   const detectedPlatform = useMemo(() => {
@@ -168,9 +200,24 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
   const handleRemoveFile = () => {
     setSelectedFile(null);
     setExistingFileUrl(null);
+    setResolvedExistingUrl(null);
     setFileError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleInspectExistingDeliverable = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!existingFileUrl) return;
+    try {
+      setIsResolvingSignedUrl(true);
+      const secureUrl = await getSecureSubmissionUrl(existingFileUrl, 3600);
+      setIsResolvingSignedUrl(false);
+      window.open(secureUrl, '_blank', 'noopener,noreferrer');
+    } catch {
+      setIsResolvingSignedUrl(false);
+      window.open(resolvedExistingUrl || existingFileUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -407,29 +454,36 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
           ) : existingFileUrl ? (
             /* Previously Submitted File Card */
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="size-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="size-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center shrink-0">
                     <FileCheck size={20} className="text-emerald-600" />
                   </div>
-                  <div>
-                    <p className="text-xs font-black text-slate-900 dark:text-white">
-                      Previously Attached Deliverable
-                    </p>
-                    <p className="text-[11px] text-slate-500 truncate max-w-xs sm:max-w-md">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs font-black text-slate-900 dark:text-white">
+                        Previously Attached Deliverable
+                      </p>
+                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/40 px-1.5 py-0.5 text-[9px] font-extrabold text-emerald-700 dark:text-emerald-300">
+                        <Lock size={9} />
+                        Private Storage • Expiring Token (1h)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 truncate max-w-xs sm:max-w-md mt-0.5">
                       {existingFileUrl}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <a
-                    href={existingFileUrl}
+                    href={resolvedExistingUrl || existingFileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-orange-500"
+                    onClick={handleInspectExistingDeliverable}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-orange-500 transition"
                   >
-                    <span>Inspect</span>
+                    <span>{isResolvingSignedUrl ? 'Securing Link...' : 'Inspect'}</span>
                     <ExternalLink size={12} />
                   </a>
                   <Button
@@ -438,6 +492,7 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
                     size="sm"
                     onClick={() => {
                       setExistingFileUrl(null);
+                      setResolvedExistingUrl(null);
                       fileInputRef.current?.click();
                     }}
                   >

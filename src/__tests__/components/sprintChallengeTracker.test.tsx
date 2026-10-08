@@ -9,6 +9,24 @@ vi.mock('../../lib/internshipService', async () => {
   return {
     ...actual,
     submitDailyChallenge: vi.fn(),
+    gradeDailyChallenge: vi.fn(),
+    getSecureChallengeSubmissionUrl: vi.fn().mockImplementation((url: string) => Promise.resolve(`${url}?token=signed-1h`)),
+  };
+});
+
+vi.mock('../../context/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'mentor-1', email: 'mentor@procuthub.com' },
+    profile: { id: 'mentor-1', role: 'mentor' },
+  }),
+}));
+
+vi.mock('../../lib/services/assetStorageService', async () => {
+  const actual = await vi.importActual('../../lib/services/assetStorageService');
+  return {
+    ...actual,
+    getSecureSubmissionUrl: vi.fn().mockImplementation((url: string) => Promise.resolve(`${url}?token=signed-1h`)),
+    uploadSubmissionFile: vi.fn().mockResolvedValue('https://xyz.supabase.co/storage/v1/object/submissions/user-1/file.mp4'),
   };
 });
 
@@ -193,4 +211,105 @@ describe('SprintChallengeTracker with Dynamic Challenge Upload', () => {
       expect(mockOnRefresh).toHaveBeenCalled();
     });
   });
+
+  it('inspects deliverable by automatically generating a secure expiring signed URL', async () => {
+    const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+    render(
+      <SprintChallengeTracker
+        cohortId="cohort-1"
+        cohortName="CineSprint #15"
+        userId="user-1"
+        studentName="Alex"
+        sprintDays={mockSprintDays}
+        completedCount={1}
+        totalDays={3}
+        streakCount={4}
+        overallScore={95}
+        onRefresh={mockOnRefresh}
+      />
+    );
+
+    // Open Day 1 which has an accepted submission
+    fireEvent.click(screen.getByText('Timeline Assembly & Rough Cut'));
+
+    expect(screen.getByText(/submitted deliverable/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/expiring token \(1h\)/i).length).toBeGreaterThanOrEqual(1);
+
+    const inspectBtn = screen.getByRole('button', { name: /inspect deliverable/i });
+    fireEvent.click(inspectBtn);
+
+    await waitFor(() => {
+      expect(internshipService.getSecureChallengeSubmissionUrl).toHaveBeenCalledWith(
+        'https://xyz.supabase.co/storage/v1/object/submissions/user-1/rough_cut.mp4',
+        3600
+      );
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        expect.stringContaining('token=signed-1h'),
+        '_blank',
+        'noopener,noreferrer'
+      );
+    });
+
+    windowOpenSpy.mockRestore();
+  });
+
+  it('allows mentor to grade daily challenge submission with score, status and feedback', async () => {
+    vi.mocked(internshipService.gradeDailyChallenge).mockResolvedValueOnce({
+      id: 'sub-1',
+      challenge_id: '11111111-1111-1111-1111-111111111111',
+      user_id: 'user-1',
+      submission_url: 'https://xyz.supabase.co/storage/v1/object/submissions/user-1/rough_cut.mp4',
+      notes: 'Synced audio using timecode markers.',
+      status: 'accepted',
+      score: 98,
+      mentor_feedback: 'Outstanding synchronization precision.',
+      submitted_at: '2026-10-01T10:00:00Z',
+    });
+
+    render(
+      <SprintChallengeTracker
+        cohortId="cohort-1"
+        cohortName="CineSprint #15"
+        userId="user-1"
+        studentName="Alex"
+        sprintDays={mockSprintDays}
+        completedCount={1}
+        totalDays={3}
+        streakCount={4}
+        overallScore={95}
+        onRefresh={mockOnRefresh}
+        isMentor={true}
+      />
+    );
+
+    // Open Day 1
+    fireEvent.click(screen.getByText('Timeline Assembly & Rough Cut'));
+
+    expect(screen.getByText(/mentor challenge evaluation & grade/i)).toBeInTheDocument();
+
+    // Fill score
+    const scoreInput = screen.getByLabelText(/score \(0 - 100\)/i);
+    fireEvent.change(scoreInput, { target: { value: '98' } });
+
+    // Fill feedback
+    const feedbackInput = screen.getByPlaceholderText(/provide frame-accurate comments/i);
+    fireEvent.change(feedbackInput, { target: { value: 'Outstanding synchronization precision.' } });
+
+    // Submit grade
+    const saveGradeBtn = screen.getByRole('button', { name: /save mentor evaluation/i });
+    fireEvent.click(saveGradeBtn);
+
+    await waitFor(() => {
+      expect(internshipService.gradeDailyChallenge).toHaveBeenCalledWith(
+        'sub-1',
+        98,
+        'accepted',
+        'Outstanding synchronization precision.',
+        'mentor-1'
+      );
+      expect(mockOnRefresh).toHaveBeenCalled();
+    });
+  });
 });
+

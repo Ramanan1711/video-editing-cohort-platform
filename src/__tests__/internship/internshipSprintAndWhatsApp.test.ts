@@ -10,6 +10,9 @@ import {
   DEFAULT_15_DAY_CURRICULUM,
   getStudentSprintDays,
   submitDailyChallenge,
+  gradeDailyChallenge,
+  getSecureChallengeSubmissionUrl,
+  getChallengeSubmissionForGrading,
   listDailyChallenges,
   createDailyChallenge,
   updateDailyChallenge,
@@ -25,6 +28,14 @@ vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     from: vi.fn(),
     rpc: vi.fn(),
+    storage: {
+      from: vi.fn().mockReturnValue({
+        createSignedUrl: vi.fn().mockResolvedValue({
+          data: { signedUrl: 'https://xyz.supabase.co/storage/v1/object/sign/submissions/user-1/file.mp4?token=mock-expiring-token' },
+          error: null,
+        }),
+      }),
+    },
   },
 }));
 
@@ -465,5 +476,88 @@ describe('15-Day Internship Platform & WhatsApp Suite', () => {
       expect(result.days[3].status).toBe('locked');
     });
   });
+
+  describe('Secure Submissions Storage & Mentor Grading URL Resolution', () => {
+    it('preserves external cloud links directly without modifying URL', async () => {
+      const driveUrl = 'https://drive.google.com/file/d/abc/view';
+      const secureUrl = await getSecureChallengeSubmissionUrl(driveUrl);
+      expect(secureUrl).toBe(driveUrl);
+    });
+
+    it('generates secure expiring signed URL for private Supabase submissions', async () => {
+      const storagePath = 'submissions/user-1/uuid-rough_cut.mp4';
+      const secureUrl = await getSecureChallengeSubmissionUrl(storagePath, 3600);
+      expect(secureUrl).toContain('token=mock-expiring-token');
+      expect(supabase.storage.from).toHaveBeenCalledWith('submissions');
+    });
+
+    it('retrieves submission and generates expiring signed URL for mentor grading via getChallengeSubmissionForGrading', async () => {
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'sub-xyz',
+                challenge_id: 'ch-1',
+                user_id: 'user-1',
+                submission_url: 'submissions/user-1/my-cut.mp4',
+                notes: 'Color graded with REC709 LUT.',
+                status: 'pending',
+                score: null,
+                mentor_feedback: null,
+                submitted_at: '2026-10-01T10:00:00Z',
+              },
+              error: null,
+            }),
+          }),
+        }),
+      } as any);
+
+      const res = await getChallengeSubmissionForGrading('sub-xyz', 3600);
+      expect(res.submission.id).toBe('sub-xyz');
+      expect(res.secureGradingUrl).toContain('token=mock-expiring-token');
+      expect(res.submission.secure_url).toBe(res.secureGradingUrl);
+    });
+
+    it('grades daily challenge with score, status, and critique via gradeDailyChallenge', async () => {
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'sub-xyz',
+                  challenge_id: 'ch-1',
+                  user_id: 'user-1',
+                  submission_url: 'submissions/user-1/my-cut.mp4',
+                  notes: 'Notes',
+                  status: 'accepted',
+                  score: 95,
+                  mentor_feedback: 'Superb color grading!',
+                  reviewed_by: 'mentor-1',
+                  submitted_at: '2026-10-01T10:00:00Z',
+                  reviewed_at: '2026-10-01T11:00:00Z',
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      } as any);
+
+      const graded = await gradeDailyChallenge(
+        'sub-xyz',
+        95,
+        'accepted',
+        'Superb color grading!',
+        'mentor-1'
+      );
+
+      expect(graded.score).toBe(95);
+      expect(graded.status).toBe('accepted');
+      expect(graded.mentor_feedback).toBe('Superb color grading!');
+    });
+  });
 });
+
 

@@ -1,10 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   detectCloudPlatform,
   validateDeliverableFile,
   isDirectFileUrl,
+  getExpiringMentorGradingUrl,
   MAX_CHALLENGE_FILE_SIZE_BYTES,
 } from '../../lib/services/challengeUploadService';
+import * as assetStorageService from '../../lib/services/assetStorageService';
 
 describe('challengeUploadService - Cloud Platform Auto-Detection', () => {
   it('accurately detects Loom video walkthrough links', () => {
@@ -153,5 +155,29 @@ describe('challengeUploadService - isDirectFileUrl', () => {
     expect(isDirectFileUrl('https://drive.google.com/file/d/123/view')).toBe(false);
     expect(isDirectFileUrl('https://github.com/org/repo/pull/1')).toBe(false);
     expect(isDirectFileUrl('https://app.frame.io/presentations/123')).toBe(false);
+  });
+});
+
+describe('challengeUploadService - getExpiringMentorGradingUrl', () => {
+  it('returns empty string if submissionUrl is empty or null', async () => {
+    expect(await getExpiringMentorGradingUrl('')).toBe('');
+  });
+
+  it('preserves third-party cloud links directly without unnecessary signing', async () => {
+    const driveUrl = 'https://drive.google.com/file/d/123/view';
+    expect(await getExpiringMentorGradingUrl(driveUrl)).toBe(driveUrl);
+
+    const loomUrl = 'https://www.loom.com/share/abc123';
+    expect(await getExpiringMentorGradingUrl(loomUrl)).toBe(loomUrl);
+  });
+
+  it('delegates to getSecureSubmissionUrl with custom expiry TTL for private storage', async () => {
+    const spy = vi.spyOn(assetStorageService, 'getSecureSubmissionUrl').mockResolvedValueOnce(
+      'https://xyz.supabase.co/storage/v1/object/sign/submissions/u1/file.mp4?token=signed123'
+    );
+
+    const result = await getExpiringMentorGradingUrl('submissions/u1/file.mp4', 1800);
+    expect(spy).toHaveBeenCalledWith('submissions/u1/file.mp4', 1800);
+    expect(result).toContain('token=signed123');
   });
 });

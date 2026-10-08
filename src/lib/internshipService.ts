@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { parseDatabaseError } from './errorHandling';
+import { getSecureSubmissionUrl } from './services/assetStorageService';
 
 export interface DailyChallenge {
   id: string;
@@ -31,6 +32,7 @@ export interface DailyChallengeSubmission {
   reviewed_by?: string | null;
   submitted_at: string;
   reviewed_at?: string | null;
+  secure_url?: string | null;
 }
 
 export interface InternshipDayStatus {
@@ -580,6 +582,53 @@ export async function gradeDailyChallenge(
 
   if (error) throw parseDatabaseError(error);
   return data as DailyChallengeSubmission;
+}
+
+/**
+ * Automatically generates a secure, expiring signed URL for mentor grading
+ * or deliverable inspection.
+ * External links (Drive, Loom, Frame.io, YouTube, GitHub, Figma) are returned directly.
+ * Private Supabase storage objects have a fresh time-limited token issued (default 1 hour).
+ */
+export async function getSecureChallengeSubmissionUrl(
+  submissionUrl: string,
+  expiresInSeconds: number = 3600
+): Promise<string> {
+  if (!submissionUrl) return '';
+  return getSecureSubmissionUrl(submissionUrl, expiresInSeconds);
+}
+
+/**
+ * Retrieves a daily challenge submission and automatically attaches a freshly generated
+ * secure, expiring signed URL for mentor grading.
+ */
+export async function getChallengeSubmissionForGrading(
+  submissionId: string,
+  expiresInSeconds: number = 3600
+): Promise<{
+  submission: DailyChallengeSubmission;
+  secureGradingUrl: string;
+}> {
+  const { data, error } = await supabase
+    .from('daily_challenge_submissions')
+    .select('*')
+    .eq('id', submissionId)
+    .single();
+
+  if (error || !data) {
+    throw parseDatabaseError(error || new Error('Submission not found'));
+  }
+
+  const submission = data as DailyChallengeSubmission;
+  const secureGradingUrl = await getSecureSubmissionUrl(submission.submission_url, expiresInSeconds);
+
+  return {
+    submission: {
+      ...submission,
+      secure_url: secureGradingUrl,
+    },
+    secureGradingUrl,
+  };
 }
 
 /**

@@ -13,11 +13,15 @@ import {
   RotateCw,
   Sparkles,
   X,
+  FileCheck,
 } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { useToast } from '../../context/useToast';
+import { useAuth } from '../../context/useAuth';
 import {
   submitDailyChallenge,
+  gradeDailyChallenge,
+  getSecureChallengeSubmissionUrl,
   type InternshipDayStatus,
 } from '../../lib/internshipService';
 import { DynamicChallengeSubmissionBox } from './DynamicChallengeSubmissionBox';
@@ -34,6 +38,7 @@ interface SprintChallengeTrackerProps {
   overallScore: number | null;
   onRefresh: () => void;
   mentorPhone?: string;
+  isMentor?: boolean;
 }
 
 export function SprintChallengeTracker({
@@ -48,11 +53,22 @@ export function SprintChallengeTracker({
   overallScore,
   onRefresh,
   mentorPhone = '919876543210',
+  isMentor = false,
 }: SprintChallengeTrackerProps) {
   const toast = useToast();
+  const { user, profile } = useAuth();
+  const isMentorUser = isMentor || profile?.role === 'mentor' || profile?.role === 'admin';
+
   const [selectedDay, setSelectedDay] = useState<InternshipDayStatus | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [activePhaseFilter, setActivePhaseFilter] = useState<'all' | 'phase1' | 'phase2' | 'phase3'>('all');
+
+  // Secure deliverable inspection and mentor grading state
+  const [isOpeningDeliverable, setIsOpeningDeliverable] = useState(false);
+  const [isGrading, setIsGrading] = useState(false);
+  const [gradeScore, setGradeScore] = useState(90);
+  const [gradeStatus, setGradeStatus] = useState<'accepted' | 'resubmit'>('accepted');
+  const [gradeFeedback, setGradeFeedback] = useState('');
 
   const effectiveTotalDays = totalDays || sprintDays.length || 15;
   const progressPercent = Math.min(100, Math.round((completedCount / effectiveTotalDays) * 100));
@@ -69,6 +85,50 @@ export function SprintChallengeTracker({
 
   const handleOpenDay = (day: InternshipDayStatus) => {
     setSelectedDay(day);
+    if (day.submission) {
+      setGradeScore(day.submission.score ?? 90);
+      setGradeStatus(day.submission.status === 'resubmit' ? 'resubmit' : 'accepted');
+      setGradeFeedback(day.submission.mentor_feedback ?? '');
+    } else {
+      setGradeScore(90);
+      setGradeStatus('accepted');
+      setGradeFeedback('');
+    }
+  };
+
+  const handleOpenSecureDeliverable = async (rawUrl: string) => {
+    try {
+      setIsOpeningDeliverable(true);
+      const secureUrl = await getSecureChallengeSubmissionUrl(rawUrl, 3600);
+      window.open(secureUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to generate secure URL';
+      toast.error(msg);
+    } finally {
+      setIsOpeningDeliverable(false);
+    }
+  };
+
+  const handleGradeChallenge = async () => {
+    if (!selectedDay?.submission || !user) return;
+    try {
+      setIsGrading(true);
+      await gradeDailyChallenge(
+        selectedDay.submission.id,
+        gradeScore,
+        gradeStatus,
+        gradeFeedback.trim(),
+        user.id
+      );
+      toast.success(`Day ${selectedDay.dayNumber} challenge graded as ${gradeStatus}!`);
+      onRefresh();
+      setSelectedDay(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to grade challenge';
+      toast.error(msg);
+    } finally {
+      setIsGrading(false);
+    }
   };
 
   const handleSubmitTask = async (data: {
@@ -424,6 +484,122 @@ export function SprintChallengeTracker({
                     <span>Download</span>
                     <ExternalLink size={12} />
                   </a>
+                </div>
+              )}
+
+              {/* Submitted Deliverable & Mentor Secure Inspection Card */}
+              {selectedDay.submission && (
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="size-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 flex items-center justify-center text-orange-600 shrink-0">
+                        <FileCheck size={20} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h5 className="text-xs font-black text-slate-900 dark:text-white">
+                            Submitted Deliverable
+                          </h5>
+                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/40 px-1.5 py-0.5 text-[9px] font-extrabold text-emerald-700 dark:text-emerald-300">
+                            <Lock size={9} />
+                            Private Storage • Expiring Token (1h)
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 truncate max-w-xs sm:max-w-md mt-0.5">
+                          {selectedDay.submission.submission_url}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenSecureDeliverable(selectedDay.submission!.submission_url)}
+                      disabled={isOpeningDeliverable}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-700 shadow-2xs transition shrink-0 disabled:opacity-50"
+                    >
+                      <span>{isOpeningDeliverable ? 'Generating Token...' : 'Inspect Deliverable'}</span>
+                      <ExternalLink size={12} />
+                    </button>
+                  </div>
+
+                  {selectedDay.submission.notes && (
+                    <div className="text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-950 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">Student Submission Notes: </span>
+                      {selectedDay.submission.notes}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Mentor Challenge Evaluation & Grading Panel */}
+              {isMentorUser && selectedDay.submission && (
+                <div className="rounded-xl border border-orange-200 dark:border-orange-900/60 bg-orange-50/50 dark:bg-orange-950/20 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-orange-900 dark:text-orange-200 flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-orange-500" />
+                      Mentor Challenge Evaluation &amp; Grade
+                    </h4>
+                    <span className="text-[10px] font-bold text-slate-500">
+                      Current Status: <strong className="uppercase text-orange-600">{selectedDay.submission.status}</strong>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="mentor-grade-score" className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        Score (0 - 100)
+                      </label>
+                      <input
+                        id="mentor-grade-score"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={gradeScore}
+                        onChange={(e) => setGradeScore(Number(e.target.value))}
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-orange-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="mentor-grade-status" className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        Outcome Decision
+                      </label>
+                      <select
+                        id="mentor-grade-status"
+                        value={gradeStatus}
+                        onChange={(e) => setGradeStatus(e.target.value as 'accepted' | 'resubmit')}
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-orange-500"
+                      >
+                        <option value="accepted">Accepted (Pass)</option>
+                        <option value="resubmit">Request Revisions</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="mentor-grade-feedback" className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Critique &amp; Actionable Feedback
+                    </label>
+                    <textarea
+                      id="mentor-grade-feedback"
+                      rows={2}
+                      value={gradeFeedback}
+                      onChange={(e) => setGradeFeedback(e.target.value)}
+                      placeholder="Provide frame-accurate comments, pacing suggestions, and technical guidance..."
+                      className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-orange-500"
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleGradeChallenge}
+                      disabled={isGrading}
+                      className="rounded-lg bg-orange-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-orange-700 disabled:opacity-50 transition"
+                    >
+                      {isGrading ? 'Saving Grade...' : 'Save Mentor Evaluation'}
+                    </button>
+                  </div>
                 </div>
               )}
 

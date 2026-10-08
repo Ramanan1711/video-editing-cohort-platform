@@ -1,4 +1,4 @@
-import { formatFileSize } from './assetStorageService';
+import { formatFileSize, getSecureSubmissionUrl } from './assetStorageService';
 
 export type SubmissionMode = 'file' | 'link';
 
@@ -219,5 +219,19 @@ export function isDirectFileUrl(url: string): boolean {
     clean.endsWith('.prproj') ||
     clean.endsWith('.drp')
   );
+}
+
+/**
+ * Automatically generates a secure, expiring signed URL for mentor grading
+ * or deliverable inspection.
+ * External links (Drive, Loom, Frame.io, YouTube, GitHub, Figma) are returned directly.
+ * Private Supabase storage objects have a fresh time-limited token issued (default 1 hour).
+ */
+export async function getExpiringMentorGradingUrl(
+  submissionUrl: string,
+  expiresInSeconds: number = 3600
+): Promise<string> {
+  if (!submissionUrl) return '';
+  return getSecureSubmissionUrl(submissionUrl, expiresInSeconds);
 }
 
