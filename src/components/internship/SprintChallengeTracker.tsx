@@ -14,6 +14,7 @@ import {
   Sparkles,
   X,
   FileCheck,
+  MessageSquare,
 } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { useToast } from '../../context/useToast';
@@ -23,7 +24,9 @@ import {
   gradeDailyChallenge,
   getSecureChallengeSubmissionUrl,
   type InternshipDayStatus,
+  type DailyChallengeSubmission,
 } from '../../lib/internshipService';
+import { generateWhatsAppClickToChatUrl } from '../../lib/whatsappService';
 import { DynamicChallengeSubmissionBox } from './DynamicChallengeSubmissionBox';
 
 interface SprintChallengeTrackerProps {
@@ -70,18 +73,38 @@ export function SprintChallengeTracker({
   const [gradeStatus, setGradeStatus] = useState<'accepted' | 'resubmit'>('accepted');
   const [gradeFeedback, setGradeFeedback] = useState('');
 
+  // Optimistic submission state to prevent UI freezing and show instant progress
+  const [optimisticDays, setOptimisticDays] = useState<
+    Record<number, { submission: DailyChallengeSubmission; status: InternshipDayStatus['status'] }>
+  >({});
+
   const effectiveTotalDays = totalDays || sprintDays.length || 15;
-  const progressPercent = Math.min(100, Math.round((completedCount / effectiveTotalDays) * 100));
+
+  const mergedSprintDays = useMemo(() => {
+    return sprintDays.map((d) => {
+      const opt = optimisticDays[d.dayNumber];
+      if (opt) {
+        return {
+          ...d,
+          status: opt.status,
+          submission: opt.submission,
+        };
+      }
+      return d;
+    });
+  }, [sprintDays, optimisticDays]);
 
   const p1End = Math.max(1, Math.floor(effectiveTotalDays / 3));
   const p2End = Math.max(p1End + 1, Math.floor((effectiveTotalDays * 2) / 3));
 
   const filteredDays = useMemo(() => {
-    if (activePhaseFilter === 'phase1') return sprintDays.filter((d) => d.dayNumber <= p1End);
-    if (activePhaseFilter === 'phase2') return sprintDays.filter((d) => d.dayNumber > p1End && d.dayNumber <= p2End);
-    if (activePhaseFilter === 'phase3') return sprintDays.filter((d) => d.dayNumber > p2End);
-    return sprintDays;
-  }, [sprintDays, activePhaseFilter, p1End, p2End]);
+    if (activePhaseFilter === 'phase1') return mergedSprintDays.filter((d) => d.dayNumber <= p1End);
+    if (activePhaseFilter === 'phase2') return mergedSprintDays.filter((d) => d.dayNumber > p1End && d.dayNumber <= p2End);
+    if (activePhaseFilter === 'phase3') return mergedSprintDays.filter((d) => d.dayNumber > p2End);
+    return mergedSprintDays;
+  }, [mergedSprintDays, activePhaseFilter, p1End, p2End]);
+
+  const progressPercent = Math.min(100, Math.round((completedCount / effectiveTotalDays) * 100));
 
   const handleOpenDay = (day: InternshipDayStatus) => {
     setSelectedDay(day);
@@ -141,20 +164,58 @@ export function SprintChallengeTracker({
       return;
     }
 
+    const dayNum = selectedDay.dayNumber;
+    const challengeId = selectedDay.challenge.id;
+    const dayTitle = selectedDay.title;
+
+    // Optimistically update challenge day status to in-review / pending immediately
+    const optimisticSub: DailyChallengeSubmission = {
+      id: `opt-${Date.now()}`,
+      challenge_id: challengeId,
+      user_id: userId,
+      submission_url: data.submissionUrl.trim(),
+      notes: data.notes.trim() || null,
+      status: 'pending',
+      score: null,
+      mentor_feedback: null,
+      submitted_at: new Date().toISOString(),
+    };
+
+    setOptimisticDays((prev) => ({
+      ...prev,
+      [dayNum]: {
+        submission: optimisticSub,
+        status: 'pending',
+      },
+    }));
+
     try {
       setSubmitting(true);
       await submitDailyChallenge(
         userId,
-        selectedDay.challenge.id,
+        challengeId,
         data.submissionUrl.trim(),
         data.notes.trim()
       );
-      toast.success(`Day ${selectedDay.dayNumber} challenge submitted! Your mentor will review it shortly.`);
+
+      // Pre-fill instant WhatsApp notification
+      const waMsg = `Hi Mentor! I am ${studentName} from ${cohortName}. I have submitted Day ${dayNum}: ${dayTitle}.\nDeliverable: ${data.submissionUrl.trim()}\nNotes: ${data.notes.trim() || 'Ready for evaluation'}\nPlease review when convenient!`;
+      generateWhatsAppClickToChatUrl(mentorPhone, waMsg);
+
+      toast.success(
+        `Day ${dayNum} challenge submitted! Your mentor has been queued for review.`
+      );
       setSelectedDay(null);
       onRefresh();
     } catch (err: unknown) {
+      // Revert optimistic state on failure
+      setOptimisticDays((prev) => {
+        const next = { ...prev };
+        delete next[dayNum];
+        return next;
+      });
       const msg = err instanceof Error ? err.message : 'Failed to submit challenge';
-      toast.error(msg);
+      toast.error(`Submission failed: ${msg}`);
     } finally {
       setSubmitting(false);
     }
@@ -528,6 +589,26 @@ export function SprintChallengeTracker({
                       {selectedDay.submission.notes}
                     </div>
                   )}
+
+                  {/* Instant WhatsApp Mentor Notification Button */}
+                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      Need immediate feedback or clarification from your mentor?
+                    </span>
+                    <a
+                      href={generateWhatsAppClickToChatUrl(
+                        mentorPhone,
+                        `Hi Mentor! I am ${studentName} from ${cohortName}. I have submitted Day ${selectedDay.dayNumber}: ${selectedDay.title}.\nDeliverable: ${selectedDay.submission.submission_url}\nPlease review when convenient!`
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition"
+                    >
+                      <MessageSquare size={13} className="text-emerald-500" />
+                      <span>Instant WhatsApp Mentor Notification</span>
+                      <ExternalLink size={11} />
+                    </a>
+                  </div>
                 </div>
               )}
 

@@ -25,6 +25,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { useToast } from '../../context/useToast';
 import {
   uploadSubmissionFile,
   formatFileSize,
@@ -80,6 +81,7 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
   dayTitle = 'Sprint Challenge',
   dayNumber = 1,
 }) => {
+  const toast = useToast();
   const safeInitialUrl = initialUrl || '';
   const safeInitialNotes = initialNotes || '';
 
@@ -286,7 +288,9 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
       cohortName
     );
     if (!validation.valid) {
-      setFileError(validation.error || 'Invalid file.');
+      const errorMsg = validation.error || 'Invalid file.';
+      setFileError(errorMsg);
+      toast.error(errorMsg);
       setSelectedFile(null);
       return;
     }
@@ -393,6 +397,7 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
               ? err.message
               : 'Upload failed. Please try again or use the Cloud Link tab.';
           setFileError(errorMsg);
+          toast.error(errorMsg);
           return;
         } finally {
           uploadAbortControllerRef.current = null;
@@ -402,6 +407,7 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
 
       if (!finalSubmissionUrl) {
         setFileError('Please attach an export file or switch to Cloud Link tab.');
+        toast.error('Please attach an export file or switch to Cloud Link tab.');
         return;
       }
 
@@ -426,6 +432,7 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
       const trimmedUrl = cloudUrl.trim();
       if (!trimmedUrl) {
         setFileError('Please provide a valid deliverable URL.');
+        toast.error('Please provide a valid deliverable URL.');
         return;
       }
 
@@ -639,19 +646,59 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
                 </button>
               </div>
 
-              {/* Live progress bar during upload with Cancel button */}
+              {/* Live progress circle & bar during upload with Cancel button */}
               {isUploading ? (
-                <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-900/50 space-y-2">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-orange-600 dark:text-orange-400">
-                    <span className="flex items-center gap-1.5">
-                      <Loader2 size={12} className="animate-spin text-orange-500" />
-                      Uploading deliverable to secure student storage...
-                    </span>
-                    <span className="font-mono text-xs font-black">{uploadProgress}%</span>
+                <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-900/50 space-y-3">
+                  <div className="flex items-center gap-3 rounded-xl bg-orange-50/70 dark:bg-orange-950/40 p-3 border border-orange-200/80 dark:border-orange-900/50">
+                    {/* Animated SVG Progress Circle */}
+                    <div className="relative size-11 shrink-0">
+                      <svg className="size-full -rotate-90" viewBox="0 0 36 36">
+                        <path
+                          className="text-orange-200 dark:text-orange-950"
+                          strokeWidth="3.5"
+                          stroke="currentColor"
+                          fill="none"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                        <path
+                          className="text-orange-500 transition-all duration-200 stroke-current"
+                          strokeWidth="3.5"
+                          strokeDasharray={`${uploadProgress}, 100`}
+                          strokeLinecap="round"
+                          fill="none"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 font-mono">
+                          {uploadProgress}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-black text-slate-900 dark:text-white">
+                        Streaming to Private Supabase Storage
+                      </p>
+                      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                        <Loader2 size={10} className="animate-spin text-orange-500" />
+                        <span>Generating expiring signed URL for mentor review</span>
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleCancelUpload}
+                      aria-label="Cancel upload"
+                      className="inline-flex items-center gap-1 rounded-lg bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 px-2.5 py-1 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-100 transition shrink-0"
+                    >
+                      <X size={11} />
+                      <span>Cancel Upload</span>
+                    </button>
                   </div>
 
                   {/* Animated gradient progress bar */}
-                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-orange-200 dark:bg-orange-950">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-orange-100 dark:bg-orange-950">
                     <div
                       role="progressbar"
                       aria-valuenow={uploadProgress}
@@ -660,21 +707,6 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
                       className="h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-400 transition-all duration-200"
                       style={{ width: `${Math.max(uploadProgress, 4)}%` }}
                     />
-                  </div>
-
-                  {/* Live upload cancellation button */}
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                      Private encrypted bucket transfer
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleCancelUpload}
-                      className="inline-flex items-center gap-1 rounded-md bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 px-2 py-0.5 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-100 transition"
-                    >
-                      <X size={11} />
-                      <span>Cancel Upload</span>
-                    </button>
                   </div>
                 </div>
               ) : (

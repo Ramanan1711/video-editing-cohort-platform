@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -197,10 +197,22 @@ export function StudentPlayerView({
     return list;
   }, [course.enrolledCohorts, course.cohort]);
 
+  const [isTransitioningCohort, setIsTransitioningCohort] = useState(false);
+
+  useEffect(() => {
+    if (isTransitioningCohort && course.cohort?.id) {
+      const timer = setTimeout(() => {
+        setIsTransitioningCohort(false);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [course.cohort?.id, isTransitioningCohort]);
+
   const handleSelectCohort = useCallback(
     (newCohortId: string) => {
       if (!newCohortId || newCohortId === course.cohort?.id) return;
 
+      setIsTransitioningCohort(true);
       const newParams = new URLSearchParams(searchParams);
       newParams.set('cohortId', newCohortId);
       newParams.set('view', 'player');
@@ -571,29 +583,37 @@ export function StudentPlayerView({
                   </button>
                 </div>
 
-                {/* TAB: Dynamic Production Sprint */}
-                {activeTab === 'internship_sprint' && course.cohort && user && (
-                  <SprintChallengeTracker
-                    key={course.cohort.id}
-                    cohortId={course.cohort.id}
-                    cohortName={course.cohort.name}
-                    userId={user.id}
-                    studentName={profile?.full_name || 'Student'}
-                    sprintDays={sprintDays}
-                    completedCount={sprintCompletedCount}
-                    streakCount={sprintStreak}
-                    overallScore={sprintScore}
-                    totalDays={totalSprintDays}
-                    onRefresh={() => setRefreshKey((k) => k + 1)}
-                  />
-                )}
+                {/* Smooth Cross-Fade Container for Cohort Transitions */}
+                <div
+                  className={`transition-opacity duration-200 ${
+                    isTransitioningCohort || (loading && Boolean(course.cohort))
+                      ? 'opacity-60 pointer-events-none'
+                      : 'opacity-100'
+                  }`}
+                >
+                  {/* TAB: Dynamic Production Sprint */}
+                  {activeTab === 'internship_sprint' && course.cohort && user && (
+                    <SprintChallengeTracker
+                      key={course.cohort.id}
+                      cohortId={course.cohort.id}
+                      cohortName={course.cohort.name}
+                      userId={user.id}
+                      studentName={profile?.full_name || 'Student'}
+                      sprintDays={sprintDays}
+                      completedCount={sprintCompletedCount}
+                      streakCount={sprintStreak}
+                      overallScore={sprintScore}
+                      totalDays={totalSprintDays}
+                      onRefresh={() => setRefreshKey((k) => k + 1)}
+                    />
+                  )}
 
-                {/* TAB 1: Curriculum & Video Player */}
-                {activeTab === 'curriculum' && (
-                  <div>
-                    {loading ? (
-                      <PlayerSkeleton />
-                    ) : selectedLesson ? (
+                  {/* TAB 1: Curriculum & Video Player */}
+                  {activeTab === 'curriculum' && (
+                    <div>
+                      {loading && !course.cohort ? (
+                        <PlayerSkeleton />
+                      ) : selectedLesson ? (
                       <div>
                         <LessonPlayer
                           key={selectedLesson.id}
@@ -693,6 +713,7 @@ export function StudentPlayerView({
                     allCohorts={allCohorts}
                   />
                 )}
+                </div>
               </>
             )}
           </div>

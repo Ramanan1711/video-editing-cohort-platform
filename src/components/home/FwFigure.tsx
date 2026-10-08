@@ -94,29 +94,33 @@ export const FwFigure: React.FC<FwFigureProps> = ({
 
     let time = 0;
     let animActive = true;
+    let isIntersecting = false;
 
     const renderWave = () => {
-      if (!animActive || !canvas) return;
+      if (!animActive || !canvas || !isIntersecting || !isHovered) {
+        if (canvas && ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        return;
+      }
       const w = canvas.width;
       const h = canvas.height;
 
       ctx.clearRect(0, 0, w, h);
 
-      if (isHovered) {
-        time += 0.04;
-        const gradient = ctx.createLinearGradient(0, 0, w, h);
-        gradient.addColorStop(0, `rgba(249, 115, 22, ${Math.sin(time) * 0.08 + 0.08})`);
-        gradient.addColorStop(0.5, `rgba(251, 191, 36, ${Math.cos(time * 1.3) * 0.06 + 0.06})`);
-        gradient.addColorStop(1, `rgba(249, 115, 22, 0.02)`);
+      time += 0.04;
+      const gradient = ctx.createLinearGradient(0, 0, w, h);
+      gradient.addColorStop(0, `rgba(249, 115, 22, ${Math.sin(time) * 0.08 + 0.08})`);
+      gradient.addColorStop(0.5, `rgba(251, 191, 36, ${Math.cos(time * 1.3) * 0.06 + 0.06})`);
+      gradient.addColorStop(1, `rgba(249, 115, 22, 0.02)`);
 
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
 
-        // Specular morph scanline
-        const scanY = ((time * 30) % h);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
-        ctx.fillRect(0, scanY, w, 2);
-      }
+      // Specular morph scanline
+      const scanY = (time * 30) % h;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.fillRect(0, scanY, w, 2);
 
       rafRef.current = requestAnimationFrame(renderWave);
     };
@@ -130,10 +134,35 @@ export const FwFigure: React.FC<FwFigureProps> = ({
 
     handleResize();
     window.addEventListener('resize', handleResize);
-    rafRef.current = requestAnimationFrame(renderWave);
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        isIntersecting = entry.isIntersecting;
+        if (isIntersecting && isHovered) {
+          if (rafRef.current) cancelAnimationFrame(rafRef.current);
+          rafRef.current = requestAnimationFrame(renderWave);
+        } else if (!isIntersecting) {
+          if (rafRef.current) cancelAnimationFrame(rafRef.current);
+          if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      },
+      { threshold: 0.05 }
+    );
+
+    if (figRef.current) {
+      io.observe(figRef.current);
+    }
+
+    if (isHovered && isIntersecting) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(renderWave);
+    } else if (!isHovered && canvas && ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
 
     return () => {
       animActive = false;
+      io.disconnect();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       window.removeEventListener('resize', handleResize);
     };

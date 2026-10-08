@@ -57,7 +57,7 @@ export const CustomCursor: React.FC = () => {
       p.y += (p.targetY - p.y) * 0.22;
 
       if (cursorRef.current) {
-        cursorRef.current.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)`;
+        cursorRef.current.style.transform = `translate3d(${p.x}px, ${p.y}px, 0) translate(-50%, -50%)`;
       }
 
       rafId.current = requestAnimationFrame(render);

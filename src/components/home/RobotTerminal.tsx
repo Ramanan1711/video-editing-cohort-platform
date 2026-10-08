@@ -498,16 +498,6 @@ export const RobotTerminal: React.FC = () => {
       window.addEventListener('mousemove', handleMouseMove, { passive: true });
       document.addEventListener('mouseleave', handleMouseLeave);
 
-      // Telemetry tickers
-      const intervalId = setInterval(() => {
-        const baseSpeed = fanSpeedRef.current;
-        const nextRpm = Math.round(1240 * baseSpeed + (Math.random() * 30 - 15));
-        rpmRef.current = nextRpm;
-        setRpm(nextRpm);
-        uptimeSecondsRef.current += 1;
-        setUptimeSeconds((prev) => prev + 1);
-      }, 1000);
-
       let lastTime = performance.now();
       let currentHeadYaw = 0;
       let currentHeadPitch = 0;
@@ -517,6 +507,17 @@ export const RobotTerminal: React.FC = () => {
       let isIntersecting = true;
       let isTabVisible = !document.hidden;
       let isRunning = false;
+
+      // Telemetry tickers: only update when visible and in viewport
+      const intervalId = setInterval(() => {
+        if (!isIntersecting || !isTabVisible) return;
+        const baseSpeed = fanSpeedRef.current;
+        const nextRpm = Math.round(1240 * baseSpeed + (Math.random() * 30 - 15));
+        rpmRef.current = nextRpm;
+        setRpm(nextRpm);
+        uptimeSecondsRef.current += 1;
+        setUptimeSeconds((prev) => prev + 1);
+      }, 1000);
 
       const animate = (time: number) => {
         if (disposed || !isRunning) return;
@@ -721,6 +722,7 @@ export const RobotTerminal: React.FC = () => {
     startFallbackLoop();
 
     const fallbackIntervalId = setInterval(() => {
+      if (!isIntersecting || document.hidden) return;
       const baseSpeed = fanSpeedRef.current;
       const nextRpm = Math.round(1240 * baseSpeed + (Math.random() * 30 - 15));
       rpmRef.current = nextRpm;
