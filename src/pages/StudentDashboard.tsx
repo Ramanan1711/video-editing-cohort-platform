@@ -352,6 +352,13 @@ export function StudentDashboard() {
           onOpenCertificate={() => setCertificateModalOpen(true)}
           onOpenReportCard={() => setReportModalOpen(true)}
           onEnrollmentSuccess={handleEnrollmentSuccess}
+          onSelectCohort={(cohortId) => {
+            dashboard.setSelectedCohortId(cohortId);
+            const newParams = new URLSearchParams(searchParams);
+            newParams.set('cohortId', cohortId);
+            newParams.set('view', 'player');
+            setSearchParams(newParams);
+          }}
         />
       )}
 

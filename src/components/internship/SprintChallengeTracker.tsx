@@ -376,7 +376,7 @@ export function SprintChallengeTracker({
                       Day {day.dayNumber} Sprint
                     </p>
                     <h3 className="text-xs font-black text-slate-900 dark:text-white line-clamp-1">
-                      {day.title.replace(/^Day \d+:\s*/, '')}
+                      {(day.title || day.challenge?.title || `Day ${day.dayNumber} Challenge`).replace(/^Day \d+:\s*/, '')}
                     </h3>
                   </div>
                 </div>
@@ -431,7 +431,7 @@ export function SprintChallengeTracker({
                   {getStatusBadge(selectedDay.status)}
                 </div>
                 <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                  {selectedDay.title}
+                  {selectedDay.title || selectedDay.challenge.title || `Day ${selectedDay.dayNumber} Challenge`}
                 </h2>
               </div>
               <button

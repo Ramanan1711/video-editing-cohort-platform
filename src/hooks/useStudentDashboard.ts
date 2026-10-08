@@ -251,6 +251,13 @@ export function useStudentDashboard(
           } catch (sprintErr) {
             console.warn('Failed to load sprint or unified progress:', sprintErr);
           }
+        } else {
+          setSprintDays([]);
+          setSprintCompletedCount(0);
+          setSprintStreak(0);
+          setSprintScore(0);
+          setTotalSprintDays(15);
+          setUnifiedProgress(null);
         }
 
         // Auto select first lesson if no lesson selected or cohort changed

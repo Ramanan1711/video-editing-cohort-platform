@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Clock3,
   Flame,
+  GraduationCap,
   Megaphone,
   MessagesSquare,
   Play,
@@ -108,6 +109,7 @@ export interface StudentPlayerViewProps {
   onOpenCertificate: () => void;
   onOpenReportCard: () => void;
   onEnrollmentSuccess?: (cohortId: string, cohortName?: string) => void;
+  onSelectCohort?: (cohortId: string) => void;
 }
 
 export function StudentPlayerView({
@@ -150,6 +152,7 @@ export function StudentPlayerView({
   onOpenCertificate,
   onOpenReportCard,
   onEnrollmentSuccess,
+  onSelectCohort,
 }: StudentPlayerViewProps) {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -173,12 +176,50 @@ export function StudentPlayerView({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [nowTimestamp] = useState(() => Date.now());
 
+  const enrolledCohortsList = useMemo(() => {
+    const list: Cohort[] = [];
+    const seen = new Set<string>();
+
+    if (course.enrolledCohorts && course.enrolledCohorts.length > 0) {
+      for (const c of course.enrolledCohorts) {
+        if (!seen.has(c.id)) {
+          seen.add(c.id);
+          list.push(c);
+        }
+      }
+    }
+
+    if (course.cohort && !seen.has(course.cohort.id)) {
+      seen.add(course.cohort.id);
+      list.push(course.cohort);
+    }
+
+    return list;
+  }, [course.enrolledCohorts, course.cohort]);
+
+  const handleSelectCohort = useCallback(
+    (newCohortId: string) => {
+      if (!newCohortId || newCohortId === course.cohort?.id) return;
+
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('cohortId', newCohortId);
+      newParams.set('view', 'player');
+      setSearchParams(newParams);
+
+      onSelectCohort?.(newCohortId);
+    },
+    [course.cohort?.id, onSelectCohort, searchParams, setSearchParams]
+  );
+
   const isCohortAuthorized = useMemo(() => {
     if (!course.cohort) return false;
     const isEnrolled = (course.enrolledCohorts || []).some((c) => c.id === course.cohort?.id);
     if (!isEnrolled) return false;
     if (targetCohortId && targetCohortId !== course.cohort.id) {
-      return false;
+      const isTargetEnrolled = (course.enrolledCohorts || []).some((c) => c.id === targetCohortId);
+      if (!isTargetEnrolled) {
+        return false;
+      }
     }
     return true;
   }, [course.cohort, course.enrolledCohorts, targetCohortId]);
@@ -208,10 +249,47 @@ export function StudentPlayerView({
           <ChevronLeft size={16} />
           <span>Back to Courses</span>
         </button>
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-slate-500 hidden sm:inline">
-            {course.cohort?.name}
-          </span>
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Active Course Switcher in Workspace Header */}
+          {course.cohort && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="workspace-course-switcher" className="sr-only">
+                Active Course
+              </label>
+              <div className="relative inline-flex items-center">
+                <div className="pointer-events-none absolute left-2.5 flex items-center text-orange-500 dark:text-orange-400">
+                  <GraduationCap size={15} />
+                </div>
+                <select
+                  id="workspace-course-switcher"
+                  data-testid="workspace-course-switcher"
+                  aria-label="Switch active course"
+                  value={course.cohort.id}
+                  onChange={(e) => handleSelectCohort(e.target.value)}
+                  disabled={enrolledCohortsList.length <= 1}
+                  className={`appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-8 pr-7 py-1.5 text-xs font-black text-slate-900 dark:text-slate-100 shadow-2xs hover:border-orange-300 dark:hover:border-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 transition max-w-[190px] sm:max-w-[320px] truncate ${
+                    enrolledCohortsList.length > 1 ? 'cursor-pointer' : 'cursor-default opacity-90'
+                  }`}
+                >
+                  {enrolledCohortsList.map((cohort) => (
+                    <option
+                      key={cohort.id}
+                      value={cohort.id}
+                      className="text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 font-bold"
+                    >
+                      {cohort.name}
+                    </option>
+                  ))}
+                </select>
+                {enrolledCohortsList.length > 1 && (
+                  <div className="pointer-events-none absolute right-2.5 flex items-center text-slate-400 dark:text-slate-500">
+                    <ChevronRight size={13} className="rotate-90" />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {user && <NotificationCenter userId={user.id} />}
           <button
             type="button"
@@ -496,6 +574,7 @@ export function StudentPlayerView({
                 {/* TAB: Dynamic Production Sprint */}
                 {activeTab === 'internship_sprint' && course.cohort && user && (
                   <SprintChallengeTracker
+                    key={course.cohort.id}
                     cohortId={course.cohort.id}
                     cohortName={course.cohort.name}
                     userId={user.id}
@@ -573,6 +652,7 @@ export function StudentPlayerView({
                 {activeTab === 'assignments' && user && course.cohort && (
                   <div>
                     <AssignmentPanel
+                      key={course.cohort.id}
                       userId={user.id}
                       cohortId={course.cohort.id}
                       onFeedbackRead={refreshSubmissions}
@@ -581,18 +661,19 @@ export function StudentPlayerView({
                 )}
 
                 {/* TAB: Schedule & Deadlines Calendar */}
-                {activeTab === 'calendar' && user && (
+                {activeTab === 'calendar' && user && course.cohort && (
                   <div>
-                    <StudentCalendar userId={user.id} cohortId={course.cohort?.id} />
+                    <StudentCalendar key={course.cohort.id} userId={user.id} cohortId={course.cohort.id} />
                   </div>
                 )}
 
                 {/* TAB: Cohort Community Board */}
-                {activeTab === 'community' && user && (
+                {activeTab === 'community' && user && course.cohort && (
                   <div>
                     <CommunityBoard
+                      key={course.cohort.id}
                       userId={user.id}
-                      cohortId={course.cohort?.id}
+                      cohortId={course.cohort.id}
                     />
                   </div>
                 )}
