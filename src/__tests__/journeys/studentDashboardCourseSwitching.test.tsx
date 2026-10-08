@@ -330,4 +330,51 @@ describe('Student Learning Dashboard - Reactive Course Switcher', () => {
     expect(screen.getByText('Accepted')).toBeInTheDocument();
     expect(screen.queryByText('Git Repository & Maven Build Scaffold')).not.toBeInTheDocument();
   });
+
+  it('displays simultaneous live progress for all enrolled tracks without inactive track falsely showing 100%', async () => {
+    vi.mocked(courseService.getStudentUnifiedProgress).mockImplementation(((
+      _userId: string,
+      cohortId: string
+    ) => {
+      if (cohortId === cohortJava.id) {
+        return Promise.resolve({
+          student_id: 'test-student-1',
+          cohort_id: cohortJava.id,
+          enrollment: { is_enrolled: true, status: 'enrolled' },
+          curriculum: { total_lessons: 5, completed_lessons: 1, percent: 20, total_watch_seconds: 300 },
+          assignment: { total_assignments: 2, submitted_assignments: 0, approved_assignments: 0, percent: 0 },
+          sprint: { cohort_sprint_days: 15, total_challenges: 15, effective_sprint_days: 15, submitted_challenges: 1, completed_challenges: 0, percent: 0, streak_days: 0, avg_score: null },
+          attendance: { total_sessions: 1, attended_sessions: 0, rate_pct: 0, is_passed: false },
+          overall: { total_milestones: 23, completed_milestones: 1, composite_percent: 4, has_certificate: false, eligible_for_cert: false },
+        });
+      }
+      return Promise.resolve({
+        student_id: 'test-student-1',
+        cohort_id: cohortVideo.id,
+        enrollment: { is_enrolled: true, status: 'enrolled' },
+        curriculum: { total_lessons: 10, completed_lessons: 4, percent: 40, total_watch_seconds: 2400 },
+        assignment: { total_assignments: 3, submitted_assignments: 2, approved_assignments: 1, percent: 33 },
+        sprint: { cohort_sprint_days: 15, total_challenges: 15, effective_sprint_days: 15, submitted_challenges: 2, completed_challenges: 1, percent: 7, streak_days: 3, avg_score: 95 },
+        attendance: { total_sessions: 2, attended_sessions: 2, rate_pct: 100, is_passed: true },
+        overall: { total_milestones: 30, completed_milestones: 8, composite_percent: 27, has_certificate: false, eligible_for_cert: false },
+      });
+    }) as unknown as typeof courseService.getStudentUnifiedProgress);
+
+    renderDashboard(['/student/dashboard?view=catalog']);
+
+    // Should display the Multi-Course Live Progress widget
+    expect(await screen.findByText(/My Enrolled Tracks • Live Progress/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 active enrollments/i)).toBeInTheDocument();
+
+    // Verify Video track displays its authentic 27% progress (not 100%)
+    expect(screen.getByText('Track: Premiere Pro Masterclass')).toBeInTheDocument();
+    expect(screen.getAllByText('27%').length).toBeGreaterThanOrEqual(1);
+
+    // Verify Java track displays its authentic 4% progress (not 100%)
+    expect(screen.getByText('Track: Java Backend Cohort')).toBeInTheDocument();
+    expect(screen.getAllByText('4%').length).toBeGreaterThanOrEqual(1);
+
+    // Verify neither displays false 100%
+    expect(screen.queryByText('100%')).not.toBeInTheDocument();
+  });
 });

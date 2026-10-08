@@ -76,6 +76,7 @@ export interface UseStudentDashboardReturn {
   allCohorts: Cohort[];
   allModules: Module[];
   enrolledCoursesProgress: EnrolledCourseProgressSummary[];
+  enrolledUnifiedProgressMap?: Record<string, StudentUnifiedProgress>;
   sprintDays: InternshipDayStatus[];
   sprintCompletedCount: number;
   totalSprintDays: number;
@@ -146,6 +147,7 @@ export function useStudentDashboard(
   const [unifiedProgress, setUnifiedProgress] = useState<StudentUnifiedProgress | null>(null);
   const [sprintStreak, setSprintStreak] = useState(0);
   const [sprintScore, setSprintScore] = useState<number | null>(null);
+  const [enrolledUnifiedProgressMap, setEnrolledUnifiedProgressMap] = useState<Record<string, StudentUnifiedProgress>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -253,7 +255,10 @@ export function useStudentDashboard(
 
         setFailedSections(partialErrors);
 
-        // Fetch dynamic internship sprint progress and unified composite progress
+        const enrolledCohortsList = courseRes.value.enrolledCohorts || [];
+        const progressEntries: Record<string, StudentUnifiedProgress> = {};
+
+        // Fetch dynamic internship sprint progress and unified composite progress for active cohort
         if (courseRes.value.cohort) {
           if (targetCohortId && courseRes.value.cohort.id === targetCohortId) {
             clearPendingCohortCheckout();
@@ -270,6 +275,9 @@ export function useStudentDashboard(
               setSprintScore(sprintData.overallScore);
               setTotalSprintDays(sprintData.totalDays || 15);
               setUnifiedProgress(progressData);
+              if (progressData) {
+                progressEntries[courseRes.value.cohort.id] = progressData;
+              }
             }
           } catch (sprintErr) {
             console.warn('Failed to load sprint or unified progress:', sprintErr);
@@ -281,6 +289,29 @@ export function useStudentDashboard(
           setSprintScore(0);
           setTotalSprintDays(15);
           setUnifiedProgress(null);
+        }
+
+        // Concurrently fetch unified composite progress for all other enrolled cohorts
+        const otherEnrolledCohorts = enrolledCohortsList.filter(
+          (c) => c.id !== courseRes.value.cohort?.id
+        );
+        if (otherEnrolledCohorts.length > 0) {
+          try {
+            const otherResults = await Promise.allSettled(
+              otherEnrolledCohorts.map((c) => getStudentUnifiedProgress(currentUserId, c.id))
+            );
+            otherResults.forEach((res, index) => {
+              if (res.status === 'fulfilled' && res.value) {
+                progressEntries[otherEnrolledCohorts[index].id] = res.value;
+              }
+            });
+          } catch (err) {
+            console.warn('Failed to load unified progress for other cohorts:', err);
+          }
+        }
+
+        if (active) {
+          setEnrolledUnifiedProgressMap(progressEntries);
         }
 
         // Auto select first lesson if no lesson selected or cohort changed
@@ -356,7 +387,14 @@ export function useStudentDashboard(
       const isEnrolled = enrolledIdSet.has(cohort.id);
       const isCurrentActive = course.cohort?.id === cohort.id;
 
-      const cohortModules = allModules.filter((m) => m.cohort_id === cohort.id);
+      // Authoritative unified composite progress for this enrolled cohort
+      const cohortUnified = enrolledUnifiedProgressMap[cohort.id] || (isCurrentActive ? unifiedProgress : null);
+
+      const cohortModules = allModules.filter(
+        (m) =>
+          m.cohort_id === cohort.id ||
+          (cohort.course_id && (m.course_id === cohort.course_id || m.cohort_id === cohort.course_id))
+      );
       const sectionsCount = isCurrentActive && course.modules.length > 0
         ? course.modules.length
         : cohortModules.length;
@@ -365,19 +403,23 @@ export function useStudentDashboard(
         ? allLessons
         : cohortModules.flatMap((m) => m.lessons || []);
 
-      const lecturesCount = cohortLessons.length;
+      const lecturesCount = cohortUnified?.curriculum?.total_lessons && cohortUnified.curriculum.total_lessons > 0
+        ? cohortUnified.curriculum.total_lessons
+        : cohortLessons.length;
 
       let computedProgress = 0;
-      if (isCurrentActive && unifiedProgress) {
+      if (cohortUnified) {
+        computedProgress = cohortUnified.overall.composite_percent;
+      } else if (isCurrentActive && unifiedProgress) {
         computedProgress = unifiedProgress.overall.composite_percent;
+      } else if (isCurrentActive && progressPercent > 0) {
+        computedProgress = progressPercent;
       } else if (isEnrolled && lecturesCount > 0) {
         const completed = cohortLessons.filter((l) => {
           const p = combinedProgressMap.get(l.id);
           return p && (p.completed || (p.watch_percentage ?? 0) >= 80);
         }).length;
         computedProgress = Math.round((completed / lecturesCount) * 100);
-      } else if (isCurrentActive && progressPercent > 0) {
-        computedProgress = progressPercent;
       }
 
       const videoLessons = cohortLessons.filter(
@@ -436,21 +478,32 @@ export function useStudentDashboard(
     allLessons,
     progressPercent,
     unifiedProgress,
+    enrolledUnifiedProgressMap,
     combinedProgressMap,
   ]);
 
   const enrolledCoursesProgress = useMemo<EnrolledCourseProgressSummary[]>(() => {
     return catalogCourses
       .filter((c) => !c.isLocked)
-      .map((c) => ({
-        cohortId: c.id,
-        cohortName: c.title,
-        progress: c.progress,
-        completedLessons: c.lectures > 0 ? Math.round((c.progress / 100) * c.lectures) : 0,
-        totalLessons: c.lectures,
-        isActive: course.cohort?.id === c.id,
-      }));
-  }, [catalogCourses, course.cohort?.id]);
+      .map((c) => {
+        const cohortUnified = enrolledUnifiedProgressMap[c.id];
+        const completedLessons = cohortUnified?.curriculum
+          ? cohortUnified.curriculum.completed_lessons
+          : (c.lectures > 0 ? Math.round((c.progress / 100) * c.lectures) : 0);
+        const totalLessons = cohortUnified?.curriculum?.total_lessons && cohortUnified.curriculum.total_lessons > 0
+          ? cohortUnified.curriculum.total_lessons
+          : c.lectures;
+
+        return {
+          cohortId: c.id,
+          cohortName: c.title,
+          progress: c.progress,
+          completedLessons,
+          totalLessons,
+          isActive: course.cohort?.id === c.id,
+        };
+      });
+  }, [catalogCourses, course.cohort?.id, enrolledUnifiedProgressMap]);
 
   const streak = useMemo(() => {
     const activityTimestamps = [
@@ -534,6 +587,8 @@ export function useStudentDashboard(
 
     // Optimistic UI: Apply completion state locally immediately
     const rollbackCourse = course;
+    const rollbackUnified = unifiedProgress;
+    const rollbackProgressMap = enrolledUnifiedProgressMap;
     const newProgressItem = {
       lesson_id: selectedLesson.id,
       completed,
@@ -552,6 +607,39 @@ export function useStudentDashboard(
       newProgressItem,
     ]);
 
+    if (unifiedProgress) {
+      const delta = completed ? 1 : -1;
+      const newCompletedLessons = Math.max(0, unifiedProgress.curriculum.completed_lessons + delta);
+      const totalMilestones = unifiedProgress.overall.total_milestones;
+      const newCompletedMilestones = Math.max(0, unifiedProgress.overall.completed_milestones + delta);
+      const newCompositePercent = totalMilestones > 0
+        ? Math.min(100, Math.round((newCompletedMilestones / totalMilestones) * 100))
+        : (allLessons.length ? Math.round((newCompletedLessons / allLessons.length) * 100) : 0);
+
+      const updatedUnified: StudentUnifiedProgress = {
+        ...unifiedProgress,
+        curriculum: {
+          ...unifiedProgress.curriculum,
+          completed_lessons: newCompletedLessons,
+          percent: unifiedProgress.curriculum.total_lessons > 0
+            ? Math.round((newCompletedLessons / unifiedProgress.curriculum.total_lessons) * 100)
+            : 0,
+        },
+        overall: {
+          ...unifiedProgress.overall,
+          completed_milestones: newCompletedMilestones,
+          composite_percent: newCompositePercent,
+        },
+      };
+      setUnifiedProgress(updatedUnified);
+      if (course.cohort?.id) {
+        setEnrolledUnifiedProgressMap((prev) => ({
+          ...prev,
+          [course.cohort!.id]: updatedUnified,
+        }));
+      }
+    }
+
     try {
       await markLessonComplete(userId, selectedLesson.id, completed, {
         watchPercentage: currentWatchPct,
@@ -559,6 +647,8 @@ export function useStudentDashboard(
     } catch (updateError) {
       // Rollback to previous course progress on mutation failure
       setCourse(rollbackCourse);
+      setUnifiedProgress(rollbackUnified);
+      setEnrolledUnifiedProgressMap(rollbackProgressMap);
       setError(updateError instanceof Error ? updateError.message : 'Unable to update lesson progress.');
     }
   };
@@ -620,6 +710,7 @@ export function useStudentDashboard(
     allCohorts,
     allModules,
     enrolledCoursesProgress,
+    enrolledUnifiedProgressMap,
     sprintDays,
     sprintCompletedCount,
     totalSprintDays,
