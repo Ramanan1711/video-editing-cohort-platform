@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Upload,
@@ -40,6 +40,14 @@ export const UploadChallengeModal: React.FC<UploadChallengeModalProps> = ({
   const [cohortId, setCohortId] = useState<string>(
     defaultCohortId && defaultCohortId !== 'all' ? defaultCohortId : courses[0]?.id || ''
   );
+
+  useEffect(() => {
+    if (defaultCohortId && defaultCohortId !== 'all') {
+      setCohortId(defaultCohortId);
+    } else if (!cohortId && courses.length > 0) {
+      setCohortId(courses[0].id);
+    }
+  }, [defaultCohortId, isOpen, courses]);
   const [type, setType] = useState<'PROJECT' | 'TASK'>('PROJECT');
   const [week, setWeek] = useState('WEEK 3');
   const [title, setTitle] = useState('');

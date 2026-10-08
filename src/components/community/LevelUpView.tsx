@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   X,
   Zap,
@@ -46,7 +46,6 @@ import {
   getDefaultChallengesForCohort,
   type CourseChallengeItem,
 } from '../../lib/courseChallengeService';
-import { UploadChallengeModal } from './UploadChallengeModal';
 
 export type LevelUpSubTab = 'dashboard' | 'habits' | 'challenges';
 
@@ -223,7 +222,6 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   // Dynamic Challenges state per course
   const [challenges, setChallenges] = useState<ChallengeItem[]>(() => getDefaultChallengesForCohort());
   const [loadingChallenges, setLoadingChallenges] = useState<boolean>(false);
-  const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
   const [challengeFilter, setChallengeFilter] = useState<'active' | 'all' | 'completed' | 'upcoming'>('active');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const queryChallengeId = searchParams.get('challenge');
@@ -1605,16 +1603,17 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                         )}
                       </div>
 
-                      {/* Upload Challenge Button */}
-                      <button
-                        type="button"
-                        onClick={() => setShowUploadModal(true)}
-                        className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 hover:brightness-105 px-4 py-2 text-xs font-black text-slate-950 shadow-md shadow-amber-900/20 active:scale-95 transition cursor-pointer"
-                        title="Upload a new challenge for a course"
-                      >
-                        <Upload size={14} />
-                        <span>Upload Challenge</span>
-                      </button>
+                      {/* Manage in Course Studio Link for Admins & Mentors */}
+                      {(profile?.role === 'admin' || profile?.role === 'mentor') && (
+                        <Link
+                          to="/admin/courses"
+                          className="flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition cursor-pointer"
+                          title="Author, manage and upload course challenges in Course Studio"
+                        >
+                          <BookOpen size={13} className="text-amber-600 dark:text-amber-400" />
+                          <span>Course Studio</span>
+                        </Link>
+                      )}
                     </div>
                   </div>
 
@@ -1638,13 +1637,19 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                           {selectedCourse ? selectedCourse.title : 'this course track'} yet.
                         </p>
                       </div>
-                      <button
-                        onClick={() => setShowUploadModal(true)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-105 text-slate-950 px-5 py-2.5 text-xs font-black shadow-md transition cursor-pointer"
-                      >
-                        <Upload size={14} />
-                        <span>Upload Challenge for this Course</span>
-                      </button>
+                      {(profile?.role === 'admin' || profile?.role === 'mentor') ? (
+                        <Link
+                          to="/admin/courses"
+                          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-105 text-slate-950 px-5 py-2.5 text-xs font-black shadow-md transition cursor-pointer"
+                        >
+                          <Upload size={14} />
+                          <span>Manage Challenges in Course Studio</span>
+                        </Link>
+                      ) : (
+                        <p className="text-xs text-slate-400 mt-2">
+                          Check back soon or switch course tracks using the filter above!
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2565,20 +2570,6 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
             </div>
           </div>
         )}
-
-        {/* Upload Challenge Modal */}
-        <UploadChallengeModal
-          isOpen={showUploadModal}
-          onClose={() => setShowUploadModal(false)}
-          courses={courses}
-          defaultCohortId={selectedCohortId}
-          onChallengeCreated={(newChallenge) => {
-            setChallenges((prev) => [newChallenge, ...prev]);
-            setSelectedChallenge(newChallenge);
-            setToastMessage(`🎉 Successfully published challenge "${newChallenge.title}"!`);
-            setTimeout(() => setToastMessage(null), 4000);
-          }}
-        />
       </div>
     </div>
   );

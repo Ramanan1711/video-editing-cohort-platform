@@ -626,3 +626,18 @@ export async function submitCourseChallenge(
     // Ignored if table not yet migrated
   }
 }
+
+/**
+ * Deletes a course challenge by ID from Supabase and local storage
+ */
+export async function deleteCourseChallenge(challengeId: string): Promise<boolean> {
+  try {
+    await supabase.from('course_challenges').delete().eq('id', challengeId);
+  } catch (err) {
+    console.warn('Database delete from course_challenges skipped or failed:', err);
+  }
+
+  const existingLocal = getStoredLocalChallenges();
+  saveStoredLocalChallenges(existingLocal.filter((c) => c.id !== challengeId));
+  return true;
+}

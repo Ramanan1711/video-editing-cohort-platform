@@ -94,6 +94,12 @@ import {
   type DailyChallengeInput,
 } from '../lib/internshipService';
 import { DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../lib/paymentService';
+import {
+  fetchCourseChallenges,
+  deleteCourseChallenge,
+  type CourseChallengeItem,
+} from '../lib/courseChallengeService';
+import { UploadChallengeModal } from '../components/admin/UploadChallengeModal';
 
 type EditorModalType = 'cohort' | 'module' | 'lesson' | 'assignment' | 'resource' | 'challenge';
 
@@ -212,9 +218,15 @@ export function AdminCourses() {
 
   // Challenge / 15-Day Sprint state
   const [challengesByCohort, setChallengesByCohort] = useState<Record<string, DailyChallenge[]>>({});
-  const [cohortActiveTab, setCohortActiveTab] = useState<Record<string, 'curriculum' | 'challenges'>>({});
+  const [cohortActiveTab, setCohortActiveTab] = useState<Record<string, 'curriculum' | 'challenges' | 'sprint'>>({});
   const [seedingCohortId, setSeedingCohortId] = useState<string | null>(null);
   const [loadingChallengesCohortId, setLoadingChallengesCohortId] = useState<string | null>(null);
+
+  // Dynamic Course Challenges state & Upload Modal
+  const [showUploadChallengeModal, setShowUploadChallengeModal] = useState<boolean>(false);
+  const [uploadModalCohortId, setUploadModalCohortId] = useState<string | undefined>(undefined);
+  const [courseChallengesByCohort, setCourseChallengesByCohort] = useState<Record<string, CourseChallengeItem[]>>({});
+  const [loadingCourseChallengesCohortId, setLoadingCourseChallengesCohortId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -489,9 +501,43 @@ export function AdminCourses() {
     }
   };
 
-  const handleSwitchCohortTab = (cohortId: string, tab: 'curriculum' | 'challenges') => {
+  const loadCourseChallengesForCohort = async (cohortId: string, cohortTitle?: string) => {
+    try {
+      setLoadingCourseChallengesCohortId(cohortId);
+      const list = await fetchCourseChallenges(cohortId, cohortTitle);
+      setCourseChallengesByCohort((prev) => ({ ...prev, [cohortId]: list }));
+    } catch (err) {
+      const parsed = parseDatabaseError(err);
+      toast.error(parsed.message, 'Failed to load course challenges');
+    } finally {
+      setLoadingCourseChallengesCohortId(null);
+    }
+  };
+
+  const handleDeleteCourseChallenge = async (cohortId: string, challengeId: string, title: string) => {
+    if (!window.confirm(`Are you sure you want to delete course challenge "${title}"?`)) return;
+    try {
+      await deleteCourseChallenge(challengeId);
+      setCourseChallengesByCohort((prev) => ({
+        ...prev,
+        [cohortId]: (prev[cohortId] || []).filter((c) => c.id !== challengeId),
+      }));
+      toast.success(`Challenge "${title}" deleted successfully.`);
+    } catch (err) {
+      const parsed = parseDatabaseError(err);
+      toast.error(parsed.message, 'Failed to delete challenge');
+    }
+  };
+
+  const handleSwitchCohortTab = (
+    cohortId: string,
+    tab: 'curriculum' | 'challenges' | 'sprint',
+    cohortTitle?: string
+  ) => {
     setCohortActiveTab((prev) => ({ ...prev, [cohortId]: tab }));
-    if (tab === 'challenges' && !challengesByCohort[cohortId]) {
+    if (tab === 'challenges' && !courseChallengesByCohort[cohortId]) {
+      void loadCourseChallengesForCohort(cohortId, cohortTitle);
+    } else if (tab === 'sprint' && !challengesByCohort[cohortId]) {
       void loadChallengesForCohort(cohortId);
     }
   };
@@ -1098,6 +1144,18 @@ export function AdminCourses() {
             <Button href="/review/submissions" variant="secondary" className="hidden sm:inline-flex">
               Review Queue
             </Button>
+            {canManageCurriculum && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setUploadModalCohortId(undefined);
+                  setShowUploadChallengeModal(true);
+                }}
+                className="border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/40"
+              >
+                <Upload size={15} className="mr-1 text-amber-600" /> Upload Challenge
+              </Button>
+            )}
             {canManageCohorts && (
               <Button onClick={() => openCohortEditor()}>
                 <Plus size={17} /> New Cohort
@@ -1332,9 +1390,9 @@ export function AdminCourses() {
                   {/* Cohort Contents (Modules & Lessons vs 15-Day Sprint Challenges) */}
                   {isExpanded && (
                     <div className="bg-slate-50/70 p-5 lg:p-6">
-                      {/* Cohort Sub-tabs: Curriculum vs 15-Day Sprint */}
+                      {/* Cohort Sub-tabs: Curriculum vs Course Challenges vs 15-Day Sprint */}
                       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={() => handleSwitchCohortTab(cohort.id, 'curriculum')}
@@ -1358,7 +1416,7 @@ export function AdminCourses() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleSwitchCohortTab(cohort.id, 'challenges')}
+                            onClick={() => handleSwitchCohortTab(cohort.id, 'challenges', cohort.name)}
                             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
                               cohortActiveTab[cohort.id] === 'challenges'
                                 ? 'bg-amber-600 text-white shadow-sm'
@@ -1371,12 +1429,38 @@ export function AdminCourses() {
                                 cohortActiveTab[cohort.id] === 'challenges' ? 'text-amber-200' : 'text-amber-600'
                               }
                             />
-                            15-Day Sprint (Daily Challenges)
+                            Course Challenges &amp; Projects
                             <span
                               className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                                 cohortActiveTab[cohort.id] === 'challenges'
                                   ? 'bg-white/20 text-white'
                                   : 'bg-amber-100 text-amber-800'
+                              }`}
+                            >
+                              {courseChallengesByCohort[cohort.id]?.length ?? 'Quests'}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSwitchCohortTab(cohort.id, 'sprint')}
+                            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
+                              cohortActiveTab[cohort.id] === 'sprint'
+                                ? 'bg-indigo-600 text-white shadow-sm'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <Calendar
+                              size={15}
+                              className={
+                                cohortActiveTab[cohort.id] === 'sprint' ? 'text-indigo-200' : 'text-indigo-600'
+                              }
+                            />
+                            15-Day Sprint (Daily Drills)
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                cohortActiveTab[cohort.id] === 'sprint'
+                                  ? 'bg-white/20 text-white'
+                                  : 'bg-indigo-100 text-indigo-800'
                               }`}
                             >
                               {challengesByCohort[cohort.id]?.length ?? 'Sprint'}
@@ -1385,6 +1469,22 @@ export function AdminCourses() {
                         </div>
 
                         {cohortActiveTab[cohort.id] === 'challenges' && canManageCurriculum && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => {
+                                setUploadModalCohortId(cohort.id);
+                                setShowUploadChallengeModal(true);
+                              }}
+                              className="text-xs bg-amber-600 hover:bg-amber-700 text-white border-none shadow-sm"
+                            >
+                              <Upload size={14} className="mr-1" /> Upload Challenge for this Course
+                            </Button>
+                          </div>
+                        )}
+
+                        {cohortActiveTab[cohort.id] === 'sprint' && canManageCurriculum && (
                           <div className="flex items-center gap-2">
                             <Button
                               variant="secondary"
@@ -1403,7 +1503,7 @@ export function AdminCourses() {
                               onClick={() => openChallengeEditor(cohort.id)}
                               className="text-xs"
                             >
-                              <Plus size={14} className="mr-1" /> Add Challenge
+                              <Plus size={14} className="mr-1" /> Add Daily Challenge
                             </Button>
                           </div>
                         )}
@@ -1942,6 +2042,123 @@ export function AdminCourses() {
                           </Button>
                         </div>
                       )
+                    ) : cohortActiveTab[cohort.id] === 'challenges' ? (
+                      /* Course Challenges Panel */
+                      <div>
+                        {loadingCourseChallengesCohortId === cohort.id && !courseChallengesByCohort[cohort.id] ? (
+                          <div className="py-12 text-center text-slate-400">
+                            <Sparkles className="mx-auto mb-2 animate-spin text-amber-500" size={24} />
+                            <p className="text-xs font-semibold">Loading course challenges &amp; projects...</p>
+                          </div>
+                        ) : (courseChallengesByCohort[cohort.id]?.length ?? 0) > 0 ? (
+                          <div className="space-y-3">
+                            {courseChallengesByCohort[cohort.id]?.map((ch) => (
+                              <div
+                                key={ch.id}
+                                className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-slate-300 sm:flex-row sm:items-center"
+                              >
+                                <div className="flex items-start gap-3.5">
+                                  <span
+                                    className={`flex size-9 shrink-0 items-center justify-center rounded-xl text-xs font-black border ${
+                                      ch.type === 'PROJECT'
+                                        ? 'bg-amber-500/10 text-amber-700 border-amber-200'
+                                        : 'bg-blue-500/10 text-blue-700 border-blue-200'
+                                    }`}
+                                  >
+                                    {ch.type === 'PROJECT' ? 'PRJ' : 'TSK'}
+                                  </span>
+                                  <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <h4 className="text-sm font-bold text-slate-900">{ch.title}</h4>
+                                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 border border-amber-200">
+                                        {ch.week}
+                                      </span>
+                                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                                        {ch.type}
+                                      </span>
+                                      <span
+                                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                          ch.status === 'active'
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                            : ch.status === 'upcoming'
+                                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                            : 'bg-slate-100 text-slate-600'
+                                        }`}
+                                      >
+                                        {ch.status}
+                                      </span>
+                                      <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-700 border border-indigo-100">
+                                        +{ch.proReward} PRO
+                                      </span>
+                                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                                        {ch.durationLabel}
+                                      </span>
+                                    </div>
+                                    {ch.description && (
+                                      <p className="text-xs text-slate-600 line-clamp-2">{ch.description}</p>
+                                    )}
+                                    {ch.assets && ch.assets.length > 0 && (
+                                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                                        {ch.assets.map((asset, aIdx) => (
+                                          <a
+                                            key={aIdx}
+                                            href={asset.url || '#'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100"
+                                          >
+                                            <Paperclip size={11} className="text-orange-500" />
+                                            <span>
+                                              {asset.title} ({asset.size})
+                                            </span>
+                                            <ExternalLink size={10} className="text-slate-400" />
+                                          </a>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {canManageCurriculum && (
+                                  <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
+                                    <button
+                                      onClick={() => void handleDeleteCourseChallenge(cohort.id, ch.id, ch.title)}
+                                      className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                                      title="Delete Course Challenge"
+                                      aria-label="Delete Course Challenge"
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-8 text-center">
+                            <Flame className="mx-auto mb-2 text-amber-500" size={28} />
+                            <p className="text-sm font-bold text-slate-900">No Course Challenges Configured Yet</p>
+                            <p className="mt-1 text-xs text-slate-600 max-w-md mx-auto">
+                              Upload course-specific projects, briefs, starter footage assets, and assign PRO points rewards for students in this course.
+                            </p>
+                            {canManageCurriculum && (
+                              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => {
+                                    setUploadModalCohortId(cohort.id);
+                                    setShowUploadChallengeModal(true);
+                                  }}
+                                  className="bg-amber-600 hover:bg-amber-700 text-white border-none shadow-sm"
+                                >
+                                  <Upload size={14} className="mr-1" /> Upload Challenge for {cohort.name}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       /* 15-Day Sprint (Daily Challenges Panel) */
                       <div>
@@ -2692,6 +2909,27 @@ export function AdminCourses() {
           </form>
         </div>
       )}
+
+      {/* Upload Course Challenge Modal */}
+      <UploadChallengeModal
+        isOpen={showUploadChallengeModal}
+        onClose={() => {
+          setShowUploadChallengeModal(false);
+          setUploadModalCohortId(undefined);
+        }}
+        courses={cohorts.map((c) => ({ id: c.id, title: c.name }))}
+        defaultCohortId={uploadModalCohortId}
+        onChallengeCreated={(newChallenge) => {
+          const cId = newChallenge.cohortId || uploadModalCohortId || 'default';
+          setCourseChallengesByCohort((prev) => ({
+            ...prev,
+            [cId]: [newChallenge, ...(prev[cId] || [])],
+          }));
+          toast.success(`Challenge "${newChallenge.title}" uploaded successfully!`);
+          setShowUploadChallengeModal(false);
+          setUploadModalCohortId(undefined);
+        }}
+      />
     </div>
   );
 }

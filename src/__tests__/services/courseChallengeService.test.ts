@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   fetchCourseChallenges,
   createCourseChallenge,
+  deleteCourseChallenge,
   joinCourseChallenge,
   submitCourseChallenge,
   getDefaultChallengesForCohort,
@@ -210,6 +211,37 @@ describe('courseChallengeService', () => {
       expect(res.type).toBe('.zip');
       expect(res.url).toContain('token=mock_token');
       expect(supabase.storage.from).toHaveBeenCalledWith('course-assets');
+    });
+  });
+
+  describe('deleteCourseChallenge', () => {
+    it('deletes an existing course challenge from storage and database', async () => {
+      const fromMock = vi.mocked(supabase.from);
+      fromMock.mockReturnValue({
+        insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+        delete: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        }),
+      } as any);
+
+      // Create a challenge first
+      const created = await createCourseChallenge({
+        cohortId: 'cohort-1',
+        title: 'Challenge To Delete',
+        type: 'PROJECT',
+        week: 'WEEK 4',
+        startDate: '10 Oct',
+        endDate: '17 Oct 2026',
+      });
+
+      const beforeDelete = await fetchCourseChallenges('cohort-1', 'CineSprint Video Editing Batch 15');
+      expect(beforeDelete.some((c) => c.id === created.id)).toBe(true);
+
+      const deleted = await deleteCourseChallenge(created.id);
+      expect(deleted).toBe(true);
+
+      const afterDelete = await fetchCourseChallenges('cohort-1', 'CineSprint Video Editing Batch 15');
+      expect(afterDelete.some((c) => c.id === created.id)).toBe(false);
     });
   });
 });
