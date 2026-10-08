@@ -36,6 +36,7 @@ import {
   fetchEnrolledLeaderboard,
   fetchAvailableCourses,
   fetchUserEnrolledCohort,
+  fetchUserEnrolledCourses,
   type LeaderboardMember,
   type CourseOption,
 } from '../../lib/gamificationService';
@@ -94,33 +95,52 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
     return courses.find((c) => c.id === selectedCohortId) || null;
   }, [courses, selectedCohortId]);
 
-  // Fetch available courses and resolve user's primary enrolled course
+  // Fetch user's enrolled courses (or fallback to available courses for guests / admins with 0 enrollments)
   useEffect(() => {
     let isMounted = true;
     async function loadCourses() {
+      let enrolledCourses: CourseOption[] = [];
+      if (user?.id) {
+        enrolledCourses = await fetchUserEnrolledCourses(user.id);
+        // Fallback for single cohort lookup if fetchUserEnrolledCourses returned empty
+        if (enrolledCourses.length === 0) {
+          const singleCohort = await fetchUserEnrolledCohort(user.id);
+          if (singleCohort) {
+            enrolledCourses = [{ id: singleCohort.id, title: singleCohort.title }];
+          }
+        }
+      }
+
+      // If user is enrolled in courses, ONLY list their enrolled courses in the dropdown!
+      if (enrolledCourses.length > 0) {
+        if (!isMounted) return;
+        setCourses(enrolledCourses);
+
+        // Preselect the first enrolled course if needed
+        setSelectedCohortId((prev) => {
+          if (prev === 'all' && enrolledCourses.length === 1) {
+            return enrolledCourses[0].id;
+          }
+          if (prev !== 'all' && !enrolledCourses.some((c) => c.id === prev)) {
+            return enrolledCourses[0].id;
+          }
+          return prev;
+        });
+        setInitialCohortResolved(true);
+        return;
+      }
+
+      // Fallback: If user has 0 enrollments (e.g., admin exploring catalog, or guest), fetch available courses
       const courseList = await fetchAvailableCourses();
       if (!isMounted) return;
       setCourses(courseList);
 
-      // If user has an enrolled cohort, default to their course so they see their peers
-      if (user?.id) {
-        const userCohort = await fetchUserEnrolledCohort(user.id);
-        if (isMounted && userCohort) {
-          setSelectedCohortId(userCohort.id);
-          setInitialCohortResolved(true);
-          return;
-        }
+      if (courseList.length > 0) {
+        setSelectedCohortId((prev) => (prev === 'all' && courseList.length === 1 ? courseList[0].id : prev));
       }
-
-      // Default to first course if available, or 'all'
-      if (isMounted && courseList.length > 0) {
-        setSelectedCohortId(courseList[0].id);
-      }
-      if (isMounted) {
-        setInitialCohortResolved(true);
-      }
+      setInitialCohortResolved(true);
     }
-    loadCourses();
+    void loadCourses();
     return () => {
       isMounted = false;
     };
@@ -1558,9 +1578,11 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                           value={selectedCohortId}
                           onChange={(e) => setSelectedCohortId(e.target.value)}
                           className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-hidden cursor-pointer max-w-[170px] truncate"
-                          aria-label="Filter challenges by course"
+                          aria-label="Filter challenges by enrolled course"
                         >
-                          <option value="all">All Tracks &amp; Courses</option>
+                          <option value="all">
+                            {courses.length > 1 ? 'All Enrolled Courses' : 'All Tracks & Courses'}
+                          </option>
                           {courses.map((course) => (
                             <option key={course.id} value={course.id}>
                               {course.title}
@@ -2026,7 +2048,9 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                       className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-amber-500 cursor-pointer"
                       aria-label="Filter leaderboard by enrolled course"
                     >
-                      <option value="all">All Courses</option>
+                      <option value="all">
+                        {courses.length > 1 ? 'All Enrolled Courses' : 'All Courses'}
+                      </option>
                       {courses.map((course) => (
                         <option key={course.id} value={course.id}>
                           {course.title}

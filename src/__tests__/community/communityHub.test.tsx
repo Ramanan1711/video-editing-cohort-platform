@@ -93,6 +93,9 @@ vi.mock('../../lib/gamificationService', () => ({
     { id: 'cohort-2', title: 'Video Editing Masterclass', count: 5 },
   ]),
   fetchUserEnrolledCohort: vi.fn().mockResolvedValue({ id: 'cohort-1', title: 'Python' }),
+  fetchUserEnrolledCourses: vi.fn().mockResolvedValue([
+    { id: 'cohort-1', title: 'Python', count: 3 },
+  ]),
 }));
 
 describe('CommunityHub & Components', () => {

@@ -326,6 +326,57 @@ export async function fetchAvailableCourses(): Promise<CourseOption[]> {
 }
 
 /**
+ * Resolves all enrolled cohorts/courses for a specific user
+ */
+export async function fetchUserEnrolledCourses(
+  userId: string
+): Promise<CourseOption[]> {
+  try {
+    const { data: enrollments, error: enrollError } = await supabase
+      .from('enrollments')
+      .select('cohort_id, created_at, status')
+      .eq('user_id', userId)
+      .in('status', ['enrolled', 'active', 'completed', 'inactive'])
+      .order('created_at', { ascending: false });
+
+    if (enrollError || !enrollments || enrollments.length === 0) {
+      return [];
+    }
+
+    const cohortIds = Array.from(
+      new Set(enrollments.map((e) => e.cohort_id).filter(Boolean))
+    );
+    if (cohortIds.length === 0) return [];
+
+    let list: Array<{ id: string; title?: string | null; name?: string | null }> = [];
+    const { data: titleData, error: titleErr } = await supabase
+      .from('cohorts')
+      .select('id, title')
+      .in('id', cohortIds)
+      .order('title');
+
+    if (!titleErr && titleData && titleData.length > 0) {
+      list = titleData;
+    } else {
+      const { data: nameData } = await supabase
+        .from('cohorts')
+        .select('id, name')
+        .in('id', cohortIds)
+        .order('name');
+      list = nameData ?? [];
+    }
+
+    return list.map((c) => ({
+      id: c.id,
+      title: c.title || c.name || 'Enrolled Course',
+    }));
+  } catch (err) {
+    console.error('Failed to fetch user enrolled courses:', err);
+    return [];
+  }
+}
+
+/**
  * Resolves the primary enrolled cohort for a specific user
  */
 export async function fetchUserEnrolledCohort(

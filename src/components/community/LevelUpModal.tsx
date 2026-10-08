@@ -18,6 +18,7 @@ import {
   fetchEnrolledLeaderboard,
   fetchAvailableCourses,
   fetchUserEnrolledCohort,
+  fetchUserEnrolledCourses,
   type LeaderboardMember,
   type CourseOption,
 } from '../../lib/gamificationService';
@@ -52,32 +53,50 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
   const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
   const [initialCohortResolved, setInitialCohortResolved] = useState<boolean>(false);
 
-  // Fetch available courses and resolve user's primary enrolled course
+  // Fetch user's enrolled courses (or fallback to available courses for guests / admins with 0 enrollments)
   useEffect(() => {
     let isMounted = true;
     async function loadCourses() {
+      let enrolledCourses: CourseOption[] = [];
+      if (user?.id) {
+        enrolledCourses = await fetchUserEnrolledCourses(user.id);
+        if (enrolledCourses.length === 0) {
+          const singleCohort = await fetchUserEnrolledCohort(user.id);
+          if (singleCohort) {
+            enrolledCourses = [{ id: singleCohort.id, title: singleCohort.title }];
+          }
+        }
+      }
+
+      // If user is enrolled in courses, ONLY list their enrolled courses in the dropdown!
+      if (enrolledCourses.length > 0) {
+        if (!isMounted) return;
+        setCourses(enrolledCourses);
+
+        setSelectedCohortId((prev) => {
+          if (prev === 'all' && enrolledCourses.length === 1) {
+            return enrolledCourses[0].id;
+          }
+          if (prev !== 'all' && !enrolledCourses.some((c) => c.id === prev)) {
+            return enrolledCourses[0].id;
+          }
+          return prev;
+        });
+        setInitialCohortResolved(true);
+        return;
+      }
+
       const courseList = await fetchAvailableCourses();
       if (!isMounted) return;
       setCourses(courseList);
 
-      if (user?.id) {
-        const userCohort = await fetchUserEnrolledCohort(user.id);
-        if (isMounted && userCohort) {
-          setSelectedCohortId(userCohort.id);
-          setInitialCohortResolved(true);
-          return;
-        }
+      if (courseList.length > 0) {
+        setSelectedCohortId((prev) => (prev === 'all' && courseList.length === 1 ? courseList[0].id : prev));
       }
-
-      if (isMounted && courseList.length > 0) {
-        setSelectedCohortId(courseList[0].id);
-      }
-      if (isMounted) {
-        setInitialCohortResolved(true);
-      }
+      setInitialCohortResolved(true);
     }
     if (isOpen) {
-      loadCourses();
+      void loadCourses();
     }
     return () => {
       isMounted = false;
@@ -448,7 +467,9 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
                       className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-amber-500 cursor-pointer"
                       aria-label="Filter leaderboard by enrolled course"
                     >
-                      <option value="all">All Courses</option>
+                      <option value="all">
+                        {courses.length > 1 ? 'All Enrolled Courses' : 'All Courses'}
+                      </option>
                       {courses.map((course) => (
                         <option key={course.id} value={course.id}>
                           {course.title}
