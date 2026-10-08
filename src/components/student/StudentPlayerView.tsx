@@ -28,6 +28,7 @@ import type {
 } from '../../lib/courseService';
 import type { GamificationProfile } from '../../lib/gamificationService';
 import type { StudioRecommendation } from '../../lib/recommendationService';
+import type { EnrolledCourseProgressSummary } from '../../hooks/useStudentDashboard';
 import type { InternshipDayStatus } from '../../lib/internshipService';
 import { clearPendingCohortCheckout, markJustEnrolledCohort } from '../../lib/cohortCheckoutPersistence';
 import { NotificationCenter } from '../NotificationCenter';
@@ -82,6 +83,7 @@ export interface StudentPlayerViewProps {
   completedCount: number;
   progressPercent: number;
   unifiedProgress: StudentUnifiedProgress | null;
+  enrolledCoursesProgress?: EnrolledCourseProgressSummary[];
   sprintDays: InternshipDayStatus[];
   sprintCompletedCount: number;
   sprintStreak: number;
@@ -125,6 +127,7 @@ export function StudentPlayerView({
   completedCount,
   progressPercent,
   unifiedProgress,
+  enrolledCoursesProgress,
   sprintDays,
   sprintCompletedCount,
   sprintStreak,
@@ -299,6 +302,9 @@ export function StudentPlayerView({
                   </div>
                 )}
               </div>
+              <span className="hidden sm:inline-flex rounded-full bg-orange-100 dark:bg-orange-950/60 px-2 py-0.5 text-[10px] font-black text-orange-700 dark:text-orange-300">
+                {progressPercent}%
+              </span>
             </div>
           )}
 
@@ -321,6 +327,41 @@ export function StudentPlayerView({
           </button>
         </div>
       </div>
+
+      {/* Multi-Course Live Switcher Bar (when multiple enrolled tracks exist) */}
+      {enrolledCoursesProgress && enrolledCoursesProgress.length > 1 && (
+        <div className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800/80 px-4 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto scrollbar-none">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0">
+            Enrolled Tracks:
+          </span>
+          {enrolledCoursesProgress.map((track) => {
+            const isSelected = track.cohortId === course.cohort?.id;
+            return (
+              <button
+                key={track.cohortId}
+                type="button"
+                onClick={() => handleSelectCohort(track.cohortId)}
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold transition shrink-0 shadow-2xs ${
+                  isSelected
+                    ? 'bg-orange-500 text-white shadow-orange-500/20'
+                    : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-orange-300'
+                }`}
+              >
+                <span>Track: {track.cohortName}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                    isSelected
+                      ? 'bg-white/20 text-white'
+                      : 'bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300'
+                  }`}
+                >
+                  {track.progress}%
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mx-auto flex max-w-[1440px]">
         {/* Left Sidebar: Collapsible Curriculum Navigation */}

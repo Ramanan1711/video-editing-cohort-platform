@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { BookOpen, ChevronDown, Lock, RotateCw, Search, User, Video, X } from 'lucide-react';
-import type { CatalogCourseItem } from '../../hooks/useStudentDashboard';
+import type { CatalogCourseItem, EnrolledCourseProgressSummary } from '../../hooks/useStudentDashboard';
 
 export interface StudentCatalogViewProps {
   totalCatalogCount: number;
@@ -11,6 +11,7 @@ export interface StudentCatalogViewProps {
   catalogFilter: 'all' | 'in_progress' | 'completed' | 'expired' | 'paid';
   setCatalogFilter: (filter: 'all' | 'in_progress' | 'completed' | 'expired' | 'paid') => void;
   filteredCatalogCourses: CatalogCourseItem[];
+  enrolledCoursesProgress?: EnrolledCourseProgressSummary[];
   onRefresh: () => void;
   onContinueCourse: (cohortId: string) => void;
   onUnlockCourse: (cohortId: string) => void;
@@ -25,6 +26,7 @@ export function StudentCatalogView({
   catalogFilter,
   setCatalogFilter,
   filteredCatalogCourses,
+  enrolledCoursesProgress,
   onRefresh,
   onContinueCourse,
   onUnlockCourse,
@@ -59,6 +61,60 @@ export function StudentCatalogView({
           </button>
         </div>
       </div>
+
+      {/* Multi-Course Real-Time Progress Overview */}
+      {enrolledCoursesProgress && enrolledCoursesProgress.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-orange-100 dark:border-slate-800 bg-gradient-to-r from-orange-50/70 via-amber-50/40 to-white dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 p-4 sm:p-5 shadow-xs">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="flex size-6 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs">
+                <BookOpen size={13} />
+              </span>
+              <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                My Enrolled Tracks &bull; Live Progress
+              </h2>
+            </div>
+            <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400">
+              {enrolledCoursesProgress.length} active {enrolledCoursesProgress.length === 1 ? 'enrollment' : 'enrollments'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {enrolledCoursesProgress.map((track) => (
+              <div
+                key={track.cohortId}
+                onClick={() => onContinueCourse(track.cohortId)}
+                className="group cursor-pointer rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 p-3.5 shadow-2xs hover:border-orange-400 dark:hover:border-orange-500 transition hover:shadow-xs flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">
+                      Track: {track.cohortName}
+                    </h3>
+                    <span className="shrink-0 rounded-full bg-orange-100 dark:bg-orange-950/60 px-2 py-0.5 text-[10px] font-black text-orange-700 dark:text-orange-300">
+                      {track.progress}%
+                    </span>
+                  </div>
+                  <div className="mt-2.5 h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-300"
+                      style={{ width: `${track.progress}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="mt-2.5 flex items-center justify-between text-[10px] font-medium text-slate-400">
+                  <span>
+                    {track.completedLessons} of {track.totalLessons} lessons
+                  </span>
+                  <span className="font-bold text-orange-600 dark:text-orange-400 group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-0.5">
+                    Continue &rarr;
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Pill Search Bar */}
       <div className="mt-6 flex items-center rounded-full border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 shadow-2xs focus-within:border-orange-500 transition">

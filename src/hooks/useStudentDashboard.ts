@@ -3,6 +3,7 @@ import {
   calculateLearningTime,
   calculateStreak,
   getStudentCourseData,
+  getAllUserLessonProgress,
   listAssignments,
   listCohorts,
   listModules,
@@ -14,6 +15,7 @@ import {
   type Assignment,
   type Cohort,
   type Lesson,
+  type LessonProgress,
   type Module,
   type StudentAnnouncement,
   type StudentCourseData,
@@ -33,6 +35,15 @@ import {
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
 import { getStudentSprintDays, type InternshipDayStatus } from '../lib/internshipService';
 import { clearPendingCohortCheckout } from '../lib/cohortCheckoutPersistence';
+
+export interface EnrolledCourseProgressSummary {
+  cohortId: string;
+  cohortName: string;
+  progress: number;
+  completedLessons: number;
+  totalLessons: number;
+  isActive: boolean;
+}
 
 export interface CatalogCourseItem {
   id: string;
@@ -64,6 +75,7 @@ export interface UseStudentDashboardReturn {
   announcements: StudentAnnouncement[];
   allCohorts: Cohort[];
   allModules: Module[];
+  enrolledCoursesProgress: EnrolledCourseProgressSummary[];
   sprintDays: InternshipDayStatus[];
   sprintCompletedCount: number;
   totalSprintDays: number;
@@ -125,6 +137,7 @@ export function useStudentDashboard(
   const [announcements, setAnnouncements] = useState<StudentAnnouncement[]>([]);
   const [allCohorts, setAllCohorts] = useState<Cohort[]>([]);
   const [allModules, setAllModules] = useState<Module[]>([]);
+  const [allLessonProgress, setAllLessonProgress] = useState<LessonProgress[]>([]);
   const [appError, setAppError] = useState<AppError | null>(null);
 
   const [sprintDays, setSprintDays] = useState<InternshipDayStatus[]>([]);
@@ -148,7 +161,7 @@ export function useStudentDashboard(
     }
   }, [initialCohortId, targetCohortId]);
 
-  // Fetch course, submissions, live sessions, announcements, assignments
+  // Fetch course, submissions, live sessions, announcements, assignments, and all enrolled progress
   useEffect(() => {
     if (!userId) return;
     const currentUserId = userId;
@@ -166,6 +179,7 @@ export function useStudentDashboard(
           assignmentsRes,
           allCohortsRes,
           allModulesRes,
+          allProgressRes,
         ] = await Promise.allSettled([
           getStudentCourseData(currentUserId, effectiveCohortId),
           listMySubmissions(currentUserId),
@@ -174,6 +188,9 @@ export function useStudentDashboard(
           listAssignments(effectiveCohortId),
           listCohorts(),
           listModules(),
+          typeof getAllUserLessonProgress === 'function'
+            ? getAllUserLessonProgress(currentUserId)
+            : Promise.resolve([]),
         ]);
 
         if (!active) return;
@@ -199,6 +216,12 @@ export function useStudentDashboard(
           setAllModules(allModulesRes.value);
         } else {
           console.warn('Modules load failure:', allModulesRes.reason);
+        }
+
+        if (allProgressRes.status === 'fulfilled') {
+          setAllLessonProgress(allProgressRes.value);
+        } else {
+          console.warn('All progress load failure:', allProgressRes.reason);
         }
 
         if (submissionsRes.status === 'fulfilled') {
@@ -302,6 +325,17 @@ export function useStudentDashboard(
   const completedCount = completedLessons.length;
   const progressPercent = allLessons.length ? Math.round((completedCount / allLessons.length) * 100) : 0;
 
+  const combinedProgressMap = useMemo(() => {
+    const map = new Map<string, LessonProgress>();
+    for (const p of allLessonProgress) {
+      map.set(p.lesson_id, p);
+    }
+    for (const p of course.progress) {
+      map.set(p.lesson_id, p);
+    }
+    return map;
+  }, [allLessonProgress, course.progress]);
+
   // Courses catalog dynamically mapped from existing cohorts in the database
   const catalogCourses = useMemo<CatalogCourseItem[]>(() => {
     let sourceCohorts: Cohort[] = [];
@@ -313,10 +347,6 @@ export function useStudentDashboard(
       sourceCohorts = [course.cohort];
     }
 
-    const progressMap = new Map(course.progress.map((p) => [p.lesson_id, p]));
-    const completedLessonIdSet = new Set(
-      course.progress.filter((p) => p.completed).map((p) => p.lesson_id)
-    );
     const enrolledIdSet = new Set([
       ...(course.enrolledCohorts || []).map((c) => c.id),
       ...(course.cohort ? [course.cohort.id] : []),
@@ -341,7 +371,10 @@ export function useStudentDashboard(
       if (isCurrentActive && unifiedProgress) {
         computedProgress = unifiedProgress.overall.composite_percent;
       } else if (isEnrolled && lecturesCount > 0) {
-        const completed = cohortLessons.filter((l) => completedLessonIdSet.has(l.id)).length;
+        const completed = cohortLessons.filter((l) => {
+          const p = combinedProgressMap.get(l.id);
+          return p && (p.completed || (p.watch_percentage ?? 0) >= 80);
+        }).length;
         computedProgress = Math.round((completed / lecturesCount) * 100);
       } else if (isCurrentActive && progressPercent > 0) {
         computedProgress = progressPercent;
@@ -352,7 +385,7 @@ export function useStudentDashboard(
       );
       const totalVideosCount = videoLessons.length;
       const unviewedVideoLessons = videoLessons.filter((l) => {
-        const p = progressMap.get(l.id);
+        const p = combinedProgressMap.get(l.id);
         if (!p) return true;
         const isViewed = Boolean(p.completed || (p.watch_percentage ?? 0) > 0 || (p.last_position_seconds ?? 0) > 0);
         return !isViewed;
@@ -399,12 +432,25 @@ export function useStudentDashboard(
     course.enrolledCohorts,
     course.cohort,
     course.modules,
-    course.progress,
     allModules,
     allLessons,
     progressPercent,
     unifiedProgress,
+    combinedProgressMap,
   ]);
+
+  const enrolledCoursesProgress = useMemo<EnrolledCourseProgressSummary[]>(() => {
+    return catalogCourses
+      .filter((c) => !c.isLocked)
+      .map((c) => ({
+        cohortId: c.id,
+        cohortName: c.title,
+        progress: c.progress,
+        completedLessons: c.lectures > 0 ? Math.round((c.progress / 100) * c.lectures) : 0,
+        totalLessons: c.lectures,
+        isActive: course.cohort?.id === c.id,
+      }));
+  }, [catalogCourses, course.cohort?.id]);
 
   const streak = useMemo(() => {
     const activityTimestamps = [
@@ -488,18 +534,23 @@ export function useStudentDashboard(
 
     // Optimistic UI: Apply completion state locally immediately
     const rollbackCourse = course;
+    const newProgressItem = {
+      lesson_id: selectedLesson.id,
+      completed,
+      completed_at: completed ? new Date().toISOString() : undefined,
+      watch_percentage: completed && hasVideo ? Math.max(currentWatchPct, 80) : currentWatchPct,
+    };
     setCourse((current) => ({
       ...current,
       progress: [
         ...current.progress.filter((item) => item.lesson_id !== selectedLesson.id),
-        {
-          lesson_id: selectedLesson.id,
-          completed,
-          completed_at: completed ? new Date().toISOString() : undefined,
-          watch_percentage: completed && hasVideo ? Math.max(currentWatchPct, 80) : currentWatchPct,
-        },
+        newProgressItem,
       ],
     }));
+    setAllLessonProgress((prev) => [
+      ...prev.filter((p) => p.lesson_id !== selectedLesson.id),
+      newProgressItem,
+    ]);
 
     try {
       await markLessonComplete(userId, selectedLesson.id, completed, {
@@ -513,10 +564,10 @@ export function useStudentDashboard(
   };
 
   const handleWatchProgress = (lessonId: string, watchPct: number, autoCompleted: boolean) => {
+    const effectivePct = Math.min(100, Math.max(0, Math.round(watchPct)));
     setCourse((current) => {
       const existing = current.progress.find((p) => p.lesson_id === lessonId);
       const isAlreadyCompleted = existing?.completed || false;
-      const effectivePct = Math.min(100, Math.max(0, Math.round(watchPct)));
       const completed = isAlreadyCompleted || autoCompleted || effectivePct >= 80;
 
       return {
@@ -531,6 +582,20 @@ export function useStudentDashboard(
           },
         ],
       };
+    });
+    setAllLessonProgress((prev) => {
+      const existing = prev.find((p) => p.lesson_id === lessonId);
+      const isAlreadyCompleted = existing?.completed || false;
+      const completed = isAlreadyCompleted || autoCompleted || effectivePct >= 80;
+      return [
+        ...prev.filter((p) => p.lesson_id !== lessonId),
+        {
+          lesson_id: lessonId,
+          completed,
+          completed_at: completed ? (existing?.completed_at || new Date().toISOString()) : undefined,
+          watch_percentage: Math.max(existing?.watch_percentage ?? 0, effectivePct),
+        },
+      ];
     });
   };
 
@@ -554,6 +619,7 @@ export function useStudentDashboard(
     announcements,
     allCohorts,
     allModules,
+    enrolledCoursesProgress,
     sprintDays,
     sprintCompletedCount,
     totalSprintDays,

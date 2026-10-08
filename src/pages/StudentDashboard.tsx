@@ -307,6 +307,7 @@ export function StudentDashboard() {
           catalogFilter={catalogFilter}
           setCatalogFilter={setCatalogFilter}
           filteredCatalogCourses={filteredCatalogCourses}
+          enrolledCoursesProgress={dashboard.enrolledCoursesProgress}
           onRefresh={() => dashboard.setRefreshKey((k) => k + 1)}
           onContinueCourse={handleContinueCourse}
           onUnlockCourse={handleUnlockCourse}
@@ -325,6 +326,7 @@ export function StudentDashboard() {
           completedCount={dashboard.completedCount}
           progressPercent={dashboard.progressPercent}
           unifiedProgress={dashboard.unifiedProgress}
+          enrolledCoursesProgress={dashboard.enrolledCoursesProgress}
           sprintDays={dashboard.sprintDays}
           sprintCompletedCount={dashboard.sprintCompletedCount}
           sprintStreak={dashboard.sprintStreak}

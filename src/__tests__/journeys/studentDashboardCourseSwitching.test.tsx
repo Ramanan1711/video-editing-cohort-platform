@@ -37,6 +37,7 @@ vi.mock('../../lib/courseService', () => ({
   calculateStreak: vi.fn().mockReturnValue(3),
   formatFileSize: vi.fn().mockReturnValue('15 MB'),
   getStudentUnifiedProgress: vi.fn().mockResolvedValue(null),
+  getAllUserLessonProgress: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../lib/internshipService', () => ({

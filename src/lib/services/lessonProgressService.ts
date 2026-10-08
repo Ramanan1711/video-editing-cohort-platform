@@ -141,6 +141,25 @@ export async function getStudentCourseData(userId: string, cohortId?: string): P
   };
 }
 
+export async function getAllUserLessonProgress(userId: string): Promise<LessonProgress[]> {
+  if (!userId) return [];
+  try {
+    const { data, error } = await supabase
+      .from('lesson_progress')
+      .select('lesson_id, completed, completed_at, watch_percentage, last_position_seconds')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.warn('Failed to load all student lesson progress:', error);
+      return [];
+    }
+    return (data ?? []) as LessonProgress[];
+  } catch (err) {
+    console.warn('getAllUserLessonProgress error:', err);
+    return [];
+  }
+}
+
 export async function markLessonComplete(
   userId: string,
   lessonId: string,

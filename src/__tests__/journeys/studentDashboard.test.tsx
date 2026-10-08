@@ -120,6 +120,7 @@ vi.mock('../../lib/courseService', () => ({
   calculateStreak: vi.fn().mockReturnValue(1),
   formatFileSize: vi.fn().mockReturnValue('10 MB'),
   getStudentUnifiedProgress: vi.fn().mockResolvedValue(null),
+  getAllUserLessonProgress: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../lib/gamificationService', () => ({
