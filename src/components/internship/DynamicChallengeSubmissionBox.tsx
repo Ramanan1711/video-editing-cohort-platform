@@ -21,6 +21,8 @@ import {
   Loader2,
   MessageSquare,
   Lock,
+  WifiOff,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import {
@@ -34,6 +36,7 @@ import {
   detectCloudPlatform,
   validateDeliverableFile,
   isDirectFileUrl,
+  getTrackFilterConfig,
   MAX_CHALLENGE_FILE_SIZE_BYTES,
 } from '../../lib/services/challengeUploadService';
 
@@ -45,6 +48,7 @@ export interface DynamicChallengeSubmissionBoxProps {
   isExistingSubmission?: boolean;
   submitting?: boolean;
   maxFileSizeBytes?: number;
+  trackType?: 'coding' | 'non_coding' | 'general' | 'video' | string | null;
   onSubmit: (data: {
     submissionUrl: string;
     notes: string;
@@ -61,11 +65,13 @@ export interface DynamicChallengeSubmissionBoxProps {
 
 export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionBoxProps> = ({
   userId,
+  challengeId,
   initialUrl = '',
   initialNotes = '',
   isExistingSubmission = false,
   submitting = false,
-  maxFileSizeBytes = MAX_CHALLENGE_FILE_SIZE_BYTES,
+  maxFileSizeBytes,
+  trackType,
   onSubmit,
   onCancel,
   mentorPhone = '919876543210',
@@ -76,6 +82,22 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
 }) => {
   const safeInitialUrl = initialUrl || '';
   const safeInitialNotes = initialNotes || '';
+
+  // Determine course-aware track filters and size limits
+  const trackFilterConfig = useMemo(() => {
+    return getTrackFilterConfig(trackType, cohortName);
+  }, [trackType, cohortName]);
+
+  const effectiveMaxFileSizeBytes = useMemo(() => {
+    if (typeof maxFileSizeBytes === 'number' && maxFileSizeBytes > 0) {
+      return maxFileSizeBytes;
+    }
+    // If trackType was explicitly provided, use course-specific limit
+    if (trackType) {
+      return trackFilterConfig.maxSizeBytes;
+    }
+    return MAX_CHALLENGE_FILE_SIZE_BYTES;
+  }, [maxFileSizeBytes, trackType, trackFilterConfig.maxSizeBytes]);
 
   // Determine smart initial mode
   const initialMode: SubmissionMode = useMemo(() => {
@@ -89,7 +111,99 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
   const [cloudUrl, setCloudUrl] = useState(safeInitialUrl && !isDirectFileUrl(safeInitialUrl) ? safeInitialUrl : '');
   const [notes, setNotes] = useState(safeInitialNotes);
 
-  // File upload state
+  // Draft auto-save state
+  const draftStorageKey = useMemo(() => {
+    return userId && challengeId ? `procuthub_draft_notes_${userId}_${challengeId}` : null;
+  }, [userId, challengeId]);
+  const [draftSaved, setDraftSaved] = useState(false);
+
+  // Restore draft notes on mount if no initial notes exist
+  useEffect(() => {
+    if (!draftStorageKey || safeInitialNotes) return;
+    try {
+      const saved = localStorage.getItem(draftStorageKey);
+      if (saved && saved.trim()) {
+        setNotes(saved);
+        setDraftSaved(true);
+      }
+    } catch {
+      // LocalStorage access may fail in private mode
+    }
+  }, [draftStorageKey, safeInitialNotes]);
+
+  // Auto-save draft notes debounced
+  useEffect(() => {
+    if (!draftStorageKey) return;
+    if (!notes.trim() || notes.trim() === safeInitialNotes.trim()) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(draftStorageKey, notes.trim());
+        setDraftSaved(true);
+      } catch {
+        // Ignore localStorage quota or restriction errors
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [notes, draftStorageKey, safeInitialNotes]);
+
+  // Network offline and slow connection awareness
+  const [isOffline, setIsOffline] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
+  const [isSlowConnection, setIsSlowConnection] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    interface NetworkInformationLike {
+      effectiveType?: string;
+      saveData?: boolean;
+      addEventListener?: (event: string, fn: () => void) => void;
+      removeEventListener?: (event: string, fn: () => void) => void;
+    }
+
+    const nav = navigator as unknown as {
+      connection?: NetworkInformationLike;
+      mozConnection?: NetworkInformationLike;
+      webkitConnection?: NetworkInformationLike;
+    };
+
+    const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
+
+    const checkSpeed = () => {
+      if (conn?.effectiveType) {
+        const slow =
+          conn.effectiveType === 'slow-2g' ||
+          conn.effectiveType === '2g' ||
+          conn.effectiveType === '3g' ||
+          Boolean(conn.saveData);
+        setIsSlowConnection(slow);
+      }
+    };
+
+    checkSpeed();
+    if (conn?.addEventListener) {
+      conn.addEventListener('change', checkSpeed);
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      if (conn?.removeEventListener) {
+        conn.removeEventListener('change', checkSpeed);
+      }
+    };
+  }, []);
+
+  // File upload state & abort controller
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [existingFileUrl, setExistingFileUrl] = useState<string | null>(
     safeInitialUrl && isDirectFileUrl(safeInitialUrl) ? safeInitialUrl : null
@@ -103,6 +217,7 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadAbortControllerRef = useRef<AbortController | null>(null);
 
   // Automatically generate a secure expiring signed URL for existing private deliverables
   useEffect(() => {
@@ -140,8 +255,13 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
   // File validation memo
   const fileValidation = useMemo(() => {
     if (!selectedFile) return null;
-    return validateDeliverableFile(selectedFile, maxFileSizeBytes);
-  }, [selectedFile, maxFileSizeBytes]);
+    return validateDeliverableFile(
+      selectedFile,
+      trackFilterConfig.track,
+      effectiveMaxFileSizeBytes,
+      cohortName
+    );
+  }, [selectedFile, trackFilterConfig.track, effectiveMaxFileSizeBytes, cohortName]);
 
   // Generate thumbnail preview for images
   useEffect(() => {
@@ -159,7 +279,12 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
   // Handle file selection
   const handleSelectFile = (file: File) => {
     setFileError(null);
-    const validation = validateDeliverableFile(file, maxFileSizeBytes);
+    const validation = validateDeliverableFile(
+      file,
+      trackFilterConfig.track,
+      effectiveMaxFileSizeBytes,
+      cohortName
+    );
     if (!validation.valid) {
       setFileError(validation.error || 'Invalid file.');
       setSelectedFile(null);
@@ -202,9 +327,20 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
     setExistingFileUrl(null);
     setResolvedExistingUrl(null);
     setFileError(null);
+    setUploadProgress(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleCancelUpload = () => {
+    if (uploadAbortControllerRef.current) {
+      uploadAbortControllerRef.current.abort();
+      uploadAbortControllerRef.current = null;
+    }
+    setIsUploading(false);
+    setUploadProgress(0);
+    setFileError('Upload was cancelled. You can select another file or submit via Cloud Link.');
   };
 
   const handleInspectExistingDeliverable = async (e: React.MouseEvent) => {
@@ -231,25 +367,35 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
       if (selectedFile) {
         try {
           setIsUploading(true);
-          setUploadProgress(15);
+          setUploadProgress(0);
 
-          // Simulated smooth progress while uploading
-          const progressInterval = setInterval(() => {
-            setUploadProgress((prev) => (prev < 85 ? prev + 15 : prev));
-          }, 250);
+          const controller = new AbortController();
+          uploadAbortControllerRef.current = controller;
 
-          const uploaded = await uploadSubmissionFile(userId, selectedFile);
-          clearInterval(progressInterval);
+          const uploaded = await uploadSubmissionFile(userId, selectedFile, {
+            onProgress: (percent) => setUploadProgress(percent),
+            signal: controller.signal,
+          });
+
           setUploadProgress(100);
           finalSubmissionUrl = uploaded;
         } catch (err: unknown) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            setIsUploading(false);
+            setUploadProgress(0);
+            setFileError('Upload was cancelled.');
+            return;
+          }
           setIsUploading(false);
           setUploadProgress(0);
           const errorMsg =
-            err instanceof Error ? err.message : 'Upload failed. Please try again or use the Cloud Link tab.';
+            err instanceof Error
+              ? err.message
+              : 'Upload failed. Please try again or use the Cloud Link tab.';
           setFileError(errorMsg);
           return;
         } finally {
+          uploadAbortControllerRef.current = null;
           setIsUploading(false);
         }
       }
@@ -265,6 +411,16 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
         fileType: fileValidation?.label,
         fileName: selectedFile?.name,
       });
+
+      // Clear draft notes upon successful submission
+      if (draftStorageKey) {
+        try {
+          localStorage.removeItem(draftStorageKey);
+          setDraftSaved(false);
+        } catch {
+          // Ignore localStorage removal errors in sandboxed environments
+        }
+      }
     } else {
       // Cloud Link Mode
       const trimmedUrl = cloudUrl.trim();
@@ -284,6 +440,16 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
         notes: notes.trim(),
         fileType: detectedPlatform.badgeText,
       });
+
+      // Clear draft notes upon successful submission
+      if (draftStorageKey) {
+        try {
+          localStorage.removeItem(draftStorageKey);
+          setDraftSaved(false);
+        } catch {
+          // Ignore localStorage removal errors in sandboxed environments
+        }
+      }
     }
   };
 
@@ -295,6 +461,8 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
         return <ImageIcon size={22} className="text-blue-500" />;
       case 'archive':
         return <Archive size={22} className="text-amber-500" />;
+      case 'code':
+        return <Code2 size={22} className="text-emerald-500" />;
       case 'document':
         return <FileText size={22} className="text-emerald-500" />;
       default:
@@ -323,6 +491,42 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
 
   return (
     <form onSubmit={handleFormSubmit} noValidate className="space-y-5">
+      {/* Offline Alert Banner */}
+      {isOffline && (
+        <div className="rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200 animate-in fade-in">
+          <WifiOff size={16} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <p className="font-bold">You are currently offline</p>
+            <p className="text-[11px] text-amber-700 dark:text-amber-300">
+              File uploads and submissions require an active network connection. Submissions will be re-enabled once reconnected.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Slow Mobile Connection Advisory */}
+      {isSlowConnection && mode === 'file' && !isOffline && (
+        <div className="rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50 dark:bg-sky-950/40 p-3 flex items-start justify-between gap-3 text-xs text-sky-800 dark:text-sky-300 animate-in fade-in">
+          <div className="flex items-start gap-2">
+            <Info size={15} className="text-sky-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Slow mobile connection detected (2G/3G)</p>
+              <p className="text-[11px] text-sky-700 dark:text-sky-300 mt-0.5 leading-relaxed">
+                Direct uploads over mobile data may be slower. For faster submission, you can share via{' '}
+                <strong>Frame.io, Loom, YouTube</strong>, or <strong>Google Drive</strong>.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMode('link')}
+            className="shrink-0 rounded-lg bg-sky-100 dark:bg-sky-900/60 px-2.5 py-1 text-[11px] font-black text-sky-700 dark:text-sky-200 hover:bg-sky-200 dark:hover:bg-sky-800 transition"
+          >
+            Switch to Link
+          </button>
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* TABBED MODE SELECTOR */}
       {/* ========================================================================= */}
@@ -332,7 +536,9 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
             Submission Method
           </label>
           <span className="text-[11px] font-semibold text-slate-500">
-            {mode === 'file' ? 'Direct render export (Max 100MB)' : 'Cloud link with auto-detect'}
+            {mode === 'file'
+              ? `${trackFilterConfig.label} (Max ${formatFileSize(effectiveMaxFileSizeBytes)})`
+              : 'Cloud link with auto-detect'}
           </span>
         </div>
 
@@ -380,7 +586,7 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
             ref={fileInputRef}
             type="file"
             className="hidden"
-            accept=".mp4,.mov,.webm,.m4v,.mkv,.png,.jpg,.jpeg,.webp,.svg,.gif,.zip,.rar,.7z,.prproj,.drp,.fcpxml,.aep,.psd,.pdf"
+            accept={trackFilterConfig.acceptAttribute}
             onChange={handleFileInputChange}
           />
 
@@ -405,7 +611,7 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
                     <p className="text-xs font-black text-slate-900 dark:text-white truncate max-w-xs sm:max-w-md">
                       {selectedFile.name}
                     </p>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="text-[11px] font-bold text-slate-500">
                         {formatFileSize(selectedFile.size)}
                       </span>
@@ -425,28 +631,76 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
                   type="button"
                   onClick={handleRemoveFile}
                   disabled={isUploading}
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-red-500 transition"
+                  aria-label="Remove attached file"
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-red-500 transition disabled:opacity-50"
                   title="Remove file"
                 >
                   <X size={16} />
                 </button>
               </div>
 
-              {/* Progress bar during upload */}
-              {isUploading && (
-                <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-900/50 space-y-1.5">
+              {/* Live progress bar during upload with Cancel button */}
+              {isUploading ? (
+                <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-900/50 space-y-2">
                   <div className="flex items-center justify-between text-[11px] font-bold text-orange-600 dark:text-orange-400">
                     <span className="flex items-center gap-1.5">
-                      <Loader2 size={12} className="animate-spin" />
+                      <Loader2 size={12} className="animate-spin text-orange-500" />
                       Uploading deliverable to secure student storage...
                     </span>
-                    <span>{uploadProgress}%</span>
+                    <span className="font-mono text-xs font-black">{uploadProgress}%</span>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-orange-200 dark:bg-orange-950">
+
+                  {/* Animated gradient progress bar */}
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-orange-200 dark:bg-orange-950">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
+                      role="progressbar"
+                      aria-valuenow={uploadProgress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      className="h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-400 transition-all duration-200"
+                      style={{ width: `${Math.max(uploadProgress, 4)}%` }}
                     />
+                  </div>
+
+                  {/* Live upload cancellation button */}
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Private encrypted bucket transfer
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCancelUpload}
+                      className="inline-flex items-center gap-1 rounded-md bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 px-2 py-0.5 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-100 transition"
+                    >
+                      <X size={11} />
+                      <span>Cancel Upload</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Pre-submission File Actions: Replace & Remove buttons */
+                <div className="mt-3 pt-2.5 border-t border-orange-200/60 dark:border-orange-900/40 flex items-center justify-between text-xs">
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Ready for submission
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Replace File
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveFile}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40"
+                    >
+                      Remove File
+                    </Button>
                   </div>
                 </div>
               )}
@@ -502,7 +756,7 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
               </div>
             </div>
           ) : (
-            /* Drag & Drop Upload Zone */
+            /* Drag & Drop Upload Zone with Course-Aware Hints */
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -525,18 +779,39 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
                 or <span className="font-extrabold text-orange-600 dark:text-orange-400 underline underline-offset-2">browse files</span> from your computer
               </p>
 
-              {/* Formats Chip */}
+              {/* Course-Aware Formats & Size Guidance Chip */}
               <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-slate-500">
-                <span className="rounded-md bg-white dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 font-mono font-bold">
-                  MP4 · MOV · WEBM
-                </span>
-                <span className="rounded-md bg-white dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 font-mono font-bold">
-                  PNG · JPG · WEBP
-                </span>
-                <span className="rounded-md bg-white dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 font-mono font-bold">
-                  ZIP · PRPROJ · DRP · PDF
-                </span>
-                <span className="text-slate-400">· Max 100MB</span>
+                {trackFilterConfig.track === 'coding' ? (
+                  <>
+                    <span className="rounded-md bg-white dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 font-mono font-bold">
+                      ZIP · TAR.GZ · PY
+                    </span>
+                    <span className="rounded-md bg-white dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 font-mono font-bold">
+                      JAVA · TS · JSON
+                    </span>
+                    <span className="text-slate-400">· Max 50MB</span>
+                  </>
+                ) : trackFilterConfig.track === 'video' ? (
+                  <>
+                    <span className="rounded-md bg-white dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 font-mono font-bold">
+                      MP4 · MOV · WAV
+                    </span>
+                    <span className="rounded-md bg-white dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 font-mono font-bold">
+                      ZIP · PRPROJ · DRP
+                    </span>
+                    <span className="text-slate-400">· Max 500MB</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="rounded-md bg-white dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 font-mono font-bold">
+                      MP4 · MOV · WEBM
+                    </span>
+                    <span className="rounded-md bg-white dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 font-mono font-bold">
+                      ZIP · PRPROJ · DRP · PDF
+                    </span>
+                    <span className="text-slate-400">· Max 100MB</span>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -547,7 +822,7 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
               <AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <p className="font-bold">{fileError}</p>
-                {fileError.includes('exceeds') && (
+                {(fileError.includes('exceeds') || fileError.includes('Cloud Link')) && (
                   <button
                     type="button"
                     onClick={() => {
@@ -591,7 +866,11 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
                 type="text"
                 inputMode="url"
                 required={mode === 'link'}
-                placeholder="https://loom.com/... or https://drive.google.com/... or https://frame.io/..."
+                placeholder={
+                  trackFilterConfig.track === 'coding'
+                    ? 'https://github.com/... or https://drive.google.com/...'
+                    : 'https://loom.com/... or https://drive.google.com/... or https://frame.io/...'
+                }
                 value={cloudUrl}
                 onChange={(e) => {
                   setCloudUrl(e.target.value);
@@ -621,28 +900,49 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
           {/* Quick Supported Platform Chips */}
           <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[10px] text-slate-500">
             <span className="font-bold text-slate-400">Supported:</span>
-            {['Loom', 'Google Drive', 'Frame.io', 'YouTube', 'GitHub', 'Figma', 'Vimeo'].map((p) => (
-              <span
-                key={p}
-                className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-semibold"
-              >
-                {p}
-              </span>
-            ))}
+            {trackFilterConfig.track === 'coding'
+              ? ['GitHub PR', 'GitHub Repo', 'Google Drive', 'Loom Walkthrough'].map((p) => (
+                  <span
+                    key={p}
+                    className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-semibold"
+                  >
+                    {p}
+                  </span>
+                ))
+              : ['Loom', 'Google Drive', 'Frame.io', 'YouTube', 'GitHub', 'Figma', 'Vimeo'].map((p) => (
+                  <span
+                    key={p}
+                    className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-semibold"
+                  >
+                    {p}
+                  </span>
+                ))}
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* SUBMISSION NOTES & REFLECTION */}
+      {/* SUBMISSION NOTES & REFLECTION WITH AUTO-SAVE FEEDBACK */}
       {/* ========================================================================= */}
       <div>
-        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          Submission Notes &amp; Implementation Reflection (Optional)
-        </label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+            Submission Notes &amp; Implementation Reflection (Optional)
+          </label>
+          {draftSaved && notes.trim().length > 0 && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 animate-in fade-in">
+              <Sparkles size={11} className="text-emerald-500" />
+              <span>Draft auto-saved</span>
+            </span>
+          )}
+        </div>
         <textarea
           rows={3}
-          placeholder="Describe how you approached the challenge, key techniques applied, color grade choices, or any roadblocks encountered..."
+          placeholder={
+            trackFilterConfig.track === 'coding'
+              ? 'Describe your architecture decisions, edge cases handled, data structures used, or test coverage...'
+              : 'Describe how you approached the challenge, key techniques applied, color grade choices, or any roadblocks encountered...'
+          }
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs text-slate-900 dark:text-white shadow-2xs outline-none focus:border-orange-500"
@@ -689,12 +989,17 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
         )}
         <Button
           type="submit"
-          disabled={submitting || isUploading || (mode === 'file' && !selectedFile && !existingFileUrl)}
+          disabled={
+            submitting ||
+            isUploading ||
+            isOffline ||
+            (mode === 'file' && !selectedFile && !existingFileUrl)
+          }
         >
           {submitting || isUploading ? (
             <span className="flex items-center gap-2">
               <Loader2 size={14} className="animate-spin" />
-              <span>{isUploading ? 'Uploading Export...' : 'Submitting...'}</span>
+              <span>{isUploading ? `Uploading (${uploadProgress}%)...` : 'Submitting...'}</span>
             </span>
           ) : (
             <>

@@ -631,11 +631,12 @@ export function SprintChallengeTracker({
                 initialNotes={selectedDay.submission?.notes}
                 isExistingSubmission={!!selectedDay.submission}
                 submitting={submitting}
+                trackType={selectedDay.challenge.track_type}
+                cohortName={cohortName}
                 onSubmit={handleSubmitTask}
                 onCancel={() => setSelectedDay(null)}
                 mentorPhone={mentorPhone}
                 studentName={studentName}
-                cohortName={cohortName}
                 dayTitle={selectedDay.title}
                 dayNumber={selectedDay.dayNumber}
               />

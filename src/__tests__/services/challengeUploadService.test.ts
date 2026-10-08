@@ -5,6 +5,8 @@ import {
   isDirectFileUrl,
   getExpiringMentorGradingUrl,
   MAX_CHALLENGE_FILE_SIZE_BYTES,
+  resolveCohortTrack,
+  getTrackFilterConfig,
 } from '../../lib/services/challengeUploadService';
 import * as assetStorageService from '../../lib/services/assetStorageService';
 
@@ -179,5 +181,119 @@ describe('challengeUploadService - getExpiringMentorGradingUrl', () => {
     const result = await getExpiringMentorGradingUrl('submissions/u1/file.mp4', 1800);
     expect(spy).toHaveBeenCalledWith('submissions/u1/file.mp4', 1800);
     expect(result).toContain('token=signed123');
+  });
+});
+
+describe('challengeUploadService - Course-Aware File Type Filters and Track Resolution', () => {
+  it('accurately resolves cohort track type from explicit type or name heuristics', () => {
+    expect(resolveCohortTrack('coding')).toBe('coding');
+    expect(resolveCohortTrack('non_coding')).toBe('video');
+    expect(resolveCohortTrack('video')).toBe('video');
+    expect(resolveCohortTrack('general')).toBe('general');
+
+    // Heuristics based on cohort name
+    expect(resolveCohortTrack(null, 'Fullstack Python Internship')).toBe('coding');
+    expect(resolveCohortTrack(null, 'CineSprint Premiere Pro Cohort')).toBe('video');
+    expect(resolveCohortTrack(null, 'Orientation Bootcamp')).toBe('general');
+  });
+
+  it('provides track filter configs with course-appropriate extensions and size limits', () => {
+    const videoConfig = getTrackFilterConfig('video');
+    expect(videoConfig.track).toBe('video');
+    expect(videoConfig.maxSizeBytes).toBe(500 * 1024 * 1024);
+    expect(videoConfig.allowedExtensions).toContain('mp4');
+    expect(videoConfig.allowedExtensions).toContain('mov');
+    expect(videoConfig.allowedExtensions).toContain('zip');
+    expect(videoConfig.allowedExtensions).toContain('prproj');
+    expect(videoConfig.allowedExtensions).toContain('drp');
+    expect(videoConfig.allowedExtensions).toContain('wav');
+    expect(videoConfig.guidanceTip).toContain('500 MB');
+
+    const codingConfig = getTrackFilterConfig('coding');
+    expect(codingConfig.track).toBe('coding');
+    expect(codingConfig.maxSizeBytes).toBe(50 * 1024 * 1024);
+    expect(codingConfig.allowedExtensions).toContain('zip');
+    expect(codingConfig.allowedExtensions).toContain('tar.gz');
+    expect(codingConfig.allowedExtensions).toContain('py');
+    expect(codingConfig.allowedExtensions).toContain('java');
+    expect(codingConfig.allowedExtensions).toContain('ts');
+    expect(codingConfig.allowedExtensions).toContain('json');
+    expect(codingConfig.guidanceTip).toContain('GitHub repository');
+  });
+
+  it('validates Video Editing Cohort deliverables (.mp4, .mov, .zip, .prproj, .drp, .wav up to 500MB)', () => {
+    // Accepted video formats
+    const mp4 = new File(['mock content'], 'final_reel.mp4', { type: 'video/mp4' });
+    expect(validateDeliverableFile(mp4, 'video').valid).toBe(true);
+
+    const mov = new File(['mock content'], 'cinema_cut.mov', { type: 'video/quicktime' });
+    expect(validateDeliverableFile(mov, 'video').valid).toBe(true);
+
+    const prproj = new File(['mock content'], 'timeline.prproj', { type: 'application/octet-stream' });
+    expect(validateDeliverableFile(prproj, 'video').valid).toBe(true);
+
+    const drp = new File(['mock content'], 'color_grade.drp', { type: 'application/octet-stream' });
+    expect(validateDeliverableFile(drp, 'video').valid).toBe(true);
+
+    const wav = new File(['mock content'], 'master_stem.wav', { type: 'audio/wav' });
+    expect(validateDeliverableFile(wav, 'video').valid).toBe(true);
+
+    const zip = new File(['mock content'], 'assets.zip', { type: 'application/zip' });
+    expect(validateDeliverableFile(zip, 'video').valid).toBe(true);
+
+    // Reject unallowed formats with course-specific advice
+    const pythonScript = new File(['print(1)'], 'script.py', { type: 'text/x-python' });
+    const pyRes = validateDeliverableFile(pythonScript, 'video');
+    expect(pyRes.valid).toBe(false);
+    expect(pyRes.error).toContain('Video Editing cohorts only accept');
+
+    // Reject > 500MB with streaming link recommendation
+    const hugeVideo = {
+      name: 'huge_prores_raw.mov',
+      size: 550 * 1024 * 1024,
+      type: 'video/quicktime',
+    } as unknown as File;
+    const hugeRes = validateDeliverableFile(hugeVideo, 'video');
+    expect(hugeRes.valid).toBe(false);
+    expect(hugeRes.error).toContain('500.0 MB');
+    expect(hugeRes.error).toContain('Frame.io, Loom, Drive, YouTube');
+  });
+
+  it('validates Coding Cohort deliverables (.zip, .tar.gz, .py, .java, .ts, .json up to 50MB)', () => {
+    // Accepted code formats
+    const py = new File(['print("hello")'], 'main.py', { type: 'text/x-python' });
+    expect(validateDeliverableFile(py, 'coding').valid).toBe(true);
+
+    const ts = new File(['const x: number = 1;'], 'handler.ts', { type: 'text/typescript' });
+    expect(validateDeliverableFile(ts, 'coding').valid).toBe(true);
+
+    const java = new File(['class App {}'], 'App.java', { type: 'text/x-java' });
+    expect(validateDeliverableFile(java, 'coding').valid).toBe(true);
+
+    const json = new File(['{"status": "ok"}'], 'config.json', { type: 'application/json' });
+    expect(validateDeliverableFile(json, 'coding').valid).toBe(true);
+
+    const tarGz = new File(['mock archive'], 'repo.tar.gz', { type: 'application/gzip' });
+    expect(validateDeliverableFile(tarGz, 'coding').valid).toBe(true);
+
+    const zip = new File(['mock zip'], 'source_code.zip', { type: 'application/zip' });
+    expect(validateDeliverableFile(zip, 'coding').valid).toBe(true);
+
+    // Reject video in coding track
+    const mov = new File(['video'], 'output.mov', { type: 'video/quicktime' });
+    const movRes = validateDeliverableFile(mov, 'coding');
+    expect(movRes.valid).toBe(false);
+    expect(movRes.error).toContain('Coding cohorts only accept');
+
+    // Reject > 50MB with GitHub PR / repository URL recommendation
+    const hugeZip = {
+      name: 'giant_dataset_repo.zip',
+      size: 60 * 1024 * 1024,
+      type: 'application/zip',
+    } as unknown as File;
+    const hugeRes = validateDeliverableFile(hugeZip, 'coding');
+    expect(hugeRes.valid).toBe(false);
+    expect(hugeRes.error).toContain('50.0 MB');
+    expect(hugeRes.error).toContain('GitHub repository or Pull Request URL');
   });
 });

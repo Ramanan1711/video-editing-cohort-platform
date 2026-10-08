@@ -146,18 +146,164 @@ export function detectCloudPlatform(rawUrl: string): CloudPlatformMatch {
   };
 }
 
+export type CohortTrackType = 'video' | 'coding' | 'non_coding' | 'general';
+
+export interface TrackFilterConfig {
+  track: 'video' | 'coding' | 'general';
+  label: string;
+  allowedExtensions: string[];
+  acceptAttribute: string;
+  maxSizeBytes: number;
+  recommendedSizeLabel: string;
+  guidanceTip: string;
+  suggestedCloudPlatforms: string[];
+}
+
+export const VIDEO_EDITING_EXTENSIONS = [
+  'mp4',
+  'mov',
+  'zip',
+  'prproj',
+  'drp',
+  'wav',
+  'mkv',
+  'webm',
+  'aep',
+  'png',
+  'jpg',
+  'jpeg',
+  'webp',
+  'pdf',
+];
+export const CODING_EXTENSIONS = [
+  'zip',
+  'tar.gz',
+  'tar',
+  'gz',
+  'py',
+  'java',
+  'ts',
+  'json',
+  'js',
+  'tsx',
+  'jsx',
+  'cpp',
+  'c',
+  'rs',
+  'go',
+];
+export const GENERAL_EXTENSIONS = [
+  ...VIDEO_EDITING_EXTENSIONS,
+  ...CODING_EXTENSIONS,
+  'doc',
+  'docx',
+  'txt',
+];
+
+export const VIDEO_MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB (Recommended max or streaming link)
+export const CODING_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB (Recommended max or GitHub repo/PR)
+export const MAX_CHALLENGE_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB baseline default
+
+export function resolveCohortTrack(
+  trackType?: string | null,
+  cohortName?: string | null
+): 'video' | 'coding' | 'general' {
+  const normTrack = (trackType || '').toLowerCase().trim();
+  const normName = (cohortName || '').toLowerCase().trim();
+
+  if (normTrack === 'coding') return 'coding';
+  if (normTrack === 'video' || normTrack === 'non_coding') return 'video';
+  if (normTrack === 'general') return 'general';
+
+  // If trackType was explicitly given and unrecognized, or not provided, check cohort naming
+  if (
+    normName.includes('python') ||
+    normName.includes('java') ||
+    normName.includes('code') ||
+    normName.includes('react') ||
+    normName.includes('web') ||
+    normName.includes('backend') ||
+    normName.includes('frontend') ||
+    normName.includes('fullstack') ||
+    normName.includes('typescript')
+  ) {
+    return 'coding';
+  }
+
+  if (
+    normName.includes('video') ||
+    normName.includes('edit') ||
+    normName.includes('premiere') ||
+    normName.includes('after effects') ||
+    normName.includes('davinci') ||
+    normName.includes('cinesprint') ||
+    normName.includes('cinematography') ||
+    normName.includes('color grading')
+  ) {
+    return 'video';
+  }
+
+  return 'general';
+}
+
+export function getTrackFilterConfig(
+  trackType?: string | null,
+  cohortName?: string | null
+): TrackFilterConfig {
+  const resolved = resolveCohortTrack(trackType, cohortName);
+
+  if (resolved === 'coding') {
+    return {
+      track: 'coding',
+      label: 'Coding & Architecture Track',
+      allowedExtensions: CODING_EXTENSIONS,
+      acceptAttribute: '.zip,.tar.gz,.tar,.gz,.py,.java,.ts,.json,.js,.tsx,.jsx,.cpp,.c,.rs,.go',
+      maxSizeBytes: CODING_MAX_FILE_SIZE_BYTES,
+      recommendedSizeLabel: '50 MB (or direct GitHub repository / PR URL)',
+      guidanceTip:
+        'Coding cohorts accept .zip, .tar.gz, .py, .java, .ts, or .json source deliverables, or a direct GitHub repository / PR URL for code review.',
+      suggestedCloudPlatforms: ['GitHub', 'Google Drive'],
+    };
+  }
+
+  if (resolved === 'video') {
+    return {
+      track: 'video',
+      label: 'Video Production & Editing Track',
+      allowedExtensions: VIDEO_EDITING_EXTENSIONS,
+      acceptAttribute: '.mp4,.mov,.zip,.prproj,.drp,.wav,.mkv,.webm,.aep,.png,.jpg,.jpeg,.webp,.pdf',
+      maxSizeBytes: VIDEO_MAX_FILE_SIZE_BYTES,
+      recommendedSizeLabel: '500 MB (or Frame.io / Drive / Loom / YouTube streaming link)',
+      guidanceTip:
+        'Video Editing cohorts accept .mp4, .mov, .zip, .prproj, .drp, or .wav exports (recommended up to 500 MB, or streaming link).',
+      suggestedCloudPlatforms: ['Frame.io', 'Loom', 'Google Drive', 'YouTube'],
+    };
+  }
+
+  return {
+    track: 'general',
+    label: 'General Production Track',
+    allowedExtensions: GENERAL_EXTENSIONS,
+    acceptAttribute: '.mp4,.mov,.webm,.zip,.prproj,.drp,.wav,.py,.java,.ts,.json,.png,.jpg,.webp,.pdf',
+    maxSizeBytes: MAX_CHALLENGE_FILE_SIZE_BYTES,
+    recommendedSizeLabel: '100 MB (or cloud link)',
+    guidanceTip: 'Accepts video renders, project timelines, and deliverables up to 100 MB.',
+    suggestedCloudPlatforms: ['Frame.io', 'Google Drive', 'Loom', 'GitHub', 'YouTube'],
+  };
+}
+
 export interface FileValidationResult {
   valid: boolean;
   error?: string;
-  category: 'video' | 'image' | 'archive' | 'document' | 'other';
+  category: 'video' | 'audio' | 'code' | 'archive' | 'document' | 'image' | 'other';
   label: string;
 }
 
-export const MAX_CHALLENGE_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
-
 export function validateDeliverableFile(
   file: File,
-  maxBytes = MAX_CHALLENGE_FILE_SIZE_BYTES
+  trackOrMaxBytes?: string | number,
+  customMaxBytes?: number,
+  cohortName?: string
 ): FileValidationResult {
   if (!file) {
     return { valid: false, error: 'No file selected.', category: 'other', label: 'Unknown' };
@@ -170,29 +316,111 @@ export function validateDeliverableFile(
       label: 'Empty',
     };
   }
+
+  let effectiveTrack: string;
+  let effectiveMaxBytes: number | undefined;
+
+  if (typeof trackOrMaxBytes === 'number') {
+    effectiveMaxBytes = trackOrMaxBytes;
+    effectiveTrack = 'general';
+  } else if (typeof trackOrMaxBytes === 'string') {
+    effectiveTrack = trackOrMaxBytes;
+    effectiveMaxBytes = customMaxBytes;
+  } else {
+    // Default when no 2nd argument passed
+    effectiveTrack = 'general';
+    effectiveMaxBytes = customMaxBytes ?? MAX_CHALLENGE_FILE_SIZE_BYTES;
+  }
+
+  const config = getTrackFilterConfig(effectiveTrack, cohortName);
+  const maxBytes = effectiveMaxBytes ?? config.maxSizeBytes;
+
+  const fileNameLower = file.name.toLowerCase();
+  const ext = fileNameLower.endsWith('.tar.gz')
+    ? 'tar.gz'
+    : fileNameLower.split('.').pop() || '';
+
+  // Course-Aware Extension Enforcement
+  if (typeof trackOrMaxBytes === 'string' && trackOrMaxBytes !== 'general') {
+    const isExtensionAllowed = config.allowedExtensions.includes(ext);
+    if (!isExtensionAllowed) {
+      if (config.track === 'video') {
+        return {
+          valid: false,
+          error: `Video Editing cohorts only accept .mp4, .mov, .zip, .prproj, .drp, or .wav exports. For large timelines over 500MB, please share via Frame.io, Loom, or Google Drive on the Cloud Link tab.`,
+          category: 'other',
+          label: 'Unsupported Format',
+        };
+      }
+      if (config.track === 'coding') {
+        return {
+          valid: false,
+          error: `Coding cohorts only accept .zip, .tar.gz, .py, .java, .ts, or .json source deliverables, or a direct GitHub repository / PR URL.`,
+          category: 'other',
+          label: 'Unsupported Format',
+        };
+      }
+    }
+  }
+
+  // Size validation with course-specific guidance
   if (file.size > maxBytes) {
+    if (config.track === 'video') {
+      return {
+        valid: false,
+        error: `File size (${formatFileSize(file.size)}) exceeds the recommended ${formatFileSize(
+          maxBytes
+        )} limit. For large multi-GB raw project timelines or footage cuts, please share a streaming link (Frame.io, Loom, Drive, YouTube) via the Cloud Link tab.`,
+        category: 'other',
+        label: 'Oversized',
+      };
+    }
+    if (config.track === 'coding') {
+      return {
+        valid: false,
+        error: `File size (${formatFileSize(file.size)}) exceeds the ${formatFileSize(
+          maxBytes
+        )} limit for code archives. Please submit your direct GitHub repository or Pull Request URL via the Cloud Link tab.`,
+        category: 'other',
+        label: 'Oversized',
+      };
+    }
     return {
       valid: false,
       error: `File size (${formatFileSize(file.size)}) exceeds the ${formatFileSize(
         maxBytes
-      )} direct upload limit. For large multi-GB raw project timelines or footage cuts, please share via the Cloud Link tab.`,
+      )} direct upload limit. Please share via the Cloud Link tab.`,
       category: 'other',
       label: 'Oversized',
     };
   }
 
-  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  // Categorization
   if (['mp4', 'mov', 'webm', 'm4v', 'mkv'].includes(ext)) {
     return { valid: true, category: 'video', label: `${ext.toUpperCase()} Video Cut` };
   }
-  if (['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'].includes(ext)) {
-    return { valid: true, category: 'image', label: `${ext.toUpperCase()} Image / Thumbnail` };
+  if (['wav', 'mp3', 'aac', 'flac'].includes(ext)) {
+    return { valid: true, category: 'audio', label: `${ext.toUpperCase()} Master Audio Stem` };
   }
-  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
-    return { valid: true, category: 'archive', label: `${ext.toUpperCase()} Project Archive` };
+  if (['py', 'java', 'ts', 'js', 'tsx', 'jsx', 'cpp', 'c', 'rs', 'go'].includes(ext)) {
+    return { valid: true, category: 'code', label: `${ext.toUpperCase()} Source File` };
+  }
+  if (ext === 'json') {
+    return { valid: true, category: 'code', label: 'JSON Config / Payload' };
+  }
+  if (['zip', 'rar', '7z', 'tar', 'gz', 'tar.gz'].includes(ext)) {
+    const isCode = config.track === 'coding';
+    return {
+      valid: true,
+      category: 'archive',
+      label: isCode ? `${ext.toUpperCase()} Code Archive` : `${ext.toUpperCase()} Project Archive`,
+    };
   }
   if (['prproj', 'drp', 'fcpxml', 'aep', 'psd'].includes(ext)) {
-    return { valid: true, category: 'archive', label: `${ext.toUpperCase()} Project File` };
+    return { valid: true, category: 'archive', label: `${ext.toUpperCase()} Timeline Project File` };
+  }
+  if (['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'].includes(ext)) {
+    return { valid: true, category: 'image', label: `${ext.toUpperCase()} Image / Thumbnail` };
   }
   if (ext === 'pdf') {
     return { valid: true, category: 'document', label: 'PDF Storyboard / Document' };
@@ -210,14 +438,24 @@ export function isDirectFileUrl(url: string): boolean {
     clean.endsWith('.mp4') ||
     clean.endsWith('.mov') ||
     clean.endsWith('.webm') ||
+    clean.endsWith('.wav') ||
+    clean.endsWith('.mp3') ||
     clean.endsWith('.png') ||
     clean.endsWith('.jpg') ||
     clean.endsWith('.jpeg') ||
     clean.endsWith('.webp') ||
     clean.endsWith('.zip') ||
+    clean.endsWith('.tar.gz') ||
+    clean.endsWith('.tar') ||
+    clean.endsWith('.gz') ||
+    clean.endsWith('.py') ||
+    clean.endsWith('.java') ||
+    clean.endsWith('.ts') ||
+    clean.endsWith('.json') ||
     clean.endsWith('.pdf') ||
     clean.endsWith('.prproj') ||
-    clean.endsWith('.drp')
+    clean.endsWith('.drp') ||
+    clean.endsWith('.aep')
   );
 }
 

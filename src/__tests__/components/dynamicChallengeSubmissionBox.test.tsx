@@ -160,7 +160,11 @@ describe('DynamicChallengeSubmissionBox Component', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(assetStorageService.uploadSubmissionFile).toHaveBeenCalledWith('user-123', testFile);
+      expect(assetStorageService.uploadSubmissionFile).toHaveBeenCalledWith(
+        'user-123',
+        testFile,
+        expect.anything()
+      );
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
           submissionUrl: 'https://xyz.supabase.co/storage/v1/object/public/submissions/user-123/final_cut.mp4',
@@ -203,6 +207,115 @@ describe('DynamicChallengeSubmissionBox Component', () => {
     expect(screen.getByPlaceholderText(/https:\/\/loom\.com/i)).toBeInTheDocument();
   });
 
+  it('enforces video editing cohort file types (.mp4, .mov, .zip, .prproj, .drp, .wav) and 500MB limit', async () => {
+    render(
+      <DynamicChallengeSubmissionBox
+        userId="user-123"
+        challengeId="ch-video-01"
+        trackType="video"
+        cohortName="CineSprint Video Editing Bootcamp"
+        onSubmit={mockOnSubmit}
+      />
+    );
+
+    expect(screen.getByText(/Video Production & Editing Track/i)).toBeInTheDocument();
+    expect(screen.getByText(/Max 500MB/i)).toBeInTheDocument();
+
+    // Valid 250MB video file accepted
+    const validVideo = {
+      name: 'davinci_resolve_cut.drp',
+      size: 250 * 1024 * 1024,
+      type: 'application/octet-stream',
+    } as unknown as File;
+
+    const dropZone = screen.getByText(/drag & drop your export file here/i).closest('div');
+    fireEvent.drop(dropZone!, {
+      dataTransfer: {
+        files: [validVideo],
+      },
+    });
+
+    expect(await screen.findByText('davinci_resolve_cut.drp')).toBeInTheDocument();
+    expect(screen.getByText(/Timeline Project File/i)).toBeInTheDocument();
+  });
+
+  it('enforces coding cohort file types (.zip, .tar.gz, .py, .java, .ts, .json) and 50MB limit with GitHub guidance', async () => {
+    render(
+      <DynamicChallengeSubmissionBox
+        userId="user-123"
+        challengeId="ch-coding-01"
+        trackType="coding"
+        cohortName="Fullstack Python Backend Cohort"
+        onSubmit={mockOnSubmit}
+      />
+    );
+
+    expect(screen.getByText(/Coding & Architecture Track/i)).toBeInTheDocument();
+    expect(screen.getByText(/Max 50MB/i)).toBeInTheDocument();
+
+    // Oversized 75MB zip in coding track rejected with 50MB guidance
+    const oversizedCodeZip = {
+      name: 'full_repo_archive.zip',
+      size: 75 * 1024 * 1024,
+      type: 'application/zip',
+    } as unknown as File;
+
+    const dropZone = screen.getByText(/drag & drop your export file here/i).closest('div');
+    fireEvent.drop(dropZone!, {
+      dataTransfer: {
+        files: [oversizedCodeZip],
+      },
+    });
+
+    expect(await screen.findByText(/exceeds the 50\.0 MB limit for code archives/i)).toBeInTheDocument();
+  });
+
+  it('allows removing selected file before submitting', async () => {
+    render(
+      <DynamicChallengeSubmissionBox
+        userId="user-123"
+        challengeId="ch-remove-01"
+        onSubmit={mockOnSubmit}
+      />
+    );
+
+    const testFile = new File(['content'], 'sample_render.mp4', { type: 'video/mp4' });
+    const dropZone = screen.getByText(/drag & drop your export file here/i).closest('div');
+    fireEvent.drop(dropZone!, {
+      dataTransfer: {
+        files: [testFile],
+      },
+    });
+
+    expect(await screen.findByText('sample_render.mp4')).toBeInTheDocument();
+
+    const removeBtn = screen.getByRole('button', { name: /remove file/i });
+    fireEvent.click(removeBtn);
+
+    // Should return to dropzone
+    expect(screen.getByText(/drag & drop your export file here/i)).toBeInTheDocument();
+  });
+
+  it('auto-saves draft notes in localStorage and restores on mount', async () => {
+    const draftKey = 'procuthub_draft_notes_user-123_ch-draft-01';
+    localStorage.setItem(draftKey, 'Draft notes saved during editing.');
+
+    render(
+      <DynamicChallengeSubmissionBox
+        userId="user-123"
+        challengeId="ch-draft-01"
+        onSubmit={mockOnSubmit}
+      />
+    );
+
+    // Restores draft notes from localStorage
+    const textarea = screen.getByPlaceholderText(/describe how you approached the challenge/i);
+    expect(textarea).toHaveValue('Draft notes saved during editing.');
+    expect(screen.getByText(/draft auto-saved/i)).toBeInTheDocument();
+
+    localStorage.removeItem(draftKey);
+  });
+
   it('renders existing file attachment with expiring signed URL resolution', async () => {
     const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
@@ -239,6 +352,52 @@ describe('DynamicChallengeSubmissionBox Component', () => {
       );
     });
     windowOpenSpy.mockRestore();
+  });
+
+  it('supports canceling an upload in progress with the Cancel Upload button', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    vi.mocked(assetStorageService.uploadSubmissionFile).mockImplementationOnce(
+      (_userId, _file, options) => {
+        capturedSignal = options?.signal;
+        return new Promise((_resolve, reject) => {
+          if (options?.signal) {
+            options.signal.addEventListener('abort', () => {
+              const abortErr = new Error('Upload aborted by user');
+              abortErr.name = 'AbortError';
+              reject(abortErr);
+            });
+          }
+        });
+      }
+    );
+
+    render(
+      <DynamicChallengeSubmissionBox
+        userId="user-123"
+        challengeId="ch-cancel-01"
+        onSubmit={mockOnSubmit}
+      />
+    );
+
+    const testFile = new File(['mock content'], 'large_video_export.mp4', { type: 'video/mp4' });
+    const dropZone = screen.getByText(/drag & drop your export file here/i).closest('div');
+    fireEvent.drop(dropZone!, {
+      dataTransfer: {
+        files: [testFile],
+      },
+    });
+
+    const submitBtn = screen.getByRole('button', { name: /submit challenge/i });
+    fireEvent.click(submitBtn);
+
+    // Cancel upload button should be displayed
+    const cancelUploadBtn = await screen.findByRole('button', { name: /cancel upload/i });
+    expect(cancelUploadBtn).toBeInTheDocument();
+
+    fireEvent.click(cancelUploadBtn);
+
+    expect(capturedSignal?.aborted).toBe(true);
+    expect(await screen.findByText(/upload was cancelled/i)).toBeInTheDocument();
   });
 });
 

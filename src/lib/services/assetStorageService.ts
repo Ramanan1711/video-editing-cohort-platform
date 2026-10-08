@@ -213,14 +213,35 @@ export async function uploadCourseAsset(file: File, folder = 'lessons'): Promise
   return `course-assets/${path}`;
 }
 
-export async function uploadSubmissionFile(userId: string, file: File): Promise<string> {
+export interface UploadSubmissionOptions {
+  onProgress?: (percent: number) => void;
+  signal?: AbortSignal;
+}
+
+export async function uploadSubmissionFile(
+  userId: string,
+  file: File,
+  options?: UploadSubmissionOptions
+): Promise<string> {
+  if (options?.signal?.aborted) {
+    throw new DOMException('Upload aborted by user', 'AbortError');
+  }
+
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
   const path = `${userId}/${crypto.randomUUID()}-${safeName}`;
   const contentType = file.type || inferMimeType(file.name);
+
+  options?.onProgress?.(10);
+
   const { error: uploadError } = await supabase.storage.from('submissions').upload(path, file, {
     upsert: false,
     contentType,
   });
+
+  if (options?.signal?.aborted) {
+    throw new DOMException('Upload aborted by user', 'AbortError');
+  }
+
   if (uploadError) {
     if (uploadError.message?.includes('Bucket not found') || (uploadError as { statusCode?: string }).statusCode === '404') {
       throw new Error(
@@ -230,11 +251,15 @@ export async function uploadSubmissionFile(userId: string, file: File): Promise<
     throw uploadError;
   }
 
+  options?.onProgress?.(90);
+
   // The 'submissions' bucket is strictly private. Generate a signed expiring URL for immediate access
   // or return the canonical private storage path reference.
   const { data: signedData, error: signedError } = await supabase.storage
     .from('submissions')
     .createSignedUrl(path, 86400); // 24-hour expiration
+
+  options?.onProgress?.(100);
 
   if (!signedError && signedData?.signedUrl) {
     return signedData.signedUrl;
