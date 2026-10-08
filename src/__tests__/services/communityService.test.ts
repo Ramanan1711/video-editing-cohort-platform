@@ -13,6 +13,8 @@ import {
   moderateCommunityPostStatus,
   detectMediaType,
   parsePostMediaEnvelope,
+  resolveCommunityMediaUrl,
+  uploadCommunityMedia,
 } from '../../lib/communityService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -40,8 +42,12 @@ vi.mock('../../lib/supabaseClient', () => {
       removeChannel: removeChannelMock,
       storage: {
         from: vi.fn().mockReturnValue({
-          upload: vi.fn(),
+          upload: vi.fn().mockResolvedValue({ data: { path: 'community/video.mp4' }, error: null }),
           getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: 'https://example.com/asset.mp4' } }),
+          createSignedUrl: vi.fn().mockResolvedValue({
+            data: { signedUrl: 'https://test.supabase.co/storage/v1/object/sign/course-assets/community/video.mp4?token=mock_signed_token' },
+            error: null,
+          }),
         }),
       },
     },
@@ -85,6 +91,49 @@ describe('communityService', () => {
       expect(parsed.body).toBe('Just a quick question about DaVinci Resolve.');
       expect(parsed.mediaUrl).toBeNull();
       expect(parsed.mediaType).toBeNull();
+    });
+  });
+
+  describe('resolveCommunityMediaUrl & uploadCommunityMedia', () => {
+    it('returns empty string for empty inputs', async () => {
+      expect(await resolveCommunityMediaUrl('')).toBe('');
+      expect(await resolveCommunityMediaUrl(null)).toBe('');
+      expect(await resolveCommunityMediaUrl(undefined)).toBe('');
+    });
+
+    it('returns blob and data URLs without modification', async () => {
+      expect(await resolveCommunityMediaUrl('data:image/png;base64,12345')).toBe('data:image/png;base64,12345');
+      expect(await resolveCommunityMediaUrl('blob:http://localhost/test-uuid')).toBe('blob:http://localhost/test-uuid');
+    });
+
+    it('returns external URLs (YouTube, Vimeo, etc.) without modification', async () => {
+      const ytUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+      expect(await resolveCommunityMediaUrl(ytUrl)).toBe(ytUrl);
+      const extUrl = 'https://cdn.pixabay.com/photo/2020/banner.jpg';
+      expect(await resolveCommunityMediaUrl(extUrl)).toBe(extUrl);
+    });
+
+    it('resolves public course-assets URLs to signed URLs', async () => {
+      const rawPublicUrl = 'https://betuukklywzbikcbtdvz.supabase.co/storage/v1/object/public/course-assets/community/1790061719798-video.mp4';
+      const resolved = await resolveCommunityMediaUrl(rawPublicUrl);
+      expect(resolved).toContain('/storage/v1/object/sign/course-assets/community/video.mp4?token=mock_signed_token');
+      expect(supabase.storage.from).toHaveBeenCalledWith('course-assets');
+    });
+
+    it('resolves relative community paths to signed URLs', async () => {
+      const relativePath = 'community/1790061719798-video.mp4';
+      const resolved = await resolveCommunityMediaUrl(relativePath);
+      expect(resolved).toContain('token=mock_signed_token');
+    });
+
+    it('uploads community file and returns signed URL and metadata', async () => {
+      const mockFile = new File(['mock content'], 'test-cut.mp4', { type: 'video/mp4' });
+      const result = await uploadCommunityMedia(mockFile);
+
+      expect(result).not.toBeNull();
+      expect(result?.type).toBe('video');
+      expect(result?.name).toBe('test-cut.mp4');
+      expect(result?.url).toContain('token=mock_signed_token');
     });
   });
 

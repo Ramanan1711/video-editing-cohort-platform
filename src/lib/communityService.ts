@@ -104,6 +104,89 @@ export function parsePostMediaEnvelope(rawBody: string): {
   };
 }
 
+const communityUrlCache = new Map<string, { signedUrl: string; expiresAt: number }>();
+
+/**
+ * Resolves any community post media URL to an accessible, playable URL.
+ * Automatically converts raw private course-assets paths and public storage URLs
+ * (e.g. /storage/v1/object/public/course-assets/community/...) into valid signed URLs
+ * so that videos, images, and attachments never fail with 400 Bad Request.
+ */
+export async function resolveCommunityMediaUrl(
+  fileUrl: string | null | undefined,
+  options?: { expiresIn?: number; forceFresh?: boolean }
+): Promise<string> {
+  if (!fileUrl || !fileUrl.trim()) return '';
+
+  const cleanUrl = fileUrl.trim();
+
+  // 1. Data URLs and object blob previews don't need signing
+  if (cleanUrl.startsWith('data:') || cleanUrl.startsWith('blob:')) {
+    return cleanUrl;
+  }
+
+  // 2. Third-party video/image links (YouTube, Vimeo, Cloudinary, etc.) don't use Supabase storage
+  const isSupabaseAsset =
+    cleanUrl.includes('/course-assets/') ||
+    cleanUrl.startsWith('course-assets/') ||
+    cleanUrl.includes('/storage/v1/object/') ||
+    cleanUrl.startsWith('community/');
+
+  if (!isSupabaseAsset) {
+    return cleanUrl;
+  }
+
+  // 3. Extract the clean object path inside the 'course-assets' bucket
+  let objectPath = cleanUrl;
+  if (cleanUrl.includes('/course-assets/')) {
+    objectPath = cleanUrl.split('/course-assets/')[1];
+  } else if (cleanUrl.startsWith('course-assets/')) {
+    objectPath = cleanUrl.slice('course-assets/'.length);
+  } else if (cleanUrl.includes('/storage/v1/object/')) {
+    const match = cleanUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/[^/]+\/(.+)/);
+    if (match) {
+      objectPath = match[1];
+    }
+  }
+
+  // Strip query parameters (?token=...) and hash fragments
+  objectPath = objectPath.split('?')[0].split('#')[0];
+  objectPath = decodeURIComponent(objectPath).replace(/^\/+/, '');
+
+  if (!objectPath) return cleanUrl;
+
+  // 4. Check cache if not forcing fresh
+  const now = Date.now();
+  const cached = communityUrlCache.get(objectPath);
+  if (!options?.forceFresh && cached && cached.expiresAt > now + 60_000) {
+    return cached.signedUrl;
+  }
+
+  const expiresIn = options?.expiresIn ?? 60 * 60 * 24 * 7; // 7 days
+
+  try {
+    const { data, error } = await supabase.storage
+      .from('course-assets')
+      .createSignedUrl(objectPath, expiresIn);
+
+    if (!error && data?.signedUrl) {
+      communityUrlCache.set(objectPath, {
+        signedUrl: data.signedUrl,
+        expiresAt: now + expiresIn * 1000,
+      });
+      return data.signedUrl;
+    }
+
+    if (error) {
+      console.warn('Failed to create signed URL for community media:', error.message);
+    }
+  } catch (err) {
+    console.warn('resolveCommunityMediaUrl error:', err);
+  }
+
+  return cleanUrl;
+}
+
 export interface CommunityComment {
   id: string;
   post_id: string;
@@ -233,23 +316,27 @@ export async function listCohortPosts(
       userReactionMap = new Map();
     }
 
-    return filtered.map((p) => {
-      const author = profileMap.get(p.author_id);
-      const parsed = parsePostMediaEnvelope(p.body);
+    return Promise.all(
+      filtered.map(async (p) => {
+        const author = profileMap.get(p.author_id);
+        const parsed = parsePostMediaEnvelope(p.body);
+        const rawMediaUrl = p.media_url || parsed.mediaUrl;
+        const mediaUrl = rawMediaUrl ? await resolveCommunityMediaUrl(rawMediaUrl) : null;
 
-      return {
-        ...p,
-        body: parsed.body,
-        media_url: p.media_url || parsed.mediaUrl,
-        media_type: p.media_type || parsed.mediaType,
-        file_name: p.file_name || parsed.fileName,
-        author_name: author?.full_name || 'Community Member',
-        author_role: author?.role || 'student',
-        comment_count: commentCountMap.get(p.id) || 0,
-        reactions: reactionMap.get(p.id) || {},
-        user_reactions: userReactionMap.get(p.id) || [],
-      };
-    });
+        return {
+          ...p,
+          body: parsed.body,
+          media_url: mediaUrl,
+          media_type: p.media_type || parsed.mediaType,
+          file_name: p.file_name || parsed.fileName,
+          author_name: author?.full_name || 'Community Member',
+          author_role: author?.role || 'student',
+          comment_count: commentCountMap.get(p.id) || 0,
+          reactions: reactionMap.get(p.id) || {},
+          user_reactions: userReactionMap.get(p.id) || [],
+        };
+      })
+    );
   } catch (err) {
     console.warn('Failed to load community posts:', err);
     return [];

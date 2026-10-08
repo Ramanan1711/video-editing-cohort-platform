@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Download,
   FileCode,
@@ -6,8 +6,11 @@ import {
   FileText,
   Film,
   Maximize2,
+  RefreshCw,
+  AlertCircle,
   X,
 } from 'lucide-react';
+import { resolveCommunityMediaUrl } from '../../lib/communityService';
 
 interface PostMediaRendererProps {
   mediaUrl?: string | null;
@@ -23,6 +26,82 @@ export const PostMediaRenderer: React.FC<PostMediaRendererProps> = ({
   className = '',
 }) => {
   const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [resolvedUrl, setResolvedUrl] = useState<string>(mediaUrl || '');
+  const [hasPlaybackError, setHasPlaybackError] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (!mediaUrl) {
+      setResolvedUrl('');
+      setHasPlaybackError(false);
+      return;
+    }
+
+    // Check if URL is a protected Supabase course-assets asset (or un-signed / public URL)
+    const isSupabaseAsset =
+      mediaUrl.includes('/course-assets/') ||
+      mediaUrl.startsWith('course-assets/') ||
+      mediaUrl.includes('/storage/v1/object/public/') ||
+      mediaUrl.startsWith('community/');
+
+    if (isSupabaseAsset) {
+      resolveCommunityMediaUrl(mediaUrl)
+        .then((url) => {
+          if (active && url) {
+            setResolvedUrl(url);
+            setHasPlaybackError(false);
+          }
+        })
+        .catch(() => {
+          if (active) setResolvedUrl(mediaUrl);
+        });
+    } else {
+      setResolvedUrl(mediaUrl);
+      setHasPlaybackError(false);
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [mediaUrl]);
+
+  const handleMediaError = async () => {
+    if (!mediaUrl) return;
+    setIsRetrying(true);
+    try {
+      const freshUrl = await resolveCommunityMediaUrl(mediaUrl, { forceFresh: true });
+      if (freshUrl && freshUrl !== resolvedUrl) {
+        setResolvedUrl(freshUrl);
+        setHasPlaybackError(false);
+        setIsRetrying(false);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    setIsRetrying(false);
+    setHasPlaybackError(true);
+  };
+
+  const renderErrorCard = () => (
+    <div className={`rounded-2xl border border-red-200/80 bg-red-50/60 p-4 dark:border-red-950/60 dark:bg-red-950/20 ${className}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs font-bold text-red-700 dark:text-red-400">
+          <AlertCircle size={15} />
+          <span>Attachment preview unavailable (expired or private)</span>
+        </div>
+        <button
+          onClick={handleMediaError}
+          disabled={isRetrying}
+          className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-slate-800 shadow-2xs hover:bg-slate-50 dark:bg-slate-800 dark:text-white"
+        >
+          <RefreshCw size={12} className={isRetrying ? 'animate-spin' : ''} />
+          <span>{isRetrying ? 'Refreshing...' : 'Retry'}</span>
+        </button>
+      </div>
+    </div>
+  );
 
   if (!mediaUrl) return null;
 
@@ -82,13 +161,18 @@ export const PostMediaRenderer: React.FC<PostMediaRendererProps> = ({
     mediaType === 'video' ||
     mediaUrl.match(/\.(mp4|webm|mov|m4v)(\?.*)?$/i)
   ) {
+    if (hasPlaybackError) {
+      return renderErrorCard();
+    }
     return (
       <div className={`overflow-hidden rounded-2xl bg-black shadow-md ${className}`}>
         <video
-          src={mediaUrl}
+          key={resolvedUrl}
+          src={resolvedUrl}
           controls
           playsInline
           preload="metadata"
+          onError={handleMediaError}
           className="w-full max-h-[460px] object-contain bg-black"
         >
           Your browser does not support HTML5 video playback.
@@ -102,6 +186,9 @@ export const PostMediaRenderer: React.FC<PostMediaRendererProps> = ({
     mediaType === 'image' ||
     mediaUrl.match(/\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i)
   ) {
+    if (hasPlaybackError) {
+      return renderErrorCard();
+    }
     return (
       <>
         <div
@@ -109,9 +196,10 @@ export const PostMediaRenderer: React.FC<PostMediaRendererProps> = ({
           className={`group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-950 cursor-pointer shadow-sm ${className}`}
         >
           <img
-            src={mediaUrl}
+            src={resolvedUrl}
             alt={fileName || 'Post image attachment'}
             loading="lazy"
+            onError={handleMediaError}
             className="w-full max-h-[460px] object-cover transition-transform duration-300 group-hover:scale-[1.01]"
           />
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
@@ -134,7 +222,7 @@ export const PostMediaRenderer: React.FC<PostMediaRendererProps> = ({
               <X size={20} />
             </button>
             <img
-              src={mediaUrl}
+              src={resolvedUrl}
               alt={fileName || 'Fullscreen preview'}
               className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl"
             />
@@ -184,7 +272,7 @@ export const PostMediaRenderer: React.FC<PostMediaRendererProps> = ({
       </div>
 
       <a
-        href={mediaUrl}
+        href={resolvedUrl}
         target="_blank"
         rel="noopener noreferrer"
         download={fileName || true}

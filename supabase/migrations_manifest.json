@@ -765,6 +765,17 @@
         "ensure_cohort_daily_challenges",
         "trigger_ensure_cohort_daily_challenges"
       ]
+    },
+    {
+      "order": 54,
+      "filename": "20261008000002_allow_community_storage_read_and_signed_urls.sql",
+      "sha256": "b447e3be8c217ece61416e9971f7ad22e31bf2144c579c51e5530d77ef938415",
+      "sizeBytes": 2923,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "can_access_course_asset"
+      ]
     }
   ]
 }
