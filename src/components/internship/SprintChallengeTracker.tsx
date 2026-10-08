@@ -5,27 +5,22 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
-  Code2,
   ExternalLink,
   Flame,
   FolderGit2,
   Lock,
-  MessageSquare,
   Play,
   RotateCw,
-  Send,
   Sparkles,
-  Video,
   X,
 } from 'lucide-react';
-import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { useToast } from '../../context/useToast';
 import {
   submitDailyChallenge,
   type InternshipDayStatus,
 } from '../../lib/internshipService';
-import { generateWhatsAppClickToChatUrl } from '../../lib/whatsappService';
+import { DynamicChallengeSubmissionBox } from './DynamicChallengeSubmissionBox';
 
 interface SprintChallengeTrackerProps {
   cohortId: string;
@@ -56,8 +51,6 @@ export function SprintChallengeTracker({
 }: SprintChallengeTrackerProps) {
   const toast = useToast();
   const [selectedDay, setSelectedDay] = useState<InternshipDayStatus | null>(null);
-  const [submissionUrl, setSubmissionUrl] = useState('');
-  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [activePhaseFilter, setActivePhaseFilter] = useState<'all' | 'phase1' | 'phase2' | 'phase3'>('all');
 
@@ -76,20 +69,15 @@ export function SprintChallengeTracker({
 
   const handleOpenDay = (day: InternshipDayStatus) => {
     setSelectedDay(day);
-    if (day.submission) {
-      setSubmissionUrl(day.submission.submission_url || '');
-      setNotes(day.submission.notes || '');
-    } else {
-      setSubmissionUrl('');
-      setNotes('');
-    }
   };
 
-  const handleSubmitTask = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitTask = async (data: {
+    submissionUrl: string;
+    notes: string;
+  }) => {
     if (!selectedDay || !selectedDay.challenge) return;
-    if (!submissionUrl.trim()) {
-      toast.error('Please provide a valid GitHub PR, Loom, or Drive URL for your submission.');
+    if (!data.submissionUrl.trim()) {
+      toast.error('Please provide a valid deliverable file or URL for your submission.');
       return;
     }
 
@@ -98,8 +86,8 @@ export function SprintChallengeTracker({
       await submitDailyChallenge(
         userId,
         selectedDay.challenge.id,
-        submissionUrl.trim(),
-        notes.trim()
+        data.submissionUrl.trim(),
+        data.notes.trim()
       );
       toast.success(`Day ${selectedDay.dayNumber} challenge submitted! Your mentor will review it shortly.`);
       setSelectedDay(null);
@@ -459,91 +447,22 @@ export function SprintChallengeTracker({
                 </div>
               )}
 
-              {/* Submission Form */}
-              <form onSubmit={handleSubmitTask} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Deliverable URL (GitHub PR / Google Drive Cut / Loom Walkthrough) *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="url"
-                      required
-                      placeholder="https://github.com/... or https://drive.google.com/... or https://loom.com/..."
-                      value={submissionUrl}
-                      onChange={(e) => setSubmissionUrl(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 py-2.5 pl-3 pr-10 text-xs text-slate-900 dark:text-white shadow-2xs outline-none focus:border-orange-500"
-                    />
-                    <div className="absolute right-3 top-2.5 text-slate-400">
-                      {submissionUrl.includes('github') ? (
-                        <Code2 size={15} />
-                      ) : submissionUrl.includes('loom') ? (
-                        <Video size={15} />
-                      ) : (
-                        <ExternalLink size={15} />
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Submission Notes &amp; Implementation Reflection (Optional)
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Describe how you approached the challenge, key techniques applied, or any roadblocks encountered..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs text-slate-900 dark:text-white shadow-2xs outline-none focus:border-orange-500"
-                  />
-                </div>
-
-                {/* WhatsApp Quick Help with Mentor */}
-                <div className="flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare size={15} className="text-emerald-500" />
-                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                      Stuck on this task?
-                    </span>
-                  </div>
-                  <a
-                    href={generateWhatsAppClickToChatUrl(
-                      mentorPhone,
-                      `Hi Mentor! I am ${studentName} from ${cohortName}. I am currently working on Day ${selectedDay.dayNumber}: ${selectedDay.title} and have a question regarding the challenge requirements.`
-                    )}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 hover:underline"
-                  >
-                    <span>Ask Mentor on WhatsApp</span>
-                    <ExternalLink size={11} />
-                  </a>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setSelectedDay(null)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={submitting}
-                  >
-                    {submitting ? (
-                      'Submitting...'
-                    ) : (
-                      <>
-                        <Send size={14} />
-                        {selectedDay.submission ? 'Update Submission' : 'Submit Challenge'}
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
+              {/* Dual-Mode Dynamic Challenge Submission Box */}
+              <DynamicChallengeSubmissionBox
+                userId={userId}
+                challengeId={selectedDay.challenge.id}
+                initialUrl={selectedDay.submission?.submission_url}
+                initialNotes={selectedDay.submission?.notes}
+                isExistingSubmission={!!selectedDay.submission}
+                submitting={submitting}
+                onSubmit={handleSubmitTask}
+                onCancel={() => setSelectedDay(null)}
+                mentorPhone={mentorPhone}
+                studentName={studentName}
+                cohortName={cohortName}
+                dayTitle={selectedDay.title}
+                dayNumber={selectedDay.dayNumber}
+              />
             </div>
           </Card>
         </div>
