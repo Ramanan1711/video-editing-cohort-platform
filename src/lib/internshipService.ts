@@ -113,7 +113,13 @@ export async function createDailyChallenge(input: DailyChallengeInput): Promise<
     .select('*')
     .single();
 
-  if (error) throw parseDatabaseError(error);
+  if (error) {
+    const rpcRes = await supabase.rpc('admin_create_daily_challenge', { p_payload: payload });
+    if (!rpcRes.error && rpcRes.data) {
+      return rpcRes.data as DailyChallenge;
+    }
+    throw parseDatabaseError(error);
+  }
   return data as DailyChallenge;
 }
 
@@ -233,7 +239,12 @@ export async function setDailyChallengePublicationStatus(
  */
 export async function deleteDailyChallenge(id: string): Promise<void> {
   const { error } = await supabase.from('daily_challenges').delete().eq('id', id);
-  if (error) throw parseDatabaseError(error);
+  if (error) {
+    const { error: rpcError } = await supabase.rpc('admin_delete_daily_challenge', {
+      p_challenge_id: id,
+    });
+    if (rpcError) throw parseDatabaseError(error);
+  }
 }
 
 /**
@@ -241,8 +252,13 @@ export async function deleteDailyChallenge(id: string): Promise<void> {
  */
 export async function clearCohortDailyChallenges(cohortId: string): Promise<void> {
   if (!cohortId) throw new Error('Cohort ID is required.');
-  const { error } = await supabase.from('daily_challenges').delete().eq('cohort_id', cohortId);
-  if (error) throw parseDatabaseError(error);
+  const { error: rpcError } = await supabase.rpc('admin_clear_cohort_daily_challenges', {
+    p_cohort_id: cohortId,
+  });
+  if (rpcError) {
+    const { error } = await supabase.from('daily_challenges').delete().eq('cohort_id', cohortId);
+    if (error) throw parseDatabaseError(error);
+  }
 }
 
 /**
@@ -300,7 +316,16 @@ export async function bulkImportDailyChallenges(
     .select('*')
     .order('day_number', { ascending: true });
 
-  if (error) throw parseDatabaseError(error);
+  if (error) {
+    const rpcRes = await supabase.rpc('admin_bulk_upsert_daily_challenges', {
+      p_cohort_id: cohortId,
+      p_challenges: payload,
+    });
+    if (!rpcRes.error && Array.isArray(rpcRes.data)) {
+      return rpcRes.data as DailyChallenge[];
+    }
+    throw parseDatabaseError(error);
+  }
   return (data || []) as DailyChallenge[];
 }
 
@@ -491,13 +516,8 @@ export async function getStudentSprintDays(
     listMyDailySubmissions(userId),
   ]);
 
-  const maxChallengeDay = challenges && challenges.length > 0
-    ? Math.max(...challenges.map((c) => c.day_number))
-    : 0;
-  const configuredSprintDays = cohortMeta.durationDays || 0;
-  const totalDays = Math.max(configuredSprintDays, maxChallengeDay, challenges?.length || 0);
-
-  if (totalDays === 0) {
+  // If no challenges are authored for this cohort, return clean empty sprint state
+  if (!challenges || challenges.length === 0) {
     return {
       days: [],
       completedCount: 0,
@@ -507,6 +527,10 @@ export async function getStudentSprintDays(
       progressPercent: 0,
     };
   }
+
+  const maxChallengeDay = Math.max(...challenges.map((c) => c.day_number));
+  const configuredSprintDays = cohortMeta.durationDays || 0;
+  const totalDays = Math.max(configuredSprintDays, maxChallengeDay, challenges.length);
 
   const submissionMap = new Map(submissions.map((s) => [s.challenge_id, s]));
 

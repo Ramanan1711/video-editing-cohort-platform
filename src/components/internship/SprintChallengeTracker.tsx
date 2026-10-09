@@ -92,10 +92,17 @@ export function SprintChallengeTracker({
     Record<number, { submission: DailyChallengeSubmission; status: InternshipDayStatus['status'] }>
   >({});
 
-  const effectiveTotalDays = (totalDays !== undefined && totalDays > 0) ? totalDays : sprintDays.length;
+  const validDays = useMemo(() => {
+    const authoredOnly = sprintDays.filter((d) => Boolean(d.challenge));
+    return authoredOnly.length > 0 ? authoredOnly : sprintDays;
+  }, [sprintDays]);
+
+  const effectiveTotalDays = validDays.length > 0
+    ? validDays.length
+    : ((totalDays !== undefined && totalDays > 0) ? totalDays : sprintDays.length);
 
   const mergedSprintDays = useMemo(() => {
-    return sprintDays.map((d) => {
+    return validDays.map((d) => {
       const opt = optimisticDays[d.dayNumber];
       if (opt) {
         return {
@@ -106,7 +113,7 @@ export function SprintChallengeTracker({
       }
       return d;
     });
-  }, [sprintDays, optimisticDays]);
+  }, [validDays, optimisticDays]);
 
   const p1End = Math.max(1, Math.floor(effectiveTotalDays / 3));
   const p2End = Math.max(p1End + 1, Math.floor((effectiveTotalDays * 2) / 3));
@@ -310,14 +317,14 @@ export function SprintChallengeTracker({
                 {effectiveTotalDays}-Day Production Sprint
               </span>
               <span className="rounded-full bg-amber-300/30 px-3 py-0.5 text-[11px] font-black uppercase tracking-wider text-amber-100 backdrop-blur-sm">
-                {cohortName || 'Intensive Cohort'}
+                {cohortName || 'Active Cohort'}
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
               Ship Daily Tasks. Earn Your Verified Credential.
             </h2>
             <p className="text-xs sm:text-sm text-orange-100 max-w-2xl leading-relaxed">
-              Every day unlocks a hands-on production challenge with strict 24-hour turnaround. Complete all {effectiveTotalDays} tasks to pass mentor peer review and receive your industry-ready Certificate of Completion.
+              Every day unlocks a hands-on challenge with mentor review. Complete all {effectiveTotalDays} tasks to pass evaluation and receive your verified Certificate of Completion.
             </p>
           </div>
 
@@ -376,7 +383,7 @@ export function SprintChallengeTracker({
         </div>
       </div>
 
-      {/* Phase Filters */}
+      {/* Phase & Task Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -387,38 +394,42 @@ export function SprintChallengeTracker({
                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
             }`}
           >
-            All {effectiveTotalDays} Days
+            All {effectiveTotalDays} Tasks
           </button>
-          <button
-            onClick={() => setActivePhaseFilter('phase1')}
-            className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-              activePhaseFilter === 'phase1'
-                ? 'bg-orange-500 text-white shadow-2xs'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            Phase 1: Foundations (Days 1–{p1End})
-          </button>
-          <button
-            onClick={() => setActivePhaseFilter('phase2')}
-            className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-              activePhaseFilter === 'phase2'
-                ? 'bg-orange-500 text-white shadow-2xs'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            Phase 2: Core Execution (Days {p1End + 1}–{p2End})
-          </button>
-          <button
-            onClick={() => setActivePhaseFilter('phase3')}
-            className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-              activePhaseFilter === 'phase3'
-                ? 'bg-orange-500 text-white shadow-2xs'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            Phase 3: Capstone &amp; Review (Days {p2End + 1}–{effectiveTotalDays})
-          </button>
+          {effectiveTotalDays >= 6 && (
+            <>
+              <button
+                onClick={() => setActivePhaseFilter('phase1')}
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
+                  activePhaseFilter === 'phase1'
+                    ? 'bg-orange-500 text-white shadow-2xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
+                }`}
+              >
+                Phase 1: Foundations (Days 1–{p1End})
+              </button>
+              <button
+                onClick={() => setActivePhaseFilter('phase2')}
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
+                  activePhaseFilter === 'phase2'
+                    ? 'bg-orange-500 text-white shadow-2xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
+                }`}
+              >
+                Phase 2: Core Execution (Days {p1End + 1}–{p2End})
+              </button>
+              <button
+                onClick={() => setActivePhaseFilter('phase3')}
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
+                  activePhaseFilter === 'phase3'
+                    ? 'bg-orange-500 text-white shadow-2xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
+                }`}
+              >
+                Phase 3: Capstone &amp; Review (Days {p2End + 1}–{effectiveTotalDays})
+              </button>
+            </>
+          )}
         </div>
 
         <button
@@ -474,7 +485,7 @@ export function SprintChallengeTracker({
                       Day {day.dayNumber} Sprint
                     </p>
                     <h3 className="text-xs font-black text-slate-900 dark:text-white line-clamp-1">
-                      {(day.title || day.challenge?.title || `Day ${day.dayNumber} Challenge`).replace(/^Day \d+:\s*/, '')}
+                      {(day.title || day.challenge?.title || `Day ${day.dayNumber} Challenge`).replace(/^Day \d+:\s*/, '') || (day.title || day.challenge?.title || `Day ${day.dayNumber} Challenge`)}
                     </h3>
                   </div>
                 </div>
@@ -482,15 +493,44 @@ export function SprintChallengeTracker({
                 {getStatusBadge(day.status)}
               </div>
 
-              <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                {day.challenge?.description || 'Hands-on production task for real-world portfolio mastery.'}
+              {/* Dynamic Badges from Course Authoring */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                {day.challenge?.track_type && day.challenge.track_type !== 'general' && (
+                  <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                    {day.challenge.track_type}
+                  </span>
+                )}
+                {day.challenge?.submission_type && (
+                  <span className="rounded-md bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 text-[9px] font-bold text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40">
+                    {day.challenge.submission_type.replace('_', ' ')}
+                  </span>
+                )}
+              </div>
+
+              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                {day.challenge?.description || day.challenge?.instructions || 'Follow course instructions for this task.'}
               </p>
 
               <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
-                <span className="flex items-center gap-1 text-slate-500 font-medium">
-                  <Clock size={12} />
-                  24h Deadline
-                </span>
+                <div className="flex items-center gap-2.5">
+                  <span className="flex items-center gap-1 text-slate-500 font-medium">
+                    <Clock size={12} />
+                    {day.challenge?.deadline_hours ? `${day.challenge.deadline_hours}h Deadline` : '24h Deadline'}
+                  </span>
+                  {day.challenge?.starter_files_url && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleDownloadStarter(day.challenge!.starter_files_url!);
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 transition"
+                      title="Download starter files"
+                    >
+                      <ExternalLink size={11} /> Starter Files
+                    </button>
+                  )}
+                </div>
 
                 {isLocked ? (
                   <span className="flex items-center gap-1 font-bold text-slate-400">
