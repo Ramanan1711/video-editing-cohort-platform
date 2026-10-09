@@ -499,14 +499,16 @@ export function LessonPlayer({
         </div>
 
         {/* Prev / Next Lesson Navigation Buttons */}
-        <div className="mt-6 flex items-center justify-between border-y border-slate-100 py-3 text-xs font-bold">
+        <div className="mt-6 flex items-center justify-between border-y border-slate-100 py-3 text-xs font-bold gap-2">
           {prevLesson ? (
             <button
               onClick={() => onSelectLesson(prevLesson)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition max-w-[48%] truncate"
+              title={prevLesson.title}
             >
-              <ChevronLeft size={16} />
-              <span className="hidden sm:inline">Previous:</span> {prevLesson.title}
+              <ChevronLeft size={16} className="shrink-0" />
+              <span className="hidden sm:inline shrink-0">Previous:</span>
+              <span className="truncate">{prevLesson.title}</span>
             </button>
           ) : (
             <div />
@@ -515,10 +517,12 @@ export function LessonPlayer({
           {nextLesson ? (
             <button
               onClick={() => onSelectLesson(nextLesson)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 px-3 py-1.5 text-orange-700 hover:bg-orange-100 transition"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 px-3 py-1.5 text-orange-700 hover:bg-orange-100 transition max-w-[48%] truncate justify-end"
+              title={nextLesson.title}
             >
-              <span className="hidden sm:inline">Next:</span> {nextLesson.title}
-              <ChevronRight size={16} />
+              <span className="hidden sm:inline shrink-0">Next:</span>
+              <span className="truncate">{nextLesson.title}</span>
+              <ChevronRight size={16} className="shrink-0" />
             </button>
           ) : (
             <div />
@@ -526,12 +530,12 @@ export function LessonPlayer({
         </div>
 
         {/* Tabs */}
-        <div className="mt-6 flex gap-6 border-b border-slate-100 text-xs sm:text-sm font-bold">
+        <div className="mt-6 flex gap-4 sm:gap-6 border-b border-slate-100 text-xs sm:text-sm font-bold overflow-x-auto pb-1 scrollbar-none">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`${
+              className={`shrink-0 whitespace-nowrap pb-2 ${
                 activeTab === tab.id
                   ? 'border-b-2 border-orange-500 text-orange-600'
                   : 'text-slate-400 hover:text-slate-700'

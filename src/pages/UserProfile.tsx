@@ -262,10 +262,10 @@ export function UserProfile() {
         </Card>
 
         {/* 2. SECTION TABS */}
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-surface-subtle pb-3">
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-surface-subtle pb-3 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('courses')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition shrink-0 whitespace-nowrap ${
               activeTab === 'courses'
                 ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-surface-card'
@@ -277,7 +277,7 @@ export function UserProfile() {
 
           <button
             onClick={() => setActiveTab('attendance')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition shrink-0 whitespace-nowrap ${
               activeTab === 'attendance'
                 ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-surface-card'
@@ -289,7 +289,7 @@ export function UserProfile() {
 
           <button
             onClick={() => setActiveTab('payments')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition shrink-0 whitespace-nowrap ${
               activeTab === 'payments'
                 ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-surface-card'

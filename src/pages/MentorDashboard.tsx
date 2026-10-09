@@ -223,7 +223,7 @@ export function MentorDashboard() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-nowrap">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               {stats && stats.assignedCohorts.length > 1 && (
                 <select
                   value={selectedCohortId}
@@ -386,19 +386,19 @@ export function MentorDashboard() {
             {/* Quick Actions & Navigation Bar */}
             <div className="grid gap-4 md:grid-cols-2">
               <Card className="p-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <span className="flex size-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
                       <GraduationCap size={20} />
                     </span>
                     <div>
-                      <h2 className="text-sm font-black text-slate-950">Student Progress Directory</h2>
-                      <p className="text-xs text-slate-500">
+                      <h2 className="text-sm font-black text-slate-950 dark:text-white">Student Progress Directory</h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         Inspect lesson completions, submission counts, and learning activity.
                       </p>
                     </div>
                   </div>
-                  <Link to="/mentor/students">
+                  <Link to="/mentor/students" className="shrink-0 self-start sm:self-center">
                     <Button variant="secondary" size="sm">
                       Inspect Students →
                     </Button>
@@ -407,19 +407,19 @@ export function MentorDashboard() {
               </Card>
 
               <Card className="p-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <span className="flex size-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
                       <Radio size={20} />
                     </span>
                     <div>
-                      <h2 className="text-sm font-black text-slate-950">1-on-1 Office Hours</h2>
-                      <p className="text-xs text-slate-500">
+                      <h2 className="text-sm font-black text-slate-950 dark:text-white">1-on-1 Office Hours</h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         Host live critique office hours via Zoom or Google Meet.
                       </p>
                     </div>
                   </div>
-                  <Button variant="secondary" size="sm" onClick={() => setShowOfficeHourModal(true)}>
+                  <Button variant="secondary" size="sm" onClick={() => setShowOfficeHourModal(true)} className="shrink-0 self-start sm:self-center">
                     <Plus size={13} /> Add Slot
                   </Button>
                 </div>

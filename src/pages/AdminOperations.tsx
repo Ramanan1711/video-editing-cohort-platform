@@ -1086,14 +1086,14 @@ export function AdminOperations() {
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/80 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 lg:px-8">
-          <div>
+          <div className="pl-12 sm:pl-14 lg:pl-0">
             <span className="text-[10px] font-black uppercase tracking-wider text-orange-600">
               Operations &amp; Governance
             </span>
             <h1 className="text-lg font-black text-slate-950 dark:text-white">Admin Console</h1>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 flex-nowrap">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             <span className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-800 shadow-2xs whitespace-nowrap dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200">
               <ShieldCheck size={14} className="text-orange-500" />
               <span>{ROLE_LABELS[profile?.admin_role || 'super_admin']}</span>
@@ -1103,13 +1103,13 @@ export function AdminOperations() {
 
             <Link
               to="/admin/courses"
-              className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 whitespace-nowrap dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="hidden sm:inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 whitespace-nowrap dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               Course Studio →
             </Link>
             <Link
               to="/review/submissions"
-              className="inline-flex h-9 items-center rounded-xl bg-slate-950 px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-slate-800 whitespace-nowrap dark:bg-slate-800 dark:hover:bg-slate-700"
+              className="hidden sm:inline-flex h-9 items-center rounded-xl bg-slate-950 px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-slate-800 whitespace-nowrap dark:bg-slate-800 dark:hover:bg-slate-700"
             >
               Review Room →
             </Link>

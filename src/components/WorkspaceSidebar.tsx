@@ -98,7 +98,7 @@ export function WorkspaceSidebar() {
       <aside
         className={`${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white p-5 shadow-xl transition-all duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-950 lg:translate-x-0 lg:shadow-none ${
+        } fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] border-r border-slate-200 bg-white p-5 shadow-xl transition-all duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-950 lg:translate-x-0 lg:shadow-none ${
           collapsed ? 'lg:w-20' : 'lg:w-64'
         }`}
       >

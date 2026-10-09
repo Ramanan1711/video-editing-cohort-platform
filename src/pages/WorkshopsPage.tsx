@@ -313,7 +313,7 @@ export function WorkshopsPage() {
           </div>
 
           {/* Right Controls: Date Range Filter Pill + Refresh Button + Optional Mentor Schedule Button */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {canManageSessions && (
               <button
                 type="button"
@@ -478,9 +478,9 @@ export function WorkshopsPage() {
                       className="rounded-2xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900 p-5 sm:p-6 shadow-2xs hover:shadow-xs transition flex flex-col sm:flex-row sm:items-center justify-between gap-5"
                     >
                       {/* Left: Thumbnail & Session Info */}
-                      <div className="flex items-center gap-5 sm:gap-6 min-w-0">
+                      <div className="flex items-center gap-3.5 sm:gap-6 min-w-0">
                         {/* Rounded Pale Green / Sage Placeholder with Video Icon */}
-                        <div className="w-28 h-20 sm:w-36 sm:h-22 rounded-xl bg-[#eef1e6] dark:bg-slate-800/90 flex items-center justify-center shrink-0 border border-slate-200/50 dark:border-slate-700/50">
+                        <div className="w-20 h-16 sm:w-36 sm:h-22 rounded-xl bg-[#eef1e6] dark:bg-slate-800/90 flex items-center justify-center shrink-0 border border-slate-200/50 dark:border-slate-700/50">
                           <Video
                             size={24}
                             className="text-slate-400 dark:text-slate-400"

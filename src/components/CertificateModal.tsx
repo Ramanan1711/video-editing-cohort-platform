@@ -603,7 +603,7 @@ export function CertificateModal({
 
       <div className="certificate-print-wrapper relative w-full max-w-4xl animate-in fade-in zoom-in-95 duration-200">
         {/* Certificate Actions Bar */}
-        <div className="mb-3 flex items-center justify-between print:hidden">
+        <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 print:hidden">
           <div className="flex items-center gap-2 text-white">
             <Award className="text-orange-400" size={22} />
             <span className="font-black text-xs uppercase tracking-wider">
@@ -611,7 +611,7 @@ export function CertificateModal({
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {credentialId && (
               <a
                 href={`/verify-certificate?id=${encodeURIComponent(credentialId)}`}

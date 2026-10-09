@@ -257,17 +257,31 @@ export function StudentPlayerView({
     <div>
       {/* Top Sub-bar with Back to Courses button */}
       <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 sm:px-6 py-3 flex items-center justify-between">
-        <button
-          onClick={onBackToCatalog}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-        >
-          <ChevronLeft size={16} />
-          <span>Back to Courses</span>
-        </button>
-        <div className="flex items-center gap-2.5 sm:gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onBackToCatalog}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+          >
+            <ChevronLeft size={16} />
+            <span className="hidden sm:inline">Back to Courses</span>
+            <span className="sm:hidden">Courses</span>
+          </button>
+          {isCohortAuthorized && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden inline-flex items-center gap-1.5 rounded-xl border border-orange-200 dark:border-slate-800 bg-orange-50 dark:bg-orange-950/40 px-2.5 py-1.5 text-xs font-bold text-orange-700 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition shadow-2xs"
+              aria-label="Open curriculum outline"
+              title="Open curriculum roadmap"
+            >
+              <BookOpen size={14} />
+              <span>Lessons</span>
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Active Course Switcher in Workspace Header */}
           {course.cohort && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <label htmlFor="workspace-course-switcher" className="sr-only">
                 Active Course
               </label>
@@ -282,7 +296,7 @@ export function StudentPlayerView({
                   value={course.cohort.id}
                   onChange={(e) => handleSelectCohort(e.target.value)}
                   disabled={enrolledCohortsList.length <= 1}
-                  className={`appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-8 pr-7 py-1.5 text-xs font-black text-slate-900 dark:text-slate-100 shadow-2xs hover:border-orange-300 dark:hover:border-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 transition max-w-[190px] sm:max-w-[320px] truncate ${
+                  className={`appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-8 pr-7 py-1.5 text-xs font-black text-slate-900 dark:text-slate-100 shadow-2xs hover:border-orange-300 dark:hover:border-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 transition max-w-[130px] sm:max-w-[320px] truncate ${
                     enrolledCohortsList.length > 1 ? 'cursor-pointer' : 'cursor-default opacity-90'
                   }`}
                 >
@@ -656,6 +670,19 @@ export function StudentPlayerView({
                         <PlayerSkeleton />
                       ) : selectedLesson ? (
                       <div>
+                        <div className="mb-3 lg:hidden flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2">
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400 truncate max-w-[200px]">
+                            {selectedLesson.title}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSidebarOpen(true)}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 px-2.5 py-1 text-xs font-bold hover:bg-orange-100 transition shrink-0"
+                          >
+                            <BookOpen size={13} />
+                            <span>All Lessons</span>
+                          </button>
+                        </div>
                         <LessonPlayer
                           key={selectedLesson.id}
                           lesson={selectedLesson}

@@ -97,7 +97,7 @@ export function LessonSidebar({
       <aside
         className={`${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-40 w-84 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 transition-transform lg:sticky lg:top-[73px] lg:block lg:h-[calc(100vh-73px)] lg:translate-x-0`}
+        } fixed inset-y-0 left-0 z-40 w-84 max-w-[85vw] border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 transition-transform lg:sticky lg:top-[73px] lg:block lg:h-[calc(100vh-73px)] lg:translate-x-0`}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">

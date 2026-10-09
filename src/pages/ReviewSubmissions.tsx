@@ -589,14 +589,14 @@ export function ReviewSubmissions() {
             </select>
 
             {/* Search Input */}
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-initial">
               <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
               <input
                 type="text"
                 placeholder="Search student or assignment..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-56 rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-900 shadow-2xs outline-none placeholder:text-slate-400 focus:border-orange-400"
+                className="w-full sm:w-56 rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-900 shadow-2xs outline-none placeholder:text-slate-400 focus:border-orange-400"
               />
             </div>
           </div>

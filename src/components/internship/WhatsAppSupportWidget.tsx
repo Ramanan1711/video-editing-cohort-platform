@@ -78,7 +78,7 @@ export function WhatsAppSupportWidget({
   const syncMsg = `Hi Mentor! Could we do a quick 10-minute 1-on-1 doubt clearing call on Google Meet regarding Day ${currentDay}?`;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
       {/* Floating Toggle Button */}
       {!isOpen && (
         <button
@@ -96,7 +96,7 @@ export function WhatsAppSupportWidget({
 
       {/* Floating Popup Window */}
       {isOpen && (
-        <div className="w-80 sm:w-96 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-5">
+        <div className="w-[calc(100vw-2rem)] sm:w-96 max-w-sm rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-5">
           {/* Header */}
           <div className="bg-gradient-to-r from-[#075E54] to-[#128C7E] p-4 text-white">
             <div className="flex items-center justify-between">
