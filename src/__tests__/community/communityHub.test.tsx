@@ -133,6 +133,7 @@ vi.mock('../../lib/courseChallengeService', () => ({
     },
   ]),
   joinCourseChallenge: vi.fn().mockResolvedValue(undefined),
+  leaveCourseChallenge: vi.fn().mockResolvedValue(undefined),
   submitCourseChallenge: vi.fn().mockResolvedValue(undefined),
   fetchChallengeParticipants: vi.fn().mockResolvedValue([]),
   fetchChallengeSubmissions: vi.fn().mockResolvedValue([]),

@@ -25,6 +25,7 @@ export interface CourseChallengeItem {
   isJoined?: boolean;
   hasSubmitted?: boolean;
   assets?: ChallengeAsset[];
+  participants?: ChallengeParticipantProfile[];
   createdAt?: string;
 }
 
@@ -212,7 +213,11 @@ export async function fetchCourseChallenges(
       .from('course_challenges')
       .select(`
         *,
-        participants:course_challenge_participants(user_id, joined_at),
+        participants:course_challenge_participants(
+          user_id,
+          joined_at,
+          profile:profiles(id, full_name, avatar_url, email)
+        ),
         submissions:course_challenge_submissions(id, user_id, status, submission_url, score, submitted_at)
       `)
       .order('created_at', { ascending: false });
@@ -235,13 +240,20 @@ export async function fetchCourseChallenges(
       const participants = Array.isArray(row.participants) ? row.participants : [];
       const submissions = Array.isArray(row.submissions) ? row.submissions : [];
 
-      const participantsJoined = Math.max(Number(row.participants_joined || 0), participants.length);
+      const participantsJoined = participants.length;
       const isJoined = effectiveUserId
-        ? participants.some((p) => p.user_id === effectiveUserId) || row.created_by === effectiveUserId
+        ? participants.some((p) => p.user_id === effectiveUserId)
         : false;
       const hasSubmitted = effectiveUserId
         ? submissions.some((s) => s.user_id === effectiveUserId)
         : false;
+
+      const participantProfiles: ChallengeParticipantProfile[] = participants.map((p) => ({
+        userId: p.user_id,
+        fullName: p.profile?.full_name || p.profile?.email?.split('@')[0] || 'Enrolled Student',
+        avatarUrl: p.profile?.avatar_url || undefined,
+        joinedAt: p.joined_at || new Date().toISOString(),
+      }));
 
       const assets: ChallengeAsset[] = [];
       if (row.asset_url) {
@@ -271,6 +283,7 @@ export async function fetchCourseChallenges(
         isJoined,
         hasSubmitted,
         assets: assets.length > 0 ? assets : undefined,
+        participants: participantProfiles.length > 0 ? participantProfiles : undefined,
         createdAt: row.created_at,
       };
     });
@@ -314,7 +327,7 @@ export async function createCourseChallenge(
     end_date: input.endDate,
     duration_label: duration,
     status: input.status || 'active',
-    participants_joined: 1,
+    participants_joined: 0,
     pro_reward: input.proReward ?? 50,
     asset_url: assetInfo.url || null,
     asset_name: assetInfo.name || null,
@@ -326,18 +339,6 @@ export async function createCourseChallenge(
   if (error) {
     console.error('Database insert into course_challenges failed:', error);
     throw error;
-  }
-
-  // Also auto-record the author in the participants table
-  if (currentUser?.id) {
-    try {
-      await supabase.from('course_challenge_participants').insert({
-        challenge_id: newChallengeId,
-        user_id: currentUser.id,
-      });
-    } catch {
-      // ignore
-    }
   }
 
   return {
@@ -352,9 +353,9 @@ export async function createCourseChallenge(
     endDate: input.endDate,
     durationLabel: duration,
     status: input.status || 'active',
-    participantsJoined: 1,
+    participantsJoined: 0,
     proReward: input.proReward ?? 50,
-    isJoined: true,
+    isJoined: false,
     assets: assetInfo.url
       ? [
           {
@@ -367,6 +368,32 @@ export async function createCourseChallenge(
       : undefined,
     createdAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Removes a student from a challenge in the database
+ */
+export async function leaveCourseChallenge(
+  challengeId: string,
+  userId?: string
+): Promise<void> {
+  let targetUserId = userId;
+  if (!targetUserId) {
+    const { data: authData } = await supabase.auth.getUser();
+    targetUserId = authData?.user?.id;
+  }
+  if (!targetUserId) return;
+
+  const { error } = await supabase
+    .from('course_challenge_participants')
+    .delete()
+    .eq('challenge_id', challengeId)
+    .eq('user_id', targetUserId);
+
+  if (error) {
+    console.error('Database delete from course_challenge_participants failed:', error);
+    throw error;
+  }
 }
 
 /**

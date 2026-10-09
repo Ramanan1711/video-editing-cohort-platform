@@ -44,6 +44,7 @@ import {
 import {
   fetchCourseChallenges,
   joinCourseChallenge,
+  leaveCourseChallenge,
   submitCourseChallenge,
   fetchChallengeParticipants,
   fetchChallengeSubmissions,
@@ -76,14 +77,30 @@ export type ChallengeItem = CourseChallengeItem;
  * Extracts or generates dynamic deliverable requirements based on the challenge description and course track.
  */
 function getChallengeDeliverables(challenge: ChallengeItem, courseTitle?: string): string[] {
-  if (challenge.description) {
-    const lines = challenge.description
+  if (challenge.description?.trim()) {
+    const rawLines = challenge.description
       .split('\n')
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
-    const bulletLines = lines.filter((l) => /^[-*•\d+.]\s+/.test(l));
-    if (bulletLines.length >= 2) {
-      return bulletLines.map((l) => l.replace(/^[-*•\d+.]\s+/, '').trim());
+
+    const bulletLines = rawLines.filter((l) => /^[-*•\d+.)]\s+/.test(l));
+    if (bulletLines.length >= 1) {
+      return bulletLines.map((l) => l.replace(/^[-*•\d+.)]\s+/, '').trim());
+    }
+
+    if (rawLines.length > 1) {
+      return rawLines;
+    }
+
+    const sentences = challenge.description
+      .split(/(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 10);
+    if (sentences.length >= 2) {
+      return sentences;
+    }
+    if (sentences.length === 1) {
+      return [sentences[0]];
     }
   }
 
@@ -425,14 +442,79 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
     void joinCourseChallenge(challengeId, user?.id);
     setJoinedChallengeIds((prev) => (prev.includes(challengeId) ? prev : [...prev, challengeId]));
     setChallenges((prev) =>
-      prev.map((c) => (c.id === challengeId ? { ...c, isJoined: true, participantsJoined: c.participantsJoined + 1 } : c))
+      prev.map((c) =>
+        c.id === challengeId
+          ? {
+              ...c,
+              isJoined: true,
+              participantsJoined: c.participantsJoined + 1,
+              participants: [
+                ...(c.participants || []),
+                {
+                  userId: user?.id || 'me',
+                  fullName: userDisplayName,
+                  avatarUrl: currentUserMember?.avatarUrl || (user?.user_metadata?.avatar_url as string | undefined),
+                  joinedAt: new Date().toISOString(),
+                },
+              ],
+            }
+          : c
+      )
     );
     setSelectedChallenge((prev) =>
-      prev && prev.id === challengeId ? { ...prev, isJoined: true, participantsJoined: prev.participantsJoined + 1 } : prev
+      prev && prev.id === challengeId
+        ? {
+            ...prev,
+            isJoined: true,
+            participantsJoined: prev.participantsJoined + 1,
+            participants: [
+              ...(prev.participants || []),
+              {
+                userId: user?.id || 'me',
+                fullName: userDisplayName,
+                avatarUrl: currentUserMember?.avatarUrl || (user?.user_metadata?.avatar_url as string | undefined),
+                joinedAt: new Date().toISOString(),
+              },
+            ],
+          }
+        : prev
     );
     setShowCheckinModal(true);
     setToastMessage('🎉 Successfully joined challenge! Check-ins are now unlocked.');
     setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleLeaveChallenge = async (challengeId: string) => {
+    try {
+      await leaveCourseChallenge(challengeId, user?.id);
+    } catch (err) {
+      console.warn('Failed to unjoin challenge from database:', err);
+    }
+    setJoinedChallengeIds((prev) => prev.filter((id) => id !== challengeId));
+    setChallenges((prev) =>
+      prev.map((c) =>
+        c.id === challengeId
+          ? {
+              ...c,
+              isJoined: false,
+              participantsJoined: Math.max(0, c.participantsJoined - 1),
+              participants: c.participants ? c.participants.filter((p) => p.userId !== user?.id) : [],
+            }
+          : c
+      )
+    );
+    setSelectedChallenge((prev) =>
+      prev && prev.id === challengeId
+        ? {
+            ...prev,
+            isJoined: false,
+            participantsJoined: Math.max(0, prev.participantsJoined - 1),
+            participants: prev.participants ? prev.participants.filter((p) => p.userId !== user?.id) : [],
+          }
+        : prev
+    );
+    setToastMessage('You have left the challenge.');
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
   const handleSelectChallenge = (challenge: ChallengeItem | null) => {
@@ -1121,14 +1203,14 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                               challengeParticipants.slice(0, 3).map((p, idx) => (
                                 p.avatarUrl ? (
                                   <img
-                                    key={p.userId}
+                                    key={p.userId || idx}
                                     src={p.avatarUrl}
                                     alt={p.fullName}
                                     className="size-8 rounded-full object-cover ring-2 ring-slate-900 shadow-xs"
                                   />
                                 ) : (
                                   <div
-                                    key={p.userId}
+                                    key={p.userId || idx}
                                     className={`flex size-8 items-center justify-center rounded-full text-[11px] font-black ring-2 ring-slate-900 text-slate-950 ${
                                       idx === 0 ? 'bg-amber-400' : idx === 1 ? 'bg-blue-400' : 'bg-emerald-400'
                                     }`}
@@ -1137,19 +1219,10 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                                   </div>
                                 )
                               ))
-                            ) : members.length > 0 ? (
-                              members.slice(0, Math.min(3, Math.max(1, selectedChallenge.participantsJoined))).map((m) => (
-                                <img
-                                  key={m.id}
-                                  src={m.avatarUrl}
-                                  alt={m.name}
-                                  className="size-8 rounded-full object-cover ring-2 ring-slate-900 shadow-xs"
-                                />
-                              ))
                             ) : (
-                              <div className="flex size-8 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 text-xs font-black ring-2 ring-slate-900">
-                                {userInitials}
-                              </div>
+                              <span className="text-xs text-slate-400 font-medium">
+                                Be the first participant to join
+                              </span>
                             )}
                           </div>
                         </div>
@@ -1269,6 +1342,14 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                       <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-black text-amber-600 dark:text-amber-400 border border-amber-500/20">
                         🪙 {selectedChallenge.proReward} PRO Points Reward
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => void handleLeaveChallenge(selectedChallenge.id)}
+                        className="rounded-full border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs font-bold text-slate-500 hover:text-rose-500 hover:border-rose-400 transition cursor-pointer"
+                        title="Leave this challenge"
+                      >
+                        Leave Challenge
+                      </button>
                     </div>
                   </div>
 
@@ -1918,20 +1999,25 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                                 {/* Participants & Social Proof */}
                                 <div className="flex items-center gap-2 pt-1">
                                   <div className="flex -space-x-1.5 overflow-hidden">
-                                    {members.length > 0 ? (
-                                      members.slice(0, Math.min(3, Math.max(1, challenge.participantsJoined))).map((m) => (
-                                        <img
-                                          key={m.id}
-                                          className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
-                                          src={m.avatarUrl}
-                                          alt={m.name}
-                                        />
-                                      ))
-                                    ) : (
-                                      <div className="flex size-6 items-center justify-center rounded-full bg-amber-500 text-slate-950 text-[10px] font-black ring-2 ring-white dark:ring-slate-900">
-                                        {userInitials}
-                                      </div>
-                                    )}
+                                    {challenge.participants && challenge.participants.length > 0 ? (
+                                      challenge.participants.slice(0, 3).map((p, idx) =>
+                                        p.avatarUrl ? (
+                                          <img
+                                            key={p.userId || idx}
+                                            className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
+                                            src={p.avatarUrl}
+                                            alt={p.fullName}
+                                          />
+                                        ) : (
+                                          <div
+                                            key={p.userId || idx}
+                                            className="flex size-6 items-center justify-center rounded-full bg-amber-500 text-slate-950 text-[10px] font-black ring-2 ring-white dark:ring-slate-900"
+                                          >
+                                            {p.fullName.slice(0, 2).toUpperCase()}
+                                          </div>
+                                        )
+                                      )
+                                    ) : null}
                                   </div>
                                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                                     {challenge.participantsJoined === 0
@@ -1943,11 +2029,25 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
 
                               {/* Divider & Footer (Matching Screenshot Exactly) */}
                               <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
-                                {challenge.isJoined ? (
-                                  <div className="flex items-center">
-                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                                      Joined
-                                    </span>
+                                {joinedChallengeIds.includes(challenge.id) ? (
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="flex size-2 rounded-full bg-emerald-500" />
+                                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                        Joined
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        void handleLeaveChallenge(challenge.id);
+                                      }}
+                                      className="text-[11px] font-bold text-slate-400 hover:text-rose-500 transition px-2 py-0.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                                      title="Leave challenge"
+                                    >
+                                      Leave
+                                    </button>
                                   </div>
                                 ) : (
                                   <div className="flex items-center justify-between">
@@ -1955,11 +2055,12 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                                       Join &amp; stand a chance to earn
                                     </span>
                                     <button
+                                      type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleJoinChallenge(challenge.id);
                                       }}
-                                      className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 px-3 py-1 text-xs font-black text-amber-800 dark:text-amber-300 hover:bg-amber-100 active:scale-95 transition shadow-2xs"
+                                      className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 px-3 py-1 text-xs font-black text-amber-800 dark:text-amber-300 hover:bg-amber-100 active:scale-95 transition shadow-2xs cursor-pointer"
                                     >
                                       <span>🪙 {challenge.proReward} PRO</span>
                                     </button>

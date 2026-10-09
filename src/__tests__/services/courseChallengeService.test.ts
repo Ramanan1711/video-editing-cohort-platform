@@ -4,6 +4,7 @@ import {
   createCourseChallenge,
   deleteCourseChallenge,
   joinCourseChallenge,
+  leaveCourseChallenge,
   submitCourseChallenge,
   getDefaultChallengesForCohort,
   uploadChallengeAsset,
@@ -102,7 +103,7 @@ describe('courseChallengeService', () => {
   });
 
   describe('createCourseChallenge', () => {
-    it('creates a challenge in database and records author join', async () => {
+    it('creates a challenge in database with initial 0 participants and unjoined state', async () => {
       const insertMock = vi.fn().mockResolvedValue({ data: null, error: null });
       (supabase.from as any).mockReturnValue({
         insert: insertMock,
@@ -131,7 +132,8 @@ describe('courseChallengeService', () => {
       expect(created.cohortId).toBe('cohort-custom-1');
       expect(created.title).toBe('Commercial Film Emulation LUT Challenge');
       expect(created.proReward).toBe(150);
-      expect(created.isJoined).toBe(true);
+      expect(created.isJoined).toBe(false);
+      expect(created.participantsJoined).toBe(0);
       expect(insertMock).toHaveBeenCalled();
     });
 
@@ -196,6 +198,24 @@ describe('courseChallengeService', () => {
         }),
         { onConflict: 'challenge_id,user_id' }
       );
+    });
+
+    it('persists student leaving challenge via Supabase delete', async () => {
+      const deleteEqUserMock = vi.fn().mockResolvedValue({ error: null });
+      const deleteEqChallengeMock = vi.fn().mockReturnValue({
+        eq: deleteEqUserMock,
+      });
+      (supabase.from as any).mockReturnValue({
+        delete: vi.fn().mockReturnValue({
+          eq: deleteEqChallengeMock,
+        }),
+      });
+
+      await leaveCourseChallenge('ch-w3-proj', 'student-123');
+
+      expect(supabase.from).toHaveBeenCalledWith('course_challenge_participants');
+      expect(deleteEqChallengeMock).toHaveBeenCalledWith('challenge_id', 'ch-w3-proj');
+      expect(deleteEqUserMock).toHaveBeenCalledWith('user_id', 'student-123');
     });
   });
 
