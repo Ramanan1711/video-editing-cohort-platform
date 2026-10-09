@@ -7,6 +7,9 @@ import {
   submitCourseChallenge,
   getDefaultChallengesForCohort,
   uploadChallengeAsset,
+  fetchChallengeParticipants,
+  fetchChallengeSubmissions,
+  formatChallengeCountdown,
 } from '../../lib/courseChallengeService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -23,6 +26,9 @@ vi.mock('../../lib/supabaseClient', () => {
   return {
     supabase: {
       from: fromMock,
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } } }),
+      },
       storage: {
         from: storageFromMock,
       },
@@ -33,34 +39,17 @@ vi.mock('../../lib/supabaseClient', () => {
 describe('courseChallengeService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
   });
 
-  describe('getDefaultChallengesForCohort (Domain-Aware Seeds)', () => {
-    it('returns Video Editing challenges for video tracks', () => {
+  describe('getDefaultChallengesForCohort (No hardcoded data)', () => {
+    it('returns empty array ensuring zero fallback mock records', () => {
       const challenges = getDefaultChallengesForCohort('cohort-video-1', 'CineSprint Video Editing Batch 15');
-      expect(challenges.length).toBeGreaterThan(0);
-      expect(challenges[0].title).toContain('Remix the emotion');
-      expect(challenges.some((c) => c.title.includes('Color Grading'))).toBe(true);
-    });
-
-    it('returns Full-Stack Coding challenges for coding tracks', () => {
-      const challenges = getDefaultChallengesForCohort('cohort-code-1', 'Fullstack Web Development Cohort');
-      expect(challenges.length).toBeGreaterThan(0);
-      expect(challenges.some((c) => c.title.includes('Sprint'))).toBe(true);
-      expect(challenges.some((c) => c.title.includes('Clean UI Architecture'))).toBe(true);
-    });
-
-    it('returns Motion Graphics challenges for animation tracks', () => {
-      const challenges = getDefaultChallengesForCohort('cohort-motion-1', 'Motion Graphics Masters');
-      expect(challenges.length).toBeGreaterThan(0);
-      expect(challenges.some((c) => c.title.includes('Kinetic Typography'))).toBe(true);
-      expect(challenges.some((c) => c.title.includes('3D Logo Reveal'))).toBe(true);
+      expect(challenges).toEqual([]);
     });
   });
 
   describe('fetchCourseChallenges', () => {
-    it('returns default domain challenges when database table has no records', async () => {
+    it('returns empty array when database table has no records for the cohort', async () => {
       (supabase.from as any).mockReturnValue({
         select: vi.fn().mockReturnValue({
           order: vi.fn().mockReturnValue({
@@ -70,12 +59,10 @@ describe('courseChallengeService', () => {
       });
 
       const challenges = await fetchCourseChallenges('cohort-1', 'CineSprint Video Editing Batch 15');
-      expect(challenges.length).toBeGreaterThan(0);
-      expect(challenges[0].cohortId).toBe('cohort-1');
-      expect(challenges[0].cohortTitle).toBe('CineSprint Video Editing Batch 15');
+      expect(challenges).toEqual([]);
     });
 
-    it('returns database challenges when available', async () => {
+    it('returns database challenges mapped with participants and submissions', async () => {
       const mockDbRow = {
         id: 'db-ch-1',
         cohort_id: 'cohort-video-99',
@@ -92,6 +79,8 @@ describe('courseChallengeService', () => {
         asset_url: 'https://example.com/asset.zip',
         asset_name: 'Raw Footage 4K',
         asset_size: '2.5 GB',
+        participants: [{ user_id: 'test-user-id', joined_at: '2026-10-01' }],
+        submissions: [{ id: 'sub-1', user_id: 'test-user-id', status: 'pending', submission_url: 'https://loom.com' }],
       };
 
       (supabase.from as any).mockReturnValue({
@@ -102,18 +91,21 @@ describe('courseChallengeService', () => {
         }),
       });
 
-      const challenges = await fetchCourseChallenges('cohort-video-99', 'Video Editing');
+      const challenges = await fetchCourseChallenges('cohort-video-99', 'Video Editing', 'test-user-id');
       expect(challenges).toHaveLength(1);
       expect(challenges[0].id).toBe('db-ch-1');
       expect(challenges[0].title).toBe('Custom Client Commercial Edit');
+      expect(challenges[0].isJoined).toBe(true);
+      expect(challenges[0].hasSubmitted).toBe(true);
       expect(challenges[0].assets?.[0].title).toBe('Raw Footage 4K');
     });
   });
 
   describe('createCourseChallenge', () => {
-    it('creates a challenge for a specific course and persists it', async () => {
+    it('creates a challenge in database and records author join', async () => {
+      const insertMock = vi.fn().mockResolvedValue({ data: null, error: null });
       (supabase.from as any).mockReturnValue({
-        insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+        insert: insertMock,
       });
 
       const created = await createCourseChallenge(
@@ -140,10 +132,7 @@ describe('courseChallengeService', () => {
       expect(created.title).toBe('Commercial Film Emulation LUT Challenge');
       expect(created.proReward).toBe(150);
       expect(created.isJoined).toBe(true);
-
-      // Verify that subsequent fetch for that cohort returns this newly created challenge
-      const list = await fetchCourseChallenges('cohort-custom-1', 'Advanced Color Grading Masterclass');
-      expect(list.some((c) => c.title === 'Commercial Film Emulation LUT Challenge')).toBe(true);
+      expect(insertMock).toHaveBeenCalled();
     });
 
     it('uploads attached asset file and links it to created challenge', async () => {
@@ -170,21 +159,24 @@ describe('courseChallengeService', () => {
   });
 
   describe('joinCourseChallenge & submitCourseChallenge', () => {
-    it('persists student join state', async () => {
+    it('persists student join state via Supabase insert', async () => {
+      const insertMock = vi.fn().mockResolvedValue({ data: null, error: null });
       (supabase.from as any).mockReturnValue({
-        insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+        insert: insertMock,
       });
 
       await joinCourseChallenge('ch-w3-proj', 'student-123');
 
-      const challenges = await fetchCourseChallenges('cohort-1', 'CineSprint Video Editing Batch 15');
-      const joined = challenges.find((c) => c.id === 'ch-w3-proj');
-      expect(joined?.isJoined).toBe(true);
+      expect(insertMock).toHaveBeenCalledWith({
+        challenge_id: 'ch-w3-proj',
+        user_id: 'student-123',
+      });
     });
 
-    it('persists student submission state', async () => {
+    it('persists student submission state via Supabase upsert', async () => {
+      const upsertMock = vi.fn().mockResolvedValue({ data: null, error: null });
       (supabase.from as any).mockReturnValue({
-        insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+        upsert: upsertMock,
       });
 
       await submitCourseChallenge(
@@ -194,9 +186,16 @@ describe('courseChallengeService', () => {
         'Added subtle halation and grain'
       );
 
-      const challenges = await fetchCourseChallenges('cohort-1', 'CineSprint Video Editing Batch 15');
-      const submitted = challenges.find((c) => c.id === 'ch-w3-proj');
-      expect(submitted?.hasSubmitted).toBe(true);
+      expect(upsertMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          challenge_id: 'ch-w3-proj',
+          user_id: 'student-123',
+          submission_url: 'https://youtube.com/watch?v=submission',
+          notes: 'Added subtle halation and grain',
+          status: 'pending',
+        }),
+        { onConflict: 'challenge_id,user_id' }
+      );
     });
   });
 
@@ -215,34 +214,85 @@ describe('courseChallengeService', () => {
   });
 
   describe('deleteCourseChallenge', () => {
-    it('deletes an existing course challenge from storage and database', async () => {
-      const fromMock = vi.mocked(supabase.from);
-      fromMock.mockReturnValue({
-        insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+    it('deletes an existing course challenge from database', async () => {
+      const deleteEqMock = vi.fn().mockResolvedValue({ error: null });
+      (supabase.from as any).mockReturnValue({
         delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
+          eq: deleteEqMock,
         }),
-      } as any);
-
-      // Create a challenge first
-      const created = await createCourseChallenge({
-        cohortId: 'cohort-1',
-        title: 'Challenge To Delete',
-        type: 'PROJECT',
-        week: 'WEEK 4',
-        startDate: '10 Oct',
-        endDate: '17 Oct 2026',
       });
 
-      const beforeDelete = await fetchCourseChallenges('cohort-1', 'CineSprint Video Editing Batch 15');
-      expect(beforeDelete.some((c) => c.id === created.id)).toBe(true);
-
-      const deleted = await deleteCourseChallenge(created.id);
+      const deleted = await deleteCourseChallenge('ch-to-delete');
       expect(deleted).toBe(true);
+      expect(deleteEqMock).toHaveBeenCalledWith('id', 'ch-to-delete');
+    });
+  });
 
-      const afterDelete = await fetchCourseChallenges('cohort-1', 'CineSprint Video Editing Batch 15');
-      expect(afterDelete.some((c) => c.id === created.id)).toBe(false);
+  describe('fetchChallengeParticipants & fetchChallengeSubmissions', () => {
+    it('fetches real participant profiles', async () => {
+      (supabase.from as any).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  user_id: 'u-1',
+                  joined_at: '2026-10-01T10:00:00Z',
+                  profile: { id: 'u-1', full_name: 'Alex Editor', email: 'alex@example.com' },
+                },
+              ],
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      const participants = await fetchChallengeParticipants('ch-1');
+      expect(participants).toHaveLength(1);
+      expect(participants[0].fullName).toBe('Alex Editor');
+    });
+
+    it('fetches real challenge submissions', async () => {
+      (supabase.from as any).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'sub-1',
+                  user_id: 'u-1',
+                  submission_url: 'https://youtube.com/watch?v=1',
+                  notes: 'First cut',
+                  status: 'reviewed',
+                  score: 95,
+                  submitted_at: '2026-10-02T10:00:00Z',
+                  profile: { id: 'u-1', full_name: 'Alex Editor' },
+                },
+              ],
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      const submissions = await fetchChallengeSubmissions('ch-1');
+      expect(submissions).toHaveLength(1);
+      expect(submissions[0].score).toBe(95);
+      expect(submissions[0].status).toBe('reviewed');
+    });
+  });
+
+  describe('formatChallengeCountdown', () => {
+    it('returns Active or formatted time for future date', () => {
+      const future = new Date(Date.now() + 86400000 * 3).toISOString();
+      const str = formatChallengeCountdown(future);
+      expect(str).toContain('Ends in');
+    });
+
+    it('returns Ended for past date', () => {
+      const past = new Date(Date.now() - 86400000).toISOString();
+      const str = formatChallengeCountdown(past);
+      expect(str).toBe('Ended');
     });
   });
 });
-

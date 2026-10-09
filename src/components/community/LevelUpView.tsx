@@ -24,12 +24,10 @@ import {
   Upload,
   Play,
   FileText,
-  Send,
   Flag,
   Flame,
   Lock,
   BookOpen,
-  Loader2,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import {
@@ -37,16 +35,22 @@ import {
   fetchAvailableCourses,
   fetchUserEnrolledCohort,
   fetchUserEnrolledCourses,
+  fetchUserProHistory,
   type LeaderboardMember,
   type CourseOption,
+  type ProHistoryTransaction,
 } from '../../lib/gamificationService';
 import {
   fetchCourseChallenges,
   joinCourseChallenge,
   submitCourseChallenge,
-  getDefaultChallengesForCohort,
+  fetchChallengeParticipants,
+  formatChallengeCountdown,
   type CourseChallengeItem,
+  type ChallengeParticipantProfile,
 } from '../../lib/courseChallengeService';
+import { ChallengeListSkeleton } from '../ui/Skeletons';
+import { DynamicChallengeSubmissionBox } from '../internship/DynamicChallengeSubmissionBox';
 
 export type LevelUpSubTab = 'dashboard' | 'habits' | 'challenges';
 
@@ -62,15 +66,6 @@ const formatDateKey = (date: Date): string => {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
-
-const PRO_HISTORY_TRANSACTIONS = [
-  { id: 'tx-1', title: 'Daily Edit: 20 min habit completed', date: 'Today, 08:20 AM', points: '+10 PRO', type: 'habit' },
-  { id: 'tx-2', title: 'Assignment 2: Rough Cut Approved', date: 'Yesterday, 04:15 PM', points: '+150 PRO', type: 'assignment' },
-  { id: 'tx-3', title: 'Mentor Rubric: Excellent Pacing Bonus', date: '2 days ago', points: '+50 PRO', type: 'mentor' },
-  { id: 'tx-4', title: 'Community Feedback: Peer Project Critique', date: '3 days ago', points: '+25 PRO', type: 'community' },
-  { id: 'tx-5', title: 'Milestone 1: Assembly Foundations Capstone', date: 'Sep 18, 2026', points: '+500 PRO', type: 'capstone' },
-  { id: 'tx-6', title: '7-Day Editing Streak Shield Claimed', date: 'Sep 15, 2026', points: '+94 PRO', type: 'streak' },
-];
 
 export type ChallengeItem = CourseChallengeItem;
 
@@ -239,41 +234,28 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   const [todayHabitDismissed, setTodayHabitDismissed] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Dynamic Challenges state per course
-  const [challenges, setChallenges] = useState<ChallengeItem[]>(() => getDefaultChallengesForCohort());
-  const [loadingChallenges, setLoadingChallenges] = useState<boolean>(false);
+  // Dynamic Challenges state per course (Zero hardcoded arrays, pure live database records)
+  const [challenges, setChallenges] = useState<ChallengeItem[]>([]);
+  const [loadingChallenges, setLoadingChallenges] = useState<boolean>(true);
   const [challengeFilter, setChallengeFilter] = useState<'active' | 'all' | 'completed' | 'upcoming'>('active');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const queryChallengeId = searchParams.get('challenge');
-  const [selectedChallenge, setSelectedChallenge] = useState<ChallengeItem | null>(() => {
-    if (queryChallengeId) {
-      return getDefaultChallengesForCohort().find((c) => c.id === queryChallengeId) || null;
-    }
-    return null;
-  });
+  const [selectedChallenge, setSelectedChallenge] = useState<ChallengeItem | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<'brief' | 'assets' | 'submit' | 'peers'>('brief');
-  const [submissionUrl, setSubmissionUrl] = useState('');
-  const [submissionNotes, setSubmissionNotes] = useState('');
-  const [submittedChallengeIds, setSubmittedChallengeIds] = useState<string[]>(['ch-w3-task']);
+  const [submittedChallengeIds, setSubmittedChallengeIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Joined challenges state (tracks whether current user has joined the challenge)
-  const [joinedChallengeIds, setJoinedChallengeIds] = useState<string[]>(() =>
-    getDefaultChallengesForCohort().filter((c) => c.isJoined).map((c) => c.id)
-  );
+  const [joinedChallengeIds, setJoinedChallengeIds] = useState<string[]>([]);
 
   // Checkin Modal state (Matching user's reference image for Task check-in)
-  const [showCheckinModal, setShowCheckinModal] = useState<boolean>(() => {
-    if (queryChallengeId) {
-      const initialCh = getDefaultChallengesForCohort().find((c) => c.id === queryChallengeId);
-      return Boolean(initialCh?.isJoined);
-    }
-    return false;
-  });
+  const [showCheckinModal, setShowCheckinModal] = useState<boolean>(false);
   const [checkinScreenshotUrl, setCheckinScreenshotUrl] = useState('');
   const [checkinNotes, setCheckinNotes] = useState('');
   const [showCheckinSubmitForm, setShowCheckinSubmitForm] = useState(false);
   const [submittedCheckinIds, setSubmittedCheckinIds] = useState<string[]>([]);
+  const [proTransactions, setProTransactions] = useState<ProHistoryTransaction[]>([]);
+  const [challengeParticipants, setChallengeParticipants] = useState<ChallengeParticipantProfile[]>([]);
 
   // Load dynamic challenges whenever selectedCohortId or selected course changes
   useEffect(() => {
@@ -282,15 +264,18 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
       setLoadingChallenges(true);
       const data = await fetchCourseChallenges(
         selectedCohortId !== 'all' ? selectedCohortId : undefined,
-        selectedCourse?.title
+        selectedCourse?.title,
+        user?.id
       );
       if (!isMounted) return;
       setChallenges(data);
       setLoadingChallenges(false);
 
-      // Populate joined challenge ids
+      // Populate joined and submitted challenge ids from live relational records
       const joined = data.filter((c) => c.isJoined).map((c) => c.id);
-      setJoinedChallengeIds((prev) => Array.from(new Set([...prev, ...joined])));
+      setJoinedChallengeIds(joined);
+      const submitted = data.filter((c) => c.hasSubmitted).map((c) => c.id);
+      setSubmittedChallengeIds(submitted);
 
       // Sync selected challenge if requested in URL
       if (queryChallengeId) {
@@ -307,7 +292,23 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [selectedCohortId, selectedCourse?.title, queryChallengeId]);
+  }, [selectedCohortId, selectedCourse?.title, queryChallengeId, user?.id]);
+
+  // Load real user PRO history transactions from Supabase
+  useEffect(() => {
+    if (user?.id) {
+      void fetchUserProHistory(user.id).then(setProTransactions);
+    }
+  }, [user?.id]);
+
+  // Load participants for the currently selected challenge
+  useEffect(() => {
+    if (selectedChallenge?.id) {
+      void fetchChallengeParticipants(selectedChallenge.id).then(setChallengeParticipants);
+    } else {
+      setChallengeParticipants([]);
+    }
+  }, [selectedChallenge?.id]);
 
   const handleJoinChallenge = (challengeId: string) => {
     void joinCourseChallenge(challengeId, user?.id);
@@ -1012,21 +1013,40 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
 
                           {/* Overlapping Participant Avatars */}
                           <div className="flex items-center justify-center md:justify-start -space-x-2 pt-1">
-                            <img
-                              src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&h=80&q=80"
-                              alt="Participant 1"
-                              className="size-8 rounded-full object-cover ring-2 ring-slate-900 shadow-xs"
-                            />
-                            <img
-                              src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=80&h=80&q=80"
-                              alt="Participant 2"
-                              className="size-8 rounded-full object-cover ring-2 ring-slate-900 shadow-xs"
-                            />
-                            <img
-                              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&h=80&q=80"
-                              alt="Participant 3"
-                              className="size-8 rounded-full object-cover ring-2 ring-slate-900 shadow-xs"
-                            />
+                            {challengeParticipants.length > 0 ? (
+                              challengeParticipants.slice(0, 3).map((p, idx) => (
+                                p.avatarUrl ? (
+                                  <img
+                                    key={p.userId}
+                                    src={p.avatarUrl}
+                                    alt={p.fullName}
+                                    className="size-8 rounded-full object-cover ring-2 ring-slate-900 shadow-xs"
+                                  />
+                                ) : (
+                                  <div
+                                    key={p.userId}
+                                    className={`flex size-8 items-center justify-center rounded-full text-[11px] font-black ring-2 ring-slate-900 text-slate-950 ${
+                                      idx === 0 ? 'bg-amber-400' : idx === 1 ? 'bg-blue-400' : 'bg-emerald-400'
+                                    }`}
+                                  >
+                                    {p.fullName.slice(0, 2).toUpperCase()}
+                                  </div>
+                                )
+                              ))
+                            ) : members.length > 0 ? (
+                              members.slice(0, Math.min(3, Math.max(1, selectedChallenge.participantsJoined))).map((m) => (
+                                <img
+                                  key={m.id}
+                                  src={m.avatarUrl}
+                                  alt={m.name}
+                                  className="size-8 rounded-full object-cover ring-2 ring-slate-900 shadow-xs"
+                                />
+                              ))
+                            ) : (
+                              <div className="flex size-8 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 text-xs font-black ring-2 ring-slate-900">
+                                {userInitials}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1040,10 +1060,10 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                           <div className="flex flex-wrap items-center gap-2">
                             <div>
                               <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Happening Now</span>
-                              <span className="text-sm font-black text-white">Day 1</span>
+                              <span className="text-sm font-black text-white">{selectedChallenge.week}</span>
                             </div>
                             <span className="rounded-full bg-rose-500/20 border border-rose-500/30 px-2.5 py-0.5 text-xs font-black text-rose-400">
-                              Ends in 4d 10h 15m
+                              {formatChallengeCountdown(selectedChallenge.endDate)}
                             </span>
                           </div>
                         </div>
@@ -1066,13 +1086,13 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Content Card below Hero: 1 Checkins & Description */}
+                    {/* Content Card below Hero: Checkins & Description */}
                     <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-xs space-y-8">
-                      {/* Row 1: 1 Checkins */}
+                      {/* Row 1: Checkins */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 pb-6 border-b border-slate-100 dark:border-slate-800/80">
                         <div className="sm:w-36 shrink-0">
                           <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
-                            1 Checkins
+                            {selectedChallenge.participantsJoined} {selectedChallenge.participantsJoined === 1 ? 'Checkin' : 'Checkins'}
                           </h3>
                         </div>
 
@@ -1159,7 +1179,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                           <span>{selectedChallenge.startDate} - {selectedChallenge.endDate} • {selectedChallenge.durationLabel}</span>
                         </span>
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-400">
-                          Ends in: 2d 0h 17m
+                          {formatChallengeCountdown(selectedChallenge.endDate)}
                         </span>
                       </div>
                       <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
@@ -1440,69 +1460,42 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                           </button>
                         </div>
                       ) : (
-                        <form
-                          onSubmit={async (e) => {
-                            e.preventDefault();
-                            if (!submissionUrl.trim()) return;
+                        <DynamicChallengeSubmissionBox
+                          userId={user?.id || 'student-user'}
+                          challengeId={selectedChallenge.id}
+                          initialUrl=""
+                          initialNotes=""
+                          isExistingSubmission={submittedChallengeIds.includes(selectedChallenge.id)}
+                          submitting={isSubmitting}
+                          trackType={selectedCourse?.title?.toLowerCase().includes('code') ? 'coding' : 'video'}
+                          studentName={userDisplayName}
+                          cohortName={selectedCourse?.title || 'Creative Sprint'}
+                          dayTitle={selectedChallenge.title}
+                          onSubmit={async ({ submissionUrl: newUrl, notes: newNotes }) => {
                             setIsSubmitting(true);
                             try {
                               await submitCourseChallenge(
                                 selectedChallenge.id,
                                 user?.id || 'student-user',
-                                submissionUrl.trim(),
-                                submissionNotes.trim()
+                                newUrl,
+                                newNotes
                               );
-                              setSubmittedChallengeIds((prev) => [...prev, selectedChallenge.id]);
+                              setSubmittedChallengeIds((prev) => Array.from(new Set([...prev, selectedChallenge.id])));
                               setToastMessage(`🎉 Entry Submitted! +${selectedChallenge.proReward} PRO Points Claimed!`);
-                              setSubmissionUrl('');
-                              setSubmissionNotes('');
+                              if (user?.id) {
+                                void fetchUserProHistory(user.id).then(setProTransactions);
+                              }
                             } catch (err) {
                               console.warn('Submission record error:', err);
-                              setSubmittedChallengeIds((prev) => [...prev, selectedChallenge.id]);
+                              setSubmittedChallengeIds((prev) => Array.from(new Set([...prev, selectedChallenge.id])));
                               setToastMessage(`🎉 Entry Submitted! +${selectedChallenge.proReward} PRO Points Claimed!`);
                             } finally {
                               setIsSubmitting(false);
                             }
                             setTimeout(() => setToastMessage(null), 4000);
                           }}
-                          className="space-y-4"
-                        >
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                              Video Playback URL (YouTube, Vimeo, Loom, or Drive) *
-                            </label>
-                            <input
-                              type="url"
-                              required
-                              value={submissionUrl}
-                              onChange={(e) => setSubmissionUrl(e.target.value)}
-                              placeholder="https://youtube.com/watch?v=..."
-                              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950 p-2.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:outline-hidden"
-                            />
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                              Editor Notes &amp; Creative Reflections
-                            </label>
-                            <textarea
-                              rows={3}
-                              value={submissionNotes}
-                              onChange={(e) => setSubmissionNotes(e.target.value)}
-                              placeholder="Describe your editing choices, pacing shifts, sound design approach..."
-                              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950 p-2.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:outline-hidden"
-                            />
-                          </div>
-
-                          <button
-                            type="submit"
-                            disabled={isSubmitting || !submissionUrl.trim()}
-                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 py-3 text-xs font-black text-slate-950 shadow-md shadow-amber-500/20 hover:brightness-105 active:scale-98 transition disabled:opacity-50"
-                          >
-                            <Send size={15} />
-                            <span>{isSubmitting ? 'Submitting...' : `Submit Challenge Entry & Claim 🪙 ${selectedChallenge.proReward} PRO`}</span>
-                          </button>
-                        </form>
+                          onCancel={() => setActiveDetailTab('brief')}
+                        />
                       )}
                     </div>
                   )}
@@ -1641,10 +1634,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
 
                   {/* Loading State vs Empty State vs Challenge Cards Grid */}
                   {loadingChallenges && challenges.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 space-y-3">
-                      <Loader2 size={30} className="animate-spin text-amber-500" />
-                      <p className="text-xs font-bold text-slate-500">Loading course challenges...</p>
-                    </div>
+                    <ChallengeListSkeleton count={3} />
                   ) : filteredChallenges.length === 0 ? (
                     <div className="rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 p-12 text-center space-y-4 bg-white/50 dark:bg-slate-900/40">
                       <div className="flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 mx-auto">
@@ -1766,26 +1756,25 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                                 {/* Participants & Social Proof */}
                                 <div className="flex items-center gap-2 pt-1">
                                   <div className="flex -space-x-1.5 overflow-hidden">
-                                    <img
-                                      className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
-                                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64&q=80"
-                                      alt="User"
-                                    />
-                                    <img
-                                      className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
-                                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&h=64&q=80"
-                                      alt="User"
-                                    />
-                                    {challenge.participantsJoined > 2 && (
-                                      <img
-                                        className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
-                                        src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=64&h=64&q=80"
-                                        alt="User"
-                                      />
+                                    {members.length > 0 ? (
+                                      members.slice(0, Math.min(3, Math.max(1, challenge.participantsJoined))).map((m) => (
+                                        <img
+                                          key={m.id}
+                                          className="inline-block size-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
+                                          src={m.avatarUrl}
+                                          alt={m.name}
+                                        />
+                                      ))
+                                    ) : (
+                                      <div className="flex size-6 items-center justify-center rounded-full bg-amber-500 text-slate-950 text-[10px] font-black ring-2 ring-white dark:ring-slate-900">
+                                        {userInitials}
+                                      </div>
                                     )}
                                   </div>
                                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                    +{challenge.participantsJoined - 1} participants joined
+                                    {challenge.participantsJoined === 0
+                                      ? 'Be the first to join'
+                                      : `${challenge.participantsJoined} joined`}
                                   </span>
                                 </div>
                               </div>
@@ -2344,20 +2333,26 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
               </div>
 
               <div className="mt-4 max-h-72 overflow-y-auto space-y-2.5 pr-1">
-                {PRO_HISTORY_TRANSACTIONS.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950/60 p-3 flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{tx.title}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{tx.date}</p>
-                    </div>
-                    <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-black text-emerald-600 dark:text-emerald-400">
-                      {tx.points}
-                    </span>
+                {proTransactions.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-slate-400">
+                    No points activity recorded yet.
                   </div>
-                ))}
+                ) : (
+                  proTransactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950/60 p-3 flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{tx.title}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">{tx.date}</p>
+                      </div>
+                      <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-black text-emerald-600 dark:text-emerald-400">
+                        {tx.points}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="mt-5 flex justify-end">

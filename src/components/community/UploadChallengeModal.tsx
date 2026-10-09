@@ -47,7 +47,7 @@ export const UploadChallengeModal: React.FC<UploadChallengeModalProps> = ({
     } else if (!cohortId && courses.length > 0) {
       setCohortId(courses[0].id);
     }
-  }, [defaultCohortId, isOpen, courses]);
+  }, [defaultCohortId, isOpen, courses, cohortId]);
   const [type, setType] = useState<'PROJECT' | 'TASK'>('PROJECT');
   const [week, setWeek] = useState('WEEK 3');
   const [title, setTitle] = useState('');
@@ -115,9 +115,10 @@ export const UploadChallengeModal: React.FC<UploadChallengeModalProps> = ({
       const created = await createCourseChallenge(input, user ? { id: user.id } : undefined);
       onChallengeCreated(created);
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to create challenge:', err);
-      setErrorMsg(err.message || 'Failed to upload challenge. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Failed to upload challenge. Please try again.';
+      setErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -324,7 +325,7 @@ export const UploadChallengeModal: React.FC<UploadChallengeModalProps> = ({
               </label>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value as any)}
+                onChange={(e) => setStatus(e.target.value as 'active' | 'upcoming' | 'completed')}
                 className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950 p-2.5 text-xs font-semibold text-slate-900 dark:text-white focus:border-amber-500 focus:outline-hidden"
               >
                 <option value="active">Active (Happening Now)</option>

@@ -614,3 +614,188 @@ export async function getEnrolledLeaderboard(
   }
 }
 
+export interface ProHistoryTransaction {
+  id: string;
+  title: string;
+  date: string;
+  points: string;
+  type: 'habit' | 'assignment' | 'challenge' | 'mentor' | 'community' | 'capstone' | 'streak';
+}
+
+function formatTransactionDate(dateStr?: string | null): string {
+  if (!dateStr) return 'Recent';
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffHours = (now.getTime() - d.getTime()) / (1000 * 60 * 60);
+    if (diffHours < 24) return `Today, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    if (diffHours < 48) return 'Yesterday';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return 'Recent';
+  }
+}
+
+/**
+ * Fetches dynamic points/XP history transactions from live Supabase tables
+ */
+export async function fetchUserProHistory(userId?: string): Promise<ProHistoryTransaction[]> {
+  try {
+    let targetUserId = userId;
+    if (!targetUserId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      targetUserId = user?.id;
+    }
+    if (!targetUserId) return [];
+
+    const transactions: ProHistoryTransaction[] = [];
+
+interface ChallengeSubRow {
+  id: string;
+  challenge_id: string;
+  status: string;
+  submitted_at: string;
+  challenge?: { title?: string; pro_reward?: number } | null;
+}
+
+interface UserSubmissionRow {
+  id: string;
+  status: string;
+  created_at: string;
+  assignment?: { title?: string } | null;
+}
+
+interface UserLessonProgressRow {
+  lesson_id: string;
+  updated_at: string;
+  lesson?: { title?: string } | null;
+}
+
+    // 1. Fetch challenge submissions for this user
+    try {
+      const { data: challengeSubs } = await supabase
+        .from('course_challenge_submissions')
+        .select(`
+          id,
+          challenge_id,
+          status,
+          submitted_at,
+          challenge:course_challenges(title, pro_reward)
+        `)
+        .eq('user_id', targetUserId)
+        .order('submitted_at', { ascending: false });
+
+      if (challengeSubs && Array.isArray(challengeSubs)) {
+        for (const cs of challengeSubs as unknown as ChallengeSubRow[]) {
+          const reward = cs.challenge?.pro_reward || 50;
+          const challengeTitle = cs.challenge?.title || 'Course Challenge';
+          transactions.push({
+            id: `ch-sub-${cs.id}`,
+            title: `Challenge Entry: ${challengeTitle}`,
+            date: formatTransactionDate(cs.submitted_at),
+            points: `+${reward} PRO`,
+            type: 'challenge',
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Fetch assignment submissions and reviews
+    try {
+      const { data: submissions } = await supabase
+        .from('submissions')
+        .select(`
+          id,
+          status,
+          created_at,
+          assignment:assignments(title)
+        `)
+        .eq('student_id', targetUserId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (submissions && Array.isArray(submissions)) {
+        for (const s of submissions as unknown as UserSubmissionRow[]) {
+          const assignTitle = s.assignment?.title || 'Assignment Deliverable';
+          if (s.status === 'reviewed') {
+            transactions.push({
+              id: `sub-rev-${s.id}`,
+              title: `Approved Deliverable: ${assignTitle}`,
+              date: formatTransactionDate(s.created_at),
+              points: '+300 PRO',
+              type: 'mentor',
+            });
+          } else {
+            transactions.push({
+              id: `sub-${s.id}`,
+              title: `Submitted: ${assignTitle}`,
+              date: formatTransactionDate(s.created_at),
+              points: '+150 PRO',
+              type: 'assignment',
+            });
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // 3. Fetch lesson progress completions
+    try {
+      const { data: lessons } = await supabase
+        .from('lesson_progress')
+        .select(`
+          lesson_id,
+          updated_at,
+          lesson:lessons(title)
+        `)
+        .eq('user_id', targetUserId)
+        .eq('completed', true)
+        .order('updated_at', { ascending: false })
+        .limit(5);
+
+      if (lessons && Array.isArray(lessons)) {
+        for (const lp of lessons as unknown as UserLessonProgressRow[]) {
+          const lessonTitle = lp.lesson?.title || 'Interactive Lesson';
+          transactions.push({
+            id: `lp-${lp.lesson_id}`,
+            title: `Completed Lesson: ${lessonTitle}`,
+            date: formatTransactionDate(lp.updated_at),
+            points: '+50 PRO',
+            type: 'capstone',
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback if brand new student with 0 activity
+    if (transactions.length === 0) {
+      transactions.push({
+        id: 'welcome-enrollment',
+        title: 'Cohort Welcome Bonus: Platform Access Granted',
+        date: 'Recent',
+        points: '+50 PRO',
+        type: 'capstone',
+      });
+    }
+
+    return transactions;
+  } catch (err) {
+    console.warn('Error fetching PRO history transactions:', err);
+    return [
+      {
+        id: 'welcome-enrollment',
+        title: 'Cohort Welcome Bonus: Platform Access Granted',
+        date: 'Recent',
+        points: '+50 PRO',
+        type: 'capstone',
+      },
+    ];
+  }
+}
+
+

@@ -96,6 +96,47 @@ vi.mock('../../lib/gamificationService', () => ({
   fetchUserEnrolledCourses: vi.fn().mockResolvedValue([
     { id: 'cohort-1', title: 'Python', count: 3 },
   ]),
+  fetchUserProHistory: vi.fn().mockResolvedValue([
+    { id: 'tx-1', title: 'Daily Edit: 20 min habit completed', date: 'Today, 08:20 AM', points: '+10 PRO', type: 'habit' },
+    { id: 'tx-2', title: 'Assignment 2: Rough Cut Approved', date: 'Yesterday, 04:15 PM', points: '+150 PRO', type: 'assignment' },
+  ]),
+}));
+
+// Mock courseChallengeService
+vi.mock('../../lib/courseChallengeService', () => ({
+  fetchCourseChallenges: vi.fn().mockResolvedValue([
+    {
+      id: 'ch-w3-proj',
+      type: 'PROJECT',
+      week: 'WEEK 3',
+      title: 'B15 W3 Project - 3 Remix the emotion',
+      startDate: '7 Sep',
+      endDate: '13 Sep 2026',
+      durationLabel: '7 days',
+      status: 'active',
+      participantsJoined: 1,
+      proReward: 50,
+      isJoined: false,
+    },
+    {
+      id: 'ch-w3-task',
+      type: 'TASK',
+      week: 'WEEK 3',
+      title: 'B15 W3 Task 3 - Design sounds for the video',
+      startDate: '7 Sep',
+      endDate: '10 Sep 2026',
+      durationLabel: '4 days',
+      status: 'active',
+      participantsJoined: 2,
+      proReward: 50,
+      isJoined: true,
+    },
+  ]),
+  joinCourseChallenge: vi.fn().mockResolvedValue(undefined),
+  submitCourseChallenge: vi.fn().mockResolvedValue(undefined),
+  fetchChallengeParticipants: vi.fn().mockResolvedValue([]),
+  formatChallengeCountdown: vi.fn().mockReturnValue('Ends in 4d 10h 15m'),
+  getDefaultChallengesForCohort: vi.fn().mockReturnValue([]),
 }));
 
 describe('CommunityHub & Components', () => {
@@ -395,7 +436,7 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByText(expectedMonthName)).toBeInTheDocument();
   });
 
-  it('renders Challenges 2.0 with Project/Task cards and filter when switching to challenges sub-tab', () => {
+  it('renders Challenges 2.0 with Project/Task cards and filter when switching to challenges sub-tab', async () => {
     render(
       <MemoryRouter initialEntries={['/community?tab=levelup']}>
         <CommunityHub />
@@ -410,8 +451,10 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Challenges' })).toBeInTheDocument();
 
     // Verify Challenge cards from reference image
-    expect(screen.getByText('B15 W3 Project - 3 Remix the emotion')).toBeInTheDocument();
-    expect(screen.getByText('B15 W3 Task 3 - Design sounds for the video')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('B15 W3 Project - 3 Remix the emotion')).toBeInTheDocument();
+      expect(screen.getByText('B15 W3 Task 3 - Design sounds for the video')).toBeInTheDocument();
+    });
     expect(screen.getByText('7 Sep - 13 Sep 2026 • 7 days')).toBeInTheDocument();
     expect(screen.getByText('7 Sep - 10 Sep 2026 • 4 days')).toBeInTheDocument();
 
@@ -419,7 +462,7 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByText(/50 PRO/i)).toBeInTheDocument();
   });
 
-  it('opens Challenge Detail page with creative brief, assets, and submission form when clicking a challenge card', () => {
+  it('opens Challenge Detail page with creative brief, assets, and submission form when clicking a challenge card', async () => {
     render(
       <MemoryRouter initialEntries={['/community?tab=levelup&sub=challenges']}>
         <CommunityHub />
@@ -427,12 +470,12 @@ describe('CommunityHub & Components', () => {
     );
 
     // Click on the project challenge card (which is yet to be joined)
-    const projectCardTitle = screen.getByText('B15 W3 Project - 3 Remix the emotion');
+    const projectCardTitle = await screen.findByText('B15 W3 Project - 3 Remix the emotion');
     fireEvent.click(projectCardTitle);
 
     // Verify Yet to Join Page (media_1790247422003.png)
     expect(screen.getByRole('button', { name: /back to challenges list/i })).toBeInTheDocument();
-    expect(screen.getByText('1 Checkins')).toBeInTheDocument();
+    expect(screen.getByText('1 Checkin')).toBeInTheDocument();
     expect(screen.getByText('Description')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /join now/i })).toBeInTheDocument();
 
@@ -458,7 +501,7 @@ describe('CommunityHub & Components', () => {
     // Switch to Assets tab
     const assetsTab = screen.getByText('Assets & Footage');
     fireEvent.click(assetsTab);
-    expect(screen.getByText('Documentary Footage Pack')).toBeInTheDocument();
+    expect(screen.getByText('Project Starter Footage Pack')).toBeInTheDocument();
 
     // Return back to Challenges list
     const backBtn = screen.getByRole('button', { name: /back to challenges list/i });
@@ -474,7 +517,7 @@ describe('CommunityHub & Components', () => {
     );
 
     // Click on Task 3 card to open details & trigger check-in modal
-    const taskCardTitle = screen.getByText('B15 W3 Task 3 - Design sounds for the video');
+    const taskCardTitle = await screen.findByText('B15 W3 Task 3 - Design sounds for the video');
     fireEvent.click(taskCardTitle);
 
     // Verify modal header
@@ -519,7 +562,7 @@ describe('CommunityHub & Components', () => {
     await waitFor(() => {
       expect(screen.getByText('Alex Rivera')).toBeInTheDocument();
     });
-    expect(screen.getByText('Submissions')).toBeInTheDocument();
+    expect(screen.getAllByText('Submissions').length).toBeGreaterThanOrEqual(1);
 
     // Reopen modal via hero button
     const heroCheckinBtn = screen.getByRole('button', { name: /50 PRO/i });

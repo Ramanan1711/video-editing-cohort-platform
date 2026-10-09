@@ -189,3 +189,32 @@ export function CalendarSkeleton() {
     </div>
   );
 }
+
+export function ChallengeListSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse" aria-busy="true" aria-label="Loading challenges">
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs flex flex-col justify-between"
+        >
+          <div className="h-44 sm:h-48 w-full bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center p-4">
+            <div className="size-16 rounded-2xl bg-slate-200 dark:bg-slate-700/60" />
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="space-y-2">
+              <div className="h-4 w-24 rounded bg-slate-200 dark:bg-slate-700" />
+              <div className="h-5 w-4/5 rounded bg-slate-200 dark:bg-slate-700" />
+            </div>
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="size-6 rounded-full bg-slate-200 dark:bg-slate-700" />
+              <div className="size-6 rounded-full bg-slate-200 dark:bg-slate-700" />
+              <div className="h-3 w-28 rounded bg-slate-100 dark:bg-slate-800" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+

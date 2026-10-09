@@ -23,26 +23,20 @@ import {
   type CourseOption,
 } from '../../lib/gamificationService';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
+import { fetchUserProHistory, type ProHistoryTransaction } from '../../lib/gamificationService';
 
 interface LevelUpModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const PRO_HISTORY_TRANSACTIONS = [
-  { id: 'tx-1', title: 'Daily Edit: 20 min habit completed', date: 'Today, 08:20 AM', points: '+10 PRO', type: 'habit' },
-  { id: 'tx-2', title: 'Assignment 2: Rough Cut Approved', date: 'Yesterday, 04:15 PM', points: '+150 PRO', type: 'assignment' },
-  { id: 'tx-3', title: 'Mentor Rubric: Excellent Pacing Bonus', date: '2 days ago', points: '+50 PRO', type: 'mentor' },
-  { id: 'tx-4', title: 'Community Feedback: Peer Project Critique', date: '3 days ago', points: '+25 PRO', type: 'community' },
-  { id: 'tx-5', title: 'Milestone 1: Assembly Foundations Capstone', date: 'Sep 18, 2026', points: '+500 PRO', type: 'capstone' },
-  { id: 'tx-6', title: '7-Day Editing Streak Shield Claimed', date: 'Sep 15, 2026', points: '+94 PRO', type: 'streak' },
-];
-
 export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) => {
   useModalScrollLock(isOpen);
   const { user, profile } = useAuth();
   const [showHabits, setShowHabits] = useState(true);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [proTransactions, setProTransactions] = useState<ProHistoryTransaction[]>([]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterView, setFilterView] = useState<'all' | 'top10' | 'myrank'>('all');
   const [hoveredDay, setHoveredDay] = useState<{ day: string; userRate: number; commRate: number } | null>(null);
@@ -52,6 +46,13 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
   const [initialCohortResolved, setInitialCohortResolved] = useState<boolean>(false);
+
+  // Fetch dynamic PRO points history when history modal is viewed
+  useEffect(() => {
+    if (showHistoryModal && user?.id) {
+      void fetchUserProHistory(user.id).then(setProTransactions);
+    }
+  }, [showHistoryModal, user?.id]);
 
   // Fetch user's enrolled courses (or fallback to available courses for guests / admins with 0 enrollments)
   useEffect(() => {
@@ -901,20 +902,26 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
             </div>
 
             <div className="mt-4 max-h-72 overflow-y-auto space-y-2.5 pr-1">
-              {PRO_HISTORY_TRANSACTIONS.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950/60 p-3 flex items-center justify-between"
-                >
-                  <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{tx.title}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{tx.date}</p>
-                  </div>
-                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-black text-emerald-600 dark:text-emerald-400">
-                    {tx.points}
-                  </span>
+              {proTransactions.length === 0 ? (
+                <div className="text-center py-6 text-xs text-slate-400">
+                  No points activity recorded yet.
                 </div>
-              ))}
+              ) : (
+                proTransactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950/60 p-3 flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{tx.title}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{tx.date}</p>
+                    </div>
+                    <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-black text-emerald-600 dark:text-emerald-400">
+                      {tx.points}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="mt-5 flex justify-end">
