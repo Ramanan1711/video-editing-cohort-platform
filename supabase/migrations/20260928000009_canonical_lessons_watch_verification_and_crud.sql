@@ -564,6 +564,7 @@ grant execute on function public.admin_delete_lesson(uuid, boolean) to authentic
 -- ------------------------------------------------------------------------------
 -- 7. Canonical Lessons Overview View
 -- ------------------------------------------------------------------------------
+drop view if exists public.lessons_overview cascade;
 create or replace view public.lessons_overview as
 select
   l.id,

@@ -83,11 +83,17 @@ using (public.is_mentor_for_student(id));
 
 -- 8. Create Sanitized Public Profile View for Social / Peer Displays
 -- Omits: email, whatsapp_number, whatsapp_opt_in, role/status vulnerabilities
-create or replace view public.public_profiles with (security_invoker = false) as
+alter table public.profiles
+  add column if not exists avatar_url text;
+
+drop view if exists public.public_profiles cascade;
+
+create view public.public_profiles with (security_invoker = false) as
 select
   id,
   full_name,
   role,
+  avatar_url,
   created_at
 from public.profiles
 where coalesce(status, 'active') = 'active';

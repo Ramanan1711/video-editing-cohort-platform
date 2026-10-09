@@ -285,6 +285,7 @@ with check (
 -- 4. Verification and Helper View
 -- ------------------------------------------------------------------------------
 
+drop view if exists public.assignment_details_view cascade;
 create or replace view public.assignment_details_view as
 select
   a.id,

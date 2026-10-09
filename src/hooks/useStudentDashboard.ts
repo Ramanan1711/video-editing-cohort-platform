@@ -273,7 +273,7 @@ export function useStudentDashboard(
               setSprintCompletedCount(sprintData.completedCount);
               setSprintStreak(sprintData.streakCount);
               setSprintScore(sprintData.overallScore);
-              setTotalSprintDays(sprintData.totalDays || 15);
+              setTotalSprintDays(sprintData.totalDays);
               setUnifiedProgress(progressData);
               if (progressData) {
                 progressEntries[courseRes.value.cohort.id] = progressData;
@@ -287,7 +287,7 @@ export function useStudentDashboard(
           setSprintCompletedCount(0);
           setSprintStreak(0);
           setSprintScore(0);
-          setTotalSprintDays(15);
+          setTotalSprintDays(0);
           setUnifiedProgress(null);
         }
 

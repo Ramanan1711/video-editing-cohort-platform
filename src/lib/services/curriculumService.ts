@@ -2,7 +2,6 @@ import { supabase } from '../supabaseClient';
 import { parseDatabaseError } from '../errorHandling';
 import { queryCache } from '../queryCache';
 import { DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../paymentService';
-import { seedCohortDailyChallenges } from '../internshipService';
 
 export interface Course {
   id: string;
@@ -318,13 +317,6 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
   }
   if (res.error) throw res.error;
   const created = res.data as DbCohortRow;
-
-  // Auto-seed syllabus daily challenges for the newly created cohort
-  try {
-    await seedCohortDailyChallenges(created.id);
-  } catch (seedErr) {
-    console.warn('Auto-seeding daily challenges on cohort creation failed:', seedErr);
-  }
 
   return {
     id: created.id,

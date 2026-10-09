@@ -230,6 +230,7 @@ select
   id,
   full_name,
   role,
+  avatar_url,
   created_at
 from public.profiles
 where coalesce(status, 'active') = 'active';

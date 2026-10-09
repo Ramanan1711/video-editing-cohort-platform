@@ -3003,11 +3003,17 @@ using (public.is_mentor_for_student(id));
 
 -- 8. Create Sanitized Public Profile View for Social / Peer Displays
 -- Omits: email, whatsapp_number, whatsapp_opt_in, role/status vulnerabilities
-create or replace view public.public_profiles with (security_invoker = false) as
+alter table public.profiles
+  add column if not exists avatar_url text;
+
+drop view if exists public.public_profiles cascade;
+
+create view public.public_profiles with (security_invoker = false) as
 select
   id,
   full_name,
   role,
+  avatar_url,
   created_at
 from public.profiles
 where coalesce(status, 'active') = 'active';
@@ -4743,6 +4749,7 @@ grant execute on function public.enroll_student_in_cohort(uuid, uuid) to authent
 -- ------------------------------------------------------------------------------
 -- 6. Canonical Overview View for Reporting & Diagnostics
 -- ------------------------------------------------------------------------------
+drop view if exists public.cohort_roster_summary cascade;
 create or replace view public.cohort_roster_summary as
 select
   c.id as cohort_id,
@@ -5087,6 +5094,7 @@ create policy "Admins can manage courses"
 -- ------------------------------------------------------------------------------
 -- 6. Canonical Courses Overview View
 -- ------------------------------------------------------------------------------
+drop view if exists public.courses_overview cascade;
 create or replace view public.courses_overview as
 select
   c.id,
@@ -5612,6 +5620,7 @@ grant execute on function public.admin_delete_module(uuid, boolean) to authentic
 -- ------------------------------------------------------------------------------
 -- 6. Canonical Modules Overview View
 -- ------------------------------------------------------------------------------
+drop view if exists public.modules_overview cascade;
 create or replace view public.modules_overview as
 select
   m.id,
@@ -6209,6 +6218,7 @@ grant execute on function public.admin_delete_lesson(uuid, boolean) to authentic
 -- ------------------------------------------------------------------------------
 -- 7. Canonical Lessons Overview View
 -- ------------------------------------------------------------------------------
+drop view if exists public.lessons_overview cascade;
 create or replace view public.lessons_overview as
 select
   l.id,
@@ -6581,6 +6591,7 @@ grant execute on function public.get_lesson_resource_download_url(uuid) to authe
 -- ------------------------------------------------------------------------------
 -- 6. Diagnostic Security Audit View: lesson_resources_security_audit
 -- ------------------------------------------------------------------------------
+drop view if exists public.lesson_resources_security_audit cascade;
 create or replace view public.lesson_resources_security_audit as
 select
   lr.id as resource_id,
@@ -7115,6 +7126,7 @@ grant execute on function public.toggle_lesson_completion(uuid, boolean, uuid) t
 -- ------------------------------------------------------------------------------
 -- 7. Diagnostic Engagement Audit View: lesson_progress_engagement_audit
 -- ------------------------------------------------------------------------------
+drop view if exists public.lesson_progress_engagement_audit cascade;
 create or replace view public.lesson_progress_engagement_audit as
 select
   lp.user_id,
@@ -7428,6 +7440,7 @@ with check (
 -- 4. Verification and Helper View
 -- ------------------------------------------------------------------------------
 
+drop view if exists public.assignment_details_view cascade;
 create or replace view public.assignment_details_view as
 select
   a.id,
@@ -15295,6 +15308,7 @@ select
   id,
   full_name,
   role,
+  avatar_url,
   created_at
 from public.profiles
 where coalesce(status, 'active') = 'active';
@@ -19481,10 +19495,7 @@ end;
 $$;
 
 drop trigger if exists trg_ensure_cohort_daily_challenges on public.cohorts;
-create trigger trg_ensure_cohort_daily_challenges
-  after insert on public.cohorts
-  for each row
-  execute function public.trigger_ensure_cohort_daily_challenges();
+drop function if exists public.trigger_ensure_cohort_daily_challenges();
 
 
 -- ==============================================================================

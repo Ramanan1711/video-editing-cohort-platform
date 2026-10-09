@@ -568,7 +568,7 @@ export function StudentPlayerView({
                     <Flame size={16} className={activeTab === 'internship_sprint' ? 'text-orange-500' : 'text-slate-400'} />
                     <span>Sprint Track</span>
                     <span className="rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-[10px] font-black">
-                      {sprintCompletedCount}/{totalSprintDays}
+                      {totalSprintDays > 0 ? `${sprintCompletedCount}/${totalSprintDays}` : sprintCompletedCount}
                     </span>
                   </button>
 

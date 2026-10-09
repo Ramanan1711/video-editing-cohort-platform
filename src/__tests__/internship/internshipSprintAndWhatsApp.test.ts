@@ -265,23 +265,25 @@ describe('15-Day Internship Platform & WhatsApp Suite', () => {
       await expect(deleteDailyChallenge('d1111111-1111-1111-1111-111111111111')).resolves.toBeUndefined();
     });
 
-    it('seeds default 15-day sprint curriculum into database without returning fake string IDs', async () => {
-      const mockUpsert = vi.fn().mockReturnValue({
-        upsert: vi.fn().mockReturnValue({
-          select: vi.fn().mockReturnValue({
+    it('retrieves cohort daily challenges from database without returning fake string IDs', async () => {
+      const mockChallenges = DEFAULT_15_DAY_CURRICULUM.map((c, i) => ({
+        ...c,
+        id: `00000000-0000-0000-0000-${String(i + 1).padStart(12, '0')}`,
+        cohort_id: 'c-uuid-1',
+      }));
+
+      const mockDb = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
             order: vi.fn().mockResolvedValue({
-              data: DEFAULT_15_DAY_CURRICULUM.map((c, i) => ({
-                ...c,
-                id: `00000000-0000-0000-0000-${String(i + 1).padStart(12, '0')}`,
-                cohort_id: 'c-uuid-1',
-              })),
+              data: mockChallenges,
               error: null,
             }),
           }),
         }),
       });
 
-      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockUpsert);
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockDb);
 
       const challenges = await seedCohortDailyChallenges('c-uuid-1');
       expect(challenges).toHaveLength(15);

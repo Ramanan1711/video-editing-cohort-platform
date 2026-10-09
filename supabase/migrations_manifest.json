@@ -805,6 +805,17 @@
         "has_admin_permission",
         "fn_protect_profile_privilege_fields"
       ]
+    },
+    {
+      "order": 57,
+      "filename": "20261009000002_remove_hardcoded_sprint_tracks.sql",
+      "sha256": "b2588bbcd03c2e3f809045d98f80c00c57fea8ccca138446ef7fe3f249d881a1",
+      "sizeBytes": 5384,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "ensure_cohort_daily_challenges"
+      ]
     }
   ]
 }

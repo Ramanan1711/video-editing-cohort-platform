@@ -90,7 +90,6 @@ import {
   createDailyChallenge,
   updateDailyChallenge,
   deleteDailyChallenge,
-  seedCohortDailyChallenges,
   type DailyChallenge,
   type DailyChallengeInput,
 } from '../lib/internshipService';
@@ -220,10 +219,9 @@ export function AdminCourses() {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
 
-  // Challenge / 15-Day Sprint state
+  // Challenge / Sprint Track state
   const [challengesByCohort, setChallengesByCohort] = useState<Record<string, DailyChallenge[]>>({});
   const [cohortActiveTab, setCohortActiveTab] = useState<Record<string, 'curriculum' | 'challenges' | 'sprint'>>({});
-  const [seedingCohortId, setSeedingCohortId] = useState<string | null>(null);
   const [loadingChallengesCohortId, setLoadingChallengesCohortId] = useState<string | null>(null);
 
   // Dynamic Course Challenges state & Upload Modal
@@ -584,20 +582,6 @@ export function AdminCourses() {
         starterSourceMode: 'url',
         isPublished: true,
       });
-    }
-  };
-
-  const handleSeedChallenges = async (cohortId: string) => {
-    setSeedingCohortId(cohortId);
-    try {
-      const seeded = await seedCohortDailyChallenges(cohortId);
-      setChallengesByCohort((prev) => ({ ...prev, [cohortId]: seeded }));
-      toast.success(`Successfully initialized ${seeded.length} daily challenges for this sprint.`);
-    } catch (err) {
-      const parsed = parseDatabaseError(err);
-      toast.error(parsed.message, 'Sprint Seeding Failed');
-    } finally {
-      setSeedingCohortId(null);
     }
   };
 
@@ -1474,7 +1458,7 @@ export function AdminCourses() {
                                 cohortActiveTab[cohort.id] === 'sprint' ? 'text-indigo-200' : 'text-indigo-600'
                               }
                             />
-                            15-Day Sprint (Daily Drills)
+                            Sprint Track (Daily Tasks)
                             <span
                               className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                                 cohortActiveTab[cohort.id] === 'sprint'
@@ -1482,7 +1466,7 @@ export function AdminCourses() {
                                   : 'bg-indigo-100 text-indigo-800'
                               }`}
                             >
-                              {challengesByCohort[cohort.id]?.length ?? 'Sprint'}
+                              {challengesByCohort[cohort.id]?.length ?? 0}
                             </span>
                           </button>
                         </div>
@@ -1512,21 +1496,10 @@ export function AdminCourses() {
                                 setBulkImportTargetCohort({ id: cohort.id, title: cohort.name });
                               }}
                               className="text-xs"
-                              title="Bulk import sprint curriculum from JSON, CSV, or presets"
+                              title="Bulk import sprint curriculum from JSON or CSV"
                             >
                               <Layers size={14} className="mr-1 text-indigo-500" />
                               Bulk Import Sprint Track
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              disabled={seedingCohortId === cohort.id}
-                              onClick={() => void handleSeedChallenges(cohort.id)}
-                              className="text-xs"
-                              title="Initialize canonical 15-day sprint curriculum"
-                            >
-                              <Sparkles size={14} className="mr-1 text-amber-500" />
-                              {seedingCohortId === cohort.id ? 'Seeding Sprint...' : 'Seed 15-Day Sprint'}
                             </Button>
                             <Button
                               variant="primary"
@@ -2292,27 +2265,18 @@ export function AdminCourses() {
                                 <Button
                                   variant="primary"
                                   size="sm"
+                                  onClick={() => openChallengeEditor(cohort.id)}
+                                >
+                                  <Plus size={14} className="mr-1" /> Add Daily Challenge
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
                                   onClick={() => {
                                     setBulkImportTargetCohort({ id: cohort.id, title: cohort.name });
                                   }}
                                 >
                                   <Layers size={14} className="mr-1" /> Bulk Import Sprint Track
-                                </Button>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  disabled={seedingCohortId === cohort.id}
-                                  onClick={() => void handleSeedChallenges(cohort.id)}
-                                >
-                                  <Sparkles size={14} className="mr-1" />
-                                  {seedingCohortId === cohort.id ? 'Seeding Sprint...' : 'Seed Default 15-Day Sprint'}
-                                </Button>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onClick={() => openChallengeEditor(cohort.id)}
-                                >
-                                  <Plus size={14} className="mr-1" /> Add Custom Challenge
                                 </Button>
                               </div>
                             )}

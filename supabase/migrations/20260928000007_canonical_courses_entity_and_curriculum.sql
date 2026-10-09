@@ -318,6 +318,7 @@ create policy "Admins can manage courses"
 -- ------------------------------------------------------------------------------
 -- 6. Canonical Courses Overview View
 -- ------------------------------------------------------------------------------
+drop view if exists public.courses_overview cascade;
 create or replace view public.courses_overview as
 select
   c.id,

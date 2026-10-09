@@ -494,6 +494,7 @@ grant execute on function public.admin_delete_module(uuid, boolean) to authentic
 -- ------------------------------------------------------------------------------
 -- 6. Canonical Modules Overview View
 -- ------------------------------------------------------------------------------
+drop view if exists public.modules_overview cascade;
 create or replace view public.modules_overview as
 select
   m.id,

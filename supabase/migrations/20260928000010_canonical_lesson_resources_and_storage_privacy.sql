@@ -337,6 +337,7 @@ grant execute on function public.get_lesson_resource_download_url(uuid) to authe
 -- ------------------------------------------------------------------------------
 -- 6. Diagnostic Security Audit View: lesson_resources_security_audit
 -- ------------------------------------------------------------------------------
+drop view if exists public.lesson_resources_security_audit cascade;
 create or replace view public.lesson_resources_security_audit as
 select
   lr.id as resource_id,

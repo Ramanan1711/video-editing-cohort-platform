@@ -416,6 +416,7 @@ grant execute on function public.enroll_student_in_cohort(uuid, uuid) to authent
 -- ------------------------------------------------------------------------------
 -- 6. Canonical Overview View for Reporting & Diagnostics
 -- ------------------------------------------------------------------------------
+drop view if exists public.cohort_roster_summary cascade;
 create or replace view public.cohort_roster_summary as
 select
   c.id as cohort_id,

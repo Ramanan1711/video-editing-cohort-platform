@@ -92,7 +92,7 @@ export function SprintChallengeTracker({
     Record<number, { submission: DailyChallengeSubmission; status: InternshipDayStatus['status'] }>
   >({});
 
-  const effectiveTotalDays = totalDays || sprintDays.length || 15;
+  const effectiveTotalDays = (totalDays !== undefined && totalDays > 0) ? totalDays : sprintDays.length;
 
   const mergedSprintDays = useMemo(() => {
     return sprintDays.map((d) => {
@@ -118,7 +118,7 @@ export function SprintChallengeTracker({
     return mergedSprintDays;
   }, [mergedSprintDays, activePhaseFilter, p1End, p2End]);
 
-  const progressPercent = Math.min(100, Math.round((completedCount / effectiveTotalDays) * 100));
+  const progressPercent = effectiveTotalDays > 0 ? Math.min(100, Math.round((completedCount / effectiveTotalDays) * 100)) : 0;
 
   const handleOpenDay = (day: InternshipDayStatus) => {
     setSelectedDay(day);

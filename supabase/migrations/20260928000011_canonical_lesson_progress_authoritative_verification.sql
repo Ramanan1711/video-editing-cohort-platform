@@ -504,6 +504,7 @@ grant execute on function public.toggle_lesson_completion(uuid, boolean, uuid) t
 -- ------------------------------------------------------------------------------
 -- 7. Diagnostic Engagement Audit View: lesson_progress_engagement_audit
 -- ------------------------------------------------------------------------------
+drop view if exists public.lesson_progress_engagement_audit cascade;
 create or replace view public.lesson_progress_engagement_audit as
 select
   lp.user_id,
