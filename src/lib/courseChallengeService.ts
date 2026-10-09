@@ -198,10 +198,15 @@ export async function uploadChallengeAsset(
  * Fetches dynamic challenges for a given cohort or all cohorts from live database
  */
 export async function fetchCourseChallenges(
-  cohortId?: string | null,
+  cohortId?: string | string[] | null,
   cohortTitle?: string,
-  currentUserId?: string
+  currentUserId?: string,
+  cohortTitleMap?: Record<string, string>
 ): Promise<CourseChallengeItem[]> {
+  if (Array.isArray(cohortId) && cohortId.length === 0) {
+    return [];
+  }
+
   try {
     let effectiveUserId = currentUserId;
     if (!effectiveUserId) {
@@ -222,7 +227,9 @@ export async function fetchCourseChallenges(
       `)
       .order('created_at', { ascending: false });
 
-    if (cohortId && cohortId !== 'all') {
+    if (Array.isArray(cohortId)) {
+      query = query.in('cohort_id', cohortId);
+    } else if (cohortId && cohortId !== 'all') {
       query = query.eq('cohort_id', cohortId);
     }
 
@@ -265,11 +272,14 @@ export async function fetchCourseChallenges(
         });
       }
 
+      const resolvedCohortTitle =
+        (row.cohort_id && cohortTitleMap?.[row.cohort_id]) || cohortTitle || 'Course';
+
       return {
         id: row.id,
         cohortId: row.cohort_id,
         courseId: row.course_id,
-        cohortTitle: cohortTitle || 'Course',
+        cohortTitle: resolvedCohortTitle,
         type: row.type || 'PROJECT',
         week: row.week || 'WEEK 1',
         title: row.title,

@@ -209,6 +209,9 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
     return courses.find((c) => c.id === selectedCohortId) || null;
   }, [courses, selectedCohortId]);
 
+  const enrolledCohortIds = useMemo(() => courses.map((c) => c.id), [courses]);
+  const courseTitleMap = useMemo(() => Object.fromEntries(courses.map((c) => [c.id, c.title])), [courses]);
+
   // Fetch user's enrolled courses (or fallback to available courses for guests / admins with 0 enrollments)
   useEffect(() => {
     let isMounted = true;
@@ -398,27 +401,43 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
 
   // Load dynamic challenges whenever selectedCohortId or selected course changes
   useEffect(() => {
+    // If 'all' is selected, wait until initial cohort/courses resolution finishes
+    // so we don't prematurely fetch challenges across non-enrolled courses
+    if (selectedCohortId === 'all' && !initialCohortResolved) {
+      return;
+    }
+
     let isMounted = true;
     async function loadChallenges() {
       setLoadingChallenges(true);
+      // If 'all' cohorts is selected, restrict strictly to the student's enrolled courses/cohorts
+      const targetCohort = selectedCohortId !== 'all' ? selectedCohortId : enrolledCohortIds;
       const data = await fetchCourseChallenges(
-        selectedCohortId !== 'all' ? selectedCohortId : undefined,
+        targetCohort,
         selectedCourse?.title,
-        user?.id
+        user?.id,
+        courseTitleMap
       );
       if (!isMounted) return;
-      setChallenges(data);
+
+      // Defensive client-side filter to ensure no unauthorized or non-enrolled course challenges leak in
+      const validData =
+        selectedCohortId === 'all' && enrolledCohortIds.length > 0
+          ? data.filter((c) => !c.cohortId || enrolledCohortIds.includes(c.cohortId))
+          : data;
+
+      setChallenges(validData);
       setLoadingChallenges(false);
 
       // Populate joined and submitted challenge ids from live relational records
-      const joined = data.filter((c) => c.isJoined).map((c) => c.id);
+      const joined = validData.filter((c) => c.isJoined).map((c) => c.id);
       setJoinedChallengeIds(joined);
-      const submitted = data.filter((c) => c.hasSubmitted).map((c) => c.id);
+      const submitted = validData.filter((c) => c.hasSubmitted).map((c) => c.id);
       setSubmittedChallengeIds(submitted);
 
       // Sync selected challenge if requested in URL
       if (queryChallengeId) {
-        const found = data.find((c) => c.id === queryChallengeId);
+        const found = validData.find((c) => c.id === queryChallengeId);
         if (found) {
           setSelectedChallenge(found);
         }
@@ -428,7 +447,15 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [selectedCohortId, selectedCourse?.title, queryChallengeId, user?.id]);
+  }, [
+    selectedCohortId,
+    selectedCourse?.title,
+    queryChallengeId,
+    user?.id,
+    initialCohortResolved,
+    enrolledCohortIds,
+    courseTitleMap,
+  ]);
 
   // Load real user PRO history transactions from Supabase
   useEffect(() => {

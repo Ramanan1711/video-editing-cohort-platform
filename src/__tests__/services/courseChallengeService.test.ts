@@ -100,6 +100,48 @@ describe('courseChallengeService', () => {
       expect(challenges[0].hasSubmitted).toBe(true);
       expect(challenges[0].assets?.[0].title).toBe('Raw Footage 4K');
     });
+
+    it('returns empty array immediately if cohortId is an empty array without querying database', async () => {
+      const fromSpy = vi.spyOn(supabase, 'from');
+      const challenges = await fetchCourseChallenges([]);
+      expect(challenges).toEqual([]);
+      expect(fromSpy).not.toHaveBeenCalled();
+    });
+
+    it('filters using .in when cohortId is an array of IDs and maps cohortTitle from cohortTitleMap', async () => {
+      const mockDbRow = {
+        id: 'db-ch-2',
+        cohort_id: 'cohort-fse',
+        type: 'PROJECT',
+        week: 'WEEK 2',
+        title: 'Full-Stack REST API',
+        description: 'Build backend API',
+        start_date: '1 Oct',
+        end_date: '8 Oct 2026',
+        participants: [],
+        submissions: [],
+      };
+
+      const inMock = vi.fn().mockResolvedValue({ data: [mockDbRow], error: null });
+      (supabase.from as any).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            in: inMock,
+          }),
+        }),
+      });
+
+      const challenges = await fetchCourseChallenges(
+        ['cohort-fse', 'cohort-java'],
+        undefined,
+        'user-123',
+        { 'cohort-fse': 'Full-Stack Software Engineering', 'cohort-java': 'Java Backend Cohort' }
+      );
+
+      expect(inMock).toHaveBeenCalledWith('cohort_id', ['cohort-fse', 'cohort-java']);
+      expect(challenges).toHaveLength(1);
+      expect(challenges[0].cohortTitle).toBe('Full-Stack Software Engineering');
+    });
   });
 
   describe('createCourseChallenge', () => {
