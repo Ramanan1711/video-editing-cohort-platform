@@ -237,6 +237,15 @@ export async function deleteDailyChallenge(id: string): Promise<void> {
 }
 
 /**
+ * Admin: Delete all daily challenges for a cohort
+ */
+export async function clearCohortDailyChallenges(cohortId: string): Promise<void> {
+  if (!cohortId) throw new Error('Cohort ID is required.');
+  const { error } = await supabase.from('daily_challenges').delete().eq('cohort_id', cohortId);
+  if (error) throw parseDatabaseError(error);
+}
+
+/**
  * @deprecated Hardcoded seeding is removed. All daily challenges must be authored/uploaded directly.
  * Calls ensure_cohort_daily_challenges RPC for compatibility, then returns author-created challenges.
  */

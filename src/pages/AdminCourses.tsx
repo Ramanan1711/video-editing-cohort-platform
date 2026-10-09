@@ -90,6 +90,7 @@ import {
   createDailyChallenge,
   updateDailyChallenge,
   deleteDailyChallenge,
+  clearCohortDailyChallenges,
   type DailyChallenge,
   type DailyChallengeInput,
 } from '../lib/internshipService';
@@ -607,6 +608,34 @@ export function AdminCourses() {
       const parsed = parseDatabaseError(err);
       setError(parsed.message);
       toast.error(parsed.message, 'Failed to delete challenge');
+    }
+  };
+
+  const handleClearCohortChallenges = async (cohortId: string, cohortTitle: string) => {
+    const currentCount = challengesByCohort[cohortId]?.length || 0;
+    if (!window.confirm(`Are you sure you want to delete ALL ${currentCount} challenges for "${cohortTitle}"? This will wipe the entire sprint track for this cohort and cannot be undone.`)) {
+      return;
+    }
+    try {
+      await clearCohortDailyChallenges(cohortId);
+      setChallengesByCohort((prev) => ({
+        ...prev,
+        [cohortId]: [],
+      }));
+      void logAuditEvent({
+        actor_id: user?.id,
+        action: 'cohort.challenges_cleared',
+        entity_type: 'cohort',
+        entity_id: cohortId,
+        metadata: { cohortTitle, deletedCount: currentCount },
+      });
+      const msg = `All ${currentCount} challenges for "${cohortTitle}" cleared successfully.`;
+      setSuccess(msg);
+      toast.success(msg);
+    } catch (err) {
+      const parsed = parseDatabaseError(err);
+      setError(parsed.message);
+      toast.error(parsed.message, 'Failed to clear challenges');
     }
   };
 
@@ -1489,6 +1518,18 @@ export function AdminCourses() {
 
                         {cohortActiveTab[cohort.id] === 'sprint' && canManageCurriculum && (
                           <div className="flex items-center gap-2">
+                            {(challengesByCohort[cohort.id]?.length || 0) > 0 && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleClearCohortChallenges(cohort.id, cohort.name)}
+                                className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                                title="Wipe out all daily challenges for this cohort"
+                              >
+                                <Trash2 size={14} className="mr-1 text-rose-500" />
+                                Clear All Tasks
+                              </Button>
+                            )}
                             <Button
                               variant="secondary"
                               size="sm"
