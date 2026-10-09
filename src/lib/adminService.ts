@@ -1293,7 +1293,7 @@ export async function updateAdminSubRole(
 
   const { data, error } = await supabase
     .from('profiles')
-    .update({ admin_role: adminRole, updated_at: new Date().toISOString() })
+    .update({ role: 'admin', admin_role: adminRole, updated_at: new Date().toISOString() })
     .eq('id', userId)
     .select('id, full_name, email, role, admin_role, status, created_at')
     .single();

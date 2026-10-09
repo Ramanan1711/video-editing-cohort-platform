@@ -141,6 +141,23 @@ export async function listDailyChallenges(cohortId: string): Promise<DailyChalle
       if (seededData && seededData.length > 0) {
         return seededData as DailyChallenge[];
       }
+
+      // If the RPC ran successfully (the 15 daily challenges exist in the database),
+      // but seededData is empty, the current user cannot SELECT them due to RLS
+      // (e.g. not enrolled or staff role desync).
+      // Crucially, DO NOT attempt a client-side table upsert here — that would trigger
+      // a 403 Forbidden error (42501 RLS violation) against PostgREST.
+      // Instead, resolve the curriculum blueprint in-memory and return it gracefully.
+      if (seedRes.data && (seedRes.data as { success?: boolean }).success) {
+        const cohortDetails = await fetchCohortCurriculumInput(cohortId);
+        return getCurriculumBlueprintForCohort(cohortDetails).map((item, idx) => ({
+          id: `local-ch-${cohortId}-${idx + 1}`,
+          cohort_id: cohortId,
+          created_at: new Date().toISOString(),
+          is_published: item.is_published ?? idx === 0,
+          ...item,
+        })) as DailyChallenge[];
+      }
     }
   } catch (seedCatch) {
     console.warn('ensure_cohort_daily_challenges RPC unavailable:', seedCatch);
@@ -170,7 +187,20 @@ export async function listDailyChallenges(cohortId: string): Promise<DailyChalle
   if (error) {
     console.warn('Failed to load daily challenges from Supabase:', error.message);
   }
-  return [];
+
+  // Fallback: Return in-memory tailored blueprint instead of empty array so students have syllabus visibility
+  try {
+    const cohortDetails = await fetchCohortCurriculumInput(cohortId);
+    return getCurriculumBlueprintForCohort(cohortDetails).map((item, idx) => ({
+      id: `local-ch-${cohortId}-${idx + 1}`,
+      cohort_id: cohortId,
+      created_at: new Date().toISOString(),
+      is_published: item.is_published ?? idx === 0,
+      ...item,
+    })) as DailyChallenge[];
+  } catch {
+    return [];
+  }
 }
 
 /**

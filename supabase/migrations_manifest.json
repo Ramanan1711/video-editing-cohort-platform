@@ -791,6 +791,20 @@
       "rpcDefinitions": [
         "can_access_course_asset"
       ]
+    },
+    {
+      "order": 56,
+      "filename": "20261009000001_sync_admin_subroles_and_harden_rls_helpers.sql",
+      "sha256": "c0422b7e0729d7785cdb300798ff8513595f340bfe54937e850f8168330c3682",
+      "sizeBytes": 9644,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "is_admin",
+        "is_mentor_or_admin",
+        "has_admin_permission",
+        "fn_protect_profile_privilege_fields"
+      ]
     }
   ]
 }

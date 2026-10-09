@@ -497,12 +497,37 @@ export async function fetchChallengeParticipants(
 
   if (error || !data) return [];
 
-  return (data as unknown as CourseChallengeDbParticipant[]).map((row) => ({
-    userId: row.user_id,
-    fullName: row.profile?.full_name || row.profile?.email?.split('@')[0] || 'Enrolled Student',
-    avatarUrl: row.profile?.avatar_url || undefined,
-    joinedAt: row.joined_at || new Date().toISOString(),
-  }));
+  const rawParticipants = (data as unknown as CourseChallengeDbParticipant[]) || [];
+
+  // Fallback to public_profiles view if private profiles were suppressed by RLS for peer students
+  const missingUserIds = rawParticipants
+    .filter((row) => !row.profile?.full_name)
+    .map((row) => row.user_id);
+
+  let publicProfileMap = new Map<string, { full_name?: string; avatar_url?: string }>();
+  if (missingUserIds.length > 0) {
+    try {
+      const { data: pubData } = await supabase
+        .from('public_profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', missingUserIds);
+      if (pubData) {
+        publicProfileMap = new Map(pubData.map((p) => [p.id, p]));
+      }
+    } catch {
+      // Ignore public profile lookup failure
+    }
+  }
+
+  return rawParticipants.map((row) => {
+    const pub = publicProfileMap.get(row.user_id);
+    return {
+      userId: row.user_id,
+      fullName: row.profile?.full_name || pub?.full_name || row.profile?.email?.split('@')[0] || 'Enrolled Student',
+      avatarUrl: row.profile?.avatar_url || pub?.avatar_url || undefined,
+      joinedAt: row.joined_at || new Date().toISOString(),
+    };
+  });
 }
 
 /**
@@ -528,15 +553,40 @@ export async function fetchChallengeSubmissions(
 
   if (error || !data) return [];
 
-  return (data as unknown as CourseChallengeDbSubmission[]).map((row) => ({
-    id: row.id,
-    userId: row.user_id,
-    fullName: row.profile?.full_name || row.profile?.email?.split('@')[0] || 'Enrolled Student',
-    avatarUrl: row.profile?.avatar_url || undefined,
-    submissionUrl: row.submission_url,
-    notes: row.notes || undefined,
-    status: row.status,
-    score: row.score || undefined,
-    submittedAt: row.submitted_at,
-  }));
+  const rawSubmissions = (data as unknown as CourseChallengeDbSubmission[]) || [];
+
+  // Fallback to public_profiles view if private profiles were suppressed by RLS
+  const missingUserIds = rawSubmissions
+    .filter((row) => !row.profile?.full_name)
+    .map((row) => row.user_id);
+
+  let publicProfileMap = new Map<string, { full_name?: string; avatar_url?: string }>();
+  if (missingUserIds.length > 0) {
+    try {
+      const { data: pubData } = await supabase
+        .from('public_profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', missingUserIds);
+      if (pubData) {
+        publicProfileMap = new Map(pubData.map((p) => [p.id, p]));
+      }
+    } catch {
+      // Ignore public profile lookup failure
+    }
+  }
+
+  return rawSubmissions.map((row) => {
+    const pub = publicProfileMap.get(row.user_id);
+    return {
+      id: row.id,
+      userId: row.user_id,
+      fullName: row.profile?.full_name || pub?.full_name || row.profile?.email?.split('@')[0] || 'Enrolled Student',
+      avatarUrl: row.profile?.avatar_url || pub?.avatar_url || undefined,
+      submissionUrl: row.submission_url,
+      notes: row.notes || undefined,
+      status: row.status,
+      score: row.score || undefined,
+      submittedAt: row.submitted_at,
+    };
+  });
 }
