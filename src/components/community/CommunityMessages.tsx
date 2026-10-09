@@ -8,6 +8,7 @@ import {
   MessageCircle,
   MoreVertical,
   AlertCircle,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import {
@@ -29,6 +30,7 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
   const { profile, user } = useAuth();
   const [activeTab, setActiveTab] = useState<'channels' | 'dms'>('channels');
   const [currentChannelId, setCurrentChannelId] = useState(initialChannelId);
+  const [mobileShowChat, setMobileShowChat] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
@@ -124,7 +126,11 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
   return (
     <div className="flex flex-1 h-[calc(100vh-73px)] overflow-hidden bg-white dark:bg-slate-950">
       {/* Left Chat Sidebar (Channels & Direct Messages) */}
-      <div className="w-80 border-r border-slate-200/80 flex flex-col dark:border-slate-800 dark:bg-slate-900/50">
+      <div
+        className={`w-full md:w-80 border-r border-slate-200/80 flex flex-col dark:border-slate-800 dark:bg-slate-900/50 ${
+          mobileShowChat ? 'hidden md:flex' : 'flex'
+        }`}
+      >
         {/* Search Bar */}
         <div className="p-3.5 border-b border-slate-100 dark:border-slate-800">
           <div className="relative">
@@ -171,7 +177,10 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
               return (
                 <button
                   key={channel.id}
-                  onClick={() => setCurrentChannelId(channel.id)}
+                  onClick={() => {
+                    setCurrentChannelId(channel.id);
+                    setMobileShowChat(true);
+                  }}
                   className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
                     isSelected
                       ? 'bg-orange-50/80 text-orange-950 font-black dark:bg-orange-950/40 dark:text-orange-200'
@@ -203,7 +212,10 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
               return (
                 <button
                   key={dm.id}
-                  onClick={() => setCurrentChannelId(dm.id)}
+                  onClick={() => {
+                    setCurrentChannelId(dm.id);
+                    setMobileShowChat(true);
+                  }}
                   className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
                     isSelected
                       ? 'bg-orange-50/80 text-orange-950 font-black dark:bg-orange-950/40 dark:text-orange-200'
@@ -238,11 +250,24 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
       </div>
 
       {/* Right Chat Stream & Input Pane */}
-      <div className="flex flex-1 flex-col h-full bg-slate-50/40 dark:bg-slate-950">
+      <div
+        className={`flex-1 flex-col h-full bg-slate-50/40 dark:bg-slate-950 ${
+          mobileShowChat ? 'flex' : 'hidden md:flex'
+        }`}
+      >
         {/* Chat Stream Header */}
-        <div className="h-16 border-b border-slate-200/80 px-5 flex items-center justify-between bg-white dark:border-slate-800 dark:bg-slate-950">
-          <div className="flex items-center gap-3 truncate">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-orange-100 text-orange-800 font-bold text-sm dark:bg-orange-950/50 dark:text-orange-300">
+        <div className="h-16 border-b border-slate-200/80 px-3.5 sm:px-5 flex items-center justify-between bg-white dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex items-center gap-2.5 sm:gap-3 truncate">
+            {/* Mobile Back Button to Channels */}
+            <button
+              onClick={() => setMobileShowChat(false)}
+              aria-label="Back to channels"
+              title="Back to channels"
+              className="flex md:hidden size-8 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <div className="flex size-9 items-center justify-center rounded-xl bg-orange-100 text-orange-800 font-bold text-sm dark:bg-orange-950/50 dark:text-orange-300 shrink-0">
               {activeChannel?.icon || <MessageCircle size={18} />}
             </div>
             <div className="truncate">

@@ -36,10 +36,10 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
       <div className="pointer-events-none absolute -bottom-16 -right-16 size-56 rounded-full bg-orange-600/15 blur-3xl" />
 
       {/* Floating Graphic Coins (SVG / CSS) */}
-      <div className="pointer-events-none absolute top-4 left-6 flex size-14 items-center justify-center rounded-full border border-amber-400/40 bg-gradient-to-tr from-amber-600/30 to-yellow-400/20 shadow-lg shadow-amber-500/10 -rotate-12 backdrop-blur-xs">
+      <div className="pointer-events-none absolute top-4 left-6 hidden sm:flex size-14 items-center justify-center rounded-full border border-amber-400/40 bg-gradient-to-tr from-amber-600/30 to-yellow-400/20 shadow-lg shadow-amber-500/10 -rotate-12 backdrop-blur-xs">
         <span className="text-xs font-black tracking-widest text-amber-300">CUT</span>
       </div>
-      <div className="pointer-events-none absolute bottom-4 left-10 flex size-11 items-center justify-center rounded-full border border-amber-400/30 bg-gradient-to-tr from-amber-700/20 to-yellow-500/15 shadow-md rotate-12 backdrop-blur-xs">
+      <div className="pointer-events-none absolute bottom-4 left-10 hidden sm:flex size-11 items-center justify-center rounded-full border border-amber-400/30 bg-gradient-to-tr from-amber-700/20 to-yellow-500/15 shadow-md rotate-12 backdrop-blur-xs">
         <span className="text-[10px] font-black text-amber-200">CRAFT</span>
       </div>
 

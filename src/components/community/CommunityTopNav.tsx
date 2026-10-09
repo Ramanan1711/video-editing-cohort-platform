@@ -270,6 +270,44 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
                     </NavLink>
                   ))}
                 </nav>
+
+                {/* Community Sub-Views in Drawer for Mobile Access */}
+                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <p className="mb-2 px-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                    Community Sections
+                  </p>
+                  <div className="space-y-1">
+                    {navItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setNavDrawerOpen(false);
+                            if (item.onClick) item.onClick();
+                            else onTabChange(item.id);
+                          }}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-bold transition ${
+                            isActive
+                              ? 'bg-amber-50 text-amber-950 font-black dark:bg-amber-950/40 dark:text-amber-200'
+                              : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Icon size={16} className={isActive ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'} />
+                            <span>{item.label}</span>
+                          </div>
+                          {item.badge !== undefined && (
+                            <span className="flex size-4 items-center justify-center rounded-full bg-orange-500 text-[9px] font-black text-white">
+                              {item.badge}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               {/* Drawer Footer: Theme Toggle & Sign out */}

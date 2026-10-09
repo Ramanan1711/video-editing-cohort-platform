@@ -741,7 +741,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
       {/* ========================================================================= */}
       {/* Sub-View Navigation Mini Rail (Left Icon Bar from Reference Image)        */}
       {/* ========================================================================= */}
-      <aside className="w-14 sm:w-16 border-r border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 flex flex-col items-center py-4 gap-3 shrink-0 backdrop-blur-md">
+      <aside className="hidden sm:flex w-14 sm:w-16 border-r border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 flex-col items-center py-4 gap-3 shrink-0 backdrop-blur-md">
         <button
           title="Toggle view"
           aria-label="Toggle rail"
@@ -819,8 +819,8 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
             </div>
 
             {/* Sub-Tab Navigation Segmented Pills */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center rounded-xl bg-slate-100/90 dark:bg-slate-800/80 p-1 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center overflow-x-auto rounded-xl bg-slate-100/90 dark:bg-slate-800/80 p-1 border border-slate-200/60 dark:border-slate-700/60 max-w-full">
                 <button
                   onClick={() => handleSubTabChange('dashboard')}
                   aria-label="Switch to dashboard view"
