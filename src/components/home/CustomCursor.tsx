@@ -83,7 +83,7 @@ export const CustomCursor: React.FC = () => {
       }}
       aria-hidden="true"
     >
-      <div className="-translate-x-1/2 -translate-y-1/2 pointer-events-none">
+      <div className="pointer-events-none">
         {cursorText ? (
           // Expanded Junca-style action pill
           <div className="flex items-center gap-1.5 rounded-full border border-orange-500/40 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 px-3.5 py-1.5 text-[11px] font-mono font-bold tracking-widest text-white uppercase shadow-2xl shadow-orange-500/40 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">

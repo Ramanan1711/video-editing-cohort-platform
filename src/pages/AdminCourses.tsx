@@ -18,6 +18,7 @@ import {
   Filter,
   Flame,
   Image as ImageIcon,
+  Layers,
   Lock,
   Paperclip,
   Pencil,
@@ -100,6 +101,7 @@ import {
   type CourseChallengeItem,
 } from '../lib/courseChallengeService';
 import { UploadChallengeModal } from '../components/admin/UploadChallengeModal';
+import { BulkImportSprintModal } from '../components/admin/BulkImportSprintModal';
 
 type EditorModalType = 'cohort' | 'module' | 'lesson' | 'assignment' | 'resource' | 'challenge';
 
@@ -174,6 +176,8 @@ interface ChallengeEditorState {
   description: string;
   instructions: string;
   starterFilesUrl: string;
+  starterSourceMode: 'upload' | 'url';
+  isPublished: boolean;
 }
 
 type EditorState =
@@ -227,6 +231,9 @@ export function AdminCourses() {
   const [uploadModalCohortId, setUploadModalCohortId] = useState<string | undefined>(undefined);
   const [courseChallengesByCohort, setCourseChallengesByCohort] = useState<Record<string, CourseChallengeItem[]>>({});
   const [loadingCourseChallengesCohortId, setLoadingCourseChallengesCohortId] = useState<string | null>(null);
+
+  // Bulk Import Sprint Track Modal state
+  const [bulkImportTargetCohort, setBulkImportTargetCohort] = useState<{ id: string; title: string } | null>(null);
 
   const loadData = async () => {
     try {
@@ -557,6 +564,8 @@ export function AdminCourses() {
         description: challenge.description || '',
         instructions: challenge.instructions || '',
         starterFilesUrl: challenge.starter_files_url || '',
+        starterSourceMode: 'url',
+        isPublished: challenge.is_published ?? true,
       });
     } else {
       const existing = challengesByCohort[cohortId] || [];
@@ -572,6 +581,8 @@ export function AdminCourses() {
         description: '',
         instructions: '',
         starterFilesUrl: '',
+        starterSourceMode: 'url',
+        isPublished: true,
       });
     }
   };
@@ -841,6 +852,13 @@ export function AdminCourses() {
         if (!editor.cohortId) throw new Error('Cohort ID is required.');
         if (!editor.dayNumber || editor.dayNumber < 1) throw new Error('Day number must be at least 1.');
 
+        let finalStarterUrl = editor.starterFilesUrl.trim() || null;
+        if (editor.starterSourceMode === 'upload' && uploadFile) {
+          setUploadingStatus(`Uploading starter file ${uploadFile.name}...`);
+          finalStarterUrl = await uploadCourseAsset(uploadFile, 'sprint-starters');
+          setUploadingStatus(null);
+        }
+
         const payload: DailyChallengeInput = {
           cohort_id: editor.cohortId,
           day_number: Number(editor.dayNumber),
@@ -850,7 +868,8 @@ export function AdminCourses() {
           deadline_hours: Number(editor.deadlineHours) || 24,
           description: editor.description.trim() || null,
           instructions: editor.instructions.trim() || null,
-          starter_files_url: editor.starterFilesUrl.trim() || null,
+          starter_files_url: finalStarterUrl,
+          is_published: editor.isPublished,
         };
 
         if (editor.id) {
@@ -1486,6 +1505,18 @@ export function AdminCourses() {
 
                         {cohortActiveTab[cohort.id] === 'sprint' && canManageCurriculum && (
                           <div className="flex items-center gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => {
+                                setBulkImportTargetCohort({ id: cohort.id, title: cohort.name });
+                              }}
+                              className="text-xs"
+                              title="Bulk import sprint curriculum from JSON, CSV, or presets"
+                            >
+                              <Layers size={14} className="mr-1 text-indigo-500" />
+                              Bulk Import Sprint Track
+                            </Button>
                             <Button
                               variant="secondary"
                               size="sm"
@@ -2181,6 +2212,15 @@ export function AdminCourses() {
                                   <div className="space-y-1">
                                     <div className="flex flex-wrap items-center gap-2">
                                       <h4 className="text-sm font-bold text-slate-900">{challenge.title}</h4>
+                                      <span
+                                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                          challenge.is_published === false
+                                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                            : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                        }`}
+                                      >
+                                        {challenge.is_published === false ? 'Draft' : 'Published'}
+                                      </span>
                                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
                                         {challenge.track_type}
                                       </span>
@@ -2200,14 +2240,21 @@ export function AdminCourses() {
                                       </p>
                                     )}
                                     {challenge.starter_files_url && (
-                                      <a
-                                        href={challenge.starter_files_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          if (!challenge.starter_files_url) return;
+                                          try {
+                                            const url = await getSecureAssetUrl(challenge.starter_files_url);
+                                            window.open(url, '_blank');
+                                          } catch {
+                                            window.open(challenge.starter_files_url, '_blank');
+                                          }
+                                        }}
                                         className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:underline"
                                       >
                                         <ExternalLink size={11} /> Starter Files
-                                      </a>
+                                      </button>
                                     )}
                                   </div>
                                 </div>
@@ -2244,6 +2291,15 @@ export function AdminCourses() {
                               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                                 <Button
                                   variant="primary"
+                                  size="sm"
+                                  onClick={() => {
+                                    setBulkImportTargetCohort({ id: cohort.id, title: cohort.name });
+                                  }}
+                                >
+                                  <Layers size={14} className="mr-1" /> Bulk Import Sprint Track
+                                </Button>
+                                <Button
+                                  variant="secondary"
                                   size="sm"
                                   disabled={seedingCohortId === cohort.id}
                                   onClick={() => void handleSeedChallenges(cohort.id)}
@@ -2879,12 +2935,96 @@ export function AdminCourses() {
                     rows={3}
                   />
 
-                  <FormField
-                    label="Starter Files or Template URL"
-                    value={editor.starterFilesUrl}
-                    onChange={(val) => setEditor({ ...editor, starterFilesUrl: val })}
-                    placeholder="https://drive.google.com/... or GitHub template repo"
-                  />
+                  {/* Starter Assets / Template */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-700">Starter Assets or Repo</span>
+                      <div className="inline-flex rounded-lg bg-slate-100 p-0.5 text-xs font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUploadFile(null);
+                            setEditor({ ...editor, starterSourceMode: 'url' });
+                          }}
+                          className={`rounded-md px-2.5 py-1 transition ${
+                            editor.starterSourceMode === 'url' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                          }`}
+                        >
+                          Cloud Link / URL
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditor({ ...editor, starterSourceMode: 'upload' })}
+                          className={`rounded-md px-2.5 py-1 transition ${
+                            editor.starterSourceMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                          }`}
+                        >
+                          Upload File
+                        </button>
+                      </div>
+                    </div>
+
+                    {editor.starterSourceMode === 'upload' ? (
+                      <div>
+                        <input
+                          type="file"
+                          id="challenge-starter-file"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) setUploadFile(file);
+                          }}
+                        />
+                        <label
+                          htmlFor="challenge-starter-file"
+                          className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-4 text-center transition hover:border-orange-500 hover:bg-orange-50/20"
+                        >
+                          <Upload className="mb-1 text-slate-400" size={20} />
+                          {uploadFile ? (
+                            <p className="text-xs font-bold text-orange-600 truncate max-w-full px-2">
+                              {uploadFile.name} ({(uploadFile.size / (1024 * 1024)).toFixed(2)} MB)
+                            </p>
+                          ) : editor.starterFilesUrl ? (
+                            <p className="text-xs text-slate-600 truncate max-w-full px-2">
+                              Current: <span className="font-semibold text-slate-900">{editor.starterFilesUrl}</span>
+                              <br /><span className="text-[11px] text-slate-400">Click to choose a replacement file</span>
+                            </p>
+                          ) : (
+                            <>
+                              <p className="text-xs font-semibold text-slate-700">Choose starter archive or project file</p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">.zip, .prproj, .drp, .pdf, or media assets (up to 50MB)</p>
+                            </>
+                          )}
+                        </label>
+                      </div>
+                    ) : (
+                      <FormField
+                        label=""
+                        value={editor.starterFilesUrl}
+                        onChange={(val) => setEditor({ ...editor, starterFilesUrl: val })}
+                        placeholder="https://drive.google.com/... or GitHub template repo"
+                      />
+                    )}
+                  </div>
+
+                  {/* Publication Status Toggle */}
+                  <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Publish Immediately</p>
+                      <p className="text-xs text-slate-500">
+                        When enabled, enrolled cohort participants can see and unlock this sprint drill.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={editor.isPublished}
+                        onChange={(e) => setEditor({ ...editor, isPublished: e.target.checked })}
+                        className="peer sr-only"
+                      />
+                      <div className="peer h-6 w-11 rounded-full bg-slate-300 peer-checked:bg-emerald-600 peer-focus:outline-hidden after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+                    </label>
+                  </div>
                 </>
               )}
             </div>
@@ -2930,6 +3070,29 @@ export function AdminCourses() {
           setUploadModalCohortId(undefined);
         }}
       />
+
+      {/* Bulk Import Sprint Track Modal */}
+      {bulkImportTargetCohort && (
+        <BulkImportSprintModal
+          isOpen={Boolean(bulkImportTargetCohort)}
+          cohortId={bulkImportTargetCohort.id}
+          cohortTitle={bulkImportTargetCohort.title}
+          onClose={() => setBulkImportTargetCohort(null)}
+          onSuccess={async (importedCount) => {
+            const targetId = bulkImportTargetCohort.id;
+            setBulkImportTargetCohort(null);
+            await loadChallengesForCohort(targetId);
+            void logAuditEvent({
+              actor_id: user?.id,
+              action: 'challenge.bulk_imported',
+              entity_type: 'cohort',
+              entity_id: targetId,
+              metadata: { count: importedCount },
+            });
+            toast.success(`Successfully imported ${importedCount} sprint challenges.`);
+          }}
+        />
+      )}
     </div>
   );
 }

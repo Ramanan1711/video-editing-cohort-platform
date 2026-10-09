@@ -26,6 +26,7 @@ import {
   type InternshipDayStatus,
   type DailyChallengeSubmission,
 } from '../../lib/internshipService';
+import { getSecureAssetUrl } from '../../lib/courseService';
 import { generateWhatsAppClickToChatUrl } from '../../lib/whatsappService';
 import { DynamicChallengeSubmissionBox } from './DynamicChallengeSubmissionBox';
 
@@ -68,10 +69,23 @@ export function SprintChallengeTracker({
 
   // Secure deliverable inspection and mentor grading state
   const [isOpeningDeliverable, setIsOpeningDeliverable] = useState(false);
+  const [isDownloadingStarter, setIsDownloadingStarter] = useState(false);
   const [isGrading, setIsGrading] = useState(false);
   const [gradeScore, setGradeScore] = useState(90);
   const [gradeStatus, setGradeStatus] = useState<'accepted' | 'resubmit'>('accepted');
   const [gradeFeedback, setGradeFeedback] = useState('');
+
+  const handleDownloadStarter = async (url: string) => {
+    try {
+      setIsDownloadingStarter(true);
+      const secureUrl = await getSecureAssetUrl(url);
+      window.open(secureUrl, '_blank');
+    } catch {
+      window.open(url, '_blank');
+    } finally {
+      setIsDownloadingStarter(false);
+    }
+  };
 
   // Optimistic submission state to prevent UI freezing and show instant progress
   const [optimisticDays, setOptimisticDays] = useState<
@@ -261,6 +275,29 @@ export function SprintChallengeTracker({
         );
     }
   };
+
+  if (sprintDays.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center shadow-xs">
+        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-200/50">
+          <Flame size={28} />
+        </div>
+        <h3 className="text-lg font-black text-slate-900 dark:text-white">
+          No sprint challenges published for this cohort yet.
+        </h3>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+          Your cohort mentors and instructors will publish the daily challenge syllabus once the sprint kicks off.
+        </p>
+        <button
+          onClick={onRefresh}
+          className="mt-6 inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-2xs"
+        >
+          <RotateCw size={14} />
+          <span>Check for Published Tasks</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -536,15 +573,19 @@ export function SprintChallengeTracker({
                       </p>
                     </div>
                   </div>
-                  <a
-                    href={selectedDay.challenge.starter_files_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700"
+                  <button
+                    type="button"
+                    disabled={isDownloadingStarter}
+                    onClick={() => {
+                      if (selectedDay?.challenge?.starter_files_url) {
+                        void handleDownloadStarter(selectedDay.challenge.starter_files_url);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition"
                   >
-                    <span>Download</span>
+                    <span>{isDownloadingStarter ? 'Opening...' : 'Download'}</span>
                     <ExternalLink size={12} />
-                  </a>
+                  </button>
                 </div>
               )}
 

@@ -117,90 +117,20 @@ async function fetchCohortCurriculumInput(cohortId: string): Promise<CurriculumC
 }
 
 export async function listDailyChallenges(cohortId: string): Promise<DailyChallenge[]> {
+  if (!cohortId) return [];
+
   const { data, error } = await supabase
     .from('daily_challenges')
     .select('*')
     .eq('cohort_id', cohortId)
     .order('day_number', { ascending: true });
 
-  if (!error && data && data.length > 0) {
-    return data as DailyChallenge[];
-  }
-
-  // Attempt database-level auto-seeding for cohort via RPC
-  try {
-    const seedRes = await supabase.rpc('ensure_cohort_daily_challenges', {
-      p_cohort_id: cohortId,
-    });
-    if (seedRes && !seedRes.error) {
-      const { data: seededData } = await supabase
-        .from('daily_challenges')
-        .select('*')
-        .eq('cohort_id', cohortId)
-        .order('day_number', { ascending: true });
-      if (seededData && seededData.length > 0) {
-        return seededData as DailyChallenge[];
-      }
-
-      // If the RPC ran successfully (the 15 daily challenges exist in the database),
-      // but seededData is empty, the current user cannot SELECT them due to RLS
-      // (e.g. not enrolled or staff role desync).
-      // Crucially, DO NOT attempt a client-side table upsert here — that would trigger
-      // a 403 Forbidden error (42501 RLS violation) against PostgREST.
-      // Instead, resolve the curriculum blueprint in-memory and return it gracefully.
-      if (seedRes.data && (seedRes.data as { success?: boolean }).success) {
-        const cohortDetails = await fetchCohortCurriculumInput(cohortId);
-        return getCurriculumBlueprintForCohort(cohortDetails).map((item, idx) => ({
-          id: `local-ch-${cohortId}-${idx + 1}`,
-          cohort_id: cohortId,
-          created_at: new Date().toISOString(),
-          is_published: item.is_published ?? idx === 0,
-          ...item,
-        })) as DailyChallenge[];
-      }
-    }
-  } catch (seedCatch) {
-    console.warn('ensure_cohort_daily_challenges RPC unavailable:', seedCatch);
-  }
-
-  // Fallback: If RPC is unavailable, resolve course blueprint dynamically and seed directly into Supabase
-  try {
-    const cohortDetails = await fetchCohortCurriculumInput(cohortId);
-    const blueprint = getCurriculumBlueprintForCohort(cohortDetails);
-    const payload = blueprint.map((item) => ({
-      ...item,
-      cohort_id: cohortId,
-    }));
-    const { data: inserted, error: insertError } = await supabase
-      .from('daily_challenges')
-      .upsert(payload, { onConflict: 'cohort_id,day_number' })
-      .select('*')
-      .order('day_number', { ascending: true });
-
-    if (!insertError && inserted && inserted.length > 0) {
-      return inserted as DailyChallenge[];
-    }
-  } catch (directSeedErr) {
-    console.warn('Direct daily_challenges seed failed:', directSeedErr);
-  }
-
   if (error) {
     console.warn('Failed to load daily challenges from Supabase:', error.message);
-  }
-
-  // Fallback: Return in-memory tailored blueprint instead of empty array so students have syllabus visibility
-  try {
-    const cohortDetails = await fetchCohortCurriculumInput(cohortId);
-    return getCurriculumBlueprintForCohort(cohortDetails).map((item, idx) => ({
-      id: `local-ch-${cohortId}-${idx + 1}`,
-      cohort_id: cohortId,
-      created_at: new Date().toISOString(),
-      is_published: item.is_published ?? idx === 0,
-      ...item,
-    })) as DailyChallenge[];
-  } catch {
     return [];
   }
+
+  return (data || []) as DailyChallenge[];
 }
 
 /**
@@ -403,6 +333,50 @@ export async function seedCohortDailyChallenges(cohortId: string): Promise<Daily
 }
 
 /**
+ * Admin: Batch import sprint challenges (JSON/CSV) for a cohort directly into Supabase
+ */
+export async function bulkImportDailyChallenges(
+  cohortId: string,
+  challenges: Array<{
+    day_number: number;
+    title: string;
+    description?: string | null;
+    instructions?: string | null;
+    starter_files_url?: string | null;
+    track_type?: 'general' | 'coding' | 'non_coding';
+    submission_type?: 'drive_link' | 'loom_video' | 'github_pr' | 'text' | 'file';
+    deadline_hours?: number;
+    is_published?: boolean;
+  }>
+): Promise<DailyChallenge[]> {
+  if (!cohortId) throw new Error('Cohort ID is required.');
+  if (!challenges || challenges.length === 0) throw new Error('No challenges provided for import.');
+
+  const payload = challenges.map((c) => ({
+    cohort_id: cohortId,
+    day_number: Number(c.day_number),
+    title: (c.title || `Day ${c.day_number}`).trim(),
+    description: c.description?.trim() || null,
+    instructions: c.instructions?.trim() || null,
+    starter_files_url: c.starter_files_url?.trim() || null,
+    track_type: c.track_type || 'general',
+    submission_type: c.submission_type || 'drive_link',
+    deadline_hours: Number(c.deadline_hours) || 24,
+    is_published: c.is_published ?? (Number(c.day_number) === 1),
+    unlocked_at: (c.is_published || Number(c.day_number) === 1) ? new Date().toISOString() : null,
+  }));
+
+  const { data, error } = await supabase
+    .from('daily_challenges')
+    .upsert(payload, { onConflict: 'cohort_id,day_number' })
+    .select('*')
+    .order('day_number', { ascending: true });
+
+  if (error) throw parseDatabaseError(error);
+  return (data || []) as DailyChallenge[];
+}
+
+/**
  * List student submissions for daily challenges
  */
 export async function listMyDailySubmissions(userId: string): Promise<DailyChallengeSubmission[]> {
@@ -588,6 +562,17 @@ export async function getStudentSprintDays(
     listDailyChallenges(cohortId),
     listMyDailySubmissions(userId),
   ]);
+
+  if (!challenges || challenges.length === 0) {
+    return {
+      days: [],
+      completedCount: 0,
+      totalDays: 0,
+      streakCount: 0,
+      overallScore: null,
+      progressPercent: 0,
+    };
+  }
 
   const maxChallengeDay = challenges.length > 0 ? Math.max(...challenges.map((c) => c.day_number)) : 0;
   const configuredSprintDays = cohortMeta.durationDays || 15;

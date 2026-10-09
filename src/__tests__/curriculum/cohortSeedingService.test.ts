@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   seedCohortDailyChallenges,
   listDailyChallenges,
+  bulkImportDailyChallenges,
 } from '../../lib/internshipService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -188,43 +189,33 @@ describe('Domain-Aware Cohort Daily Challenges Seeding Suite', () => {
       expect(insertedPayload[2].title).toContain('Sound Design, SFX Stems & Audio Layering');
     });
 
-    it('listDailyChallenges resolves tailored curriculum when challenges are empty', async () => {
-      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-        data: null,
-        error: { message: 'RPC not deployed' },
-      });
-
-      let insertedPayload: Array<Record<string, unknown>> = [];
-
+    it('listDailyChallenges returns empty array when challenges are not configured (pure database-driven)', async () => {
       (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
-        if (table === 'cohorts') {
+        if (table === 'daily_challenges') {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                maybeSingle: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'cohort-code-2',
-                    title: 'Java Fullstack Web Cohort',
-                    name: 'Java Fullstack Web Cohort',
-                    track_type: 'coding',
-                    course_id: null,
-                  },
+                order: vi.fn().mockResolvedValue({
+                  data: [], // Empty DB table
                   error: null,
                 }),
               }),
             }),
           };
         }
+        return { select: vi.fn() };
+      });
+
+      const list = await listDailyChallenges('cohort-code-2');
+      expect(list).toEqual([]);
+    });
+
+    it('bulkImportDailyChallenges validates and inserts challenges into database', async () => {
+      let insertedPayload: Array<Record<string, unknown>> = [];
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
         if (table === 'daily_challenges') {
           return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({
-                  data: [], // Initially empty
-                  error: null,
-                }),
-              }),
-            }),
             upsert: vi.fn().mockImplementation((payload) => {
               insertedPayload = payload;
               return {
@@ -232,7 +223,7 @@ describe('Domain-Aware Cohort Daily Challenges Seeding Suite', () => {
                   order: vi.fn().mockResolvedValue({
                     data: payload.map((p: Record<string, unknown>, idx: number) => ({
                       ...p,
-                      id: `uuid-code-${idx + 1}`,
+                      id: `uuid-import-${idx + 1}`,
                     })),
                     error: null,
                   }),
@@ -244,9 +235,21 @@ describe('Domain-Aware Cohort Daily Challenges Seeding Suite', () => {
         return { select: vi.fn() };
       });
 
-      const list = await listDailyChallenges('cohort-code-2');
-      expect(list).toHaveLength(15);
-      expect(insertedPayload[0].title).toBe('Day 01: Git Workflow, Dev Environment & Initial Commit');
+      const imported = await bulkImportDailyChallenges('cohort-code-2', [
+        {
+          day_number: 1,
+          title: 'Custom Sprint Day 1',
+          description: 'Custom brief',
+          track_type: 'coding',
+          submission_type: 'github_pr',
+          deadline_hours: 24,
+        },
+      ]);
+
+      expect(imported).toHaveLength(1);
+      expect(insertedPayload).toHaveLength(1);
+      expect(insertedPayload[0].title).toBe('Custom Sprint Day 1');
+      expect(insertedPayload[0].cohort_id).toBe('cohort-code-2');
     });
   });
 
