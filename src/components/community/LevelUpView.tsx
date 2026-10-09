@@ -353,6 +353,24 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   const [todayHabitDismissed, setTodayHabitDismissed] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // User's current rank data & dynamic points derived from real enrolled students
+  const currentUserMember = members.find((m) => m.id === user?.id || m.isCurrentUser);
+  const userRank = currentUserMember ? currentUserMember.rank : (members.length > 0 ? members.length + 1 : 1);
+  const basePoints = currentUserMember ? currentUserMember.points : 0;
+  const userPoints = basePoints + (todayHabitCompleted ? 10 : 0);
+  const userDisplayName =
+    profile?.full_name?.trim() ||
+    currentUserMember?.name ||
+    profile?.email?.split('@')[0] ||
+    'Enrolled Student';
+  const userInitials = (userDisplayName || 'ES')
+    .split(' ')
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   // Dynamic Challenges state per course (Zero hardcoded arrays, pure live database records)
   const [challenges, setChallenges] = useState<ChallengeItem[]>([]);
   const [loadingChallenges, setLoadingChallenges] = useState<boolean>(true);
@@ -532,27 +550,6 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   const isSelectedChallengeJoined = selectedChallenge
     ? joinedChallengeIds.includes(selectedChallenge.id)
     : false;
-
-  // User's current rank data & dynamic points derived from real enrolled students
-  const currentUserMember = useMemo(() => {
-    return members.find((m) => m.id === user?.id || m.isCurrentUser);
-  }, [members, user?.id]);
-
-  const userRank = currentUserMember ? currentUserMember.rank : (members.length > 0 ? members.length + 1 : 1);
-  const basePoints = currentUserMember ? currentUserMember.points : 0;
-  const userPoints = basePoints + (todayHabitCompleted ? 10 : 0);
-  const userDisplayName =
-    profile?.full_name?.trim() ||
-    currentUserMember?.name ||
-    profile?.email?.split('@')[0] ||
-    'Enrolled Student';
-  const userInitials = (userDisplayName || 'ES')
-    .split(' ')
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
 
   // Habit chart data for the past 7 days
   const chartDays = [
