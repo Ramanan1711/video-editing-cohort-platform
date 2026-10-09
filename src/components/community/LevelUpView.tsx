@@ -22,12 +22,13 @@ import {
   ChevronsRight,
   Download,
   Upload,
-  Play,
   FileText,
   Flag,
   Flame,
   Lock,
   BookOpen,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import {
@@ -45,9 +46,11 @@ import {
   joinCourseChallenge,
   submitCourseChallenge,
   fetchChallengeParticipants,
+  fetchChallengeSubmissions,
   formatChallengeCountdown,
   type CourseChallengeItem,
   type ChallengeParticipantProfile,
+  type ChallengeSubmissionDetail,
 } from '../../lib/courseChallengeService';
 import { ChallengeListSkeleton } from '../ui/Skeletons';
 import { DynamicChallengeSubmissionBox } from '../internship/DynamicChallengeSubmissionBox';
@@ -68,6 +71,105 @@ const formatDateKey = (date: Date): string => {
 };
 
 export type ChallengeItem = CourseChallengeItem;
+
+/**
+ * Extracts or generates dynamic deliverable requirements based on the challenge description and course track.
+ */
+function getChallengeDeliverables(challenge: ChallengeItem, courseTitle?: string): string[] {
+  if (challenge.description) {
+    const lines = challenge.description
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+    const bulletLines = lines.filter((l) => /^[-*•\d+.]\s+/.test(l));
+    if (bulletLines.length >= 2) {
+      return bulletLines.map((l) => l.replace(/^[-*•\d+.]\s+/, '').trim());
+    }
+  }
+
+  const lowerTrack = (courseTitle || challenge.cohortTitle || '').toLowerCase();
+  const isCoding =
+    lowerTrack.includes('code') ||
+    lowerTrack.includes('python') ||
+    lowerTrack.includes('java') ||
+    lowerTrack.includes('web') ||
+    lowerTrack.includes('software');
+  const is3D =
+    lowerTrack.includes('motion') ||
+    lowerTrack.includes('3d') ||
+    lowerTrack.includes('blender') ||
+    lowerTrack.includes('animation');
+
+  if (isCoding) {
+    return [
+      `Complete implementation for "${challenge.title}" adhering to clean coding standards.`,
+      'Provide a working repository URL (GitHub / GitLab) or live deployed preview link.',
+      'Include a clear README or documentation with setup instructions.',
+      `Submit your deliverable before the deadline to claim 🪙 ${challenge.proReward} PRO Points.`,
+    ];
+  }
+
+  if (is3D) {
+    return [
+      `Render and package the 3D / motion asset for "${challenge.title}".`,
+      'Export in recommended presentation format (MP4 / WebM or image render sequences).',
+      'Provide access to source project files or Cloud Drive link (Google Drive / Dropbox).',
+      `Submit before the deadline to claim 🪙 ${challenge.proReward} PRO Points.`,
+    ];
+  }
+
+  return [
+    `Deliver your project work matching the specifications for "${challenge.title}".`,
+    'Upload your finished export to Cloud Storage, YouTube unlisted, Google Drive, or Loom.',
+    'Include concise production notes explaining your workflow and key decisions.',
+    `Submit your entry before the deadline to claim 🪙 ${challenge.proReward} PRO Points.`,
+  ];
+}
+
+/**
+ * Dynamically computes grading rubric breakdown proportional to the challenge's PRO points.
+ */
+function getChallengeRubric(challenge: ChallengeItem, courseTitle?: string) {
+  const total = challenge.proReward || 50;
+  const part1 = Math.round(total * 0.4);
+  const part2 = Math.round(total * 0.3);
+  const part3 = total - part1 - part2;
+
+  const lowerTrack = (courseTitle || challenge.cohortTitle || '').toLowerCase();
+  const isCoding =
+    lowerTrack.includes('code') ||
+    lowerTrack.includes('python') ||
+    lowerTrack.includes('java') ||
+    lowerTrack.includes('web') ||
+    lowerTrack.includes('software');
+  const is3D =
+    lowerTrack.includes('motion') ||
+    lowerTrack.includes('3d') ||
+    lowerTrack.includes('blender') ||
+    lowerTrack.includes('animation');
+
+  if (isCoding) {
+    return [
+      { title: 'Core Functionality & Logic', pts: `${part1} Pts`, desc: 'Meets all functional specs and passes edge cases cleanly' },
+      { title: 'Code Architecture & Quality', pts: `${part2} Pts`, desc: 'Modular structure, clean formatting, and clear comments' },
+      { title: 'Documentation & Delivery', pts: `${part3} Pts`, desc: 'Working repository setup and clear usage instructions' },
+    ];
+  }
+
+  if (is3D) {
+    return [
+      { title: 'Visual Fidelity & Composition', pts: `${part1} Pts`, desc: 'Lighting, materials, and overall aesthetic execution' },
+      { title: 'Animation Timing & Curves', pts: `${part2} Pts`, desc: 'Fluid movement, pacing cadence, and realistic motion' },
+      { title: 'Render Quality & Export Specs', pts: `${part3} Pts`, desc: 'Noise-free clean render and adherence to format specs' },
+    ];
+  }
+
+  return [
+    { title: 'Storytelling & Narrative Flow', pts: `${part1} Pts`, desc: 'Structural pacing and emotional clarity throughout' },
+    { title: 'Audio & Visual Technique', pts: `${part2} Pts`, desc: 'Clean transitions, balanced sound, and polished visuals' },
+    { title: 'Technical Polish & Export', pts: `${part3} Pts`, desc: 'Adherence to delivery requirements and clean output' },
+  ];
+}
 
 export const LevelUpView: React.FC<LevelUpViewProps> = ({
   onClose,
@@ -256,6 +358,8 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   const [submittedCheckinIds, setSubmittedCheckinIds] = useState<string[]>([]);
   const [proTransactions, setProTransactions] = useState<ProHistoryTransaction[]>([]);
   const [challengeParticipants, setChallengeParticipants] = useState<ChallengeParticipantProfile[]>([]);
+  const [challengeSubmissions, setChallengeSubmissions] = useState<ChallengeSubmissionDetail[]>([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState<boolean>(false);
 
   // Load dynamic challenges whenever selectedCohortId or selected course changes
   useEffect(() => {
@@ -282,9 +386,6 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
         const found = data.find((c) => c.id === queryChallengeId);
         if (found) {
           setSelectedChallenge(found);
-          if (found.isJoined) {
-            setShowCheckinModal(true);
-          }
         }
       }
     }
@@ -301,14 +402,24 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
     }
   }, [user?.id]);
 
-  // Load participants for the currently selected challenge
+  // Load participants and submissions for the currently selected challenge
   useEffect(() => {
     if (selectedChallenge?.id) {
       void fetchChallengeParticipants(selectedChallenge.id).then(setChallengeParticipants);
+      setLoadingSubmissions(true);
+      void fetchChallengeSubmissions(selectedChallenge.id)
+        .then((subs) => {
+          setChallengeSubmissions(subs);
+          if (user?.id && subs.some((s) => s.userId === user.id)) {
+            setSubmittedChallengeIds((prev) => Array.from(new Set([...prev, selectedChallenge.id])));
+          }
+        })
+        .finally(() => setLoadingSubmissions(false));
     } else {
       setChallengeParticipants([]);
+      setChallengeSubmissions([]);
     }
-  }, [selectedChallenge?.id]);
+  }, [selectedChallenge?.id, user?.id]);
 
   const handleJoinChallenge = (challengeId: string) => {
     void joinCourseChallenge(challengeId, user?.id);
@@ -326,14 +437,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
 
   const handleSelectChallenge = (challenge: ChallengeItem | null) => {
     setSelectedChallenge(challenge);
-    if (challenge) {
-      const isJoined = joinedChallengeIds.includes(challenge.id);
-      if (isJoined) {
-        setShowCheckinModal(true);
-      } else {
-        setShowCheckinModal(false);
-      }
-    }
+    setShowCheckinModal(false);
     const newParams = new URLSearchParams(searchParams);
     if (challenge) {
       newParams.set('challenge', challenge.id);
@@ -1106,7 +1210,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                                 {selectedChallenge.title.replace(/^B\d+\s+W\d+\s+/, '')}
                               </h4>
                               <p className="text-[11px] text-slate-400 mt-0.5">
-                                Sep 07, 08:59 pm - Sep 13, 08:58 am
+                                {selectedChallenge.startDate} - {selectedChallenge.endDate} • {selectedChallenge.durationLabel}
                               </p>
                             </div>
                           </div>
@@ -1122,18 +1226,19 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                         </div>
 
                         <div className="flex-1 space-y-4 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                          <p>
-                            In this project challenge, remix the provided emotional documentary sequence using advanced pacing, sound design, and color grading techniques. Once you click <strong className="text-amber-600 dark:text-amber-400 font-bold">Join Now</strong>, the check-in details, raw footage pack, and timeline upload workspace will unlock immediately.
+                          <p className="whitespace-pre-line">
+                            {selectedChallenge.description?.trim() ||
+                              `In this ${selectedChallenge.type.toLowerCase()} challenge, complete the assigned deliverables for "${selectedChallenge.title}". Once you click Join Now, the challenge brief, starter files, and submission workspace will unlock immediately.`}
                           </p>
 
                           <div className="rounded-2xl bg-amber-500/5 border border-amber-500/20 p-4 flex items-start gap-3">
                             <span className="text-lg">🔒</span>
                             <div>
                               <p className="font-bold text-slate-900 dark:text-white text-xs">
-                                Check-ins are locked for non-participants
+                                Check-ins and submissions are locked for non-participants
                               </p>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                                Join the challenge to submit your timeline screenshots, earn up to 🪙 {selectedChallenge.proReward} PRO Points, and get constructive mentor critique.
+                                Join the challenge to access deliverables, earn up to 🪙 {selectedChallenge.proReward} PRO Points, and get constructive mentor critique.
                               </p>
                             </div>
                           </div>
@@ -1186,7 +1291,12 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                         {selectedChallenge.title}
                       </h2>
                       <p className="text-xs sm:text-sm text-slate-400">
-                        Cut / Craft Cohort Creative Challenge • Master documentary pacing, emotional audio layers, and storytelling impact
+                        {selectedChallenge.cohortTitle || selectedCourse?.title || 'Cohort Challenge'} •{' '}
+                        {selectedChallenge.description
+                          ? selectedChallenge.description.length > 95
+                            ? `${selectedChallenge.description.slice(0, 95)}...`
+                            : selectedChallenge.description
+                          : `${selectedChallenge.type} Challenge`}
                       </p>
                     </div>
 
@@ -1216,54 +1326,59 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                         </h3>
                       </div>
                       <span className="text-xs font-bold text-slate-400">
-                        {submittedCheckinIds.includes(selectedChallenge.id) ? '2 submissions' : '1 submission'}
+                        {challengeSubmissions.length} {challengeSubmissions.length === 1 ? 'submission' : 'submissions'}
                       </span>
                     </div>
 
                     <div className="space-y-2">
-                      {/* Dynamic Checkin Leaderboard Item #1 */}
-                      {members.length > 0 && (
-                        <div className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 p-3 hover:bg-slate-100/70 transition">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-black text-slate-400 w-5 text-center">#1</span>
-                            <img
-                              src={members[0].avatarUrl}
-                              alt={members[0].name}
-                              className="size-8 rounded-full object-cover ring-2 ring-amber-400/40"
-                            />
-                            <div>
-                              <p className="text-xs font-black text-slate-900 dark:text-white">{members[0].name}</p>
-                              <p className="text-[10px] text-slate-400">Checked in 3 hours ago</p>
+                      {challengeSubmissions.length > 0 ? (
+                        challengeSubmissions.slice(0, 3).map((sub, idx) => (
+                          <div
+                            key={sub.id || idx}
+                            className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 p-3 hover:bg-slate-100/70 transition"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="text-xs font-black text-slate-400 w-5 text-center shrink-0">
+                                #{idx + 1}
+                              </span>
+                              {sub.avatarUrl ? (
+                                <img
+                                  src={sub.avatarUrl}
+                                  alt={sub.fullName}
+                                  className="size-8 rounded-full object-cover ring-2 ring-amber-400/40 shrink-0"
+                                />
+                              ) : (
+                                <div className="flex size-8 items-center justify-center rounded-full bg-slate-700 text-white font-black text-xs ring-2 ring-amber-400/40 shrink-0">
+                                  {sub.fullName ? sub.fullName.slice(0, 2).toUpperCase() : 'ST'}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-xs font-black text-slate-900 dark:text-white truncate">
+                                  {sub.fullName || 'Student'} {sub.userId === user?.id && <span className="text-amber-500 font-bold">(You)</span>}
+                                </p>
+                                <p className="text-[10px] text-slate-400">
+                                  {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString() : 'Recent'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-xs font-black text-amber-600 dark:text-amber-400">
+                                🪙 {sub.score !== undefined && sub.score !== null ? `${sub.score} PRO` : `${selectedChallenge.proReward} PRO`}
+                              </span>
+                              <span className="text-base" title={idx === 0 ? 'Top Submission' : 'Submitted'}>
+                                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '✅'}
+                              </span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-xs font-black text-amber-600 dark:text-amber-400">
-                              🪙 50 PRO
-                            </span>
-                            <span className="text-base" title="1st Place">🥇</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* User submission if submitted */}
-                      {submittedCheckinIds.includes(selectedChallenge.id) && (
-                        <div className="flex items-center justify-between rounded-xl border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/60 dark:bg-emerald-950/30 p-3 transition animate-in fade-in">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 w-5 text-center">#2</span>
-                            <div className="flex size-8 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-black text-xs ring-2 ring-emerald-400/40">
-                              {userInitials}
-                            </div>
-                            <div>
-                              <p className="text-xs font-black text-slate-900 dark:text-white">{userDisplayName} (You)</p>
-                              <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Checked in just now</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-xs font-black text-emerald-600 dark:text-emerald-400">
-                              🪙 50 PRO
-                            </span>
-                            <span className="text-base" title="Check-in Complete">✅</span>
-                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-4 text-center">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                            No submissions yet for this challenge.
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Be the first cohort member to submit and claim 🪙 {selectedChallenge.proReward} PRO Points!
+                          </p>
                         </div>
                       )}
                     </div>
@@ -1274,9 +1389,9 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                     <div className="flex border-b border-slate-200 dark:border-slate-800 px-6 overflow-x-auto gap-4">
                       {[
                         { id: 'brief', label: 'Brief & Instructions', icon: FileText },
-                        { id: 'assets', label: 'Assets & Footage', icon: Download },
+                        { id: 'assets', label: 'Assets & Files', icon: Download },
                         { id: 'submit', label: 'Submit Entry', icon: Upload },
-                        { id: 'peers', label: `Peer Submissions (${selectedChallenge.participantsJoined})`, icon: Trophy },
+                        { id: 'peers', label: `Peer Submissions (${challengeSubmissions.length})`, icon: Trophy },
                       ].map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeDetailTab === tab.id;
@@ -1304,10 +1419,11 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                       <div className="lg:col-span-8 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs space-y-5">
                         <div>
                           <h3 className="text-base font-black text-slate-900 dark:text-white">
-                            Creative Challenge Objectives
+                            Challenge Objectives &amp; Brief
                           </h3>
-                          <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                            In this week's challenge, take the provided documentary footage package and invert the viewer's emotional journey. By leveraging rhythmic micro-pauses, J-cuts, and contrasting music dynamics, build narrative tension that resolves into peaceful clarity.
+                          <p className="mt-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                            {selectedChallenge.description?.trim() ||
+                              `In this ${selectedChallenge.type.toLowerCase()} challenge, complete the assigned deliverables for "${selectedChallenge.title}". Ensure your work adheres to cohort standards, passes validation, and is submitted before the deadline to receive mentor review and claim your PRO reward.`}
                           </p>
                         </div>
 
@@ -1316,12 +1432,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                             Deliverables &amp; Requirements
                           </h4>
                           <div className="space-y-2">
-                            {[
-                              'Duration must be between 45 seconds and 75 seconds.',
-                              'Include at least 3 audio-motivated transitions (L-cut or J-cut).',
-                              'Target audio loudness: Dialogue at -14 LUFS, background ambience at -24 LUFS.',
-                              'Export resolution: 1080p 24fps in H.264 or ProRes 422.',
-                            ].map((req, idx) => (
+                            {getChallengeDeliverables(selectedChallenge, selectedCourse?.title).map((req, idx) => (
                               <div key={idx} className="flex items-start gap-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-xs font-semibold text-slate-700 dark:text-slate-300">
                                 <span className="flex size-5 items-center justify-center rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-black shrink-0">
                                   {idx + 1}
@@ -1333,28 +1444,24 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                         </div>
 
                         <div className="border-t border-slate-100 dark:border-slate-800 pt-4 flex items-center justify-between">
-                          <span className="text-xs text-slate-500">Ready to upload your edit?</span>
+                          <span className="text-xs text-slate-500">Ready to upload your entry?</span>
                           <button
                             onClick={() => setActiveDetailTab('submit')}
-                            className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-4 py-2 text-xs font-black text-slate-950 shadow-md shadow-amber-500/20 hover:brightness-105 active:scale-95 transition"
+                            className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-4 py-2 text-xs font-black text-slate-950 shadow-md shadow-amber-500/20 hover:brightness-105 active:scale-95 transition cursor-pointer"
                           >
                             Proceed to Submission →
                           </button>
                         </div>
                       </div>
 
-                      {/* Right Sidebar: Evaluation Rubric */}
+                      {/* Right Sidebar: Dynamic Evaluation Rubric */}
                       <div className="lg:col-span-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-4">
                         <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                          Grading Rubric (50 Pts)
+                          Grading Rubric ({selectedChallenge.proReward} Pts)
                         </h3>
 
                         <div className="space-y-3">
-                          {[
-                            { title: 'Storytelling & Tension Arc', pts: '20 Pts', desc: 'Emotional trajectory from opening to final resolve' },
-                            { title: 'Sound Design & Layering', pts: '15 Pts', desc: 'Foley realism, ambience bed, and audio transitions' },
-                            { title: 'Technical Polish & Color', pts: '15 Pts', desc: 'Grade consistency, pacing cadence, and clean export' },
-                          ].map((item, idx) => (
+                          {getChallengeRubric(selectedChallenge, selectedCourse?.title).map((item, idx) => (
                             <div key={idx} className="rounded-xl border border-slate-100 dark:border-slate-800/80 p-3 space-y-1">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200">{item.title}</span>
@@ -1368,59 +1475,60 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                     </div>
                   )}
 
-                  {/* Tab 2: Assets & Footage */}
+                  {/* Tab 2: Assets & Files */}
                   {activeDetailTab === 'assets' && (
                     <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs space-y-4">
                       <h3 className="text-base font-black text-slate-900 dark:text-white">
-                        Challenge Footage &amp; Audio Assets
+                        Challenge Starter Files &amp; Resources
                       </h3>
                       <p className="text-xs text-slate-500">
-                        Download the project assets prepared for this week's challenge. High-bitrate 4K raw footage and uncompressed 24-bit audio stems.
+                        Download the files and project resources prepared for this challenge.
                       </p>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                        {(selectedChallenge.assets && selectedChallenge.assets.length > 0
-                          ? selectedChallenge.assets
-                          : [
-                              { title: 'Project Starter Footage Pack', size: '1.4 GB', type: '.zip / ProRes 422' },
-                              { title: 'Sound Design & Foley FX Bed', size: '320 MB', type: '.zip / 24-bit WAV' },
-                              { title: 'NLE Starter Project Templates', size: '45 MB', type: '.drp & .prproj' },
-                            ]
-                        ).map((asset, i) => (
-                          <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 flex flex-col justify-between">
-                            <div>
-                              <span className="flex size-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 mb-2">
-                                <Download size={18} />
-                              </span>
-                              <h4 className="text-xs font-black text-slate-900 dark:text-white">{asset.title}</h4>
-                              <p className="text-[10px] text-slate-400">{asset.type} • {asset.size}</p>
+                      {selectedChallenge.assets && selectedChallenge.assets.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                          {selectedChallenge.assets.map((asset, i) => (
+                            <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 flex flex-col justify-between">
+                              <div>
+                                <span className="flex size-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 mb-2">
+                                  <Download size={18} />
+                                </span>
+                                <h4 className="text-xs font-black text-slate-900 dark:text-white">{asset.title}</h4>
+                                <p className="text-[10px] text-slate-400">{asset.type} • {asset.size}</p>
+                              </div>
+                              {asset.url && (
+                                <a
+                                  href={asset.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center gap-1.5 transition"
+                                >
+                                  <Download size={13} />
+                                  <span>Open / Download Asset</span>
+                                </a>
+                              )}
                             </div>
-                            {asset.url ? (
-                              <a
-                                href={asset.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                download
-                                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 flex items-center justify-center gap-1.5 transition"
-                              >
-                                <Download size={13} />
-                                <span>Download Asset</span>
-                              </a>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  setToastMessage(`Downloading ${asset.title}...`);
-                                  setTimeout(() => setToastMessage(null), 3000);
-                                }}
-                                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 flex items-center justify-center gap-1.5 transition"
-                              >
-                                <Download size={13} />
-                                <span>Download Asset</span>
-                              </button>
-                            )}
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center space-y-2">
+                          <div className="flex size-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 mx-auto">
+                            <Download size={20} />
                           </div>
-                        ))}
-                      </div>
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            No external asset downloads required
+                          </p>
+                          <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                            All necessary instructions and guidelines for this challenge are outlined in the Brief tab.
+                          </p>
+                          <button
+                            onClick={() => setActiveDetailTab('brief')}
+                            className="mt-2 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                          >
+                            View Brief &amp; Requirements →
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1435,7 +1543,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                           Submit Your Challenge Entry
                         </h3>
                         <p className="text-xs text-slate-500">
-                          Submit your video link to unlock {selectedChallenge.proReward} PRO points and receive mentor critique
+                          Submit your deliverable link or project files to unlock {selectedChallenge.proReward} PRO points and receive mentor review
                         </p>
                       </div>
 
@@ -1485,6 +1593,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                               if (user?.id) {
                                 void fetchUserProHistory(user.id).then(setProTransactions);
                               }
+                              void fetchChallengeSubmissions(selectedChallenge.id).then(setChallengeSubmissions);
                             } catch (err) {
                               console.warn('Submission record error:', err);
                               setSubmittedChallengeIds((prev) => Array.from(new Set([...prev, selectedChallenge.id])));
@@ -1509,38 +1618,91 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                             Cohort Peer Submissions
                           </h3>
                           <p className="text-xs text-slate-500">
-                            Watch cuts from fellow cohort members and exchange constructive feedback
+                            Explore work submitted by fellow cohort members for this challenge
                           </p>
                         </div>
+                        <span className="text-xs font-bold text-slate-400">
+                          {challengeSubmissions.length} {challengeSubmissions.length === 1 ? 'submission' : 'submissions'}
+                        </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
-                        {(members.length > 0 ? members.slice(0, 3) : []).map((peer, i) => {
-                          const medals = ['🥇 Rank 1', '🥈 Rank 2', '🥉 Rank 3'];
-                          const times = ['Yesterday', '2 days ago', '3 days ago'];
-                          const scores = ['48/50', '46/50', '45/50'];
-                          return (
-                            <div key={peer.id || i} className="rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-2 bg-slate-50/50 dark:bg-slate-800/40">
-                              <div className="relative h-28 rounded-xl bg-slate-900 flex items-center justify-center overflow-hidden group">
-                                <span className="flex size-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-xs group-hover:scale-110 transition">
-                                  <Play size={16} />
-                                </span>
-                                <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-black text-white">
-                                  0:58
-                                </span>
+                      {loadingSubmissions ? (
+                        <div className="flex items-center justify-center py-12 text-slate-400 gap-2">
+                          <Loader2 className="size-5 animate-spin text-amber-500" />
+                          <span className="text-xs font-semibold">Loading cohort submissions...</span>
+                        </div>
+                      ) : challengeSubmissions.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
+                          {challengeSubmissions.map((sub, i) => (
+                            <div
+                              key={sub.id || i}
+                              className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col justify-between"
+                            >
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2.5">
+                                  {sub.avatarUrl ? (
+                                    <img
+                                      src={sub.avatarUrl}
+                                      alt={sub.fullName}
+                                      className="size-8 rounded-full object-cover ring-2 ring-amber-400/30"
+                                    />
+                                  ) : (
+                                    <div className="flex size-8 items-center justify-center rounded-full bg-slate-700 text-white font-black text-xs ring-2 ring-amber-400/30">
+                                      {sub.fullName ? sub.fullName.slice(0, 2).toUpperCase() : 'ST'}
+                                    </div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-black text-slate-900 dark:text-white truncate">
+                                      {sub.fullName || 'Student'}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400">
+                                      {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString() : 'Recently'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {sub.notes && (
+                                  <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 italic bg-white dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                    "{sub.notes}"
+                                  </p>
+                                )}
                               </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-slate-900 dark:text-white truncate">{peer.name}</span>
-                                <span className="text-[10px] font-black text-amber-500">{medals[i] || `#${i + 1}`}</span>
-                              </div>
-                              <div className="flex items-center justify-between text-[10px] text-slate-400">
-                                <span>Score: {scores[i] || '45/50'}</span>
-                                <span>{times[i] || 'Recently'}</span>
+
+                              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
+                                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-600 dark:text-amber-400">
+                                  {sub.score !== undefined && sub.score !== null ? `${sub.score} Pts` : sub.status}
+                                </span>
+                                {sub.submissionUrl && (
+                                  <a
+                                    href={sub.submissionUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-500 dark:text-blue-400 hover:underline"
+                                  >
+                                    <span>View Entry</span>
+                                    <ExternalLink size={12} />
+                                  </a>
+                                )}
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center space-y-2">
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            No peer submissions yet
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            Be the first in your cohort to submit an entry and set the standard!
+                          </p>
+                          <button
+                            onClick={() => setActiveDetailTab('submit')}
+                            className="mt-2 inline-flex items-center gap-1 text-xs font-black text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                          >
+                            Submit Your Entry →
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2415,72 +2577,68 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Ends in:</span>
-                      <span className="text-xs font-black text-rose-500">2d 0h 17m</span>
+                      <span className="text-xs font-black text-rose-500">
+                        {formatChallengeCountdown(selectedChallenge.endDate)}
+                      </span>
                     </div>
                   </div>
 
-                  {/* 5 Step-by-Step Instructions */}
+                  {/* Dynamic Step-by-Step Instructions */}
                   <div className="space-y-3.5 text-xs">
                     <div className="flex items-start gap-2.5">
                       <span className="font-black text-slate-900 dark:text-white shrink-0">Step 1 :</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">Complete watching both Lessons</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        Review the brief and requirements for <strong className="text-slate-900 dark:text-white">{selectedChallenge.title}</strong>
+                      </span>
                     </div>
 
                     <div className="flex items-start gap-2.5">
                       <span className="font-black text-slate-900 dark:text-white shrink-0">Step 2 :</span>
                       <span className="font-semibold text-slate-700 dark:text-slate-300">
-                        Select any one from the given footage. Download the footage :{' '}
-                        <a
-                          href="#download-footage"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setToastMessage('Footage download link clicked');
-                            setTimeout(() => setToastMessage(null), 3000);
-                          }}
-                          className="font-bold text-blue-600 hover:text-blue-500 dark:text-blue-400 underline decoration-blue-400/50"
-                        >
-                          Here
-                        </a>
+                        {selectedChallenge.assets && selectedChallenge.assets.length > 0 && selectedChallenge.assets[0].url ? (
+                          <span>
+                            Download the project starter files:{' '}
+                            <a
+                              href={selectedChallenge.assets[0].url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-bold text-blue-600 hover:text-blue-500 dark:text-blue-400 underline decoration-blue-400/50"
+                            >
+                              {selectedChallenge.assets[0].title || 'Download Asset'}
+                            </a>
+                          </span>
+                        ) : (
+                          <span>Prepare your project workspace and creative development environment</span>
+                        )}
                       </span>
                     </div>
 
                     <div className="flex items-start gap-2.5">
                       <span className="font-black text-slate-900 dark:text-white shrink-0">Step 3 :</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">Plan the sounds using notes in resolve</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        Build and test your deliverable according to the grading rubric
+                      </span>
                     </div>
 
-                    <div className="space-y-1">
-                      <div className="flex items-start gap-2.5">
-                        <span className="font-black text-slate-900 dark:text-white shrink-0">Step 4 :</span>
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                          Subscribe to Epidemic Sounds
-                        </span>
-                      </div>
-                      <div className="pl-14 space-y-1">
-                        <a
-                          href="https://share.epidemicsound.com/cxdvph"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-bold text-blue-600 hover:text-blue-500 dark:text-blue-400 underline decoration-blue-400/50 break-all"
-                        >
-                          https://share.epidemicsound.com/cxdvph
-                        </a>
-                        <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
-                          ( ⚠️ Just subscribe to the Monthly Creator Plan )
-                        </p>
-                      </div>
+                    <div className="flex items-start gap-2.5">
+                      <span className="font-black text-slate-900 dark:text-white shrink-0">Step 4 :</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        Export your final work, repository, or shared Cloud Drive folder
+                      </span>
                     </div>
 
                     <div className="flex items-start gap-2.5">
                       <span className="font-black text-slate-900 dark:text-white shrink-0">Step 5 :</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">Collect Music &amp; SFX</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        Submit your deliverable link or proof below to claim <strong className="text-amber-600 dark:text-amber-400 font-bold">🪙 {selectedChallenge.proReward} PRO Points</strong>
+                      </span>
                     </div>
                   </div>
 
                   {/* Bottom Submission Link Notice */}
                   <div className="rounded-2xl border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 p-4">
                     <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      <span className="font-black">Submission :</span> Upload the Screenshot of your Planned Timeline{' '}
+                      <span className="font-black">Submission :</span> Upload the link or screenshot proof of your work{' '}
                       <a
                         href="#upload-timeline"
                         onClick={(e) => {
@@ -2528,13 +2686,13 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                       <div className="space-y-3 pt-2">
                         <div className="space-y-1">
                           <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                            Screenshot Proof URL *
+                            Deliverable / Proof URL *
                           </label>
                           <input
                             type="url"
                             value={checkinScreenshotUrl}
                             onChange={(e) => setCheckinScreenshotUrl(e.target.value)}
-                            placeholder="https://drive.google.com/..."
+                            placeholder="https://drive.google.com/... or https://github.com/..."
                             className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:outline-hidden"
                           />
                         </div>
@@ -2546,7 +2704,7 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                             rows={2}
                             value={checkinNotes}
                             onChange={(e) => setCheckinNotes(e.target.value)}
-                            placeholder="Sound design markers placed..."
+                            placeholder="Deliverable details and notes..."
                             className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:outline-hidden"
                           />
                         </div>
@@ -2562,8 +2720,20 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
                           if (!showCheckinSubmitForm) {
                             setShowCheckinSubmitForm(true);
                           } else {
-                            // Complete checkin
-                            setSubmittedCheckinIds((prev) => [...prev, selectedChallenge.id]);
+                            // Complete checkin with live database record
+                            if (user?.id) {
+                              void submitCourseChallenge(
+                                selectedChallenge.id,
+                                user.id,
+                                checkinScreenshotUrl.trim() || 'https://drive.google.com/checkin-proof',
+                                checkinNotes.trim() || undefined
+                              ).then(() => {
+                                void fetchChallengeSubmissions(selectedChallenge.id).then(setChallengeSubmissions);
+                                void fetchUserProHistory(user.id).then(setProTransactions);
+                              });
+                            }
+                            setSubmittedCheckinIds((prev) => Array.from(new Set([...prev, selectedChallenge.id])));
+                            setSubmittedChallengeIds((prev) => Array.from(new Set([...prev, selectedChallenge.id])));
                             setToastMessage(`🎉 Check-in Completed! +${selectedChallenge.proReward} PRO Points Claimed!`);
                             setShowCheckinSubmitForm(false);
                             setTimeout(() => setToastMessage(null), 4000);

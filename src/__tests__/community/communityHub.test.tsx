@@ -135,6 +135,7 @@ vi.mock('../../lib/courseChallengeService', () => ({
   joinCourseChallenge: vi.fn().mockResolvedValue(undefined),
   submitCourseChallenge: vi.fn().mockResolvedValue(undefined),
   fetchChallengeParticipants: vi.fn().mockResolvedValue([]),
+  fetchChallengeSubmissions: vi.fn().mockResolvedValue([]),
   formatChallengeCountdown: vi.fn().mockReturnValue('Ends in 4d 10h 15m'),
   getDefaultChallengesForCohort: vi.fn().mockReturnValue([]),
 }));
@@ -490,18 +491,18 @@ describe('CommunityHub & Components', () => {
     }
 
     // Verify Challenge Detail Workspace
-    expect(screen.getByText('Creative Challenge Objectives')).toBeInTheDocument();
+    expect(screen.getByText('Challenge Objectives & Brief')).toBeInTheDocument();
     expect(screen.getByText(/Grading Rubric \(50 Pts\)/i)).toBeInTheDocument();
 
     // Check Sub-tabs within Challenge Detail
     expect(screen.getByText('Brief & Instructions')).toBeInTheDocument();
-    expect(screen.getByText('Assets & Footage')).toBeInTheDocument();
+    expect(screen.getByText('Assets & Files')).toBeInTheDocument();
     expect(screen.getByText('Submit Entry')).toBeInTheDocument();
 
     // Switch to Assets tab
-    const assetsTab = screen.getByText('Assets & Footage');
+    const assetsTab = screen.getByText('Assets & Files');
     fireEvent.click(assetsTab);
-    expect(screen.getByText('Project Starter Footage Pack')).toBeInTheDocument();
+    expect(screen.getByText('No external asset downloads required')).toBeInTheDocument();
 
     // Return back to Challenges list
     const backBtn = screen.getByRole('button', { name: /back to challenges list/i });
@@ -509,16 +510,20 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Challenges' })).toBeInTheDocument();
   });
 
-  it('renders Checkin details modal with 5 steps, Epidemic sound link, points assigned, and submission action matching reference image', async () => {
+  it('renders Checkin details modal with 5 steps, points assigned, and submission action matching dynamic challenge data', async () => {
     render(
       <MemoryRouter initialEntries={['/community?tab=levelup&sub=challenges']}>
         <CommunityHub />
       </MemoryRouter>
     );
 
-    // Click on Task 3 card to open details & trigger check-in modal
+    // Click on Task 3 card to open details workspace
     const taskCardTitle = await screen.findByText('B15 W3 Task 3 - Design sounds for the video');
     fireEvent.click(taskCardTitle);
+
+    // Open Checkin modal via hero button
+    const heroCheckinBtn = await screen.findByRole('button', { name: /50 PRO/i });
+    fireEvent.click(heroCheckinBtn);
 
     // Verify modal header
     expect(screen.getByText('Checkin details for Task 3 - Design sounds for the video')).toBeInTheDocument();
@@ -526,19 +531,17 @@ describe('CommunityHub & Components', () => {
     // Verify left column stat box
     expect(screen.getByText(/Points assigned:/i)).toBeInTheDocument();
     expect(screen.getByText('Ends in:')).toBeInTheDocument();
-    expect(screen.getByText('2d 0h 17m')).toBeInTheDocument();
+    expect(screen.getAllByText('Ends in 4d 10h 15m').length).toBeGreaterThanOrEqual(1);
 
-    // Verify 5 instruction steps
-    expect(screen.getByText('Complete watching both Lessons')).toBeInTheDocument();
-    expect(screen.getByText(/Select any one from the given footage/i)).toBeInTheDocument();
-    expect(screen.getByText('Plan the sounds using notes in resolve')).toBeInTheDocument();
-    expect(screen.getByText('Subscribe to Epidemic Sounds')).toBeInTheDocument();
-    expect(screen.getByText('https://share.epidemicsound.com/cxdvph')).toBeInTheDocument();
-    expect(screen.getByText(/Just subscribe to the Monthly Creator Plan/i)).toBeInTheDocument();
-    expect(screen.getByText('Collect Music & SFX')).toBeInTheDocument();
+    // Verify 5 dynamic instruction steps
+    expect(screen.getByText(/Review the brief and requirements/i)).toBeInTheDocument();
+    expect(screen.getByText(/Prepare your project workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/Build and test your deliverable/i)).toBeInTheDocument();
+    expect(screen.getByText(/Export your final work/i)).toBeInTheDocument();
+    expect(screen.getByText(/Submit your deliverable link or proof/i)).toBeInTheDocument();
 
     // Verify submission link notice
-    expect(screen.getByText(/Upload the Screenshot of your Planned Timeline/i)).toBeInTheDocument();
+    expect(screen.getByText(/Upload the link or screenshot proof of your work/i)).toBeInTheDocument();
 
     // Verify right column submission action
     expect(screen.getByText('Submit your check-in to complete today\'s challenge.')).toBeInTheDocument();
@@ -557,17 +560,8 @@ describe('CommunityHub & Components', () => {
     const closeModalBtn = screen.getByRole('button', { name: /close modal/i });
     fireEvent.click(closeModalBtn);
 
-    // Verify background workspace is visible with hero card and submissions leaderboard
+    // Verify background workspace is visible with hero card and submissions section
     expect(screen.queryByText('Checkin details for Task 3 - Design sounds for the video')).not.toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.getByText('Alex Rivera')).toBeInTheDocument();
-    });
     expect(screen.getAllByText('Submissions').length).toBeGreaterThanOrEqual(1);
-
-    // Reopen modal via hero button
-    const heroCheckinBtn = screen.getByRole('button', { name: /50 PRO/i });
-    fireEvent.click(heroCheckinBtn);
-    expect(screen.getByText('Checkin details for Task 3 - Design sounds for the video')).toBeInTheDocument();
   });
 });
-
