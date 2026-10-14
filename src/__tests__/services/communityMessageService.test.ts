@@ -379,6 +379,7 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
         sender_role: 'student',
         sender_avatar: 'https://example.com/avatar.png',
         content: 'Check out this new timeline cut!',
+        body: 'Check out this new timeline cut!',
       });
       expect(result).toEqual(mockCreated);
     });
@@ -422,6 +423,48 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
 
       expect(callCount).toBe(2);
       expect(res.id).toBe('msg-fallback-author');
+    });
+
+    it('falls back seamlessly if database schema enforces NOT NULL on body (code 23502)', async () => {
+      const mockCreated = {
+        id: 'msg-fallback-body',
+        channel_id: 'batch-15-community',
+        sender_id: '11111111-1111-1111-1111-111111111111',
+        sender_name: 'Alex',
+        sender_role: 'student',
+        body: 'Hello with body',
+        created_at: new Date().toISOString(),
+      };
+
+      let callCount = 0;
+      const singleMock = vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve({
+            data: null,
+            error: { code: '23502', message: 'null value in column "body" of relation "community_messages" violates not-null constraint' },
+          });
+        }
+        return Promise.resolve({
+          data: mockCreated,
+          error: null,
+        });
+      });
+      const selectMock = vi.fn().mockReturnValue({ single: singleMock });
+      const insertMock = vi.fn().mockReturnValue({ select: selectMock });
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        insert: insertMock,
+      });
+
+      const res = await sendChatMessage(
+        'batch-15-community',
+        { id: '11111111-1111-1111-1111-111111111111', name: 'Alex', role: 'student' },
+        'Hello with body'
+      );
+
+      expect(callCount).toBe(2);
+      expect(res.id).toBe('msg-fallback-body');
+      expect(res.content).toBe('Hello with body');
     });
 
     it('fails closed and throws an error if Supabase rejects the write (RLS or network)', async () => {

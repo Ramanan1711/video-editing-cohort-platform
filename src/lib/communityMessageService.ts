@@ -346,7 +346,7 @@ export async function listChannelMessages(channelId: string): Promise<ChatMessag
           sender_id: String(row.sender_id || row.author_id || ''),
           sender_name: String(row.sender_name || 'Community Member'),
           sender_role: ((row.sender_role || 'student') as 'student' | 'mentor' | 'admin' | 'creator'),
-          content: String(row.content || ''),
+          content: String(row.content || row.body || row.message || ''),
           created_at: String(row.created_at || new Date().toISOString()),
         };
         if (row.sender_avatar) item.sender_avatar = row.sender_avatar as string;
@@ -391,8 +391,8 @@ export async function sendChatMessage(
     throw new Error('Authentication required: valid sender profile ID is required to send messages.');
   }
 
-  // Include both sender_id and author_id to satisfy both canonical schema and schemas with NOT NULL author_id
-  const primaryPayload: Record<string, unknown> = {
+  // Include both sender_id / author_id and content / body to satisfy different schema variants
+  const payload: Record<string, unknown> = {
     channel_id: channelId,
     sender_id: sender.id,
     author_id: sender.id,
@@ -400,45 +400,44 @@ export async function sendChatMessage(
     sender_role: sender.role,
     sender_avatar: sender.avatar,
     content: trimmed,
+    body: trimmed,
   };
 
   let { data, error } = await supabase
     .from('community_messages')
-    .insert(primaryPayload)
+    .insert(payload)
     .select()
     .single();
 
-  // Resilience: if database schema does not have author_id, retry without author_id
-  if (error && (error.message?.includes('author_id') || error.code === '42703' || error.code === 'PGRST204')) {
-    const fallbackWithoutAuthor = {
-      channel_id: channelId,
-      sender_id: sender.id,
-      sender_name: sender.name,
-      sender_role: sender.role,
-      sender_avatar: sender.avatar,
-      content: trimmed,
-    };
+  // Resilience: if database schema does not have body / content / author_id / sender_id (42703 / PGRST204)
+  if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+    const errorMsg = error.message || '';
+    if (errorMsg.includes('body')) delete payload.body;
+    if (errorMsg.includes('content')) delete payload.content;
+    if (errorMsg.includes('author_id')) delete payload.author_id;
+    if (errorMsg.includes('sender_id')) delete payload.sender_id;
+
     const retryRes = await supabase
       .from('community_messages')
-      .insert(fallbackWithoutAuthor)
+      .insert(payload)
       .select()
       .single();
 
     data = retryRes.data;
     error = retryRes.error;
-  } else if (error && (error.message?.includes('sender_id') || error.code === '42703')) {
-    // If schema does not have sender_id, retry with author_id only
-    const fallbackWithAuthorOnly = {
-      channel_id: channelId,
-      author_id: sender.id,
-      sender_name: sender.name,
-      sender_role: sender.role,
-      sender_avatar: sender.avatar,
-      content: trimmed,
-    };
+  }
+
+  // Resilience: if database schema enforces a NOT NULL constraint on body or author_id (23502)
+  if (error && error.code === '23502') {
+    const errorMsg = error.message || '';
+    if (errorMsg.includes('body')) payload.body = trimmed;
+    if (errorMsg.includes('content')) payload.content = trimmed;
+    if (errorMsg.includes('author_id')) payload.author_id = sender.id;
+    if (errorMsg.includes('sender_id')) payload.sender_id = sender.id;
+
     const retryRes = await supabase
       .from('community_messages')
-      .insert(fallbackWithAuthorOnly)
+      .insert(payload)
       .select()
       .single();
 
@@ -462,7 +461,7 @@ export async function sendChatMessage(
     sender_id: String(row.sender_id || row.author_id || sender.id),
     sender_name: String(row.sender_name || sender.name),
     sender_role: ((row.sender_role || sender.role) as 'student' | 'mentor' | 'admin' | 'creator'),
-    content: String(row.content || trimmed),
+    content: String(row.content || row.body || trimmed),
     created_at: String(row.created_at || new Date().toISOString()),
   };
   if (row.sender_avatar || sender.avatar) {
@@ -503,7 +502,7 @@ export function subscribeToChatChannel(
             sender_id: String(row.sender_id || row.author_id || ''),
             sender_name: String(row.sender_name || 'Community Member'),
             sender_role: ((row.sender_role || 'student') as 'student' | 'mentor' | 'admin' | 'creator'),
-            content: String(row.content || ''),
+            content: String(row.content || row.body || ''),
             created_at: String(row.created_at || new Date().toISOString()),
           };
           if (row.sender_avatar) msg.sender_avatar = row.sender_avatar as string;
