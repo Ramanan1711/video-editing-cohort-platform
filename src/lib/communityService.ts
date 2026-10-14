@@ -16,7 +16,7 @@ export interface CommunityPost {
   reactions?: Record<string, number>;
   user_reactions?: string[];
   media_url?: string | null;
-  media_type?: 'video' | 'image' | 'file' | null;
+  media_type?: 'video' | 'image' | 'file' | 'leaderboard' | null;
   file_name?: string | null;
 }
 
@@ -79,7 +79,7 @@ export async function fetchAuthorPublicProfiles(authorIds: string[]): Promise<Ar
 export function parsePostMediaEnvelope(rawBody: string): {
   body: string;
   mediaUrl?: string | null;
-  mediaType?: 'video' | 'image' | 'file' | null;
+  mediaType?: 'video' | 'image' | 'file' | 'leaderboard' | null;
   fileName?: string | null;
 } {
   const match = rawBody.match(/^\[attachment:(.*?)\]\n([\s\S]*)$/);
@@ -459,6 +459,37 @@ export async function uploadCommunityMedia(file: File): Promise<{
 export async function deleteCommunityPost(postId: string): Promise<void> {
   const { error } = await supabase.from('community_posts').delete().eq('id', postId);
   if (error) throw error;
+}
+
+export async function togglePinCommunityPost(postId: string, isPinned: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('community_posts')
+    .update({ is_pinned: isPinned })
+    .eq('id', postId);
+  if (error) throw error;
+}
+
+export function getCommunityPostViews(postId: string, createdAt?: string): number {
+  if (typeof window === 'undefined') return 24;
+  const key = `post_views_${postId}`;
+  const stored = localStorage.getItem(key);
+  if (stored) {
+    return parseInt(stored, 10);
+  }
+  const createdMs = createdAt ? new Date(createdAt).getTime() : Date.now();
+  const ageHours = Math.max(1, Math.floor((Date.now() - createdMs) / (1000 * 60 * 60)));
+  const initial = Math.min(950, 18 + (ageHours * 9) + (postId.charCodeAt(0) % 19));
+  localStorage.setItem(key, String(initial));
+  return initial;
+}
+
+export function incrementCommunityPostViews(postId: string): number {
+  if (typeof window === 'undefined') return 1;
+  const key = `post_views_${postId}`;
+  const current = parseInt(localStorage.getItem(key) || '0', 10);
+  const updated = current + 1;
+  localStorage.setItem(key, String(updated));
+  return updated;
 }
 
 export async function listCommunityComments(postId: string): Promise<CommunityComment[]> {

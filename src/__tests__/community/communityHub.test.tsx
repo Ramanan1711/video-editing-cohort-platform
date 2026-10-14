@@ -22,6 +22,21 @@ vi.mock('../../context/useAuth', () => ({
 vi.mock('../../lib/communityService', () => ({
   listCohortPosts: vi.fn().mockResolvedValue([
     {
+      id: 'post-pinned',
+      author_id: 'user-admin',
+      author_name: 'CUT / CRAFT',
+      author_role: 'creator',
+      title: '🏆 B15 - W2 - Top 3 Projects 🏆',
+      body: 'Congratulations to our top creators this week! Shibin, Thilak, and Meshak.',
+      is_pinned: true,
+      moderation_status: 'published',
+      created_at: new Date().toISOString(),
+      reactions: { '❤️': 18 },
+      user_reactions: [],
+      comment_count: 7,
+      media_type: 'leaderboard',
+    },
+    {
       id: 'post-1',
       author_id: 'user-2',
       author_name: 'Alex Rivera',
@@ -30,6 +45,9 @@ vi.mock('../../lib/communityService', () => ({
       is_pinned: false,
       moderation_status: 'published',
       created_at: new Date().toISOString(),
+      reactions: { '❤️': 4 },
+      user_reactions: [],
+      comment_count: 2,
     },
   ]),
   createCommunityPost: vi.fn().mockResolvedValue({
@@ -48,7 +66,12 @@ vi.mock('../../lib/communityService', () => ({
     body: 'Nice pacing!',
   }),
   listCommunityComments: vi.fn().mockResolvedValue([]),
+  deleteCommunityComment: vi.fn().mockResolvedValue(undefined),
+  deleteCommunityPost: vi.fn().mockResolvedValue(undefined),
   togglePostReaction: vi.fn().mockResolvedValue({ added: true }),
+  togglePinCommunityPost: vi.fn().mockResolvedValue(undefined),
+  getCommunityPostViews: vi.fn().mockReturnValue(254),
+  incrementCommunityPostViews: vi.fn().mockReturnValue(255),
 }));
 
 // Mock gamificationService
@@ -195,14 +218,16 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByText('B15 Blue Squad')).toBeInTheDocument();
   });
 
-  it('renders pinned post with CREATOR badge and TOP 3 LEADERBOARD with CUT / CRAFT branding', () => {
+  it('renders pinned post with CREATOR badge and TOP 3 LEADERBOARD with CUT / CRAFT branding', async () => {
     render(
       <MemoryRouter initialEntries={['/community']}>
         <CommunityHub />
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Pinned')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Pinned')).toBeInTheDocument();
+    });
     expect(screen.getAllByText('CUT / CRAFT').length).toBeGreaterThan(0);
     expect(screen.getByText('CREATOR')).toBeInTheDocument();
     expect(screen.getByText(/TOP 3 LEADERBOARD/i)).toBeInTheDocument();
@@ -212,7 +237,7 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByText('1.2K CRAFT')).toBeInTheDocument();
   });
 
-  it('toggles like counter on the pinned post', () => {
+  it('toggles like counter on the pinned post', async () => {
     render(
       <MemoryRouter initialEntries={['/community']}>
         <CommunityHub />
@@ -220,7 +245,9 @@ describe('CommunityHub & Components', () => {
     );
 
     // Initial likes: 18
-    expect(screen.getByText('18')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('18')).toBeInTheDocument();
+    });
 
     const likeButton = screen.getByText('18').closest('button');
     expect(likeButton).not.toBeNull();

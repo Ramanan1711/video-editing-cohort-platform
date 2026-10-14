@@ -14,7 +14,7 @@ import { resolveCommunityMediaUrl } from '../../lib/communityService';
 
 interface PostMediaRendererProps {
   mediaUrl?: string | null;
-  mediaType?: 'video' | 'image' | 'file' | null;
+  mediaType?: 'video' | 'image' | 'file' | 'leaderboard' | null;
   fileName?: string | null;
   className?: string;
 }
