@@ -339,7 +339,21 @@ export async function listChannelMessages(channelId: string): Promise<ChatMessag
       .order('created_at', { ascending: true });
 
     if (!error && data) {
-      return data as ChatMessage[];
+      return (data as Array<Record<string, unknown>>).map((row) => {
+        const item: ChatMessage = {
+          id: String(row.id),
+          channel_id: String(row.channel_id),
+          sender_id: String(row.sender_id || row.author_id || ''),
+          sender_name: String(row.sender_name || 'Community Member'),
+          sender_role: ((row.sender_role || 'student') as 'student' | 'mentor' | 'admin' | 'creator'),
+          content: String(row.content || ''),
+          created_at: String(row.created_at || new Date().toISOString()),
+        };
+        if (row.sender_avatar) item.sender_avatar = row.sender_avatar as string;
+        if (row.reactions) item.reactions = row.reactions as Record<string, number>;
+        if (row.attachment_url) item.attachment_url = row.attachment_url as string;
+        return item;
+      });
     }
 
     if (error) {
@@ -377,18 +391,60 @@ export async function sendChatMessage(
     throw new Error('Authentication required: valid sender profile ID is required to send messages.');
   }
 
-  const { data, error } = await supabase
+  // Include both sender_id and author_id to satisfy both canonical schema and schemas with NOT NULL author_id
+  const primaryPayload: Record<string, unknown> = {
+    channel_id: channelId,
+    sender_id: sender.id,
+    author_id: sender.id,
+    sender_name: sender.name,
+    sender_role: sender.role,
+    sender_avatar: sender.avatar,
+    content: trimmed,
+  };
+
+  let { data, error } = await supabase
     .from('community_messages')
-    .insert({
+    .insert(primaryPayload)
+    .select()
+    .single();
+
+  // Resilience: if database schema does not have author_id, retry without author_id
+  if (error && (error.message?.includes('author_id') || error.code === '42703' || error.code === 'PGRST204')) {
+    const fallbackWithoutAuthor = {
       channel_id: channelId,
       sender_id: sender.id,
       sender_name: sender.name,
       sender_role: sender.role,
       sender_avatar: sender.avatar,
       content: trimmed,
-    })
-    .select()
-    .single();
+    };
+    const retryRes = await supabase
+      .from('community_messages')
+      .insert(fallbackWithoutAuthor)
+      .select()
+      .single();
+
+    data = retryRes.data;
+    error = retryRes.error;
+  } else if (error && (error.message?.includes('sender_id') || error.code === '42703')) {
+    // If schema does not have sender_id, retry with author_id only
+    const fallbackWithAuthorOnly = {
+      channel_id: channelId,
+      author_id: sender.id,
+      sender_name: sender.name,
+      sender_role: sender.role,
+      sender_avatar: sender.avatar,
+      content: trimmed,
+    };
+    const retryRes = await supabase
+      .from('community_messages')
+      .insert(fallbackWithAuthorOnly)
+      .select()
+      .single();
+
+    data = retryRes.data;
+    error = retryRes.error;
+  }
 
   if (error) {
     console.error('Failed to post community message to Supabase:', error);
@@ -399,7 +455,26 @@ export async function sendChatMessage(
     throw new Error('No message response received from server.');
   }
 
-  return data as ChatMessage;
+  const row = data as Record<string, unknown>;
+  const result: ChatMessage = {
+    id: String(row.id),
+    channel_id: String(row.channel_id),
+    sender_id: String(row.sender_id || row.author_id || sender.id),
+    sender_name: String(row.sender_name || sender.name),
+    sender_role: ((row.sender_role || sender.role) as 'student' | 'mentor' | 'admin' | 'creator'),
+    content: String(row.content || trimmed),
+    created_at: String(row.created_at || new Date().toISOString()),
+  };
+  if (row.sender_avatar || sender.avatar) {
+    result.sender_avatar = (row.sender_avatar as string) || sender.avatar;
+  }
+  if (row.reactions) {
+    result.reactions = row.reactions as Record<string, number>;
+  }
+  if (row.attachment_url) {
+    result.attachment_url = row.attachment_url as string;
+  }
+  return result;
 }
 
 /**
@@ -421,7 +496,20 @@ export function subscribeToChatChannel(
       },
       (payload) => {
         if (payload.new) {
-          onNewMessage(payload.new as ChatMessage);
+          const row = payload.new as Record<string, unknown>;
+          const msg: ChatMessage = {
+            id: String(row.id),
+            channel_id: String(row.channel_id),
+            sender_id: String(row.sender_id || row.author_id || ''),
+            sender_name: String(row.sender_name || 'Community Member'),
+            sender_role: ((row.sender_role || 'student') as 'student' | 'mentor' | 'admin' | 'creator'),
+            content: String(row.content || ''),
+            created_at: String(row.created_at || new Date().toISOString()),
+          };
+          if (row.sender_avatar) msg.sender_avatar = row.sender_avatar as string;
+          if (row.reactions) msg.reactions = row.reactions as Record<string, number>;
+          if (row.attachment_url) msg.attachment_url = row.attachment_url as string;
+          onNewMessage(msg);
         }
       }
     )

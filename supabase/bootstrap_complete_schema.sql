@@ -10258,6 +10258,7 @@ create table if not exists public.community_messages (
   id text primary key default gen_random_uuid()::text,
   channel_id text not null,
   sender_id uuid references auth.users(id) on delete cascade,
+  author_id uuid references auth.users(id) on delete cascade,
   sender_name text not null default 'Community Member',
   sender_role text not null default 'student',
   sender_avatar text,
@@ -10270,6 +10271,7 @@ create table if not exists public.community_messages (
 alter table public.community_messages
   add column if not exists channel_id text not null default 'general',
   add column if not exists sender_id uuid references auth.users(id) on delete cascade,
+  add column if not exists author_id uuid references auth.users(id) on delete cascade,
   add column if not exists sender_name text not null default 'Community Member',
   add column if not exists sender_role text not null default 'student',
   add column if not exists sender_avatar text,
