@@ -1,21 +1,58 @@
 import '../deno.d.ts';
-
-// Supabase Edge Function: unlock-challenges
-// Serves as the scheduled / on-demand webhook runner for automated challenge unlock.
-// Trigger via pg_net, Supabase Scheduled Functions, or external cron:
-// POST https://<project-ref>.supabase.co/functions/v1/unlock-challenges
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-cron-secret, x-correlation-id, x-request-id',
+  'Access-Control-Expose-Headers': 'x-correlation-id',
 };
 
+interface StructuredTelemetry {
+  timestamp: string;
+  service: string;
+  level: 'info' | 'warn' | 'error';
+  traceId: string;
+  durationMs: number;
+  event: string;
+  errorCode?: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+}
+
+function logTelemetry(data: Omit<StructuredTelemetry, 'timestamp'>) {
+  const payload: StructuredTelemetry = {
+    timestamp: new Date().toISOString(),
+    ...data,
+  };
+  const jsonStr = JSON.stringify(payload);
+  if (data.level === 'error') {
+    console.error(jsonStr);
+  } else if (data.level === 'warn') {
+    console.warn(jsonStr);
+  } else {
+    console.log(jsonStr);
+  }
+}
+
 Deno.serve(async (req: Request) => {
+  const startTime = performance.now();
+  const traceId =
+    req.headers.get('x-correlation-id') ||
+    req.headers.get('x-request-id') ||
+    crypto.randomUUID();
+
+  const responseHeaders = {
+    ...corsHeaders,
+    'Content-Type': 'application/json',
+    'x-correlation-id': traceId,
+  };
+
+  const getDuration = () => Math.round(performance.now() - startTime);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: responseHeaders });
   }
 
   try {
@@ -23,19 +60,24 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
     if (!supabaseUrl || !supabaseServiceKey) {
+      logTelemetry({
+        service: 'unlock-challenges',
+        level: 'error',
+        traceId,
+        durationMs: getDuration(),
+        event: 'auth_check',
+        errorCode: 'CONFIG_MISSING',
+        message: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables',
+      });
       return new Response(
         JSON.stringify({ error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: responseHeaders }
       );
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // 1. Caller Authorization Check (Fail-Closed)
-    // Permitted callers:
-    // a) External scheduler / cron bearing matching x-cron-secret header
-    // b) Internal service_role bearer token or apikey header
-    // c) Authenticated staff user (role = 'admin' or 'mentor')
     const cronSecret = Deno.env.get('CRON_SECRET');
     const providedCronSecret = req.headers.get('x-cron-secret');
     const authHeader = req.headers.get('Authorization') || '';
@@ -64,12 +106,21 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!isAuthorized) {
+      logTelemetry({
+        service: 'unlock-challenges',
+        level: 'warn',
+        traceId,
+        durationMs: getDuration(),
+        event: 'auth_check',
+        errorCode: 'UNAUTHORIZED',
+        message: 'Unauthorized caller attempted to trigger challenge unlock',
+      });
       return new Response(
         JSON.stringify({
           success: false,
           error: 'Unauthorized: Valid cron secret, service_role key, or admin/mentor authorization required.',
         }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: responseHeaders }
       );
     }
 
@@ -90,37 +141,87 @@ Deno.serve(async (req: Request) => {
       });
 
       if (error) {
+        logTelemetry({
+          service: 'unlock-challenges',
+          level: 'error',
+          traceId,
+          durationMs: getDuration(),
+          event: 'unlock_cohort_challenges',
+          errorCode: 'RPC_ERROR',
+          message: `Failed to unlock challenges for cohort ${cohortId}: ${error.message}`,
+          metadata: { cohortId, error },
+        });
         return new Response(JSON.stringify({ success: false, error: error.message }), {
           status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: responseHeaders,
         });
       }
 
+      logTelemetry({
+        service: 'unlock-challenges',
+        level: 'info',
+        traceId,
+        durationMs: getDuration(),
+        event: 'unlock_cohort_challenges',
+        message: `Unlocked challenges for cohort ${cohortId}`,
+        metadata: { cohortId, result: data },
+      });
+
       return new Response(JSON.stringify(data), {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: responseHeaders,
       });
     }
 
-    // Default: Unlock all scheduled challenges across all cohorts
+    // Default: Unlock all scheduled challenges across all cohorts in their respective local timezones
     const { data, error } = await supabase.rpc('unlock_scheduled_daily_challenges');
 
     if (error) {
+      logTelemetry({
+        service: 'unlock-challenges',
+        level: 'error',
+        traceId,
+        durationMs: getDuration(),
+        event: 'unlock_scheduled_challenges',
+        errorCode: 'RPC_ERROR',
+        message: `Failed to execute scheduled challenge unlock: ${error.message}`,
+        metadata: { error },
+      });
       return new Response(JSON.stringify({ success: false, error: error.message }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: responseHeaders,
       });
     }
 
+    logTelemetry({
+      service: 'unlock-challenges',
+      level: 'info',
+      traceId,
+      durationMs: getDuration(),
+      event: 'unlock_scheduled_challenges',
+      message: `Completed timezone-aware scheduled challenge unlock: ${data?.total_unlocked ?? 0} challenges unlocked`,
+      metadata: { result: data },
+    });
+
     return new Response(JSON.stringify(data), {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: responseHeaders,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+    logTelemetry({
+      service: 'unlock-challenges',
+      level: 'error',
+      traceId,
+      durationMs: getDuration(),
+      event: 'unhandled_exception',
+      errorCode: 'UNHANDLED_EXCEPTION',
+      message: `Unhandled exception in unlock-challenges: ${message}`,
+      metadata: { error: message },
+    });
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: responseHeaders,
     });
   }
 });

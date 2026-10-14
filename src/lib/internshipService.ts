@@ -521,6 +521,24 @@ export async function getChallengeSubmissionForGrading(
 }
 
 /**
+ * Resolves a date into a localized date string (YYYY-MM-DD) in the specified timezone (default: Asia/Kolkata).
+ */
+export function getLocalDateInTimezone(dateInput: Date | string, timeZone = 'Asia/Kolkata'): string {
+  try {
+    const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d);
+  } catch {
+    const fallback = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+    return fallback.toISOString().slice(0, 10);
+  }
+}
+
+/**
  * Compute student sprint progress with dynamic sprint duration
  */
 export async function getStudentSprintDays(
@@ -534,23 +552,24 @@ export async function getStudentSprintDays(
   overallScore: number | null;
   progressPercent: number;
 }> {
-  const fetchCohortMeta = async (): Promise<{ durationDays: number | null; startDate: string | null }> => {
+  const fetchCohortMeta = async (): Promise<{ durationDays: number | null; startDate: string | null; timezone: string }> => {
     try {
-      const query = supabase.from('cohorts').select('sprint_duration_days, start_date');
+      const query = supabase.from('cohorts').select('sprint_duration_days, start_date, timezone');
       if (typeof query?.eq === 'function') {
         const eqQuery = query.eq('id', cohortId);
         if (typeof eqQuery?.maybeSingle === 'function') {
           const res = await eqQuery.maybeSingle();
-          const cohortData = res?.data as { sprint_duration_days?: number; start_date?: string } | null;
+          const cohortData = res?.data as { sprint_duration_days?: number; start_date?: string; timezone?: string } | null;
           return {
             durationDays: cohortData?.sprint_duration_days ?? null,
             startDate: cohortData?.start_date ?? null,
+            timezone: cohortData?.timezone ?? 'Asia/Kolkata',
           };
         }
       }
-      return { durationDays: null, startDate: null };
+      return { durationDays: null, startDate: null, timezone: 'Asia/Kolkata' };
     } catch {
-      return { durationDays: null, startDate: null };
+      return { durationDays: null, startDate: null, timezone: 'Asia/Kolkata' };
     }
   };
 
@@ -594,14 +613,27 @@ export async function getStudentSprintDays(
     }
 
     if (!isCalendarUnlocked && cohortMeta.startDate) {
-      const start = new Date(cohortMeta.startDate);
-      start.setHours(0, 0, 0, 0);
-      const unlockDate = new Date(start);
-      unlockDate.setDate(unlockDate.getDate() + (i - 1));
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (today >= unlockDate) {
-        isCalendarUnlocked = true;
+      const tz = cohortMeta.timezone || 'Asia/Kolkata';
+      try {
+        const todayStr = getLocalDateInTimezone(new Date(), tz);
+        const startStr = getLocalDateInTimezone(cohortMeta.startDate, tz);
+        const [sYear, sMonth, sDay] = startStr.split('-').map(Number);
+        const unlockUtc = new Date(Date.UTC(sYear, sMonth - 1, sDay + (i - 1)));
+        const unlockStr = unlockUtc.toISOString().slice(0, 10);
+
+        if (todayStr >= unlockStr) {
+          isCalendarUnlocked = true;
+        }
+      } catch {
+        const start = new Date(cohortMeta.startDate);
+        start.setHours(0, 0, 0, 0);
+        const unlockDate = new Date(start);
+        unlockDate.setDate(unlockDate.getDate() + (i - 1));
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (today >= unlockDate) {
+          isCalendarUnlocked = true;
+        }
       }
     }
 
@@ -652,6 +684,9 @@ export async function getStudentSprintDays(
     progressPercent,
   };
 }
+
+export const calculateSprintProgress = (cohortId: string, userId: string) =>
+  getStudentSprintDays(userId, cohortId);
 
 /**
  * Telemetry monitoring for mentors across all enrolled cohort interns

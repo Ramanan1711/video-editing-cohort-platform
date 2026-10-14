@@ -373,38 +373,106 @@ export function calculateLearningTime(completedLessons: Lesson[]): string {
   return `${mins} mins`;
 }
 
-export function parseVideoUrl(url: string | null): {
+export interface ParsedVideoMeta {
   type: 'embed' | 'video' | 'empty';
   embedUrl: string | null;
   directUrl: string | null;
-} {
+  provider?: 'youtube' | 'vimeo' | 'loom' | 'wistia' | 'direct' | 'custom_embed';
+  videoId?: string;
+}
+
+export function parseVideoUrl(url: string | null): ParsedVideoMeta {
   if (!url || !url.trim()) return { type: 'empty', embedUrl: null, directUrl: null };
 
   const trimmed = url.trim();
 
-  // YouTube format match
-  const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/i);
+  // 1. YouTube format match (Standard watch, shorts, live streams, embed, youtu.be, m.youtube, youtube-nocookie)
+  const ytMatch = trimmed.match(
+    /(?:(?:www\.|m\.)?youtube(?:-nocookie)?\.com\/(?:watch\?.*v=|embed\/|v\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i
+  );
   if (ytMatch && ytMatch[1]) {
+    const videoId = ytMatch[1];
+    const timeMatch = trimmed.match(/[?&](?:t|start)=(\d+)/i);
+    const startParam = timeMatch && timeMatch[1] ? `&start=${timeMatch[1]}` : '';
+
     return {
       type: 'embed',
-      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`,
+      provider: 'youtube',
+      videoId,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&rel=0&modestbranding=1${startParam}`,
       directUrl: null,
     };
   }
 
-  // Vimeo format match
-  const vimeoMatch = trimmed.match(/(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+))/i);
-  if (vimeoMatch && vimeoMatch[3]) {
+  // 2. Vimeo format match (Standard, channels, groups, unlisted with privacy hash)
+  const vimeoMatch = trimmed.match(
+    /(?:player\.)?vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/[^/]+\/videos\/|album\/\d+\/video\/|video\/|)(\d+)(?:\/([a-zA-Z0-9]+))?/i
+  );
+  if (vimeoMatch && vimeoMatch[1]) {
+    const vimeoId = vimeoMatch[1];
+    const hash = vimeoMatch[2];
+    const hashParam = hash ? `&h=${hash}` : '';
+
     return {
       type: 'embed',
-      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[3]}?dnt=1&title=0&byline=0`,
+      provider: 'vimeo',
+      videoId: vimeoId,
+      embedUrl: `https://player.vimeo.com/video/${vimeoId}?dnt=1&title=0&byline=0&api=1${hashParam}`,
       directUrl: null,
     };
   }
 
-  // Direct video file link (.mp4, .webm, storage public URL, etc.)
+  // 3. Loom format match (loom.com/share/ID, loom.com/embed/ID, custom domain /share/ID)
+  const loomMatch =
+    trimmed.match(/(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)*loom\.com\/(?:share|embed)\/([a-f0-9]{32}|[a-zA-Z0-9_-]{20,40})/i) ||
+    trimmed.match(/\/share\/([a-f0-9]{32})(?:[?&#]|$)/i);
+
+  if (loomMatch && loomMatch[1]) {
+    const loomId = loomMatch[1];
+    return {
+      type: 'embed',
+      provider: 'loom',
+      videoId: loomId,
+      embedUrl: `https://www.loom.com/embed/${loomId}?hide_owner=true&hide_share=true&hide_title=true&hideEmbedTopBar=true`,
+      directUrl: null,
+    };
+  }
+
+  // 4. Wistia format match
+  const wistiaMatch = trimmed.match(/(?:wistia\.(?:com|net)\/(?:medias|embed\/iframe)\/)([a-zA-Z0-9]+)/i);
+  if (wistiaMatch && wistiaMatch[1]) {
+    const wistiaId = wistiaMatch[1];
+    return {
+      type: 'embed',
+      provider: 'wistia',
+      videoId: wistiaId,
+      embedUrl: `https://fast.wistia.net/embed/iframe/${wistiaId}`,
+      directUrl: null,
+    };
+  }
+
+  // 5. Generic embed / iframe links (Google Drive preview, OneDrive, custom embed providers)
+  if (
+    trimmed.includes('/embed/') ||
+    trimmed.includes('/preview') ||
+    trimmed.includes('drive.google.com/file/d/')
+  ) {
+    let embedUrl = trimmed;
+    if (trimmed.includes('drive.google.com/file/d/') && !trimmed.includes('/preview')) {
+      embedUrl = trimmed.replace(/\/view(\?.*)?$/, '/preview');
+    }
+    return {
+      type: 'embed',
+      provider: 'custom_embed',
+      embedUrl,
+      directUrl: null,
+    };
+  }
+
+  // 6. Direct video file link (.mp4, .webm, storage signed URLs, etc.)
   return {
     type: 'video',
+    provider: 'direct',
     embedUrl: null,
     directUrl: trimmed,
   };

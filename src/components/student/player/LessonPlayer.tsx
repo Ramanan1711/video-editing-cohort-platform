@@ -358,18 +358,21 @@ export function LessonPlayer({
     }
   };
 
-  const syncWatchProgress = (pct: number, currentTime: number) => {
-    if (!userId) return;
-    const isAutoCompleted = pct >= 80;
-    if (isAutoCompleted) {
-      setOptimisticCompleted(true);
-    }
-    // Optimistic UI: notify parent state immediately before background promise
-    if (onWatchProgressUpdate) {
-      onWatchProgressUpdate(lesson.id, pct, isAutoCompleted);
-    }
-    void updateLessonWatchProgress(userId, lesson.id, pct, currentTime, playbackSpeed);
-  };
+  const syncWatchProgress = useCallback(
+    (pct: number, currentTime: number) => {
+      if (!userId) return;
+      const isAutoCompleted = pct >= 80;
+      if (isAutoCompleted) {
+        setOptimisticCompleted(true);
+      }
+      // Optimistic UI: notify parent state immediately before background promise
+      if (onWatchProgressUpdate) {
+        onWatchProgressUpdate(lesson.id, pct, isAutoCompleted);
+      }
+      void updateLessonWatchProgress(userId, lesson.id, pct, currentTime, playbackSpeed);
+    },
+    [userId, lesson.id, onWatchProgressUpdate, playbackSpeed]
+  );
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
@@ -409,6 +412,72 @@ export function LessonPlayer({
     }
     setShowResumePrompt(false);
   };
+
+  // Listen for progress updates from embed iframes (YouTube, Vimeo)
+  useEffect(() => {
+    if (videoMeta.type !== 'embed') return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const raw = event.data;
+        if (!raw) return;
+        const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+        // 1. YouTube PostMessage API (enablejsapi=1)
+        if (data && data.event === 'infoDelivery' && data.info) {
+          const cur = Number(data.info.currentTime);
+          const dur = Number(data.info.duration);
+          if (dur > 0 && !isNaN(cur)) {
+            const pct = Math.min(100, Math.round((cur / dur) * 100));
+            if (pct > watchPercentage) {
+              setWatchPercentage(pct);
+            }
+            if (pct >= 80 && !optimisticCompleted) {
+              setOptimisticCompleted(true);
+            }
+            const now = Date.now();
+            if (now - lastSyncTimeRef.current > 5000 || (pct >= 80 && watchPercentage < 80)) {
+              lastSyncTimeRef.current = now;
+              syncWatchProgress(pct, cur);
+            }
+          }
+        } else if (data && data.event === 'onStateChange' && data.info === 0) {
+          // YouTube ended
+          setWatchPercentage(100);
+          setOptimisticCompleted(true);
+          syncWatchProgress(100, 0);
+        }
+
+        // 2. Vimeo PostMessage API (api=1)
+        if (data && (data.event === 'playProgress' || data.method === 'onPlayProgress') && data.data) {
+          const pct = Math.min(100, Math.round((Number(data.data.percent) || 0) * 100));
+          const cur = Number(data.data.seconds) || 0;
+          if (pct > watchPercentage) {
+            setWatchPercentage(pct);
+          }
+          if (pct >= 80 && !optimisticCompleted) {
+            setOptimisticCompleted(true);
+          }
+          const now = Date.now();
+          if (now - lastSyncTimeRef.current > 5000 || (pct >= 80 && watchPercentage < 80)) {
+            lastSyncTimeRef.current = now;
+            syncWatchProgress(pct, cur);
+          }
+        } else if (data && (data.event === 'finish' || data.method === 'onFinish')) {
+          setWatchPercentage(100);
+          setOptimisticCompleted(true);
+          syncWatchProgress(100, 0);
+        }
+      } catch {
+        // Non-JSON or third-party frame message, safely ignore
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [videoMeta.type, watchPercentage, optimisticCompleted, syncWatchProgress]);
 
   const handleToggleComplete = () => {
     setOptimisticCompleted(!effectiveCompleted);
@@ -459,8 +528,8 @@ export function LessonPlayer({
 
           <div className="flex items-center gap-2 shrink-0">
             {(() => {
-              const hasVideo = Boolean(lesson.video_url && lesson.video_url.trim().length > 0);
-              const isLocked = !effectiveCompleted && hasVideo && watchPercentage < 80;
+              const hasDirectVideo = videoMeta.type === 'video' && Boolean(videoMeta.directUrl);
+              const isLocked = !effectiveCompleted && hasDirectVideo && watchPercentage < 80;
 
               return (
                 <button
