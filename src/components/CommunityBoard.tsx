@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Flag,
   Heart,
@@ -59,6 +59,10 @@ export function CommunityBoard({
 
   // Expanded post comments
   const [expandedCommentsPostId, setExpandedCommentsPostId] = useState<string | null>(null);
+  const expandedCommentsRef = useRef(expandedCommentsPostId);
+  useEffect(() => {
+    expandedCommentsRef.current = expandedCommentsPostId;
+  }, [expandedCommentsPostId]);
   const [commentsByPost, setCommentsByPost] = useState<Record<string, CommunityComment[]>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [submittingComment, setSubmittingComment] = useState<string | null>(null);
@@ -96,12 +100,13 @@ export function CommunityBoard({
   useEffect(() => {
     const unsubscribe = subscribeToCohortCommunity(cohortId, () => {
       setRefreshKey((k) => k + 1);
-      if (expandedCommentsPostId) {
-        listCommunityComments(expandedCommentsPostId)
+      const activePostId = expandedCommentsRef.current;
+      if (activePostId) {
+        listCommunityComments(activePostId)
           .then((latestComments) => {
             setCommentsByPost((prev) => ({
               ...prev,
-              [expandedCommentsPostId]: latestComments,
+              [activePostId]: latestComments,
             }));
           })
           .catch((err) => console.warn('Failed to live-refresh comments:', err));
@@ -110,7 +115,7 @@ export function CommunityBoard({
     return () => {
       unsubscribe();
     };
-  }, [cohortId, expandedCommentsPostId]);
+  }, [cohortId]);
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
