@@ -227,6 +227,19 @@ export interface PagedCommunityPosts {
   pageSize: number;
 }
 
+interface CommunityPostDbRow {
+  id: string;
+  author_id: string;
+  cohort_id: string | null;
+  lesson_id: string | null;
+  title: string | null;
+  body: string;
+  is_pinned: boolean;
+  moderation_status: 'published' | 'flagged' | 'hidden';
+  created_at: string;
+  views_count?: number;
+}
+
 export async function listCohortPosts(
   cohortId?: string,
   lessonId?: string,
@@ -247,8 +260,10 @@ export async function listCohortPosts(
       query = query.eq('lesson_id', lessonId);
     }
 
-    let posts: Array<Record<string, any>> | null = null;
-    let { data: rawPosts, error } = await query;
+    let posts: CommunityPostDbRow[] | null = null;
+    const { data: rawPosts, error: initialError } = await query;
+    let error = initialError;
+
     if (error && error.message?.includes('views_count')) {
       const fallbackQuery = supabase
         .from('community_posts')
@@ -264,10 +279,13 @@ export async function listCohortPosts(
         fallbackQuery.eq('lesson_id', lessonId);
       }
       const res = await fallbackQuery;
-      posts = (res.data ?? []).map((p) => ({ ...p, views_count: 0 }));
+      posts = (res.data ?? []).map((p) => ({
+        ...(p as CommunityPostDbRow),
+        views_count: 0,
+      }));
       error = res.error;
     } else {
-      posts = rawPosts;
+      posts = rawPosts as CommunityPostDbRow[] | null;
     }
     if (error) {
       // Graceful fallback if cohort_id / is_pinned columns haven't been migrated yet
