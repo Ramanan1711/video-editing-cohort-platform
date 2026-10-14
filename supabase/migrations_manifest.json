@@ -816,6 +816,29 @@
       "rpcDefinitions": [
         "ensure_cohort_daily_challenges"
       ]
+    },
+    {
+      "order": 58,
+      "filename": "20261014000001_fix_admin_role_default_and_restore_user_roles.sql",
+      "sha256": "7d613144a9fae3e36001fa9d7c5a5cb4ac57bb54364ebb18a6f5217c7fa1caf3",
+      "sizeBytes": 7550,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "fn_protect_profile_privilege_fields"
+      ]
+    },
+    {
+      "order": 59,
+      "filename": "20261014000002_automated_seat_reaper_and_concurrency_lock.sql",
+      "sha256": "f80cd93ffc83600f46c214604a353fe82fb77c057e52b25b529044a6faeb3d2a",
+      "sizeBytes": 11121,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "release_expired_cohort_reservations",
+        "record_successful_payment_and_enroll"
+      ]
     }
   ]
 }

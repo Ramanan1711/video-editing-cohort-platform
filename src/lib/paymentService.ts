@@ -204,6 +204,56 @@ export async function cancelCohortCheckoutReservation(orderId: string): Promise<
 }
 
 /**
+ * Releases all expired checkout reservations platform-wide (Friction Point A).
+ * Safely frees up seats whose 15-minute TTL has elapsed.
+ */
+export async function releaseExpiredCohortReservations(): Promise<number> {
+  try {
+    const res = typeof supabase?.rpc === 'function' ? await supabase.rpc('release_expired_cohort_reservations') : null;
+    if (!res || res.error) {
+      if (res?.error) {
+        console.warn('Failed to release expired cohort reservations:', res.error.message);
+      }
+      return 0;
+    }
+    return typeof res.data === 'number' ? res.data : 0;
+  } catch (err) {
+    console.warn('Error releasing expired reservations:', err);
+    return 0;
+  }
+}
+
+/**
+ * Returns the up-to-date remaining seat capacity for a cohort after triggering the expired reservation reaper.
+ */
+export async function getRemainingCohortSeats(cohortId: string): Promise<{
+  capacity: number;
+  enrolled: number;
+  reserved: number;
+  remaining: number;
+}> {
+  if (!cohortId) {
+    return { capacity: 0, enrolled: 0, reserved: 0, remaining: 0 };
+  }
+
+  // Trigger reaper in background to clean any elapsed reservations
+  void releaseExpiredCohortReservations();
+
+  const [{ data: cohort }, { count: enrolledCount }, { count: reservedCount }] = await Promise.all([
+    supabase.from('cohorts').select('capacity').eq('id', cohortId).single(),
+    supabase.from('enrollments').select('*', { count: 'exact', head: true }).eq('cohort_id', cohortId).in('status', ['enrolled', 'active']),
+    supabase.from('payments').select('*', { count: 'exact', head: true }).eq('cohort_id', cohortId).eq('status', 'created').gt('expires_at', new Date().toISOString()),
+  ]);
+
+  const capacity = cohort?.capacity ?? 30;
+  const enrolled = enrolledCount ?? 0;
+  const reserved = reservedCount ?? 0;
+  const remaining = Math.max(0, capacity - enrolled - reserved);
+
+  return { capacity, enrolled, reserved, remaining };
+}
+
+/**
  * Orchestrates the full paid checkout flow:
  * 1. Loads Razorpay script.
  * 2. Fetches server-authoritative order from Edge Function using only cohortId.
@@ -214,6 +264,9 @@ export async function cancelCohortCheckoutReservation(orderId: string): Promise<
  */
 export async function startCohortCheckout(params: CohortCheckoutParams): Promise<void> {
   try {
+    // Proactively reap any stale reservations before creating a new order
+    void releaseExpiredCohortReservations();
+
     const order = await createCohortRazorpayOrder(params.cohortId);
 
     // Mock orders are prohibited on production gateway

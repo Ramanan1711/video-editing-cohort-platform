@@ -7,6 +7,8 @@ import {
   loadRazorpayScript,
   startCohortCheckout,
   cancelCohortCheckoutReservation,
+  releaseExpiredCohortReservations,
+  getRemainingCohortSeats,
 } from '../../lib/paymentService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -16,6 +18,7 @@ vi.mock('../../lib/supabaseClient', () => ({
       invoke: vi.fn(),
     },
     rpc: vi.fn(),
+    from: vi.fn(),
   },
 }));
 
@@ -484,6 +487,77 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
       } finally {
         (import.meta.env as unknown as { PROD: boolean }).PROD = originalProd;
       }
+    });
+
+    it('releaseExpiredCohortReservations executes RPC and returns reaped count', async () => {
+      const rpcMock = (supabase as unknown as { rpc: ReturnType<typeof vi.fn> }).rpc;
+      rpcMock.mockResolvedValueOnce({
+        data: 5,
+        error: null,
+      });
+
+      const count = await releaseExpiredCohortReservations();
+      expect(count).toBe(5);
+      expect(rpcMock).toHaveBeenCalledWith('release_expired_cohort_reservations');
+    });
+
+    it('releaseExpiredCohortReservations handles error gracefully and returns 0', async () => {
+      const rpcMock = (supabase as unknown as { rpc: ReturnType<typeof vi.fn> }).rpc;
+      rpcMock.mockResolvedValueOnce({
+        data: null,
+        error: { message: 'Network or database error' },
+      });
+
+      const count = await releaseExpiredCohortReservations();
+      expect(count).toBe(0);
+    });
+
+    it('getRemainingCohortSeats computes available seats after triggering reservation reaper', async () => {
+      const rpcMock = (supabase as unknown as { rpc: ReturnType<typeof vi.fn> }).rpc;
+      rpcMock.mockResolvedValueOnce({ data: 2, error: null });
+
+      const fromMock = (supabase as unknown as { from: ReturnType<typeof vi.fn> }).from;
+      fromMock.mockImplementation((table: string) => {
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({ data: { capacity: 30 }, error: null }),
+              })),
+            })),
+          };
+        }
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: vi.fn().mockResolvedValue({ count: 12, error: null }),
+              })),
+            })),
+          };
+        }
+        if (table === 'payments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  gt: vi.fn().mockResolvedValue({ count: 3, error: null }),
+                })),
+              })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      const result = await getRemainingCohortSeats('cohort-123');
+      expect(result).toEqual({
+        capacity: 30,
+        enrolled: 12,
+        reserved: 3,
+        remaining: 15,
+      });
+      expect(rpcMock).toHaveBeenCalledWith('release_expired_cohort_reservations');
     });
   });
 });

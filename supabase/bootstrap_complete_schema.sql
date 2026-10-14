@@ -19391,3 +19391,366 @@ end;
 $$;
 
 grant execute on function public.can_access_course_asset(text) to authenticated, anon;
+
+-- ==============================================================================
+-- Migration 58: 20261014000001_fix_admin_role_default_and_restore_user_roles.sql
+-- ==============================================================================
+alter table public.profiles alter column admin_role drop default;
+alter table public.profiles alter column admin_role set default null;
+
+create or replace function public.fn_protect_profile_privilege_fields()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_caller_id uuid := auth.uid();
+  v_super_admin_count int;
+begin
+  if v_caller_id is null then
+    if new.role != 'admin' then
+      new.admin_role := null;
+    elsif new.admin_role in ('super_admin', 'content_admin', 'operations_admin', 'moderator') then
+      new.role := 'admin';
+    end if;
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if not public.has_admin_permission('manage_roles') then
+      new.id := v_caller_id;
+      new.role := 'student';
+      new.admin_role := null;
+      new.status := 'active';
+    else
+      if new.role != 'admin' then
+        new.admin_role := null;
+      elsif new.admin_role in ('super_admin', 'content_admin', 'operations_admin', 'moderator') then
+        new.role := 'admin';
+      end if;
+    end if;
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' then
+    if v_caller_id = old.id then
+      if new.role is distinct from old.role then
+        raise exception 'Unauthorized: Users cannot alter their own system role.'
+          using errcode = '42501';
+      end if;
+
+      if new.admin_role is distinct from old.admin_role then
+        raise exception 'Unauthorized: Users cannot alter their own administrative sub-role.'
+          using errcode = '42501';
+      end if;
+
+      if new.status is distinct from old.status then
+        raise exception 'Unauthorized: Users cannot alter their own account status.'
+          using errcode = '42501';
+      end if;
+    end if;
+
+    if (new.role is distinct from old.role) or (new.admin_role is distinct from old.admin_role) then
+      if not public.has_admin_permission('manage_roles') then
+        raise exception 'Unauthorized: Only Super Administrators can modify user roles or administrative sub-roles.'
+          using errcode = '42501';
+      end if;
+
+      if new.role != 'admin' then
+        new.admin_role := null;
+      elsif new.admin_role in ('super_admin', 'content_admin', 'operations_admin', 'moderator') then
+        new.role := 'admin';
+      end if;
+
+      if old.role = 'admin' and coalesce(old.admin_role, 'super_admin') = 'super_admin' and
+         (new.role != 'admin' or coalesce(new.admin_role, 'super_admin') != 'super_admin') then
+        select count(*) into v_super_admin_count
+        from public.profiles
+        where role = 'admin' and coalesce(admin_role, 'super_admin') = 'super_admin' and coalesce(status, 'active') = 'active';
+
+        if v_super_admin_count <= 1 then
+          raise exception 'Safety block: Cannot demote or revoke the last remaining active Super Admin.'
+            using errcode = 'P0001';
+        end if;
+      end if;
+    end if;
+
+    if new.status is distinct from old.status then
+      if not public.has_admin_permission('manage_users') then
+        raise exception 'Unauthorized: Only administrators can modify user status.'
+          using errcode = '42501';
+      end if;
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+update public.profiles
+set role = 'student', admin_role = null, updated_at = now()
+where id = '0c0ed9ee-9ff7-4f07-8ab8-9cbe1f114f5f' or email = 'studtesting1@gmail.com';
+
+update public.profiles
+set role = 'student', admin_role = null, updated_at = now()
+where id = '30461729-b21e-450a-8778-8be449a512c2' or email = 'studtesting2@gmail.com';
+
+update public.profiles
+set role = 'student', admin_role = null, updated_at = now()
+where id = '591e5ba9-2d77-4f7f-ab8b-ed9f97ebda55' or email = 'ajayramanan4444@gmail.com';
+
+update public.profiles
+set role = 'student', admin_role = null, updated_at = now()
+where id = 'a3f04aa2-0643-448d-aebc-2ad35941defd' or email = 'weyolow322@blobapps.com';
+
+update public.profiles
+set role = 'mentor', admin_role = null, updated_at = now()
+where id = 'e32aa097-6285-4927-89c4-666b88af76d7' or email = 'ajayramanan2800@gmail.com';
+
+update public.profiles
+set role = 'admin', admin_role = 'super_admin', updated_at = now()
+where id = 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b' or email = 'ajayramanan17@gmail.com';
+
+update public.profiles
+set admin_role = null
+where role != 'admin' and admin_role is not null;
+
+-- ==============================================================================
+-- Migration 59: 20261014000002_automated_seat_reaper_and_concurrency_lock.sql
+-- ==============================================================================
+create or replace function public.release_expired_cohort_reservations()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count integer;
+begin
+  update public.payments
+  set status = 'failed',
+      metadata = coalesce(metadata, '{}'::jsonb) || jsonb_build_object(
+        'expired_at', now(),
+        'expired_reason', 'reservation_ttl_elapsed'
+      ),
+      updated_at = now()
+  where status = 'created'
+    and expires_at <= now();
+
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+
+grant execute on function public.release_expired_cohort_reservations() to anon;
+grant execute on function public.release_expired_cohort_reservations() to authenticated;
+grant execute on function public.release_expired_cohort_reservations() to service_role;
+
+do $$
+begin
+  if exists (
+    select 1 from pg_extension where extname = 'pg_cron'
+  ) then
+    begin
+      perform cron.unschedule('reap_expired_cohort_reservations')
+      where exists (
+        select 1 from cron.job where jobname = 'reap_expired_cohort_reservations'
+      );
+
+      perform cron.schedule(
+        'reap_expired_cohort_reservations',
+        '* * * * *',
+        'select public.release_expired_cohort_reservations();'
+      );
+    exception when others then
+      null;
+    end;
+  end if;
+exception when others then
+  null;
+end;
+$$;
+
+create or replace function public.record_successful_payment_and_enroll(
+  p_order_id text,
+  p_payment_id text,
+  p_signature text,
+  p_cohort_id uuid,
+  p_user_id uuid,
+  p_amount integer,
+  p_currency text default 'INR',
+  p_metadata jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_cohort record;
+  v_existing_payment record;
+  v_user_profile record;
+  v_enrollment record;
+  v_expected_amount_paise integer;
+  v_payment_record_id uuid;
+begin
+  if coalesce(current_setting('request.jwt.claim.role', true), '') in ('anon', 'authenticated') then
+    raise exception 'Permission denied: direct client execution of record_successful_payment_and_enroll is prohibited. Only trusted backend service_role may execute.'
+      using errcode = '42501';
+  end if;
+
+  if p_order_id is null or length(trim(p_order_id)) = 0 then
+    raise exception 'Missing required parameter: p_order_id' using errcode = 'P0001';
+  end if;
+
+  if p_payment_id is null or length(trim(p_payment_id)) = 0 then
+    raise exception 'Missing required parameter: p_payment_id' using errcode = 'P0001';
+  end if;
+
+  if p_user_id is null then
+    raise exception 'Missing required parameter: p_user_id' using errcode = 'P0001';
+  end if;
+
+  if p_cohort_id is null then
+    raise exception 'Missing required parameter: p_cohort_id' using errcode = 'P0001';
+  end if;
+
+  if p_amount is null or p_amount <= 0 then
+    raise exception 'Payment amount must be greater than zero. Free enrollment is prohibited.' using errcode = 'P0001';
+  end if;
+
+  -- Concurrency Row Lock: Serialize concurrent calls (Client RPC vs Webhook)
+  select * into v_existing_payment
+  from public.payments
+  where order_id = p_order_id
+  for update;
+
+  if not found then
+    raise exception 'Payment order % not found in platform records. A prior validated checkout reservation is required.', p_order_id
+      using errcode = 'P0002';
+  end if;
+
+  -- Idempotency Fast Exit
+  if v_existing_payment.status = 'captured' then
+    select * into v_enrollment
+    from public.enrollments
+    where user_id = coalesce(v_existing_payment.user_id, p_user_id)
+      and cohort_id = coalesce(v_existing_payment.cohort_id, p_cohort_id);
+
+    return jsonb_build_object(
+      'success', true,
+      'already_processed', true,
+      'payment_id', v_existing_payment.id,
+      'enrollment_id', coalesce(v_enrollment.user_id, p_user_id),
+      'cohort_id', coalesce(v_existing_payment.cohort_id, p_cohort_id),
+      'status', 'captured'
+    );
+  end if;
+
+  if v_existing_payment.user_id is not null and v_existing_payment.user_id != p_user_id then
+    raise exception 'Payment order does not belong to specified user.' using errcode = '42501';
+  end if;
+
+  if v_existing_payment.cohort_id is not null and v_existing_payment.cohort_id != p_cohort_id then
+    raise exception 'Payment order cohort mismatch.' using errcode = 'P0005';
+  end if;
+
+  if v_existing_payment.amount is not null and v_existing_payment.amount != p_amount then
+    raise exception 'Payment amount does not match stored payment order.' using errcode = 'P0004';
+  end if;
+
+  v_payment_record_id := v_existing_payment.id;
+
+  select * into v_cohort
+  from public.cohorts
+  where id = p_cohort_id;
+
+  if not found then
+    raise exception 'Cohort % does not exist.', p_cohort_id using errcode = 'P0002';
+  end if;
+
+  if v_cohort.price_inr is null or v_cohort.price_inr <= 0 then
+    raise exception 'Cohort must have a valid positive paid price. Free enrollment is prohibited.'
+      using errcode = 'P0004';
+  end if;
+
+  v_expected_amount_paise := (v_cohort.price_inr * 100);
+  if p_amount < v_expected_amount_paise then
+    raise exception 'Payment amount (%) is less than authoritative cohort price (%).', p_amount, v_expected_amount_paise
+      using errcode = 'P0004';
+  end if;
+
+  select * into v_user_profile
+  from public.profiles
+  where id = p_user_id;
+
+  if not found then
+    raise exception 'Student user % does not exist.', p_user_id using errcode = 'P0002';
+  end if;
+
+  update public.payments
+  set payment_id = coalesce(p_payment_id, public.payments.payment_id),
+      signature = coalesce(p_signature, public.payments.signature),
+      status = 'captured',
+      amount = p_amount,
+      currency = coalesce(p_currency, public.payments.currency, 'INR'),
+      metadata = coalesce(public.payments.metadata, '{}'::jsonb) || coalesce(p_metadata, '{}'::jsonb) || jsonb_build_object(
+        'captured_at', now(),
+        'verified_amount_paise', p_amount,
+        'verified_price_inr', v_cohort.price_inr,
+        'signature_present', (p_signature is not null and length(trim(p_signature)) > 0)
+      ),
+      updated_at = now()
+  where id = v_payment_record_id;
+
+  insert into public.enrollments (
+    user_id,
+    cohort_id,
+    status,
+    created_at,
+    enrolled_at,
+    updated_at
+  )
+  values (
+    p_user_id,
+    p_cohort_id,
+    'enrolled',
+    now(),
+    now(),
+    now()
+  )
+  on conflict (user_id, cohort_id) do update
+  set status = 'enrolled',
+      enrolled_at = coalesce(public.enrollments.enrolled_at, now()),
+      updated_at = now()
+  returning * into v_enrollment;
+
+  perform public.log_audit_event(
+    'payment.verified_and_enrolled',
+    'payment',
+    v_payment_record_id::text,
+    jsonb_build_object(
+      'order_id', p_order_id,
+      'payment_id', p_payment_id,
+      'user_id', p_user_id,
+      'cohort_id', p_cohort_id,
+      'amount', p_amount,
+      'currency', p_currency
+    )
+  );
+
+  return jsonb_build_object(
+    'success', true,
+    'payment_id', v_payment_record_id,
+    'enrollment_id', v_enrollment.user_id,
+    'cohort_id', p_cohort_id,
+    'status', 'captured'
+  );
+end;
+$$;
+
+revoke execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) from public;
+revoke execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) from anon;
+revoke execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) from authenticated;
+grant execute on function public.record_successful_payment_and_enroll(text, text, text, uuid, uuid, integer, text, jsonb) to service_role;
