@@ -74,13 +74,13 @@ create index if not exists idx_lessons_status on public.lessons(status);
 -- ==============================================================================
 alter table public.enrollments drop constraint if exists enrollments_status_check;
 alter table public.enrollments add constraint enrollments_status_check
-  check (status in ('active', 'completed', 'dropped', 'waitlisted'));
+  check (status in ('enrolled', 'active', 'inactive', 'waitlist', 'waitlisted', 'completed', 'dropped'));
 
 -- ==============================================================================
 -- 5. Granular Administrative Sub-Roles
 -- ==============================================================================
 alter table public.profiles
-  add column if not exists admin_role text default 'super_admin';
+  add column if not exists admin_role text default null;
 
 alter table public.profiles drop constraint if exists profiles_admin_role_check;
 alter table public.profiles add constraint profiles_admin_role_check
