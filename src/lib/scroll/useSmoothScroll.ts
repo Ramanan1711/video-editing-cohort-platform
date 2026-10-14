@@ -15,14 +15,28 @@ export function useSmoothScroll(enabled = true) {
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
+    // Detect pointer capability: coarse (touchscreen mobile/tablet) vs fine (mouse/trackpad)
+    const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
     const isFinePointer = window.matchMedia('(pointer: fine)').matches;
+
+    // On pure touch devices (iOS/Android mobile and tablets without mouse), disable Lenis entirely
+    // to preserve 120Hz hardware-accelerated ProMotion momentum scroll and avoid JavaScript touch jank.
+    if (isCoarsePointer && !isFinePointer) {
+      if (window.location.hash) {
+        const el = document.querySelector(window.location.hash);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+      return;
+    }
 
     const lenis = new Lenis({
       lerp: 0.08, // Buttery smooth linear interpolation on desktop
       wheelMultiplier: 1.05,
-      touchMultiplier: 1.0,
-      smoothWheel: isFinePointer,
-      syncTouch: false, // Mobile devices retain native 120Hz ProMotion momentum
+      touchMultiplier: 0, // Disables touch interpolation entirely
+      smoothWheel: true,
+      syncTouch: false, // Never intercept touch events; keep native hardware momentum on touch screens
       autoResize: true,
     });
 
