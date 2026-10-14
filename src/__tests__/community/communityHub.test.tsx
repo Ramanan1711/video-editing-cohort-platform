@@ -204,7 +204,7 @@ describe('CommunityHub & Components', () => {
     expect(screen.getByText('Workshops')).toBeInTheDocument();
   });
 
-  it('renders left sidebar with Create button, Feed, Messages, and channel groups', () => {
+  it('renders left sidebar with Create button, Feed, and Messages views without hardcoded channel groups', () => {
     render(
       <MemoryRouter initialEntries={['/community']}>
         <CommunityHub />
@@ -212,11 +212,14 @@ describe('CommunityHub & Components', () => {
     );
 
     expect(screen.getByText('Create')).toBeInTheDocument();
-    expect(screen.getByText('TOP 1% B9')).toBeInTheDocument();
-    expect(screen.getByText('BATCH 15')).toBeInTheDocument();
-    expect(screen.getByText('Chat Room')).toBeInTheDocument();
-    expect(screen.getByText('Batch 15 Community')).toBeInTheDocument();
-    expect(screen.getByText('B15 Blue Squad')).toBeInTheDocument();
+    expect(screen.getAllByText('Feed').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Messages').length).toBeGreaterThan(0);
+    expect(screen.queryByText('TOP 1% B9')).not.toBeInTheDocument();
+    expect(screen.queryByText('BATCH 15')).not.toBeInTheDocument();
+    expect(screen.queryByText('Chat Room')).not.toBeInTheDocument();
+    expect(screen.queryByText('Batch 15 Community')).not.toBeInTheDocument();
+    expect(screen.queryByText('B15 Blue Squad')).not.toBeInTheDocument();
+    expect(screen.queryByText('Keep Learning More')).not.toBeInTheDocument();
   });
 
   it('renders pinned post with CREATOR badge and TOP 3 LEADERBOARD with CUT / CRAFT branding', async () => {

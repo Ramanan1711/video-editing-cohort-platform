@@ -1,12 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Rss,
   MessageSquare,
   Plus,
-  ChevronDown,
-  ChevronRight,
-  Lock,
-  ExternalLink,
   PanelLeftClose,
   PanelLeftOpen,
   X,
@@ -16,9 +12,9 @@ export type CommunityActiveView = 'feed' | 'messages' | 'levelup';
 
 interface CommunitySidebarProps {
   activeView: CommunityActiveView;
-  selectedChannelId: string;
+  selectedChannelId?: string;
   onSelectView: (view: CommunityActiveView) => void;
-  onSelectChannel: (channelId: string) => void;
+  onSelectChannel?: (channelId: string) => void;
   onCreateClick: () => void;
   unreadMessagesCount?: number;
   qaUnreadCount?: number;
@@ -30,20 +26,14 @@ interface CommunitySidebarProps {
 
 export const CommunitySidebar: React.FC<CommunitySidebarProps> = ({
   activeView,
-  selectedChannelId,
   onSelectView,
-  onSelectChannel,
   onCreateClick,
   unreadMessagesCount = 2,
-  qaUnreadCount = 16,
   collapsed = false,
   onToggleCollapse,
   onCloseMobile,
   isMobileDrawer = false,
 }) => {
-  const [topOpen, setTopOpen] = useState(true);
-  const [batchOpen, setBatchOpen] = useState(true);
-
   if (collapsed && !isMobileDrawer) {
     return (
       <aside className="hidden md:flex w-16 border-r border-slate-200/80 bg-white p-3 flex-col items-center gap-4 dark:border-slate-800 dark:bg-slate-950">
@@ -176,130 +166,6 @@ export const CommunitySidebar: React.FC<CommunitySidebarProps> = ({
             )}
           </button>
         </div>
-
-        <hr className="border-slate-100 dark:border-slate-800" />
-
-        {/* Channel Group 1: TOP 1% B9 */}
-        <div>
-          <button
-            onClick={() => setTopOpen(!topOpen)}
-            className="flex w-full items-center justify-between text-[11px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 py-1"
-          >
-            <span>TOP 1% B9</span>
-            {topOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </button>
-
-          {topOpen && (
-            <div className="mt-1 space-y-0.5">
-              <button
-                onClick={() => {
-                  onSelectChannel('top-1-chat-room');
-                  onSelectView('messages');
-                }}
-                className={`flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                  selectedChannelId === 'top-1-chat-room' && activeView === 'messages'
-                    ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white'
-                    : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <span className="text-sm">🔥</span>
-                  <span className="truncate">Chat Room</span>
-                </div>
-                <Lock size={12} className="text-slate-400 shrink-0" />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Channel Group 2: BATCH 15 */}
-        <div>
-          <button
-            onClick={() => setBatchOpen(!batchOpen)}
-            className="flex w-full items-center justify-between text-[11px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 py-1"
-          >
-            <span>BATCH 15</span>
-            {batchOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </button>
-
-          {batchOpen && (
-            <div className="mt-1 space-y-0.5">
-              <button
-                onClick={() => {
-                  onSelectChannel('batch-15-qa');
-                  onSelectView('messages');
-                }}
-                className={`flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                  selectedChannelId === 'batch-15-qa' && activeView === 'messages'
-                    ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white'
-                    : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <span className="text-xs font-black text-rose-500">!?</span>
-                  <span className="truncate">Q&A</span>
-                </div>
-                {qaUnreadCount > 0 && (
-                  <span className="flex size-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shrink-0">
-                    {qaUnreadCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => {
-                  onSelectChannel('batch-15-community');
-                  onSelectView('messages');
-                }}
-                className={`flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                  selectedChannelId === 'batch-15-community' && activeView === 'messages'
-                    ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white'
-                    : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <span className="text-sm">🔥</span>
-                  <span className="truncate">Batch 15 Community</span>
-                </div>
-              </button>
-
-              <button
-                onClick={() => {
-                  onSelectChannel('batch-15-blue-squad');
-                  onSelectView('messages');
-                }}
-                className={`flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                  selectedChannelId === 'batch-15-blue-squad' && activeView === 'messages'
-                    ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white'
-                    : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <span className="text-sm">🔷</span>
-                  <span className="truncate">B15 Blue Squad</span>
-                </div>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom Resource Links */}
-      <div className="border-t border-slate-100 pt-3 dark:border-slate-800 space-y-1">
-        <a
-          href="#resources"
-          className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition py-1"
-        >
-          <ExternalLink size={13} />
-          <span>Keep Learning More</span>
-        </a>
-        <a
-          href="#ideas"
-          className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition py-1"
-        >
-          <ExternalLink size={13} />
-          <span>Keep Exploring Ideas</span>
-        </a>
       </div>
     </aside>
   );
