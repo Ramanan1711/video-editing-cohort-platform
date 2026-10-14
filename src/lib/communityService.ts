@@ -18,6 +18,7 @@ export interface CommunityPost {
   media_url?: string | null;
   media_type?: 'video' | 'image' | 'file' | 'leaderboard' | null;
   file_name?: string | null;
+  views_count?: number;
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -234,7 +235,7 @@ export async function listCohortPosts(
   try {
     let query = supabase
       .from('community_posts')
-      .select('id, author_id, cohort_id, lesson_id, title, body, is_pinned, moderation_status, created_at')
+      .select('id, author_id, cohort_id, lesson_id, title, body, is_pinned, moderation_status, created_at, views_count')
       .neq('moderation_status', 'hidden')
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false });
@@ -246,7 +247,28 @@ export async function listCohortPosts(
       query = query.eq('lesson_id', lessonId);
     }
 
-    const { data: posts, error } = await query;
+    let posts: Array<Record<string, any>> | null = null;
+    let { data: rawPosts, error } = await query;
+    if (error && error.message?.includes('views_count')) {
+      const fallbackQuery = supabase
+        .from('community_posts')
+        .select('id, author_id, cohort_id, lesson_id, title, body, is_pinned, moderation_status, created_at')
+        .neq('moderation_status', 'hidden')
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (cohortId && isValidUuid(cohortId)) {
+        fallbackQuery.eq('cohort_id', cohortId);
+      }
+      if (lessonId && isValidUuid(lessonId)) {
+        fallbackQuery.eq('lesson_id', lessonId);
+      }
+      const res = await fallbackQuery;
+      posts = (res.data ?? []).map((p) => ({ ...p, views_count: 0 }));
+      error = res.error;
+    } else {
+      posts = rawPosts;
+    }
     if (error) {
       // Graceful fallback if cohort_id / is_pinned columns haven't been migrated yet
       const fallback = await supabase
@@ -482,27 +504,74 @@ export async function togglePinCommunityPost(postId: string, isPinned: boolean):
   if (error) throw error;
 }
 
-export function getCommunityPostViews(postId: string, createdAt?: string): number {
-  if (typeof window === 'undefined') return 24;
+export function getCommunityPostViews(
+  postId: string,
+  _createdAt?: string,
+  dbViewsCount?: number | null
+): number {
   const key = `post_views_${postId}`;
+
+  // 1. If database provides views_count > 0, prioritize authoritative DB value
+  if (typeof dbViewsCount === 'number' && dbViewsCount > 0) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, String(dbViewsCount));
+    }
+    return dbViewsCount;
+  }
+
+  if (typeof window === 'undefined') return 12;
+
+  // 2. Read from localStorage, but purge legacy hardcoded 950 value
   const stored = localStorage.getItem(key);
   if (stored) {
-    return parseInt(stored, 10);
+    const val = parseInt(stored, 10);
+    if (!isNaN(val) && val !== 950 && val > 0) {
+      return val;
+    }
   }
-  const createdMs = createdAt ? new Date(createdAt).getTime() : Date.now();
-  const ageHours = Math.max(1, Math.floor((Date.now() - createdMs) / (1000 * 60 * 60)));
-  const initial = Math.min(950, 18 + (ageHours * 9) + (postId.charCodeAt(0) % 19));
-  localStorage.setItem(key, String(initial));
-  return initial;
+
+  // 3. Dynamic seed per post based on unique postId characters (varies from 8 to 85)
+  let seed = 11;
+  for (let i = 0; i < postId.length; i++) {
+    seed = (seed * 31 + postId.charCodeAt(i)) >>> 0;
+  }
+  const dynamicInitial = 8 + (seed % 78);
+  localStorage.setItem(key, String(dynamicInitial));
+  return dynamicInitial;
 }
 
 export function incrementCommunityPostViews(postId: string): number {
-  if (typeof window === 'undefined') return 1;
   const key = `post_views_${postId}`;
-  const current = parseInt(localStorage.getItem(key) || '0', 10);
-  const updated = current + 1;
-  localStorage.setItem(key, String(updated));
-  return updated;
+  let currentViews = 8;
+
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem(key);
+    const parsed = stored ? parseInt(stored, 10) : 0;
+    currentViews = !isNaN(parsed) && parsed !== 950 && parsed > 0 ? parsed : getCommunityPostViews(postId);
+  }
+
+  const updatedViews = currentViews + 1;
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(key, String(updatedViews));
+  }
+
+  // Asynchronously increment in database if valid UUID
+  if (isValidUuid(postId)) {
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('increment_community_post_views', {
+          p_post_id: postId,
+        });
+        if (!error && typeof data === 'number' && typeof window !== 'undefined') {
+          localStorage.setItem(key, String(data));
+        }
+      } catch {
+        // Safe no-op on network or unmigrated RPC
+      }
+    })();
+  }
+
+  return updatedViews;
 }
 
 export async function listCommunityComments(postId: string): Promise<CommunityComment[]> {

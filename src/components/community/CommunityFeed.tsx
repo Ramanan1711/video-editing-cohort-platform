@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   SlidersHorizontal,
   Pin,
@@ -25,6 +25,7 @@ import {
   togglePostReaction,
   togglePinCommunityPost,
   getCommunityPostViews,
+  incrementCommunityPostViews,
   isValidUuid,
   type CommunityPost,
   type CommunityComment,
@@ -85,6 +86,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
 
   // Toast State
   const [shareToast, setShareToast] = useState(false);
+  const viewedPostsSession = useRef<Set<string>>(new Set());
 
   const canManagePins = useMemo(() => {
     return profile?.role === 'admin' || profile?.role === 'mentor';
@@ -124,7 +126,13 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
             (post.reactions?.['like'] || 0);
           counts[post.id] = totalLikes;
 
-          views[post.id] = getCommunityPostViews(post.id, post.created_at);
+          const baseViews = getCommunityPostViews(post.id, post.created_at, post.views_count);
+          if (!viewedPostsSession.current.has(post.id)) {
+            viewedPostsSession.current.add(post.id);
+            views[post.id] = incrementCommunityPostViews(post.id);
+          } else {
+            views[post.id] = baseViews;
+          }
         }
 
         setLikedPostIds(liked);
