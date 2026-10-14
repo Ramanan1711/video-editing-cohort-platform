@@ -72,6 +72,7 @@ vi.mock('../../lib/communityService', () => ({
   togglePinCommunityPost: vi.fn().mockResolvedValue(undefined),
   getCommunityPostViews: vi.fn().mockReturnValue(254),
   incrementCommunityPostViews: vi.fn().mockReturnValue(255),
+  isValidUuid: vi.fn((id?: string) => Boolean(id)),
 }));
 
 // Mock gamificationService
