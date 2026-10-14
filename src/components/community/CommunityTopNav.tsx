@@ -11,7 +11,6 @@ import {
   Moon,
   Sun,
   Sparkles,
-  LogOut,
   Menu,
   X,
   BarChart3,
@@ -47,7 +46,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   onOpenLevelUpModal: _onOpenLevelUpModal,
   onOpenWorkshopsModal: _onOpenWorkshopsModal,
 }) => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   useModalScrollLock(navDrawerOpen);
@@ -309,28 +308,6 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
                   </div>
                 </div>
               </div>
-
-              {/* Drawer Footer: Theme Toggle & Sign out */}
-              {/* <div className="border-t border-slate-100 pt-3 dark:border-slate-800/80 space-y-2">
-                <button
-                  onClick={toggleTheme}
-                  className="flex w-full items-center gap-2 rounded-lg p-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition"
-                >
-                  {isDarkMode ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} />}
-                  <span>{isDarkMode ? 'Light' : 'Dark'} Mode</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setNavDrawerOpen(false);
-                    void signOut();
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg p-2 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
-                >
-                  <LogOut size={16} />
-                  <span>Sign out</span>
-                </button>
-              </div> */}
             </aside>
           </div>,
           document.body
