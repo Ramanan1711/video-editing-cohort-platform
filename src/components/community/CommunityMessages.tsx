@@ -15,9 +15,13 @@ import {
   listChannelMessages,
   sendChatMessage,
   subscribeToChatChannel,
+  fetchChatChannels,
+  fetchDirectMessageUsers,
   DEFAULT_CHANNELS,
   DEFAULT_DIRECT_MESSAGES,
   type ChatMessage,
+  type ChatChannel,
+  type DirectMessageUser,
 } from '../../lib/communityMessageService';
 
 interface CommunityMessagesProps {
@@ -30,6 +34,9 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
   const { profile, user } = useAuth();
   const [activeTab, setActiveTab] = useState<'channels' | 'dms'>('channels');
   const [currentChannelId, setCurrentChannelId] = useState(initialChannelId);
+  const [channels, setChannels] = useState<ChatChannel[]>(DEFAULT_CHANNELS);
+  const [directMessages, setDirectMessages] = useState<DirectMessageUser[]>(DEFAULT_DIRECT_MESSAGES);
+  const [loadingMetadata, setLoadingMetadata] = useState(true);
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -38,9 +45,55 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Dynamically load channels and direct message contacts from database
+  useEffect(() => {
+    let active = true;
+    async function loadChatDirectory() {
+      setLoadingMetadata(true);
+      try {
+        const [fetchedChannels, fetchedDms] = await Promise.all([
+          fetchChatChannels(),
+          fetchDirectMessageUsers(user?.id),
+        ]);
+        if (active) {
+          setChannels(fetchedChannels);
+          setDirectMessages(fetchedDms);
+        }
+      } catch (err) {
+        console.warn('Failed to dynamically fetch chat directory:', err);
+      } finally {
+        if (active) {
+          setLoadingMetadata(false);
+        }
+      }
+    }
+
+    loadChatDirectory();
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
   // Load active channel info
-  const activeChannel = DEFAULT_CHANNELS.find((c) => c.id === currentChannelId);
-  const activeDm = DEFAULT_DIRECT_MESSAGES.find((d) => d.id === currentChannelId);
+  const activeChannel = React.useMemo(() => {
+    return (
+      channels.find((c) => c.id === currentChannelId) ||
+      (!directMessages.some((d) => d.id === currentChannelId)
+        ? {
+            id: currentChannelId,
+            name: currentChannelId
+              .split('-')
+              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+              .join(' '),
+            description: `Discussion for ${currentChannelId.replace(/[-_]/g, ' ')}`,
+            category: 'cohort' as const,
+            icon: currentChannelId.includes('qa') ? '⁉️' : currentChannelId.includes('squad') ? '🔷' : '🔥',
+          }
+        : undefined)
+    );
+  }, [channels, currentChannelId, directMessages]);
+
+  const activeDm = directMessages.find((d) => d.id === currentChannelId);
 
   const title = activeChannel ? activeChannel.name : activeDm ? activeDm.name : 'Chat';
   const subtitle = activeChannel
@@ -116,10 +169,17 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
     }
   };
 
-  const filteredChannels = DEFAULT_CHANNELS.filter((c) =>
+  const displayChannels = React.useMemo(() => {
+    if (activeChannel && !channels.some((c) => c.id === activeChannel.id)) {
+      return [activeChannel, ...channels];
+    }
+    return channels;
+  }, [channels, activeChannel]);
+
+  const filteredChannels = displayChannels.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  const filteredDms = DEFAULT_DIRECT_MESSAGES.filter((d) =>
+  const filteredDms = directMessages.filter((d) =>
     d.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -172,79 +232,99 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
         {/* Conversation List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {activeTab === 'channels' ? (
-            filteredChannels.map((channel) => {
-              const isSelected = currentChannelId === channel.id;
-              return (
-                <button
-                  key={channel.id}
-                  onClick={() => {
-                    setCurrentChannelId(channel.id);
-                    setMobileShowChat(true);
-                  }}
-                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
-                    isSelected
-                      ? 'bg-orange-50/80 text-orange-950 font-black dark:bg-orange-950/40 dark:text-orange-200'
-                      : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <span className="text-base shrink-0">{channel.icon || '💬'}</span>
-                    <div className="truncate">
-                      <p className="text-xs font-bold truncate">{channel.name}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{channel.description}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {channel.is_locked && <Lock size={12} className="text-slate-400" />}
-                    {Boolean(channel.unread_count && channel.unread_count > 0) && (
-                      <span className="flex size-4 items-center justify-center rounded-full bg-orange-500 text-[9px] font-black text-white">
-                        {channel.unread_count}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })
-          ) : (
-            filteredDms.map((dm) => {
-              const isSelected = currentChannelId === dm.id;
-              return (
-                <button
-                  key={dm.id}
-                  onClick={() => {
-                    setCurrentChannelId(dm.id);
-                    setMobileShowChat(true);
-                  }}
-                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
-                    isSelected
-                      ? 'bg-orange-50/80 text-orange-950 font-black dark:bg-orange-950/40 dark:text-orange-200'
-                      : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <div className="relative shrink-0">
-                      <div className="flex size-8 items-center justify-center rounded-full bg-slate-200 font-bold text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                        {dm.name.slice(0, 2).toUpperCase()}
+            loadingMetadata && filteredChannels.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400">
+                Loading channels...
+              </div>
+            ) : filteredChannels.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400">
+                No channels found.
+              </div>
+            ) : (
+              filteredChannels.map((channel) => {
+                const isSelected = currentChannelId === channel.id;
+                return (
+                  <button
+                    key={channel.id}
+                    onClick={() => {
+                      setCurrentChannelId(channel.id);
+                      setMobileShowChat(true);
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
+                      isSelected
+                        ? 'bg-orange-50/80 text-orange-950 font-black dark:bg-orange-950/40 dark:text-orange-200'
+                        : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 truncate">
+                      <span className="text-base shrink-0">{channel.icon || '💬'}</span>
+                      <div className="truncate">
+                        <p className="text-xs font-bold truncate">{channel.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{channel.description}</p>
                       </div>
-                      {dm.online && (
-                        <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-950" />
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {channel.is_locked && <Lock size={12} className="text-slate-400" />}
+                      {Boolean(channel.unread_count && channel.unread_count > 0) && (
+                        <span className="flex size-4 items-center justify-center rounded-full bg-orange-500 text-[9px] font-black text-white">
+                          {channel.unread_count}
+                        </span>
                       )}
                     </div>
-                    <div className="truncate">
-                      <p className="text-xs font-bold truncate">{dm.name}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{dm.last_message}</p>
+                  </button>
+                );
+              })
+            )
+          ) : (
+            loadingMetadata && filteredDms.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400">
+                Loading contacts...
+              </div>
+            ) : filteredDms.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400">
+                No direct messages yet.
+              </div>
+            ) : (
+              filteredDms.map((dm) => {
+                const isSelected = currentChannelId === dm.id;
+                return (
+                  <button
+                    key={dm.id}
+                    onClick={() => {
+                      setCurrentChannelId(dm.id);
+                      setMobileShowChat(true);
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
+                      isSelected
+                        ? 'bg-orange-50/80 text-orange-950 font-black dark:bg-orange-950/40 dark:text-orange-200'
+                        : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 truncate">
+                      <div className="relative shrink-0">
+                        <div className="flex size-8 items-center justify-center rounded-full bg-slate-200 font-bold text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                          {dm.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        {dm.online && (
+                          <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-950" />
+                        )}
+                      </div>
+                      <div className="truncate">
+                        <p className="text-xs font-bold truncate">{dm.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{dm.last_message || 'Start direct message'}</p>
+                      </div>
                     </div>
-                  </div>
 
-                  {Boolean(dm.unread_count && dm.unread_count > 0) && (
-                    <span className="flex size-4 items-center justify-center rounded-full bg-orange-500 text-[9px] font-black text-white shrink-0">
-                      {dm.unread_count}
-                    </span>
-                  )}
-                </button>
-              );
-            })
+                    {Boolean(dm.unread_count && dm.unread_count > 0) && (
+                      <span className="flex size-4 items-center justify-center rounded-full bg-orange-500 text-[9px] font-black text-white shrink-0">
+                        {dm.unread_count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )
           )}
         </div>
       </div>
@@ -290,7 +370,20 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
 
         {/* Message Bubble Feed */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          {messages.map((msg) => {
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full min-h-[220px] text-center p-6">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400 mb-3">
+                <MessageCircle size={22} />
+              </div>
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                No messages yet
+              </p>
+              <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                Start the conversation in {title} by sending the first message below.
+              </p>
+            </div>
+          ) : (
+            messages.map((msg) => {
             const isMe = msg.sender_id === user?.id;
 
             return (
@@ -338,7 +431,7 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
                 </div>
               </div>
             );
-          })}
+          }))}
           <div ref={messagesEndRef} />
         </div>
 

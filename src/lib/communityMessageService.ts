@@ -35,155 +35,9 @@ export interface DirectMessageUser {
   unread_count?: number;
 }
 
-// Initial mock channels matching the reference screenshot
-export const DEFAULT_CHANNELS: ChatChannel[] = [
-  {
-    id: 'batch-15-community',
-    name: 'Batch 15 Community',
-    description: 'Main discussion hub for all Batch 15 video editing students and mentors.',
-    category: 'cohort',
-    unread_count: 0,
-    icon: '🔥',
-  },
-  {
-    id: 'batch-15-qa',
-    name: '!? Q&A',
-    description: 'Ask editing, Premiere, DaVinci, sound design, and color grading questions.',
-    category: 'cohort',
-    unread_count: 16,
-    icon: '⁉️',
-  },
-  {
-    id: 'batch-15-blue-squad',
-    name: 'B15 Blue Squad',
-    description: 'Small group accountability circle for feedback, pacing, and daily edits.',
-    category: 'squad',
-    unread_count: 0,
-    icon: '🔷',
-  },
-  {
-    id: 'top-1-chat-room',
-    name: 'Chat Room',
-    description: 'Exclusive lounge for Top 1% cohort performers and portfolio standouts.',
-    category: 'vip',
-    is_locked: true,
-    icon: '🔥',
-  },
-];
-
-export const DEFAULT_DIRECT_MESSAGES: DirectMessageUser[] = [
-  {
-    id: 'mentor-shibin',
-    name: 'Shibin (Lead Mentor)',
-    role: 'mentor',
-    online: true,
-    last_message: 'Your pacing on the Week 2 cut looks razor sharp! Great work.',
-    last_message_time: '10m ago',
-    unread_count: 1,
-  },
-  {
-    id: 'admin-pro-editors',
-    name: 'Pro Editors Support',
-    role: 'admin',
-    online: true,
-    last_message: 'Workshops calendar has been updated with Wednesday live critique.',
-    last_message_time: '2h ago',
-    unread_count: 1,
-  },
-  {
-    id: 'peer-thilak',
-    name: 'Thilak (Batch 15)',
-    role: 'student',
-    online: false,
-    last_message: 'Hey, what plugin did you use for the film grain transition?',
-    last_message_time: 'Yesterday',
-    unread_count: 0,
-  },
-];
-
-// Seed initial chat messages for realistic interactive experience
-const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
-  'batch-15-community': [
-    {
-      id: 'msg-1',
-      channel_id: 'batch-15-community',
-      sender_id: 'system-cut-craft',
-      sender_name: 'CUT / CRAFT',
-      sender_role: 'creator',
-      content: 'Welcome to Batch 15! Share your intro and current editing workstation below 🚀',
-      created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-    },
-    {
-      id: 'msg-2',
-      channel_id: 'batch-15-community',
-      sender_id: 'peer-thilak',
-      sender_name: 'Thilak',
-      sender_role: 'student',
-      content: 'Excited to be here! Working on Premiere Pro 2026 with an M3 Max.',
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      id: 'msg-3',
-      channel_id: 'batch-15-community',
-      sender_id: 'mentor-shibin',
-      sender_name: 'Shibin',
-      sender_role: 'mentor',
-      content: 'Don’t forget to check the Leaderboard announcement in the Feed! Week 2 submissions were fire 🔥',
-      created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-    },
-  ],
-  'batch-15-qa': [
-    {
-      id: 'msg-qa-1',
-      channel_id: 'batch-15-qa',
-      sender_id: 'student-meshak',
-      sender_name: 'Meshak',
-      sender_role: 'student',
-      content: 'Quick question: What is the optimal export bitrate for vertical YouTube Shorts vs Instagram Reels in 4K?',
-      created_at: new Date(Date.now() - 3600000 * 6).toISOString(),
-    },
-    {
-      id: 'msg-qa-2',
-      channel_id: 'batch-15-qa',
-      sender_id: 'mentor-shibin',
-      sender_name: 'Shibin',
-      sender_role: 'mentor',
-      content: 'Target 35-40 Mbps VBR 2-Pass for 4K vertical exports to prevent platform recompression artifacts.',
-      created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
-    },
-  ],
-  'batch-15-blue-squad': [
-    {
-      id: 'msg-squad-1',
-      channel_id: 'batch-15-blue-squad',
-      sender_id: 'student-meshak',
-      sender_name: 'Meshak',
-      sender_role: 'student',
-      content: 'Blue squad sync at 7 PM IST today! Who is ready with their rough cuts?',
-      created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-    },
-  ],
-  'mentor-shibin': [
-    {
-      id: 'dm-1',
-      channel_id: 'mentor-shibin',
-      sender_id: 'mentor-shibin',
-      sender_name: 'Shibin',
-      sender_role: 'mentor',
-      content: 'Hey! Loved your color grading on the commercial challenge.',
-      created_at: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      id: 'dm-2',
-      channel_id: 'mentor-shibin',
-      sender_id: 'mentor-shibin',
-      sender_name: 'Shibin',
-      sender_role: 'mentor',
-      content: 'Your pacing on the Week 2 cut looks razor sharp! Great work.',
-      created_at: new Date(Date.now() - 600000).toISOString(),
-    },
-  ],
-};
+// Baseline empty arrays - zero hardcoded mock data
+export const DEFAULT_CHANNELS: ChatChannel[] = [];
+export const DEFAULT_DIRECT_MESSAGES: DirectMessageUser[] = [];
 
 // Purge deprecated unverified localStorage chat cache if present
 try {
@@ -195,8 +49,156 @@ try {
 }
 
 /**
+ * Dynamically fetches chat channels from Supabase cohorts and active community message threads.
+ * Strictly queries live database state with zero hardcoded channels.
+ */
+export async function fetchChatChannels(): Promise<ChatChannel[]> {
+  const channelMap = new Map<string, ChatChannel>();
+
+  try {
+    // 1. Discover channels from existing cohorts in database
+    const { data: cohorts, error: cohortError } = await supabase
+      .from('cohorts')
+      .select('id, title, description, status')
+      .order('created_at', { ascending: false });
+
+    if (!cohortError && cohorts && cohorts.length > 0) {
+      for (const cohort of cohorts) {
+        const cohortTitle = cohort.title || 'Cohort';
+        const commId = `${cohort.id}-community`;
+        channelMap.set(commId, {
+          id: commId,
+          cohort_id: cohort.id,
+          name: `${cohortTitle} Community`,
+          description: cohort.description || `Main discussion hub for ${cohortTitle}`,
+          category: 'cohort',
+          unread_count: 0,
+          icon: '🔥',
+        });
+
+        const qaId = `${cohort.id}-qa`;
+        channelMap.set(qaId, {
+          id: qaId,
+          cohort_id: cohort.id,
+          name: `!? Q&A - ${cohortTitle}`,
+          description: `Questions, editing troubleshooting, and workflow help for ${cohortTitle}`,
+          category: 'cohort',
+          unread_count: 0,
+          icon: '⁉️',
+        });
+
+        const squadId = `${cohort.id}-squad`;
+        channelMap.set(squadId, {
+          id: squadId,
+          cohort_id: cohort.id,
+          name: `${cohortTitle} Squad`,
+          description: `Small group accountability circle for ${cohortTitle}`,
+          category: 'squad',
+          unread_count: 0,
+          icon: '🔷',
+        });
+      }
+    } else if (cohortError) {
+      console.warn('Failed to fetch cohorts for chat channels:', cohortError.message);
+    }
+
+    // 2. Discover channels actively present in community_messages
+    const { data: messageChannels, error: msgError } = await supabase
+      .from('community_messages')
+      .select('channel_id')
+      .limit(100);
+
+    if (!msgError && messageChannels) {
+      for (const row of messageChannels) {
+        const chId = row.channel_id;
+        if (chId && !channelMap.has(chId) && !chId.startsWith('dm-')) {
+          const formattedName = chId
+            .split('-')
+            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+          channelMap.set(chId, {
+            id: chId,
+            name: formattedName,
+            description: `Community channel for ${formattedName}`,
+            category: chId.includes('squad') ? 'squad' : chId.includes('vip') || chId.includes('top-1') ? 'vip' : 'cohort',
+            unread_count: 0,
+            icon: chId.includes('qa') ? '⁉️' : chId.includes('squad') ? '🔷' : '🔥',
+          });
+        }
+      }
+    }
+  } catch (err: unknown) {
+    console.warn('Error fetching dynamic chat channels:', err);
+  }
+
+  return Array.from(channelMap.values());
+}
+
+/**
+ * Dynamically fetches direct message users from public.public_profiles or public.profiles.
+ * Strictly queries live authenticated database profiles with zero hardcoded contacts.
+ */
+export async function fetchDirectMessageUsers(currentUserId?: string): Promise<DirectMessageUser[]> {
+  try {
+    let query = supabase
+      .from('public_profiles')
+      .select('id, full_name, role, avatar_url');
+
+    if (currentUserId) {
+      query = query.neq('id', currentUserId);
+    }
+
+    const { data, error } = await query
+      .order('full_name', { ascending: true })
+      .limit(50);
+
+    if (!error && data) {
+      return data.map((profile) => ({
+        id: profile.id,
+        name: profile.full_name || 'Community Member',
+        role: (profile.role === 'mentor' || profile.role === 'admin' ? profile.role : 'student') as 'student' | 'mentor' | 'admin',
+        avatar: profile.avatar_url || undefined,
+        online: false,
+        unread_count: 0,
+      }));
+    }
+
+    if (error) {
+      console.warn('Failed to query public_profiles, trying profiles table:', error.message);
+      let fallbackQuery = supabase
+        .from('profiles')
+        .select('id, full_name, role, avatar_url');
+
+      if (currentUserId) {
+        fallbackQuery = fallbackQuery.neq('id', currentUserId);
+      }
+
+      const { data: fallbackData, error: fallbackError } = await fallbackQuery
+        .order('full_name', { ascending: true })
+        .limit(50);
+
+      if (!fallbackError && fallbackData) {
+        return fallbackData.map((profile) => ({
+          id: profile.id,
+          name: profile.full_name || 'Community Member',
+          role: (profile.role === 'mentor' || profile.role === 'admin' ? profile.role : 'student') as 'student' | 'mentor' | 'admin',
+          avatar: profile.avatar_url || undefined,
+          online: false,
+          unread_count: 0,
+        }));
+      }
+    }
+  } catch (err: unknown) {
+    console.warn('Error fetching dynamic direct message users:', err);
+  }
+
+  return [];
+}
+
+/**
  * List messages for a specific channel or direct message thread.
- * Queries public.community_messages with static fallback to seed messages for empty standard channels.
+ * Authoritative: strictly queries public.community_messages with zero hardcoded mock data.
+ * Returns empty array if no records exist in the database or on query failure.
  */
 export async function listChannelMessages(channelId: string): Promise<ChatMessage[]> {
   try {
@@ -207,11 +209,7 @@ export async function listChannelMessages(channelId: string): Promise<ChatMessag
       .order('created_at', { ascending: true });
 
     if (!error && data) {
-      if (data.length > 0) {
-        return data as ChatMessage[];
-      }
-      // If table exists but has no records for this channel, provide default seed messages for standard channels
-      return INITIAL_MESSAGES[channelId] || [];
+      return data as ChatMessage[];
     }
 
     if (error) {
@@ -221,8 +219,7 @@ export async function listChannelMessages(channelId: string): Promise<ChatMessag
     console.warn('Error querying community messages:', err);
   }
 
-  // Fallback to static seed messages for predefined channels (read-only)
-  return INITIAL_MESSAGES[channelId] || [];
+  return [];
 }
 
 /**
@@ -304,4 +301,3 @@ export function subscribeToChatChannel(
     supabase.removeChannel(channel);
   };
 }
-

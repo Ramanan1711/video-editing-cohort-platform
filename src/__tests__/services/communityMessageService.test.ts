@@ -3,6 +3,10 @@ import {
   sendChatMessage,
   listChannelMessages,
   subscribeToChatChannel,
+  fetchChatChannels,
+  fetchDirectMessageUsers,
+  DEFAULT_CHANNELS,
+  DEFAULT_DIRECT_MESSAGES,
 } from '../../lib/communityMessageService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -39,6 +43,16 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+  });
+
+  describe('zero hardcoded mock data assertion', () => {
+    it('exports DEFAULT_CHANNELS as empty array with no hardcoded channels', () => {
+      expect(DEFAULT_CHANNELS).toEqual([]);
+    });
+
+    it('exports DEFAULT_DIRECT_MESSAGES as empty array with no hardcoded contacts', () => {
+      expect(DEFAULT_DIRECT_MESSAGES).toEqual([]);
+    });
   });
 
   describe('sendChatMessage', () => {
@@ -165,7 +179,7 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
       expect(eqMock).toHaveBeenCalledWith('channel_id', 'batch-15-community');
     });
 
-    it('falls back to default seed messages when database has no messages for standard channel', async () => {
+    it('returns empty array when database has no messages for channel (zero hardcoded fallback)', async () => {
       const orderMock = vi.fn().mockResolvedValue({
         data: [],
         error: null,
@@ -177,11 +191,10 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
       });
 
       const messages = await listChannelMessages('batch-15-community');
-      expect(messages.length).toBeGreaterThan(0);
-      expect(messages[0].channel_id).toBe('batch-15-community');
+      expect(messages).toEqual([]);
     });
 
-    it('falls back to seed messages gracefully if database query returns an error', async () => {
+    it('returns empty array gracefully if database query returns an error', async () => {
       const orderMock = vi.fn().mockResolvedValue({
         data: null,
         error: { message: 'relation "community_messages" does not exist' },
@@ -193,7 +206,137 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
       });
 
       const messages = await listChannelMessages('batch-15-community');
-      expect(messages.length).toBeGreaterThan(0);
+      expect(messages).toEqual([]);
+    });
+  });
+
+  describe('fetchChatChannels', () => {
+    it('dynamically maps database cohorts into community, QA, and squad channels', async () => {
+      const mockCohorts = [
+        {
+          id: 'cohort-uuid-1',
+          title: 'Batch 15 - Masterclass',
+          description: 'Advanced Premiere & DaVinci',
+          status: 'published',
+        },
+      ];
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: mockCohorts, error: null }),
+            }),
+          };
+        }
+        if (table === 'community_messages') {
+          return {
+            select: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const channels = await fetchChatChannels();
+      expect(channels).toHaveLength(3);
+      expect(channels[0].id).toBe('cohort-uuid-1-community');
+      expect(channels[0].name).toBe('Batch 15 - Masterclass Community');
+      expect(channels[1].id).toBe('cohort-uuid-1-qa');
+      expect(channels[2].id).toBe('cohort-uuid-1-squad');
+    });
+
+    it('discovers active channels from community_messages when available', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          };
+        }
+        if (table === 'community_messages') {
+          return {
+            select: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({
+                data: [{ channel_id: 'color-grading-critique' }],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const channels = await fetchChatChannels();
+      expect(channels.some((c) => c.id === 'color-grading-critique')).toBe(true);
+    });
+  });
+
+  describe('fetchDirectMessageUsers', () => {
+    it('dynamically fetches profiles from public_profiles and filters out current user', async () => {
+      const mockProfiles = [
+        {
+          id: 'user-mentor-1',
+          full_name: 'Shibin Mentor',
+          role: 'mentor',
+          avatar_url: 'https://example.com/avatar.jpg',
+        },
+      ];
+
+      const limitMock = vi.fn().mockResolvedValue({ data: mockProfiles, error: null });
+      const orderMock = vi.fn().mockReturnValue({ limit: limitMock });
+      const neqMock = vi.fn().mockReturnValue({ order: orderMock });
+      const selectMock = vi.fn().mockReturnValue({ order: orderMock, neq: neqMock });
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        select: selectMock,
+      });
+
+      const users = await fetchDirectMessageUsers('current-user-uuid');
+      expect(users).toHaveLength(1);
+      expect(users[0].id).toBe('user-mentor-1');
+      expect(users[0].name).toBe('Shibin Mentor');
+      expect(users[0].role).toBe('mentor');
+      expect(neqMock).toHaveBeenCalledWith('id', 'current-user-uuid');
+    });
+
+    it('falls back to profiles table if public_profiles returns error', async () => {
+      const mockFallback = [
+        {
+          id: 'user-admin-1',
+          full_name: 'Admin User',
+          role: 'admin',
+          avatar_url: null,
+        },
+      ];
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'public_profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue({ data: null, error: { message: 'relation does not exist' } }),
+              }),
+            }),
+          };
+        }
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue({ data: mockFallback, error: null }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const users = await fetchDirectMessageUsers();
+      expect(users).toHaveLength(1);
+      expect(users[0].name).toBe('Admin User');
+      expect(users[0].role).toBe('admin');
     });
   });
 
