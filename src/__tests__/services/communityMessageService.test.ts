@@ -6,6 +6,9 @@ import {
   fetchChatChannels,
   fetchDirectMessageUsers,
   getUserEnrolledCohortIds,
+  getDirectMessageChannelId,
+  listDirectMessages,
+  subscribeToDirectMessages,
   DEFAULT_CHANNELS,
   DEFAULT_DIRECT_MESSAGES,
 } from '../../lib/communityMessageService';
@@ -269,6 +272,26 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
             }),
           };
         }
+        if (table === 'community_messages') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [
+                      {
+                        channel_id: 'peer-user-batch-1',
+                        sender_id: 'current-student-1',
+                        content: 'Hey classmate!',
+                      },
+                    ],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
         return {};
       });
 
@@ -276,6 +299,7 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
       expect(dms).toHaveLength(1);
       expect(dms[0].id).toBe('peer-user-batch-1');
       expect(dms[0].name).toBe('Peer in Same Cohort');
+      expect(dms[0].last_message).toBe('Hey classmate!');
     });
 
     it('returns empty array when student has no course enrollments and is not an admin', async () => {
@@ -581,6 +605,136 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
 
       unsubscribe();
       expect(supabase.removeChannel).toHaveBeenCalledWith(mockChannel);
+    });
+  });
+
+  describe('getDirectMessageChannelId', () => {
+    it('produces symmetric canonical channel IDs regardless of argument order', () => {
+      const userA = 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b';
+      const userB = '591e5ba9-2d77-4f7f-ab8b-ed9f97ebda55';
+
+      const channelIdAB = getDirectMessageChannelId(userA, userB);
+      const channelIdBA = getDirectMessageChannelId(userB, userA);
+
+      expect(channelIdAB).toBe('dm-591e5ba9-2d77-4f7f-ab8b-ed9f97ebda55-e7d1e39f-d098-42d3-a0b0-6a1e93c3538b');
+      expect(channelIdAB).toBe(channelIdBA);
+    });
+
+    it('handles empty or blank arguments gracefully', () => {
+      expect(getDirectMessageChannelId('', '')).toBe('dm');
+      expect(getDirectMessageChannelId('user-1', '')).toBe('dm-user-1');
+    });
+  });
+
+  describe('listDirectMessages', () => {
+    const userA = 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b';
+    const userB = '591e5ba9-2d77-4f7f-ab8b-ed9f97ebda55';
+    const canonicalDmId = 'dm-591e5ba9-2d77-4f7f-ab8b-ed9f97ebda55-e7d1e39f-d098-42d3-a0b0-6a1e93c3538b';
+
+    it('returns empty array when either user id is missing', async () => {
+      expect(await listDirectMessages('', userB)).toEqual([]);
+      expect(await listDirectMessages(userA, '')).toEqual([]);
+    });
+
+    it('retrieves both canonical direct messages and backward-compatible legacy direct messages', async () => {
+      const dbRows = [
+        // Legacy message sent from userA to userB where channel_id was set to userB
+        {
+          id: '01e236b6-b3b4-4748-86cf-a624bc070804',
+          channel_id: userB,
+          author_id: userA,
+          sender_id: userA,
+          sender_name: 'Ramanan',
+          sender_role: 'admin',
+          body: 'hi',
+          content: 'hi',
+          created_at: '2026-10-14 12:16:30.379302+00',
+        },
+        // Canonical message sent on dm-... channel
+        {
+          id: 'canonical-msg-1',
+          channel_id: canonicalDmId,
+          author_id: userB,
+          sender_id: userB,
+          sender_name: 'Ajay 4444',
+          sender_role: 'student',
+          body: 'hello back!',
+          content: 'hello back!',
+          created_at: '2026-10-14 12:18:00+00',
+        },
+        // Third-party message that should be filtered out
+        {
+          id: 'third-party-msg',
+          channel_id: userB,
+          author_id: 'stranger-id',
+          sender_id: 'stranger-id',
+          content: 'ignore this',
+        },
+      ];
+
+      const orderMock = vi.fn().mockResolvedValue({
+        data: dbRows,
+        error: null,
+      });
+      const inMock = vi.fn().mockReturnValue({ order: orderMock });
+      const selectMock = vi.fn().mockReturnValue({ in: inMock });
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        select: selectMock,
+      });
+
+      const messages = await listDirectMessages(userA, userB);
+
+      expect(supabase.from).toHaveBeenCalledWith('community_messages');
+      expect(inMock).toHaveBeenCalledWith('channel_id', [canonicalDmId, userA, userB]);
+      expect(messages).toHaveLength(2);
+      expect(messages[0].id).toBe('01e236b6-b3b4-4748-86cf-a624bc070804');
+      expect(messages[0].content).toBe('hi');
+      expect(messages[0].channel_id).toBe(canonicalDmId);
+      expect(messages[1].id).toBe('canonical-msg-1');
+      expect(messages[1].content).toBe('hello back!');
+    });
+
+    it('returns empty array when direct messages database query fails', async () => {
+      const orderMock = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Database connection failed' },
+      });
+      const inMock = vi.fn().mockReturnValue({ order: orderMock });
+      const selectMock = vi.fn().mockReturnValue({ in: inMock });
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        select: selectMock,
+      });
+
+      const messages = await listDirectMessages(userA, userB);
+      expect(messages).toEqual([]);
+    });
+  });
+
+  describe('subscribeToDirectMessages', () => {
+    it('subscribes to canonical and legacy recipient filters and cleans up properly', () => {
+      const mockChannel = {
+        on: vi.fn().mockReturnThis(),
+        subscribe: vi.fn().mockReturnThis(),
+      };
+      (supabase.channel as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockChannel);
+
+      const userA = 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b';
+      const userB = '591e5ba9-2d77-4f7f-ab8b-ed9f97ebda55';
+      const callback = vi.fn();
+
+      const unsubscribe = subscribeToDirectMessages(userA, userB, callback);
+
+      expect(supabase.channel).toHaveBeenCalledWith('dm-dm-591e5ba9-2d77-4f7f-ab8b-ed9f97ebda55-e7d1e39f-d098-42d3-a0b0-6a1e93c3538b');
+      expect(mockChannel.on).toHaveBeenCalledTimes(3);
+
+      unsubscribe();
+      expect(supabase.removeChannel).toHaveBeenCalledWith(mockChannel);
+    });
+
+    it('returns noop cleanup when user IDs are not provided', () => {
+      const unsubscribe = subscribeToDirectMessages('', '', vi.fn());
+      expect(typeof unsubscribe).toBe('function');
+      unsubscribe();
     });
   });
 });

@@ -13,8 +13,11 @@ import {
 import { useAuth } from '../../context/useAuth';
 import {
   listChannelMessages,
+  listDirectMessages,
   sendChatMessage,
   subscribeToChatChannel,
+  subscribeToDirectMessages,
+  getDirectMessageChannelId,
   fetchChatChannels,
   fetchDirectMessageUsers,
   DEFAULT_CHANNELS,
@@ -34,6 +37,7 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
   const { profile, user } = useAuth();
   const [activeTab, setActiveTab] = useState<'channels' | 'dms'>('channels');
   const [currentChannelId, setCurrentChannelId] = useState(initialChannelId);
+  const [selectedDmUserId, setSelectedDmUserId] = useState<string | null>(null);
   const [channels, setChannels] = useState<ChatChannel[]>(DEFAULT_CHANNELS);
   const [directMessages, setDirectMessages] = useState<DirectMessageUser[]>(DEFAULT_DIRECT_MESSAGES);
   const [loadingMetadata, setLoadingMetadata] = useState(true);
@@ -59,12 +63,21 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
           setChannels(fetchedChannels);
           setDirectMessages(fetchedDms);
 
-          // If current channel is not one of the user's enrolled channels or DMs, switch to the first enrolled channel
+          // If initialChannelId is a direct message contact, switch to DMs tab
+          if (fetchedDms.some((d) => d.id === initialChannelId)) {
+            setActiveTab('dms');
+            setSelectedDmUserId(initialChannelId);
+          } else if (fetchedDms.length > 0) {
+            setSelectedDmUserId((prev) => {
+              const hasCurrent = fetchedDms.some((d) => d.id === prev);
+              return hasCurrent ? prev : fetchedDms[0].id;
+            });
+          }
+
+          // If current channel is not one of the user's enrolled channels, switch to the first enrolled channel
           if (fetchedChannels.length > 0) {
             setCurrentChannelId((prev) => {
-              const hasCurrent =
-                fetchedChannels.some((c) => c.id === prev) ||
-                fetchedDms.some((d) => d.id === prev);
+              const hasCurrent = fetchedChannels.some((c) => c.id === prev);
               return hasCurrent ? prev : fetchedChannels[0].id;
             });
           }
@@ -82,23 +95,34 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [user?.id, initialChannelId]);
 
-  // Load active channel info strictly from user's enrolled channels or direct messages
+  const isDm = activeTab === 'dms';
+
+  // Load active direct message contact info strictly from enrolled courses contacts
+  const currentDmTarget = React.useMemo(() => {
+    if (!isDm) return null;
+    return (
+      directMessages.find((d) => d.id === selectedDmUserId) ||
+      directMessages[0] ||
+      null
+    );
+  }, [isDm, directMessages, selectedDmUserId]);
+
+  // Load active channel info strictly from user's enrolled channels
   const activeChannel = React.useMemo(() => {
     return channels.find((c) => c.id === currentChannelId);
   }, [channels, currentChannelId]);
 
-  const activeDm = React.useMemo(() => {
-    return directMessages.find((d) => d.id === currentChannelId);
-  }, [directMessages, currentChannelId]);
+  const title = isDm
+    ? (currentDmTarget ? currentDmTarget.name : 'Direct Messages')
+    : (activeChannel ? activeChannel.name : 'Community Chat');
 
-  const title = activeChannel ? activeChannel.name : activeDm ? activeDm.name : 'Community Chat';
-  const subtitle = activeChannel
-    ? activeChannel.description
-    : activeDm
-    ? `${activeDm.role.toUpperCase()} · ${activeDm.online ? 'Online now' : 'Offline'}`
-    : 'Course Discussions';
+  const subtitle = isDm
+    ? (currentDmTarget
+        ? `${currentDmTarget.role.toUpperCase()} · ${currentDmTarget.online ? 'Online now' : 'Offline'}`
+        : 'Direct Conversation')
+    : (activeChannel ? activeChannel.description : 'Course Discussions');
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -109,26 +133,82 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
   useEffect(() => {
     setErrorMessage(null);
     let active = true;
-    listChannelMessages(currentChannelId).then((data) => {
-      if (active) {
-        setMessages(data);
-        scrollToBottom();
+
+    if (isDm) {
+      const targetUserId = currentDmTarget?.id;
+      if (!targetUserId) {
+        setMessages([]);
+        return;
       }
-    });
 
-    const unsubscribe = subscribeToChatChannel(currentChannelId, (newMsg) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === newMsg.id)) return prev;
-        return [...prev, newMsg];
+      if (user?.id) {
+        listDirectMessages(user.id, targetUserId).then((data) => {
+          if (active) {
+            setMessages(data);
+            scrollToBottom();
+          }
+        });
+
+        const unsubscribe = subscribeToDirectMessages(user.id, targetUserId, (newMsg) => {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+          setDirectMessages((prev) =>
+            prev.map((dm) =>
+              dm.id === targetUserId ? { ...dm, last_message: newMsg.content } : dm
+            )
+          );
+          scrollToBottom();
+        });
+
+        return () => {
+          active = false;
+          unsubscribe();
+        };
+      } else {
+        listChannelMessages(targetUserId).then((data) => {
+          if (active) {
+            setMessages(data);
+            scrollToBottom();
+          }
+        });
+
+        const unsubscribe = subscribeToChatChannel(targetUserId, (newMsg) => {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+          scrollToBottom();
+        });
+
+        return () => {
+          active = false;
+          unsubscribe();
+        };
+      }
+    } else {
+      listChannelMessages(currentChannelId).then((data) => {
+        if (active) {
+          setMessages(data);
+          scrollToBottom();
+        }
       });
-      scrollToBottom();
-    });
 
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [currentChannelId]);
+      const unsubscribe = subscribeToChatChannel(currentChannelId, (newMsg) => {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
+        scrollToBottom();
+      });
+
+      return () => {
+        active = false;
+        unsubscribe();
+      };
+    }
+  }, [isDm, currentChannelId, currentDmTarget?.id, user?.id]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,12 +228,26 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
       role: (profile?.role || 'student') as 'student' | 'mentor' | 'admin' | 'creator',
     };
 
+    const targetChannelId =
+      isDm
+        ? (currentDmTarget
+            ? getDirectMessageChannelId(user.id, currentDmTarget.id)
+            : currentChannelId)
+        : currentChannelId;
+
     try {
-      const sent = await sendChatMessage(currentChannelId, sender, draft);
+      const sent = await sendChatMessage(targetChannelId, sender, draft);
       setMessages((prev) => {
         if (prev.some((m) => m.id === sent.id)) return prev;
         return [...prev, sent];
       });
+      if (isDm && currentDmTarget) {
+        setDirectMessages((prev) =>
+          prev.map((dm) =>
+            dm.id === currentDmTarget.id ? { ...dm, last_message: draft.trim() } : dm
+          )
+        );
+      }
       setDraft('');
       scrollToBottom();
     } catch (err: unknown) {
@@ -290,12 +384,12 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
               </div>
             ) : (
               filteredDms.map((dm) => {
-                const isSelected = currentChannelId === dm.id;
+                const isSelected = currentDmTarget?.id === dm.id;
                 return (
                   <button
                     key={dm.id}
                     onClick={() => {
-                      setCurrentChannelId(dm.id);
+                      setSelectedDmUserId(dm.id);
                       setMobileShowChat(true);
                     }}
                     className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
@@ -351,7 +445,15 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
               <ArrowLeft size={16} />
             </button>
             <div className="flex size-9 items-center justify-center rounded-xl bg-orange-100 text-orange-800 font-bold text-sm dark:bg-orange-950/50 dark:text-orange-300 shrink-0">
-              {activeChannel?.icon || <MessageCircle size={18} />}
+              {isDm ? (
+                currentDmTarget ? (
+                  <span className="text-xs font-black">{currentDmTarget.name.slice(0, 2).toUpperCase()}</span>
+                ) : (
+                  <MessageCircle size={18} />
+                )
+              ) : (
+                activeChannel?.icon || <MessageCircle size={18} />
+              )}
             </div>
             <div className="truncate">
               <h2 className="text-sm font-black text-slate-950 dark:text-white truncate">
@@ -373,16 +475,19 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
 
         {/* Message Bubble Feed */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          {!activeChannel && !activeDm && channels.length === 0 && !loadingMetadata ? (
+          {(!isDm && !activeChannel && channels.length === 0 && !loadingMetadata) ||
+          (isDm && !currentDmTarget && directMessages.length === 0 && !loadingMetadata) ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[260px] text-center p-8">
               <div className="flex size-14 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400 mb-3">
                 <Lock size={24} />
               </div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Course Enrollment Required
+                {isDm ? 'No Direct Message Contacts' : 'Course Enrollment Required'}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
-                Channels and direct messages are scoped to your enrolled courses. Please enroll in a course to participate in chat discussions and peer messaging.
+                {isDm
+                  ? 'Direct messages are scoped to mentors and peers in your enrolled courses. Once you enroll in a course, you can message your classmates and mentors here.'
+                  : 'Channels and direct messages are scoped to your enrolled courses. Please enroll in a course to participate in chat discussions and peer messaging.'}
               </p>
             </div>
           ) : messages.length === 0 ? (
@@ -394,7 +499,7 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
                 No messages yet
               </p>
               <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                Start the conversation in {title} by sending the first message below.
+                Start the conversation with {title} by sending the first message below.
               </p>
             </div>
           ) : (

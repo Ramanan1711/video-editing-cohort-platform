@@ -280,8 +280,10 @@ export async function fetchDirectMessageUsers(currentUserId?: string): Promise<D
       .order('full_name', { ascending: true })
       .limit(100);
 
+    let userProfiles: DirectMessageUser[] = [];
+
     if (!error && data) {
-      return data.map((profile) => ({
+      userProfiles = data.map((profile) => ({
         id: profile.id,
         name: profile.full_name || 'Community Member',
         role: (profile.role === 'mentor' || profile.role === 'admin' ? profile.role : 'student') as 'student' | 'mentor' | 'admin',
@@ -289,9 +291,7 @@ export async function fetchDirectMessageUsers(currentUserId?: string): Promise<D
         online: false,
         unread_count: 0,
       }));
-    }
-
-    if (error) {
+    } else if (error) {
       console.warn('Failed to query public_profiles, trying profiles table:', error.message);
       let fallbackQuery = supabase
         .from('profiles')
@@ -308,7 +308,7 @@ export async function fetchDirectMessageUsers(currentUserId?: string): Promise<D
         .limit(50);
 
       if (!fallbackError && fallbackData) {
-        return fallbackData.map((profile) => ({
+        userProfiles = fallbackData.map((profile) => ({
           id: profile.id,
           name: profile.full_name || 'Community Member',
           role: (profile.role === 'mentor' || profile.role === 'admin' ? profile.role : 'student') as 'student' | 'mentor' | 'admin',
@@ -318,8 +318,115 @@ export async function fetchDirectMessageUsers(currentUserId?: string): Promise<D
         }));
       }
     }
+
+    // Hydrate latest messages / snippets for each direct message user
+    if (currentUserId && userProfiles.length > 0) {
+      try {
+        const contactIds = userProfiles.map((p) => p.id);
+        const canonicalIds = contactIds.map((cid) => getDirectMessageChannelId(currentUserId, cid));
+        const allChannelIds = [...canonicalIds, currentUserId, ...contactIds];
+
+        const queryObj = supabase.from('community_messages');
+        if (queryObj && typeof queryObj.select === 'function') {
+          const { data: recentMsgs } = await queryObj
+            .select('id, channel_id, sender_id, author_id, content, body, created_at')
+            .in('channel_id', allChannelIds)
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+          if (recentMsgs && recentMsgs.length > 0) {
+            for (const item of userProfiles) {
+              const canonicalDmId = getDirectMessageChannelId(currentUserId, item.id);
+              const contactMsg = (recentMsgs as Array<Record<string, unknown>>).find((m) => {
+                const ch = String(m.channel_id || '');
+                const s = String(m.sender_id || m.author_id || '');
+                if (ch === canonicalDmId) return true;
+                return (ch === item.id && s === currentUserId) || (ch === currentUserId && s === item.id);
+              });
+              if (contactMsg) {
+                item.last_message = String(contactMsg.content || contactMsg.body || '');
+              }
+            }
+          }
+        }
+      } catch (snippetErr) {
+        console.warn('Failed to hydrate DM snippets:', snippetErr);
+      }
+    }
+
+    return userProfiles;
   } catch (err: unknown) {
     console.warn('Error fetching dynamic direct message users:', err);
+  }
+
+  return [];
+}
+
+/**
+ * Derives a deterministic canonical channel ID for direct messaging between two users.
+ * Symmetrically identical regardless of which user initiates or accesses the conversation.
+ */
+export function getDirectMessageChannelId(userIdA: string, userIdB: string): string {
+  const a = String(userIdA || '').trim();
+  const b = String(userIdB || '').trim();
+  if (!a && !b) return 'dm';
+  if (!a) return `dm-${b}`;
+  if (!b) return `dm-${a}`;
+  const [first, second] = [a, b].sort();
+  return `dm-${first}-${second}`;
+}
+
+/**
+ * List direct messages between two specific users.
+ * Supports canonical symmetric channel ID ('dm-uidA-uidB') as well as backward-compatibility
+ * with legacy direct messages where channel_id was set to the recipient's user ID.
+ */
+export async function listDirectMessages(userIdA: string, userIdB: string): Promise<ChatMessage[]> {
+  const a = String(userIdA || '').trim();
+  const b = String(userIdB || '').trim();
+  if (!a || !b) return [];
+
+  const canonicalDmId = getDirectMessageChannelId(a, b);
+  const candidateChannelIds = [canonicalDmId, a, b];
+
+  try {
+    const { data, error } = await supabase
+      .from('community_messages')
+      .select('*')
+      .in('channel_id', candidateChannelIds)
+      .order('created_at', { ascending: true });
+
+    if (!error && data) {
+      return (data as Array<Record<string, unknown>>)
+        .filter((row) => {
+          const ch = String(row.channel_id || '');
+          if (ch === canonicalDmId) return true;
+          const sender = String(row.sender_id || row.author_id || '');
+          // Support legacy messages where channel_id was set to recipient's user ID
+          return (ch === b && sender === a) || (ch === a && sender === b);
+        })
+        .map((row) => {
+          const item: ChatMessage = {
+            id: String(row.id),
+            channel_id: canonicalDmId,
+            sender_id: String(row.sender_id || row.author_id || ''),
+            sender_name: String(row.sender_name || 'Community Member'),
+            sender_role: ((row.sender_role || 'student') as 'student' | 'mentor' | 'admin' | 'creator'),
+            content: String(row.content || row.body || row.message || ''),
+            created_at: String(row.created_at || new Date().toISOString()),
+          };
+          if (row.sender_avatar) item.sender_avatar = row.sender_avatar as string;
+          if (row.reactions) item.reactions = row.reactions as Record<string, number>;
+          if (row.attachment_url) item.attachment_url = row.attachment_url as string;
+          return item;
+        });
+    }
+
+    if (error) {
+      console.warn(`Failed to fetch direct messages between ${a} and ${b}:`, error.message);
+    }
+  } catch (err: unknown) {
+    console.warn('Error querying direct messages:', err);
   }
 
   return [];
@@ -511,6 +618,88 @@ export function subscribeToChatChannel(
           onNewMessage(msg);
         }
       }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Subscribes to real-time direct messages between two specific users.
+ * Symmetrically listens on canonical direct message channel as well as legacy recipient-based channels.
+ */
+export function subscribeToDirectMessages(
+  userIdA: string,
+  userIdB: string,
+  onNewMessage: (msg: ChatMessage) => void
+): () => void {
+  const a = String(userIdA || '').trim();
+  const b = String(userIdB || '').trim();
+  if (!a || !b) return () => {};
+
+  const canonicalDmId = getDirectMessageChannelId(a, b);
+
+  const handlePayload = (payload: { new: Record<string, unknown> }) => {
+    if (payload.new) {
+      const row = payload.new;
+      const ch = String(row.channel_id || '');
+      const sender = String(row.sender_id || row.author_id || '');
+
+      const isCanonical = ch === canonicalDmId;
+      const isLegacyAtoB = ch === b && sender === a;
+      const isLegacyBtoA = ch === a && sender === b;
+
+      if (isCanonical || isLegacyAtoB || isLegacyBtoA) {
+        const msg: ChatMessage = {
+          id: String(row.id),
+          channel_id: canonicalDmId,
+          sender_id: sender,
+          sender_name: String(row.sender_name || 'Community Member'),
+          sender_role: ((row.sender_role || 'student') as 'student' | 'mentor' | 'admin' | 'creator'),
+          content: String(row.content || row.body || ''),
+          created_at: String(row.created_at || new Date().toISOString()),
+        };
+        if (row.sender_avatar) msg.sender_avatar = row.sender_avatar as string;
+        if (row.reactions) msg.reactions = row.reactions as Record<string, number>;
+        if (row.attachment_url) msg.attachment_url = row.attachment_url as string;
+        onNewMessage(msg);
+      }
+    }
+  };
+
+  const channel = supabase
+    .channel(`dm-${canonicalDmId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'community_messages',
+        filter: `channel_id=eq.${canonicalDmId}`,
+      },
+      handlePayload
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'community_messages',
+        filter: `channel_id=eq.${a}`,
+      },
+      handlePayload
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'community_messages',
+        filter: `channel_id=eq.${b}`,
+      },
+      handlePayload
     )
     .subscribe();
 
