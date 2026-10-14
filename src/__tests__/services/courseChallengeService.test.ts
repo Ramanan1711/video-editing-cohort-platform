@@ -142,6 +142,44 @@ describe('courseChallengeService', () => {
       expect(challenges).toHaveLength(1);
       expect(challenges[0].cohortTitle).toBe('Full-Stack Software Engineering');
     });
+
+    it('throws PERMISSION_DENIED AppError when RLS policy denies access', async () => {
+      (supabase.from as any).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: '42501', message: 'permission denied for table course_challenges' },
+            }),
+          }),
+        }),
+      });
+
+      await expect(
+        fetchCourseChallenges('cohort-restricted', 'Restricted Cohort')
+      ).rejects.toMatchObject({
+        code: 'PERMISSION_DENIED',
+      });
+    });
+
+    it('throws STALE_AUTH AppError when JWT token expires', async () => {
+      (supabase.from as any).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'PGRST301', message: 'JWT expired' },
+            }),
+          }),
+        }),
+      });
+
+      await expect(
+        fetchCourseChallenges('cohort-expired', 'Expired Cohort')
+      ).rejects.toMatchObject({
+        code: 'STALE_AUTH',
+      });
+    });
   });
 
   describe('createCourseChallenge', () => {

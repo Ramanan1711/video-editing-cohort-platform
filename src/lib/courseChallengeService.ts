@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient';
+import { parseDatabaseError } from './errorHandling';
+import { errorTracker } from './observability/errorTracking';
 
 export interface ChallengeAsset {
   title: string;
@@ -235,6 +237,20 @@ export async function fetchCourseChallenges(
 
     const { data, error } = await query;
     if (error) {
+      errorTracker.addBreadcrumb({
+        category: 'rpc',
+        message: `fetchCourseChallenges error: ${error.message}`,
+        level: 'error',
+        data: { code: error.code, details: error.details, cohortId: String(cohortId) },
+      });
+      const parsed = parseDatabaseError(error);
+      if (parsed.code === 'PERMISSION_DENIED' || parsed.code === 'STALE_AUTH') {
+        errorTracker.captureException(new Error(parsed.message), {
+          tags: { service: 'courseChallengeService', operation: 'fetchCourseChallenges', code: parsed.code },
+          extra: { cohortId, rawError: error },
+        });
+        throw parsed;
+      }
       console.warn('Error fetching course challenges from database:', error);
       return [];
     }
@@ -298,6 +314,16 @@ export async function fetchCourseChallenges(
       };
     });
   } catch (err) {
+    const parsed = parseDatabaseError(err);
+    if (parsed.code === 'PERMISSION_DENIED' || parsed.code === 'STALE_AUTH') {
+      throw parsed;
+    }
+    errorTracker.addBreadcrumb({
+      category: 'rpc',
+      message: `Failed to fetch course challenges: ${parsed.message}`,
+      level: 'error',
+      data: { error: String(err) },
+    });
     console.warn('Failed to fetch course challenges:', err);
     return [];
   }
@@ -473,6 +499,12 @@ export async function submitCourseChallenge(
 export async function deleteCourseChallenge(challengeId: string): Promise<boolean> {
   const { error } = await supabase.from('course_challenges').delete().eq('id', challengeId);
   if (error) {
+    errorTracker.addBreadcrumb({
+      category: 'rpc',
+      message: `Database delete from course_challenges failed: ${error.message}`,
+      level: 'error',
+      data: { challengeId, code: error.code },
+    });
     console.error('Database delete from course_challenges failed:', error);
     return false;
   }
@@ -495,7 +527,20 @@ export async function fetchChallengeParticipants(
     .eq('challenge_id', challengeId)
     .order('joined_at', { ascending: true });
 
-  if (error || !data) return [];
+  if (error) {
+    errorTracker.addBreadcrumb({
+      category: 'rpc',
+      message: `fetchChallengeParticipants error: ${error.message}`,
+      level: 'error',
+      data: { challengeId, code: error.code },
+    });
+    const parsed = parseDatabaseError(error);
+    if (parsed.code === 'PERMISSION_DENIED' || parsed.code === 'STALE_AUTH') {
+      throw parsed;
+    }
+    return [];
+  }
+  if (!data) return [];
 
   const rawParticipants = (data as unknown as CourseChallengeDbParticipant[]) || [];
 
@@ -551,7 +596,20 @@ export async function fetchChallengeSubmissions(
     .eq('challenge_id', challengeId)
     .order('submitted_at', { ascending: false });
 
-  if (error || !data) return [];
+  if (error) {
+    errorTracker.addBreadcrumb({
+      category: 'rpc',
+      message: `fetchChallengeSubmissions error: ${error.message}`,
+      level: 'error',
+      data: { challengeId, code: error.code },
+    });
+    const parsed = parseDatabaseError(error);
+    if (parsed.code === 'PERMISSION_DENIED' || parsed.code === 'STALE_AUTH') {
+      throw parsed;
+    }
+    return [];
+  }
+  if (!data) return [];
 
   const rawSubmissions = (data as unknown as CourseChallengeDbSubmission[]) || [];
 

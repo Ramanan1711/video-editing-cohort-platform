@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { parseDatabaseError } from './errorHandling';
+import { errorTracker } from './observability/errorTracking';
 import { getSecureSubmissionUrl } from './services/assetStorageService';
 
 export { DEFAULT_15_DAY_CURRICULUM } from './curriculum';
@@ -74,6 +75,20 @@ export async function listDailyChallenges(cohortId: string): Promise<DailyChalle
     .order('day_number', { ascending: true });
 
   if (error) {
+    errorTracker.addBreadcrumb({
+      category: 'rpc',
+      message: `Failed to load daily challenges for cohort ${cohortId}: ${error.message}`,
+      level: 'error',
+      data: { cohortId, code: error.code },
+    });
+    const parsed = parseDatabaseError(error);
+    if (parsed.code === 'PERMISSION_DENIED' || parsed.code === 'STALE_AUTH') {
+      errorTracker.captureException(new Error(parsed.message), {
+        tags: { service: 'internshipService', operation: 'listDailyChallenges', code: parsed.code },
+        extra: { cohortId },
+      });
+      throw parsed;
+    }
     console.warn('Failed to load daily challenges from Supabase:', error.message);
     return [];
   }
@@ -267,10 +282,25 @@ export async function clearCohortDailyChallenges(cohortId: string): Promise<void
  */
 export async function seedCohortDailyChallenges(cohortId: string): Promise<DailyChallenge[]> {
   try {
-    await supabase.rpc('ensure_cohort_daily_challenges', {
+    const { error: rpcError } = await supabase.rpc('ensure_cohort_daily_challenges', {
       p_cohort_id: cohortId,
     });
+    if (rpcError) {
+      errorTracker.addBreadcrumb({
+        category: 'rpc',
+        message: `ensure_cohort_daily_challenges RPC failed for cohort ${cohortId}: ${rpcError.message}`,
+        level: 'warning',
+        data: { cohortId, code: rpcError.code, details: rpcError.details },
+      });
+      console.warn('ensure_cohort_daily_challenges RPC call skipped:', rpcError);
+    }
   } catch (err) {
+    errorTracker.addBreadcrumb({
+      category: 'rpc',
+      message: `ensure_cohort_daily_challenges RPC exception for cohort ${cohortId}: ${err instanceof Error ? err.message : String(err)}`,
+      level: 'warning',
+      data: { cohortId },
+    });
     console.warn('ensure_cohort_daily_challenges RPC call skipped:', err);
   }
   return listDailyChallenges(cohortId);
@@ -339,6 +369,20 @@ export async function listMyDailySubmissions(userId: string): Promise<DailyChall
     .eq('user_id', userId);
 
   if (error) {
+    errorTracker.addBreadcrumb({
+      category: 'rpc',
+      message: `Failed to fetch daily challenge submissions for user ${userId}: ${error.message}`,
+      level: 'error',
+      data: { userId, code: error.code },
+    });
+    const parsed = parseDatabaseError(error);
+    if (parsed.code === 'PERMISSION_DENIED' || parsed.code === 'STALE_AUTH') {
+      errorTracker.captureException(new Error(parsed.message), {
+        tags: { service: 'internshipService', operation: 'listMyDailySubmissions', code: parsed.code },
+        extra: { userId },
+      });
+      throw parsed;
+    }
     console.warn('Failed to fetch daily challenge submissions:', error.message);
     return [];
   }

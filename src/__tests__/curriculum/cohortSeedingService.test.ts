@@ -130,6 +130,50 @@ describe('Cohort Daily Challenges Service Suite (Pure Database-Driven)', () => {
       expect(list[0].day_number).toBe(1);
       expect(list[1].day_number).toBe(2);
     });
+
+    it('throws PERMISSION_DENIED AppError when RLS rejects query', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'daily_challenges') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: null,
+                  error: { code: '42501', message: 'permission denied for table daily_challenges' },
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      await expect(listDailyChallenges('cohort-forbidden')).rejects.toMatchObject({
+        code: 'PERMISSION_DENIED',
+      });
+    });
+
+    it('throws STALE_AUTH AppError when JWT token is expired', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'daily_challenges') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: null,
+                  error: { code: 'PGRST301', message: 'JWT expired' },
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      await expect(listDailyChallenges('cohort-expired')).rejects.toMatchObject({
+        code: 'STALE_AUTH',
+      });
+    });
   });
 
   describe('Author Bulk Import Studio: bulkImportDailyChallenges', () => {
