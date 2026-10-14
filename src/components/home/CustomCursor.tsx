@@ -30,7 +30,7 @@ export const CustomCursor: React.FC = () => {
 
       // Check if hovering over element with data-cursor attribute
       const target = e.target as HTMLElement | null;
-      const cursorTarget = target?.closest('[data-cursor]') as HTMLElement | null;
+      const cursorTarget = typeof target?.closest === 'function' ? target.closest<HTMLElement>('[data-cursor]') : null;
 
       if (cursorTarget) {
         const text = cursorTarget.getAttribute('data-cursor');
