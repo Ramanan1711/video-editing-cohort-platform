@@ -5,6 +5,7 @@ import {
   subscribeToChatChannel,
   fetchChatChannels,
   fetchDirectMessageUsers,
+  getUserEnrolledCohortIds,
   DEFAULT_CHANNELS,
   DEFAULT_DIRECT_MESSAGES,
 } from '../../lib/communityMessageService';
@@ -52,6 +53,255 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
 
     it('exports DEFAULT_DIRECT_MESSAGES as empty array with no hardcoded contacts', () => {
       expect(DEFAULT_DIRECT_MESSAGES).toEqual([]);
+    });
+  });
+
+  describe('getUserEnrolledCohortIds', () => {
+    it('returns empty array when userId is empty or null', async () => {
+      const ids = await getUserEnrolledCohortIds('');
+      expect(ids).toEqual([]);
+    });
+
+    it('retrieves enrolled and active cohort ids from enrollments and mentor_cohorts', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockResolvedValue({
+                  data: [{ cohort_id: 'cohort-1' }, { cohort_id: 'cohort-2' }],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'mentor_cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [{ cohort_id: 'cohort-2' }, { cohort_id: 'cohort-3' }],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const ids = await getUserEnrolledCohortIds('user-123');
+      expect(ids).toEqual(expect.arrayContaining(['cohort-1', 'cohort-2', 'cohort-3']));
+      expect(ids.length).toBe(3);
+    });
+  });
+
+  describe('fetchChatChannels (Scoped to Enrolled Courses)', () => {
+    it('displays only channels for the courses enrolled by the user', async () => {
+      const enrolledCohort = {
+        id: 'cohort-enrolled-1',
+        title: 'Video Editing Masterclass',
+        description: 'Enrolled course',
+        status: 'published',
+      };
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockResolvedValue({
+                  data: [{ cohort_id: 'cohort-enrolled-1' }],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'mentor_cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          };
+        }
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [enrolledCohort],
+                  error: null,
+                }),
+              }),
+              order: vi.fn().mockResolvedValue({
+                data: [enrolledCohort],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const channels = await fetchChatChannels('student-user-1');
+      expect(channels).toHaveLength(3);
+      expect(channels.map((c) => c.id)).toEqual([
+        'cohort-enrolled-1-community',
+        'cohort-enrolled-1-qa',
+        'cohort-enrolled-1-squad',
+      ]);
+      expect(channels[0].name).toBe('Video Editing Masterclass Community');
+    });
+
+    it('does not display any channels if the student is not enrolled in any course', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'mentor_cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          };
+        }
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { role: 'student' },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const channels = await fetchChatChannels('unenrolled-student');
+      expect(channels).toEqual([]);
+    });
+  });
+
+  describe('fetchDirectMessageUsers (Scoped to Enrolled Courses)', () => {
+    it('displays direct message contacts strictly belonging to the user enrolled courses', async () => {
+      const mockPeerProfiles = [
+        {
+          id: 'peer-user-batch-1',
+          full_name: 'Peer in Same Cohort',
+          role: 'student',
+          avatar_url: 'https://example.com/peer.png',
+        },
+      ];
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              // First call: getUserEnrolledCohortIds
+              eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockResolvedValue({
+                  data: [{ cohort_id: 'cohort-1' }],
+                  error: null,
+                }),
+              }),
+              // Second call: finding peers in enrolled cohorts
+              in: vi.fn().mockReturnValue({
+                neq: vi.fn().mockReturnValue({
+                  in: vi.fn().mockResolvedValue({
+                    data: [{ user_id: 'peer-user-batch-1' }],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'mentor_cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+              in: vi.fn().mockReturnValue({
+                neq: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                neq: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'public_profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({
+                    data: mockPeerProfiles,
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const dms = await fetchDirectMessageUsers('current-student-1');
+      expect(dms).toHaveLength(1);
+      expect(dms[0].id).toBe('peer-user-batch-1');
+      expect(dms[0].name).toBe('Peer in Same Cohort');
+    });
+
+    it('returns empty array when student has no course enrollments and is not an admin', async () => {
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'mentor_cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          };
+        }
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { role: 'student' },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      });
+
+      const dms = await fetchDirectMessageUsers('student-with-no-courses');
+      expect(dms).toEqual([]);
     });
   });
 
@@ -207,136 +457,6 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
 
       const messages = await listChannelMessages('batch-15-community');
       expect(messages).toEqual([]);
-    });
-  });
-
-  describe('fetchChatChannels', () => {
-    it('dynamically maps database cohorts into community, QA, and squad channels', async () => {
-      const mockCohorts = [
-        {
-          id: 'cohort-uuid-1',
-          title: 'Batch 15 - Masterclass',
-          description: 'Advanced Premiere & DaVinci',
-          status: 'published',
-        },
-      ];
-
-      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
-        if (table === 'cohorts') {
-          return {
-            select: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({ data: mockCohorts, error: null }),
-            }),
-          };
-        }
-        if (table === 'community_messages') {
-          return {
-            select: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-            }),
-          };
-        }
-        return {};
-      });
-
-      const channels = await fetchChatChannels();
-      expect(channels).toHaveLength(3);
-      expect(channels[0].id).toBe('cohort-uuid-1-community');
-      expect(channels[0].name).toBe('Batch 15 - Masterclass Community');
-      expect(channels[1].id).toBe('cohort-uuid-1-qa');
-      expect(channels[2].id).toBe('cohort-uuid-1-squad');
-    });
-
-    it('discovers active channels from community_messages when available', async () => {
-      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
-        if (table === 'cohorts') {
-          return {
-            select: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({ data: [], error: null }),
-            }),
-          };
-        }
-        if (table === 'community_messages') {
-          return {
-            select: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue({
-                data: [{ channel_id: 'color-grading-critique' }],
-                error: null,
-              }),
-            }),
-          };
-        }
-        return {};
-      });
-
-      const channels = await fetchChatChannels();
-      expect(channels.some((c) => c.id === 'color-grading-critique')).toBe(true);
-    });
-  });
-
-  describe('fetchDirectMessageUsers', () => {
-    it('dynamically fetches profiles from public_profiles and filters out current user', async () => {
-      const mockProfiles = [
-        {
-          id: 'user-mentor-1',
-          full_name: 'Shibin Mentor',
-          role: 'mentor',
-          avatar_url: 'https://example.com/avatar.jpg',
-        },
-      ];
-
-      const limitMock = vi.fn().mockResolvedValue({ data: mockProfiles, error: null });
-      const orderMock = vi.fn().mockReturnValue({ limit: limitMock });
-      const neqMock = vi.fn().mockReturnValue({ order: orderMock });
-      const selectMock = vi.fn().mockReturnValue({ order: orderMock, neq: neqMock });
-      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-        select: selectMock,
-      });
-
-      const users = await fetchDirectMessageUsers('current-user-uuid');
-      expect(users).toHaveLength(1);
-      expect(users[0].id).toBe('user-mentor-1');
-      expect(users[0].name).toBe('Shibin Mentor');
-      expect(users[0].role).toBe('mentor');
-      expect(neqMock).toHaveBeenCalledWith('id', 'current-user-uuid');
-    });
-
-    it('falls back to profiles table if public_profiles returns error', async () => {
-      const mockFallback = [
-        {
-          id: 'user-admin-1',
-          full_name: 'Admin User',
-          role: 'admin',
-          avatar_url: null,
-        },
-      ];
-
-      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
-        if (table === 'public_profiles') {
-          return {
-            select: vi.fn().mockReturnValue({
-              order: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue({ data: null, error: { message: 'relation does not exist' } }),
-              }),
-            }),
-          };
-        }
-        if (table === 'profiles') {
-          return {
-            select: vi.fn().mockReturnValue({
-              order: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue({ data: mockFallback, error: null }),
-              }),
-            }),
-          };
-        }
-        return {};
-      });
-
-      const users = await fetchDirectMessageUsers();
-      expect(users).toHaveLength(1);
-      expect(users[0].name).toBe('Admin User');
-      expect(users[0].role).toBe('admin');
     });
   });
 

@@ -49,17 +49,82 @@ try {
 }
 
 /**
- * Dynamically fetches chat channels from Supabase cohorts and active community message threads.
- * Strictly queries live database state with zero hardcoded channels.
+ * Helper to retrieve cohort IDs the user is enrolled in (or assigned to as mentor).
  */
-export async function fetchChatChannels(): Promise<ChatChannel[]> {
+export async function getUserEnrolledCohortIds(userId: string): Promise<string[]> {
+  if (!userId) return [];
+  try {
+    const cohortIds = new Set<string>();
+
+    // 1. Student enrollments in active/enrolled/completed status
+    const { data: enrollments, error: enrollError } = await supabase
+      .from('enrollments')
+      .select('cohort_id')
+      .eq('user_id', userId)
+      .in('status', ['enrolled', 'active', 'completed']);
+
+    if (!enrollError && enrollments) {
+      for (const e of enrollments) {
+        if (e.cohort_id) cohortIds.add(e.cohort_id);
+      }
+    }
+
+    // 2. Mentor cohort assignments
+    const { data: mentorCohorts, error: mentorError } = await supabase
+      .from('mentor_cohorts')
+      .select('cohort_id')
+      .eq('mentor_id', userId);
+
+    if (!mentorError && mentorCohorts) {
+      for (const m of mentorCohorts) {
+        if (m.cohort_id) cohortIds.add(m.cohort_id);
+      }
+    }
+
+    return Array.from(cohortIds);
+  } catch (err: unknown) {
+    console.warn('Error fetching user enrolled cohort IDs:', err);
+    return [];
+  }
+}
+
+/**
+ * Dynamically fetches chat channels from Supabase cohorts strictly according to the courses
+ * enrolled by the user. If userId is provided, non-enrolled cohort channels are not displayed.
+ */
+export async function fetchChatChannels(userId?: string): Promise<ChatChannel[]> {
   const channelMap = new Map<string, ChatChannel>();
 
   try {
-    // 1. Discover channels from existing cohorts in database
-    const { data: cohorts, error: cohortError } = await supabase
+    // When userId is provided, scope strictly to courses enrolled by the user
+    let enrolledCohortIds: string[] | null = null;
+    if (userId) {
+      enrolledCohortIds = await getUserEnrolledCohortIds(userId);
+
+      if (enrolledCohortIds.length === 0) {
+        // If not enrolled in any cohorts, check if user is an admin supervising all cohorts
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profile?.role !== 'admin') {
+          // Regular student/mentor with zero enrollments sees no enrolled channels
+          return [];
+        }
+      }
+    }
+
+    let cohortQuery = supabase
       .from('cohorts')
-      .select('id, title, description, status')
+      .select('id, title, description, status');
+
+    if (enrolledCohortIds && enrolledCohortIds.length > 0) {
+      cohortQuery = cohortQuery.in('id', enrolledCohortIds);
+    }
+
+    const { data: cohorts, error: cohortError } = await cohortQuery
       .order('created_at', { ascending: false });
 
     if (!cohortError && cohorts && cohorts.length > 0) {
@@ -101,32 +166,6 @@ export async function fetchChatChannels(): Promise<ChatChannel[]> {
     } else if (cohortError) {
       console.warn('Failed to fetch cohorts for chat channels:', cohortError.message);
     }
-
-    // 2. Discover channels actively present in community_messages
-    const { data: messageChannels, error: msgError } = await supabase
-      .from('community_messages')
-      .select('channel_id')
-      .limit(100);
-
-    if (!msgError && messageChannels) {
-      for (const row of messageChannels) {
-        const chId = row.channel_id;
-        if (chId && !channelMap.has(chId) && !chId.startsWith('dm-')) {
-          const formattedName = chId
-            .split('-')
-            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
-            .join(' ');
-          channelMap.set(chId, {
-            id: chId,
-            name: formattedName,
-            description: `Community channel for ${formattedName}`,
-            category: chId.includes('squad') ? 'squad' : chId.includes('vip') || chId.includes('top-1') ? 'vip' : 'cohort',
-            unread_count: 0,
-            icon: chId.includes('qa') ? '⁉️' : chId.includes('squad') ? '🔷' : '🔥',
-          });
-        }
-      }
-    }
   } catch (err: unknown) {
     console.warn('Error fetching dynamic chat channels:', err);
   }
@@ -135,16 +174,85 @@ export async function fetchChatChannels(): Promise<ChatChannel[]> {
 }
 
 /**
- * Dynamically fetches direct message users from public.public_profiles or public.profiles.
- * Strictly queries live authenticated database profiles with zero hardcoded contacts.
+ * Dynamically fetches direct message users according to courses enrolled by the user.
+ * Scopes contacts strictly to peer students, mentors, and staff affiliated with the user's enrolled cohorts.
  */
 export async function fetchDirectMessageUsers(currentUserId?: string): Promise<DirectMessageUser[]> {
   try {
+    let candidateUserIds: string[] | null = null;
+
+    if (currentUserId) {
+      const enrolledCohortIds = await getUserEnrolledCohortIds(currentUserId);
+
+      if (enrolledCohortIds.length === 0) {
+        // If not enrolled in any cohorts, check if user is an admin supervising all cohorts
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', currentUserId)
+          .maybeSingle();
+
+        if (profile?.role !== 'admin') {
+          return [];
+        }
+      } else {
+        const targetIds = new Set<string>();
+
+        // 1. Peer students enrolled in the same cohorts
+        const { data: peers } = await supabase
+          .from('enrollments')
+          .select('user_id')
+          .in('cohort_id', enrolledCohortIds)
+          .neq('user_id', currentUserId)
+          .in('status', ['enrolled', 'active', 'completed']);
+
+        if (peers) {
+          for (const p of peers) {
+            if (p.user_id) targetIds.add(p.user_id);
+          }
+        }
+
+        // 2. Mentors assigned to the same cohorts
+        const { data: mentors } = await supabase
+          .from('mentor_cohorts')
+          .select('mentor_id')
+          .in('cohort_id', enrolledCohortIds)
+          .neq('mentor_id', currentUserId);
+
+        if (mentors) {
+          for (const m of mentors) {
+            if (m.mentor_id) targetIds.add(m.mentor_id);
+          }
+        }
+
+        // 3. Platform mentors & Admins available to support students
+        const { data: staff } = await supabase
+          .from('profiles')
+          .select('id')
+          .in('role', ['admin', 'mentor'])
+          .neq('id', currentUserId);
+
+        if (staff) {
+          for (const s of staff) {
+            if (s.id) targetIds.add(s.id);
+          }
+        }
+
+        if (targetIds.size === 0) {
+          return [];
+        }
+
+        candidateUserIds = Array.from(targetIds);
+      }
+    }
+
     let query = supabase
       .from('public_profiles')
       .select('id, full_name, role, avatar_url');
 
-    if (currentUserId) {
+    if (candidateUserIds) {
+      query = query.in('id', candidateUserIds);
+    } else if (currentUserId) {
       query = query.neq('id', currentUserId);
     }
 
@@ -169,7 +277,9 @@ export async function fetchDirectMessageUsers(currentUserId?: string): Promise<D
         .from('profiles')
         .select('id, full_name, role, avatar_url');
 
-      if (currentUserId) {
+      if (candidateUserIds) {
+        fallbackQuery = fallbackQuery.in('id', candidateUserIds);
+      } else if (currentUserId) {
         fallbackQuery = fallbackQuery.neq('id', currentUserId);
       }
 

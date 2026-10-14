@@ -45,19 +45,29 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Dynamically load channels and direct message contacts from database
+  // Dynamically load channels and direct message contacts strictly for user's enrolled courses
   useEffect(() => {
     let active = true;
     async function loadChatDirectory() {
       setLoadingMetadata(true);
       try {
         const [fetchedChannels, fetchedDms] = await Promise.all([
-          fetchChatChannels(),
+          fetchChatChannels(user?.id),
           fetchDirectMessageUsers(user?.id),
         ]);
         if (active) {
           setChannels(fetchedChannels);
           setDirectMessages(fetchedDms);
+
+          // If current channel is not one of the user's enrolled channels or DMs, switch to the first enrolled channel
+          if (fetchedChannels.length > 0) {
+            setCurrentChannelId((prev) => {
+              const hasCurrent =
+                fetchedChannels.some((c) => c.id === prev) ||
+                fetchedDms.some((d) => d.id === prev);
+              return hasCurrent ? prev : fetchedChannels[0].id;
+            });
+          }
         }
       } catch (err) {
         console.warn('Failed to dynamically fetch chat directory:', err);
@@ -74,33 +84,21 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
     };
   }, [user?.id]);
 
-  // Load active channel info
+  // Load active channel info strictly from user's enrolled channels or direct messages
   const activeChannel = React.useMemo(() => {
-    return (
-      channels.find((c) => c.id === currentChannelId) ||
-      (!directMessages.some((d) => d.id === currentChannelId)
-        ? {
-            id: currentChannelId,
-            name: currentChannelId
-              .split('-')
-              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-              .join(' '),
-            description: `Discussion for ${currentChannelId.replace(/[-_]/g, ' ')}`,
-            category: 'cohort' as const,
-            icon: currentChannelId.includes('qa') ? '⁉️' : currentChannelId.includes('squad') ? '🔷' : '🔥',
-          }
-        : undefined)
-    );
-  }, [channels, currentChannelId, directMessages]);
+    return channels.find((c) => c.id === currentChannelId);
+  }, [channels, currentChannelId]);
 
-  const activeDm = directMessages.find((d) => d.id === currentChannelId);
+  const activeDm = React.useMemo(() => {
+    return directMessages.find((d) => d.id === currentChannelId);
+  }, [directMessages, currentChannelId]);
 
-  const title = activeChannel ? activeChannel.name : activeDm ? activeDm.name : 'Chat';
+  const title = activeChannel ? activeChannel.name : activeDm ? activeDm.name : 'Community Chat';
   const subtitle = activeChannel
     ? activeChannel.description
     : activeDm
     ? `${activeDm.role.toUpperCase()} · ${activeDm.online ? 'Online now' : 'Offline'}`
-    : '';
+    : 'Course Discussions';
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -169,14 +167,7 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
     }
   };
 
-  const displayChannels = React.useMemo(() => {
-    if (activeChannel && !channels.some((c) => c.id === activeChannel.id)) {
-      return [activeChannel, ...channels];
-    }
-    return channels;
-  }, [channels, activeChannel]);
-
-  const filteredChannels = displayChannels.filter((c) =>
+  const filteredChannels = channels.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const filteredDms = directMessages.filter((d) =>
@@ -234,11 +225,17 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
           {activeTab === 'channels' ? (
             loadingMetadata && filteredChannels.length === 0 ? (
               <div className="p-4 text-center text-xs text-slate-400">
-                Loading channels...
+                Loading enrolled channels...
               </div>
             ) : filteredChannels.length === 0 ? (
-              <div className="p-4 text-center text-xs text-slate-400">
-                No channels found.
+              <div className="p-6 text-center text-xs text-slate-500 space-y-1.5">
+                <div className="flex size-9 mx-auto items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 mb-2">
+                  <Lock size={16} />
+                </div>
+                <p className="font-bold text-slate-800 dark:text-slate-200">No Enrolled Channels</p>
+                <p className="text-[11px] text-slate-400">
+                  You are not enrolled in any courses yet. Channels for your enrolled courses will appear here.
+                </p>
               </div>
             ) : (
               filteredChannels.map((channel) => {
@@ -279,11 +276,17 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
           ) : (
             loadingMetadata && filteredDms.length === 0 ? (
               <div className="p-4 text-center text-xs text-slate-400">
-                Loading contacts...
+                Loading course contacts...
               </div>
             ) : filteredDms.length === 0 ? (
-              <div className="p-4 text-center text-xs text-slate-400">
-                No direct messages yet.
+              <div className="p-6 text-center text-xs text-slate-500 space-y-1.5">
+                <div className="flex size-9 mx-auto items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 mb-2">
+                  <MessageCircle size={16} />
+                </div>
+                <p className="font-bold text-slate-800 dark:text-slate-200">No Direct Messages</p>
+                <p className="text-[11px] text-slate-400">
+                  Direct messages are scoped to mentors and peers in your enrolled courses.
+                </p>
               </div>
             ) : (
               filteredDms.map((dm) => {
@@ -370,7 +373,19 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
 
         {/* Message Bubble Feed */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          {messages.length === 0 ? (
+          {!activeChannel && !activeDm && channels.length === 0 && !loadingMetadata ? (
+            <div className="flex flex-col items-center justify-center h-full min-h-[260px] text-center p-8">
+              <div className="flex size-14 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400 mb-3">
+                <Lock size={24} />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                Course Enrollment Required
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+                Channels and direct messages are scoped to your enrolled courses. Please enroll in a course to participate in chat discussions and peer messaging.
+              </p>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[220px] text-center p-6">
               <div className="flex size-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400 mb-3">
                 <MessageCircle size={22} />
