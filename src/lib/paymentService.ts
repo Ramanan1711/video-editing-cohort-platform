@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { CreateOrderSchema, VerifyPaymentSchema } from './schemas/runtimeContracts';
 
 export const DEFAULT_COHORT_FEE_INR = 4999;
 export const DEFAULT_CURRENCY = 'INR';
@@ -115,10 +116,12 @@ export async function loadRazorpayScript(): Promise<boolean> {
  * Fail-closed: Never returns a fabricated local order on failure.
  */
 export async function createCohortRazorpayOrder(cohortId: string): Promise<RazorpayOrder> {
-  if (!cohortId) {
+  const validation = CreateOrderSchema.safeParse({ cohortId });
+  if (!validation.success) {
     throw new Error('Cohort ID is required to initiate checkout.');
   }
 
+  const validatedCohortId = validation.data.cohortId;
   const correlationId = `corr_ord_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   const { data, error } = await supabase.functions.invoke<{
@@ -128,16 +131,19 @@ export async function createCohortRazorpayOrder(cohortId: string): Promise<Razor
     currency: string;
     keyId: string;
     cohortTitle?: string;
-    error?: string;
+    error?: string | Record<string, unknown>;
   }>('create-razorpay-order', {
-    body: { cohortId },
+    body: { cohortId: validatedCohortId },
     headers: {
       'x-correlation-id': correlationId,
     },
   });
 
   if (error || !data || !data.orderId) {
-    const errorMessage = data?.error || error?.message || 'Failed to create payment order.';
+    let errorMessage = error?.message || 'Failed to create payment order.';
+    if (data?.error) {
+      errorMessage = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
+    }
     throw new Error(errorMessage);
   }
 
@@ -158,23 +164,31 @@ export async function verifyRazorpayPayment(
   paymentData: RazorpayPaymentResponse,
   cohortId: string
 ): Promise<{ success: boolean; enrollmentId: string }> {
-  if (!paymentData.razorpay_order_id || !paymentData.razorpay_payment_id || !paymentData.razorpay_signature) {
+  const validation = VerifyPaymentSchema.safeParse({
+    orderId: paymentData.razorpay_order_id,
+    paymentId: paymentData.razorpay_payment_id,
+    signature: paymentData.razorpay_signature,
+    cohortId,
+  });
+
+  if (!validation.success) {
     throw new Error('Incomplete payment response received from gateway.');
   }
 
+  const { orderId, paymentId, signature, cohortId: validatedCohortId } = validation.data;
   const correlationId = `corr_ver_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   const { data, error } = await supabase.functions.invoke<{
     success: boolean;
     verified: boolean;
     enrollmentId?: string;
-    error?: string;
+    error?: string | Record<string, unknown>;
   }>('verify-razorpay-payment', {
     body: {
-      orderId: paymentData.razorpay_order_id,
-      paymentId: paymentData.razorpay_payment_id,
-      signature: paymentData.razorpay_signature,
-      cohortId,
+      orderId,
+      paymentId,
+      signature,
+      cohortId: validatedCohortId,
     },
     headers: {
       'x-correlation-id': correlationId,

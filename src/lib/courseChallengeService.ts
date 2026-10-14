@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { parseDatabaseError } from './errorHandling';
 import { errorTracker } from './observability/errorTracking';
+import { ChallengeSubmissionSchema } from './schemas/runtimeContracts';
 
 export interface ChallengeAsset {
   title: string;
@@ -473,6 +474,18 @@ export async function submitCourseChallenge(
   }
   if (!targetUserId) {
     throw new Error('Authentication required to submit challenge');
+  }
+
+  const validation = ChallengeSubmissionSchema.safeParse({
+    challengeId,
+    userId: targetUserId,
+    submissionUrl,
+    notes,
+  });
+
+  if (!validation.success) {
+    const formatted = validation.error.flatten();
+    throw new Error(`Invalid challenge submission: ${JSON.stringify(formatted)}`);
   }
 
   const { error } = await supabase.from('course_challenge_submissions').upsert(

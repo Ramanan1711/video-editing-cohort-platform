@@ -1,5 +1,12 @@
 import '../deno.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
+import { z } from 'https://deno.land/x/zod/mod.ts';
+
+export const DispatchWhatsAppQueueSchema = z
+  .object({
+    maxBatchSize: z.number().int().min(1).max(100).default(25),
+  })
+  .optional();
 
 // Supabase Edge Function: dispatch-whatsapp-queue
 // Dispatches queued WhatsApp messages from public.whatsapp_notifications_log to external gateways (Meta Cloud API / Twilio).
@@ -87,15 +94,31 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 2. Parse batch size from optional JSON body
+    // 2. Parse batch size from optional JSON body with runtime Zod contract
     let maxBatchSize = 25;
-    try {
-      const body = await req.json();
-      if (body && typeof body.maxBatchSize === 'number') {
-        maxBatchSize = Math.max(1, Math.min(body.maxBatchSize, 100));
+    const rawBodyText = await req.text();
+    if (rawBodyText && rawBodyText.trim().length > 0) {
+      let rawJson: unknown;
+      try {
+        rawJson = JSON.parse(rawBodyText);
+      } catch {
+        return new Response(
+          JSON.stringify({ error: 'Malformed JSON payload' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-    } catch {
-      // Optional body
+
+      const parseResult = DispatchWhatsAppQueueSchema.safeParse(rawJson);
+      if (!parseResult.success) {
+        return new Response(
+          JSON.stringify({ error: parseResult.error.flatten() }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (parseResult.data && typeof parseResult.data.maxBatchSize === 'number') {
+        maxBatchSize = parseResult.data.maxBatchSize;
+      }
     }
 
     // 3. Fetch pending retry/queue candidates via canonical RPC

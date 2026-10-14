@@ -1,5 +1,12 @@
 import '../deno.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
+import { z } from 'https://deno.land/x/zod/mod.ts';
+
+export const ReapExpiredReservationsSchema = z
+  .object({
+    dryRun: z.boolean().optional(),
+  })
+  .optional();
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,7 +71,29 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 2. Invoke database reaper RPC
+    // 2. Validate optional payload with runtime Zod contract
+    const rawBodyText = await req.text();
+    if (rawBodyText && rawBodyText.trim().length > 0) {
+      let rawJson: unknown;
+      try {
+        rawJson = JSON.parse(rawBodyText);
+      } catch {
+        return new Response(
+          JSON.stringify({ error: 'Malformed JSON payload' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const parseResult = ReapExpiredReservationsSchema.safeParse(rawJson);
+      if (!parseResult.success) {
+        return new Response(
+          JSON.stringify({ error: parseResult.error.flatten() }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // 3. Invoke database reaper RPC
     const { data: reapedCount, error: rpcError } = await supabase.rpc(
       'release_expired_cohort_reservations'
     );

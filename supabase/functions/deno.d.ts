@@ -34,3 +34,19 @@ declare module 'https://esm.sh/@supabase/supabase-js*' {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function createClient(supabaseUrl: string, supabaseKey: string, options?: any): any;
 }
+
+declare module 'https://deno.land/x/zod/mod.ts' {
+  export * from 'zod';
+}
+
+declare module 'https://deno.land/x/zod*/mod.ts' {
+  export * from 'zod';
+}
+
+declare module 'https://esm.sh/zod@*' {
+  export * from 'zod';
+}
+
+declare module 'https://esm.sh/zod' {
+  export * from 'zod';
+}

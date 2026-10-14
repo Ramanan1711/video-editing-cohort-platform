@@ -1,5 +1,38 @@
 import '../deno.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
+import { z } from 'https://deno.land/x/zod/mod.ts';
+
+export const VerifyPaymentSchema = z
+  .object({
+    order_id: z.string().min(1, { message: 'order_id is required' }).optional(),
+    orderId: z.string().min(1, { message: 'orderId is required' }).optional(),
+    payment_id: z.string().min(1, { message: 'payment_id is required' }).optional(),
+    paymentId: z.string().min(1, { message: 'paymentId is required' }).optional(),
+    signature: z.string().min(1, { message: 'signature is required' }),
+    cohort_id: z.string().uuid({ message: 'Invalid Cohort UUID' }).optional(),
+    cohortId: z.string().uuid({ message: 'Invalid Cohort UUID' }).optional(),
+  })
+  .refine((data) => Boolean(data.orderId || data.order_id), {
+    message: 'Missing orderId parameter',
+    path: ['orderId'],
+  })
+  .refine((data) => Boolean(data.paymentId || data.payment_id), {
+    message: 'Missing paymentId parameter',
+    path: ['paymentId'],
+  })
+  .refine((data) => Boolean(data.cohortId || data.cohort_id), {
+    message: 'Missing cohortId parameter',
+    path: ['cohortId'],
+  })
+  .transform((data) => ({
+    orderId: (data.orderId || data.order_id) as string,
+    order_id: (data.order_id || data.orderId) as string,
+    paymentId: (data.paymentId || data.payment_id) as string,
+    payment_id: (data.payment_id || data.paymentId) as string,
+    signature: data.signature,
+    cohortId: (data.cohortId || data.cohort_id) as string,
+    cohort_id: (data.cohort_id || data.cohortId) as string,
+  }));
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -170,29 +203,28 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 2. Parse and validate request parameters
-    const body = await req.json().catch(() => null);
-    const orderId = body?.orderId;
-    const paymentId = body?.paymentId;
-    const signature = body?.signature;
-    const cohortId = body?.cohortId;
+    // 2. Parse and validate request parameters with runtime Zod contract
+    const rawBody = await req.json().catch(() => null);
+    const parseResult = VerifyPaymentSchema.safeParse(rawBody);
 
-    if (!orderId || !paymentId || !signature || !cohortId) {
+    if (!parseResult.success) {
       logTelemetry({
         service: 'verify-razorpay-payment',
         level: 'warn',
         traceId,
         durationMs: getDuration(),
         event: 'payment.verify',
-        errorCode: 'MISSING_PARAMS',
-        message: 'Missing required payment verification parameters',
-        metadata: { hasOrderId: !!orderId, hasPaymentId: !!paymentId, hasSignature: !!signature, hasCohortId: !!cohortId },
+        errorCode: 'INVALID_PAYLOAD',
+        message: 'Invalid request payload for payment verification',
+        metadata: { error: parseResult.error.flatten() },
       });
       return new Response(
-        JSON.stringify({ error: 'Missing required payment verification parameters' }),
+        JSON.stringify({ error: parseResult.error.flatten() }),
         { status: 400, headers: responseHeaders }
       );
     }
+
+    const { orderId, paymentId, signature, cohortId } = parseResult.data;
 
     // 3. Reject simulated mock orders and verify cryptographic HMAC signature
     if (orderId.startsWith('order_mock_')) {

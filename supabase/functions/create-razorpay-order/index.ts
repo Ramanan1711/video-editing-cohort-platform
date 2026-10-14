@@ -1,5 +1,22 @@
 import '../deno.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
+import { z } from 'https://deno.land/x/zod/mod.ts';
+
+export const CreateOrderSchema = z
+  .object({
+    cohort_id: z.string().uuid({ message: 'Invalid Cohort UUID' }).optional(),
+    cohortId: z.string().uuid({ message: 'Invalid Cohort UUID' }).optional(),
+    currency: z.enum(['INR', 'USD']).default('INR'),
+  })
+  .refine((data) => Boolean(data.cohort_id || data.cohortId), {
+    message: 'Missing cohortId parameter',
+    path: ['cohortId'],
+  })
+  .transform((data) => ({
+    cohort_id: (data.cohort_id || data.cohortId) as string,
+    cohortId: (data.cohortId || data.cohort_id) as string,
+    currency: data.currency,
+  }));
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -135,25 +152,28 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 2. Parse request payload
-    const body = await req.json().catch(() => null);
-    const cohortId = body?.cohortId;
+    // 2. Parse request payload with runtime Zod validation
+    const rawBody = await req.json().catch(() => null);
+    const parseResult = CreateOrderSchema.safeParse(rawBody);
 
-    if (!cohortId || typeof cohortId !== 'string') {
+    if (!parseResult.success) {
       logTelemetry({
         service: 'create-razorpay-order',
         level: 'warn',
         traceId,
         durationMs: getDuration(),
         event: 'order.create',
-        errorCode: 'MISSING_COHORT_ID',
-        message: 'Missing or invalid cohortId parameter',
+        errorCode: 'INVALID_PAYLOAD',
+        message: 'Invalid request payload for order creation',
+        metadata: { error: parseResult.error.flatten() },
       });
       return new Response(
-        JSON.stringify({ error: 'Missing cohortId parameter' }),
+        JSON.stringify({ error: parseResult.error.flatten() }),
         { status: 400, headers: responseHeaders }
       );
     }
+
+    const { cohortId } = parseResult.data;
 
     // 3. Invoke atomic checkout initialization RPC
     // Serializes concurrent requests via row lock, cleans expired reservations, and atomically reserves capacity

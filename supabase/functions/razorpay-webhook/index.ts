@@ -1,5 +1,6 @@
 import '../deno.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
+import { z } from 'https://deno.land/x/zod/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -88,29 +89,38 @@ async function verifyWebhookSignature(rawBody: string, secret: string, signature
   }
 }
 
-interface RazorpayEntity {
-  id?: string;
-  order_id?: string;
-  amount?: number;
-  currency?: string;
-  status?: string;
-  captured?: boolean;
-  notes?: Record<string, string>;
-  method?: string;
-  error_code?: string;
-  error_description?: string;
-  created_at?: number;
-}
+export const RazorpayEntitySchema = z
+  .object({
+    id: z.string().optional(),
+    order_id: z.string().optional(),
+    amount: z.number().optional(),
+    currency: z.string().optional(),
+    status: z.string().optional(),
+    captured: z.boolean().optional(),
+    notes: z.record(z.string(), z.unknown()).optional(),
+    method: z.string().optional(),
+    error_code: z.string().optional(),
+    error_description: z.string().optional(),
+    created_at: z.number().optional(),
+  })
+  .passthrough();
 
-interface RazorpayWebhookEvent {
-  id?: string;
-  event?: string;
-  created_at?: number;
-  payload?: {
-    payment?: { entity?: RazorpayEntity };
-    order?: { entity?: RazorpayEntity };
-  };
-}
+export const RazorpayWebhookSchema = z
+  .object({
+    id: z.string().optional(),
+    event: z.string().min(1, { message: 'Missing webhook event type' }),
+    created_at: z.number().optional(),
+    payload: z
+      .object({
+        payment: z.object({ entity: RazorpayEntitySchema.optional() }).passthrough().optional(),
+        order: z.object({ entity: RazorpayEntitySchema.optional() }).passthrough().optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
+export type RazorpayWebhookEvent = z.infer<typeof RazorpayWebhookSchema>;
 
 Deno.serve(async (req: Request) => {
   const startTime = performance.now();
@@ -235,10 +245,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 5. Parse Webhook Event JSON
-    let event: RazorpayWebhookEvent;
+    // 5. Parse and validate Webhook Event JSON with runtime Zod contract
+    let rawJson: unknown;
     try {
-      event = JSON.parse(rawBody) as RazorpayWebhookEvent;
+      rawJson = JSON.parse(rawBody);
     } catch {
       logTelemetry({
         service: 'razorpay-webhook',
@@ -253,6 +263,25 @@ Deno.serve(async (req: Request) => {
         { status: 400, headers: responseHeaders }
       );
     }
+
+    const parseResult = RazorpayWebhookSchema.safeParse(rawJson);
+    if (!parseResult.success) {
+      logTelemetry({
+        service: 'razorpay-webhook',
+        level: 'warn',
+        traceId,
+        durationMs: getDuration(),
+        errorCode: 'INVALID_PAYLOAD',
+        message: 'Rejected Razorpay webhook: invalid event schema',
+        metadata: { error: parseResult.error.flatten() },
+      });
+      return new Response(
+        JSON.stringify({ error: parseResult.error.flatten() }),
+        { status: 400, headers: responseHeaders }
+      );
+    }
+
+    const event: RazorpayWebhookEvent = parseResult.data;
 
     const eventType = event.event;
 

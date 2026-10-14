@@ -1,5 +1,15 @@
 import '../deno.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
+import { z } from 'https://deno.land/x/zod/mod.ts';
+
+export const UnlockChallengesSchema = z
+  .object({
+    cohort_id: z.string().uuid({ message: 'Invalid Cohort UUID' }).optional(),
+    cohortId: z.string().uuid({ message: 'Invalid Cohort UUID' }).optional(),
+  })
+  .transform((data) => ({
+    cohort_id: (data.cohort_id || data.cohortId) ?? null,
+  }));
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -124,15 +134,48 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Parse optional body for cohort-specific unlock
+    // Parse optional body for cohort-specific unlock with runtime Zod contract
     let cohortId: string | null = null;
-    try {
-      const body = await req.json();
-      if (body && typeof body.cohort_id === 'string') {
-        cohortId = body.cohort_id;
+    const rawBodyText = await req.text();
+    if (rawBodyText && rawBodyText.trim().length > 0) {
+      let rawJson: unknown;
+      try {
+        rawJson = JSON.parse(rawBodyText);
+      } catch {
+        logTelemetry({
+          service: 'unlock-challenges',
+          level: 'warn',
+          traceId,
+          durationMs: getDuration(),
+          event: 'unlock_challenges_validation',
+          errorCode: 'MALFORMED_JSON',
+          message: 'Malformed JSON payload in unlock-challenges',
+        });
+        return new Response(
+          JSON.stringify({ error: 'Malformed JSON payload' }),
+          { status: 400, headers: responseHeaders }
+        );
       }
-    } catch {
-      // Body is optional
+
+      const parseResult = UnlockChallengesSchema.safeParse(rawJson);
+      if (!parseResult.success) {
+        logTelemetry({
+          service: 'unlock-challenges',
+          level: 'warn',
+          traceId,
+          durationMs: getDuration(),
+          event: 'unlock_challenges_validation',
+          errorCode: 'INVALID_PAYLOAD',
+          message: 'Invalid request payload for unlock-challenges',
+          metadata: { error: parseResult.error.flatten() },
+        });
+        return new Response(
+          JSON.stringify({ error: parseResult.error.flatten() }),
+          { status: 400, headers: responseHeaders }
+        );
+      }
+
+      cohortId = parseResult.data.cohort_id;
     }
 
     if (cohortId) {
