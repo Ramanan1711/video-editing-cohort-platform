@@ -1,0 +1,151 @@
+import {
+  ExternalLink,
+  Flame,
+  Layers,
+  Pencil,
+  Plus,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
+import { Button } from '../../../components/ui/Button';
+import { getSecureAssetUrl } from '../../../lib/courseService';
+import type { Cohort } from '../../../lib/courseService';
+import { useAdminCourses } from '../context/useAdminCourses';
+
+export function SprintTrackStudio({ cohort }: { cohort: Cohort }) {
+  const {
+    challengesByCohort,
+    loadingChallengesCohortId,
+    canManageCurriculum,
+    openChallengeEditor,
+    handleDeleteChallenge,
+    setBulkImportTargetCohort,
+  } = useAdminCourses();
+
+  if (loadingChallengesCohortId === cohort.id && !challengesByCohort[cohort.id]) {
+    return (
+      <div className="py-12 text-center text-slate-400">
+        <Sparkles className="mx-auto mb-2 animate-spin text-amber-500" size={24} />
+        <p className="text-xs font-semibold">Loading daily sprint challenges...</p>
+      </div>
+    );
+  }
+
+  const challenges = challengesByCohort[cohort.id] || [];
+
+  if (challenges.length > 0) {
+    return (
+      <div className="space-y-3">
+        {challenges.map((challenge) => (
+          <div
+            key={challenge.id}
+            className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-slate-300 sm:flex-row sm:items-center"
+          >
+            <div className="flex items-start gap-3.5">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-xs font-black text-amber-700 border border-amber-200">
+                D{challenge.day_number}
+              </span>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-sm font-bold text-slate-900">{challenge.title}</h4>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      challenge.is_published === false
+                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                    }`}
+                  >
+                    {challenge.is_published === false ? 'Draft' : 'Published'}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                    {challenge.track_type}
+                  </span>
+                  <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-100">
+                    {challenge.submission_type.replace('_', ' ')}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                    {challenge.deadline_hours}h deadline
+                  </span>
+                </div>
+                {challenge.description && (
+                  <p className="text-xs text-slate-600 line-clamp-2">{challenge.description}</p>
+                )}
+                {challenge.instructions && (
+                  <p className="text-[11px] text-slate-400 italic line-clamp-1">
+                    Instructions: {challenge.instructions}
+                  </p>
+                )}
+                {challenge.starter_files_url && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!challenge.starter_files_url) return;
+                      try {
+                        const url = await getSecureAssetUrl(challenge.starter_files_url);
+                        window.open(url, '_blank');
+                      } catch {
+                        window.open(challenge.starter_files_url, '_blank');
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:underline"
+                  >
+                    <ExternalLink size={11} /> Starter Files
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {canManageCurriculum && (
+              <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
+                <button
+                  onClick={() => openChallengeEditor(cohort.id, challenge)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                  title="Edit Challenge"
+                >
+                  <Pencil size={15} />
+                </button>
+                <button
+                  onClick={() => void handleDeleteChallenge(cohort.id, challenge.id, challenge.title)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                  title="Delete Challenge"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-8 text-center">
+      <Flame className="mx-auto mb-2 text-amber-500" size={28} />
+      <p className="text-sm font-bold text-slate-900">No Daily Challenges Configured</p>
+      <p className="mt-1 text-xs text-slate-600 max-w-md mx-auto">
+        Sprint participants will need daily drills to build their portfolio and qualify for their completion certificate.
+      </p>
+      {canManageCurriculum && (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => openChallengeEditor(cohort.id)}
+          >
+            <Plus size={14} className="mr-1" /> Add Daily Challenge
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setBulkImportTargetCohort({ id: cohort.id, title: cohort.name });
+            }}
+          >
+            <Layers size={14} className="mr-1" /> Bulk Import Sprint Track
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
