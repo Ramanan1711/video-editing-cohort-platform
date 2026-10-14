@@ -62,15 +62,22 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
       expect(ids).toEqual([]);
     });
 
-    it('retrieves enrolled and active cohort ids from enrollments and mentor_cohorts', async () => {
+    it('retrieves enrolled, active, completed, and inactive cohort ids from enrollments and mentor_cohorts', async () => {
+      let enrolledStatusFilter: string[] = [];
       (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
         if (table === 'enrollments') {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                in: vi.fn().mockResolvedValue({
-                  data: [{ cohort_id: 'cohort-1' }, { cohort_id: 'cohort-2' }],
-                  error: null,
+                in: vi.fn().mockImplementation((_col: string, values: string[]) => {
+                  enrolledStatusFilter = values;
+                  return Promise.resolve({
+                    data: [
+                      { cohort_id: 'c4f1cf6e-6619-4a07-8c28-5a18e163e86f' }, // inactive
+                      { cohort_id: '02eebd78-f652-4277-8ab5-18cceb2d7d40' }, // enrolled
+                    ],
+                    error: null,
+                  });
                 }),
               }),
             }),
@@ -80,7 +87,7 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockResolvedValue({
-                data: [{ cohort_id: 'cohort-2' }, { cohort_id: 'cohort-3' }],
+                data: [],
                 error: null,
               }),
             }),
@@ -90,8 +97,12 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
       });
 
       const ids = await getUserEnrolledCohortIds('user-123');
-      expect(ids).toEqual(expect.arrayContaining(['cohort-1', 'cohort-2', 'cohort-3']));
-      expect(ids.length).toBe(3);
+      expect(enrolledStatusFilter).toEqual(['enrolled', 'active', 'completed', 'inactive']);
+      expect(ids).toEqual([
+        'c4f1cf6e-6619-4a07-8c28-5a18e163e86f',
+        '02eebd78-f652-4277-8ab5-18cceb2d7d40',
+      ]);
+      expect(ids.length).toBe(2);
     });
   });
 

@@ -48,6 +48,14 @@ try {
   // Ignore environments without localStorage access
 }
 
+interface CohortRow {
+  id: string;
+  title?: string | null;
+  name?: string | null;
+  description?: string | null;
+  status?: string | null;
+}
+
 /**
  * Helper to retrieve cohort IDs the user is enrolled in (or assigned to as mentor).
  */
@@ -56,12 +64,12 @@ export async function getUserEnrolledCohortIds(userId: string): Promise<string[]
   try {
     const cohortIds = new Set<string>();
 
-    // 1. Student enrollments in active/enrolled/completed status
+    // 1. Student enrollments in active/enrolled/completed/inactive status
     const { data: enrollments, error: enrollError } = await supabase
       .from('enrollments')
       .select('cohort_id')
       .eq('user_id', userId)
-      .in('status', ['enrolled', 'active', 'completed']);
+      .in('status', ['enrolled', 'active', 'completed', 'inactive']);
 
     if (!enrollError && enrollments) {
       for (const e of enrollments) {
@@ -118,18 +126,43 @@ export async function fetchChatChannels(userId?: string): Promise<ChatChannel[]>
 
     let cohortQuery = supabase
       .from('cohorts')
-      .select('id, title, description, status');
+      .select('id, title, name, description, status');
 
     if (enrolledCohortIds && enrolledCohortIds.length > 0) {
       cohortQuery = cohortQuery.in('id', enrolledCohortIds);
     }
 
-    const { data: cohorts, error: cohortError } = await cohortQuery
-      .order('created_at', { ascending: false });
+    let cohorts: CohortRow[] | null = null;
+    let cohortError: { message: string } | null = null;
+
+    const res = await cohortQuery.order('created_at', { ascending: false });
+    if (!res.error && res.data) {
+      cohorts = res.data as unknown as CohortRow[];
+    } else if (res.error) {
+      cohortError = res.error;
+    }
+
+    // Fallback if 'name' or 'status' column doesn't exist in a stripped view or test mock
+    if (cohortError) {
+      let fallbackQuery = supabase
+        .from('cohorts')
+        .select('id, title, description');
+
+      if (enrolledCohortIds && enrolledCohortIds.length > 0) {
+        fallbackQuery = fallbackQuery.in('id', enrolledCohortIds);
+      }
+
+      const fallbackRes = await fallbackQuery.order('created_at', { ascending: false });
+      if (!fallbackRes.error && fallbackRes.data) {
+        cohorts = fallbackRes.data as unknown as CohortRow[];
+        cohortError = null;
+      }
+    }
 
     if (!cohortError && cohorts && cohorts.length > 0) {
-      for (const cohort of cohorts) {
-        const cohortTitle = cohort.title || 'Cohort';
+      for (const cohort of cohorts as unknown as CohortRow[]) {
+        const rawTitle = cohort.title || cohort.name;
+        const cohortTitle = (rawTitle && String(rawTitle).trim()) || 'Cohort';
         const commId = `${cohort.id}-community`;
         channelMap.set(commId, {
           id: commId,
@@ -175,7 +208,7 @@ export async function fetchChatChannels(userId?: string): Promise<ChatChannel[]>
 
 /**
  * Dynamically fetches direct message users according to courses enrolled by the user.
- * Scopes contacts strictly to peer students, mentors, and staff affiliated with the user's enrolled cohorts.
+ * Scopes contacts strictly to peer students and mentors affiliated with the user's enrolled cohorts.
  */
 export async function fetchDirectMessageUsers(currentUserId?: string): Promise<DirectMessageUser[]> {
   try {
@@ -204,7 +237,7 @@ export async function fetchDirectMessageUsers(currentUserId?: string): Promise<D
           .select('user_id')
           .in('cohort_id', enrolledCohortIds)
           .neq('user_id', currentUserId)
-          .in('status', ['enrolled', 'active', 'completed']);
+          .in('status', ['enrolled', 'active', 'completed', 'inactive']);
 
         if (peers) {
           for (const p of peers) {
@@ -222,19 +255,6 @@ export async function fetchDirectMessageUsers(currentUserId?: string): Promise<D
         if (mentors) {
           for (const m of mentors) {
             if (m.mentor_id) targetIds.add(m.mentor_id);
-          }
-        }
-
-        // 3. Platform mentors & Admins available to support students
-        const { data: staff } = await supabase
-          .from('profiles')
-          .select('id')
-          .in('role', ['admin', 'mentor'])
-          .neq('id', currentUserId);
-
-        if (staff) {
-          for (const s of staff) {
-            if (s.id) targetIds.add(s.id);
           }
         }
 
@@ -258,7 +278,7 @@ export async function fetchDirectMessageUsers(currentUserId?: string): Promise<D
 
     const { data, error } = await query
       .order('full_name', { ascending: true })
-      .limit(50);
+      .limit(100);
 
     if (!error && data) {
       return data.map((profile) => ({
