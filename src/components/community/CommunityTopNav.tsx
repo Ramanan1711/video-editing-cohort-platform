@@ -311,7 +311,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
               </div>
 
               {/* Drawer Footer: Theme Toggle & Sign out */}
-              <div className="border-t border-slate-100 pt-3 dark:border-slate-800/80 space-y-2">
+              {/* <div className="border-t border-slate-100 pt-3 dark:border-slate-800/80 space-y-2">
                 <button
                   onClick={toggleTheme}
                   className="flex w-full items-center gap-2 rounded-lg p-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition"
@@ -330,7 +330,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
                   <LogOut size={16} />
                   <span>Sign out</span>
                 </button>
-              </div>
+              </div> */}
             </aside>
           </div>,
           document.body
