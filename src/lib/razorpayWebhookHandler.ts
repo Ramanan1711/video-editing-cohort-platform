@@ -339,6 +339,7 @@ export async function handleRazorpayWebhook({
     data: {
       received: true,
       success: true,
+      already_processed: Boolean(enrollmentData?.already_processed),
       order_id: orderId,
       payment_id: paymentId,
       enrollment_id: enrollmentData?.enrollment_id,

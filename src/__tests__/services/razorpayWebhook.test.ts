@@ -386,6 +386,47 @@ describe('Razorpay Webhook Hardening & Verification (Problem 2)', () => {
       });
     });
 
+    it('handles parallel verification race when RPC returns already_processed: true cleanly', async () => {
+      const rawBody = JSON.stringify(validEventPayload);
+      const signature = await generateTestSignature(rawBody, TEST_SECRET);
+
+      mockSingle.mockResolvedValue({
+        data: {
+          order_id: 'order_rzp_777',
+          user_id: 'user-uuid-1',
+          cohort_id: 'cohort-uuid-1',
+          amount: 499900,
+          currency: 'INR',
+          status: 'created', // Order was 'created' when webhook started, but concurrent client verification captured it first
+        },
+        error: null,
+      });
+
+      // The RPC row lock unblocks and returns already_processed: true
+      mockRpc.mockResolvedValue({
+        data: {
+          success: true,
+          already_processed: true,
+          payment_id: 'pay_uuid_existing',
+          enrollment_id: 'user-uuid-1',
+          cohort_id: 'cohort-uuid-1',
+          status: 'captured',
+        },
+        error: null,
+      });
+
+      const result = await handleRazorpayWebhook({
+        supabase: mockSupabase as SupabaseClient,
+        webhookSecret: TEST_SECRET,
+        signature,
+        rawBody,
+      });
+
+      expect(result.status).toBe(200);
+      expect(result.data.success).toBe(true);
+      expect(result.data.already_processed).toBe(true);
+    });
+
     it('fails closed with 500 if database RPC reports an error', async () => {
       const rawBody = JSON.stringify(validEventPayload);
       const signature = await generateTestSignature(rawBody, TEST_SECRET);
