@@ -55,6 +55,9 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
 
     expect(supabase.functions.invoke).toHaveBeenCalledWith('create-razorpay-order', {
       body: { cohortId: 'cohort-abc-123' },
+      headers: {
+        'x-correlation-id': expect.stringMatching(/^corr_ord_/),
+      },
     });
   });
 
@@ -112,6 +115,9 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
         paymentId: 'pay_test_001',
         signature: 'sig_valid_hex',
         cohortId: 'cohort-abc',
+      },
+      headers: {
+        'x-correlation-id': expect.stringMatching(/^corr_ver_/),
       },
     });
   });

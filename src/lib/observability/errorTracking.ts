@@ -175,18 +175,23 @@ class ErrorTracker {
   private readonly maxQueue = 100;
   private initialized = false;
   private sentryRetryAfterTimestamp = 0;
+  private alertWebhookUrl: string | null = null;
+  private alertSubscribers: Set<(alert: ErrorLogEntry) => void> = new Set();
 
   constructor() {
     this.restoreDurableState();
   }
 
-  init(options?: { dsn?: string; environment?: string }): void {
+  init(options?: { dsn?: string; environment?: string; alertWebhookUrl?: string }): void {
     if (options?.dsn !== undefined) {
       this.dsn = options.dsn;
       this.dsnComponents = parseSentryDsn(options.dsn);
     }
     if (options?.environment !== undefined) {
       this.environment = options.environment;
+    }
+    if (options?.alertWebhookUrl !== undefined) {
+      this.alertWebhookUrl = options.alertWebhookUrl;
     }
 
     if (this.initialized) return;
@@ -199,6 +204,9 @@ class ErrorTracker {
     }
     if (!this.environment) {
       this.environment = (typeof import.meta !== 'undefined' && import.meta.env?.MODE) || 'development';
+    }
+    if (!this.alertWebhookUrl) {
+      this.alertWebhookUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEMETRY_ALERT_WEBHOOK) || null;
     }
 
     if (typeof window !== 'undefined') {
@@ -386,9 +394,14 @@ class ErrorTracker {
     });
 
     // 4. Trigger alert manager if unhandled or high severity
-    // 4. Trigger alert manager if unhandled or high severity
     if (!entry.handled || entry.level === 'fatal') {
       alertManager.recordErrorSpike(err);
+    }
+
+    // Active Upstream Alerting: Broadcast operational alert via Realtime & fallback webhook
+    // Guarantees upstream visibility even when VITE_SENTRY_DSN is absent or unconfigured
+    if (!entry.handled || entry.level === 'fatal' || !this.dsnComponents) {
+      void this.broadcastOperationalAlert(entry);
     }
 
     // 5. If Sentry DSN is configured, dispatch immediately
@@ -435,8 +448,97 @@ class ErrorTracker {
       this.errorBuffer.pop();
     }
 
+    // If message is of error or fatal severity, queue for durable server persistence
+    if (level === 'error' || level === 'fatal') {
+      this.offlineQueue.push(entry);
+      if (this.offlineQueue.length > this.maxQueue) {
+        this.offlineQueue.shift();
+      }
+      if (level === 'fatal' || !this.dsnComponents) {
+        void this.broadcastOperationalAlert(entry);
+      }
+      void this.drainDurableQueue();
+    }
+
     this.persistDurableState();
     return entry;
+  }
+
+  setAlertWebhookUrl(url: string | null): void {
+    this.alertWebhookUrl = url;
+  }
+
+  getAlertWebhookUrl(): string | null {
+    return this.alertWebhookUrl;
+  }
+
+  onOperationalAlert(callback: (alert: ErrorLogEntry) => void): () => void {
+    this.alertSubscribers.add(callback);
+    return () => {
+      this.alertSubscribers.delete(callback);
+    };
+  }
+
+  async broadcastOperationalAlert(entry: ErrorLogEntry): Promise<boolean> {
+    // Notify registered in-app subscribers (admin dashboard, operational monitors)
+    this.alertSubscribers.forEach((subscriber) => {
+      try {
+        subscriber(entry);
+      } catch {
+        // Safe subscriber error isolation
+      }
+    });
+
+    const payload = {
+      id: entry.id,
+      title: entry.title,
+      message: entry.message,
+      level: entry.level,
+      handled: entry.handled,
+      timestamp: entry.timestamp,
+      user: entry.user,
+      tags: entry.tags,
+      url: entry.url,
+      stack: entry.stack,
+    };
+
+    // 1. Broadcast over Supabase Realtime channel for live monitoring
+    try {
+      if (supabase && typeof supabase.channel === 'function') {
+        const channel = supabase.channel('system:operational_alerts');
+        void channel.send({
+          type: 'broadcast',
+          event: 'operational_alert',
+          payload,
+        }).catch(() => {});
+      }
+    } catch {
+      // Ignore broadcast channel errors
+    }
+
+    // 2. Fallback upstream alert webhook dispatch (when Sentry DSN is missing or disabled)
+    const targetWebhook =
+      this.alertWebhookUrl ||
+      (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEMETRY_ALERT_WEBHOOK) ||
+      null;
+
+    if (targetWebhook && typeof fetch !== 'undefined') {
+      try {
+        await fetch(targetWebhook, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Telemetry-Source': 'client-error-tracker',
+          },
+          body: JSON.stringify(payload),
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   getRecentErrors(): ErrorLogEntry[] {
@@ -926,7 +1028,7 @@ class ErrorTracker {
 
 export const errorTracker = new ErrorTracker();
 
-export function initErrorTracking(options?: { dsn?: string; environment?: string }): ErrorTracker {
+export function initErrorTracking(options?: { dsn?: string; environment?: string; alertWebhookUrl?: string }): ErrorTracker {
   errorTracker.init(options);
   return errorTracker;
 }

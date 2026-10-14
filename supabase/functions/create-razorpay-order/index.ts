@@ -3,18 +3,70 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-correlation-id, x-request-id',
+  'Access-Control-Expose-Headers': 'x-correlation-id',
 };
 
+interface StructuredTelemetry {
+  timestamp: string;
+  service: string;
+  level: 'info' | 'warn' | 'error';
+  traceId: string;
+  durationMs: number;
+  event?: string;
+  errorCode?: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+}
+
+function logTelemetry(data: Omit<StructuredTelemetry, 'timestamp'>) {
+  const payload: StructuredTelemetry = {
+    timestamp: new Date().toISOString(),
+    ...data,
+  };
+  const jsonStr = JSON.stringify(payload);
+  if (data.level === 'error') {
+    console.error(jsonStr);
+  } else if (data.level === 'warn') {
+    console.warn(jsonStr);
+  } else {
+    console.log(jsonStr);
+  }
+}
+
 Deno.serve(async (req: Request) => {
+  const startTime = performance.now();
+  const traceId =
+    req.headers.get('x-correlation-id') ||
+    req.headers.get('x-request-id') ||
+    crypto.randomUUID();
+
+  const responseHeaders = {
+    ...corsHeaders,
+    'Content-Type': 'application/json',
+    'x-correlation-id': traceId,
+  };
+
+  const getDuration = () => Math.round(performance.now() - startTime);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: responseHeaders });
   }
 
   if (req.method !== 'POST') {
+    logTelemetry({
+      service: 'create-razorpay-order',
+      level: 'warn',
+      traceId,
+      durationMs: getDuration(),
+      event: 'order.create',
+      errorCode: 'METHOD_NOT_ALLOWED',
+      message: `Invalid HTTP method: ${req.method}`,
+    });
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: responseHeaders,
     });
   }
 
@@ -25,9 +77,18 @@ Deno.serve(async (req: Request) => {
     const razorpayKeySecret = Deno.env.get('RAZORPAY_KEY_SECRET') || '';
 
     if (!supabaseUrl || !supabaseServiceKey) {
+      logTelemetry({
+        service: 'create-razorpay-order',
+        level: 'error',
+        traceId,
+        durationMs: getDuration(),
+        event: 'order.create',
+        errorCode: 'CONFIG_MISSING',
+        message: 'Missing Supabase service configuration',
+      });
       return new Response(
         JSON.stringify({ error: 'Missing Supabase service configuration' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: responseHeaders }
       );
     }
 
@@ -37,9 +98,18 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization') || '';
     const token = authHeader.replace(/^Bearer\s+/i, '');
     if (!token) {
+      logTelemetry({
+        service: 'create-razorpay-order',
+        level: 'warn',
+        traceId,
+        durationMs: getDuration(),
+        event: 'order.create',
+        errorCode: 'AUTH_REQUIRED',
+        message: 'Missing authorization bearer token',
+      });
       return new Response(
         JSON.stringify({ error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: responseHeaders }
       );
     }
 
@@ -49,9 +119,19 @@ Deno.serve(async (req: Request) => {
     } = await supabase.auth.getUser(token);
 
     if (userError || !user) {
+      logTelemetry({
+        service: 'create-razorpay-order',
+        level: 'warn',
+        traceId,
+        durationMs: getDuration(),
+        event: 'order.create',
+        errorCode: 'AUTH_INVALID',
+        message: 'Invalid authentication session or user not found',
+        metadata: { error: userError?.message },
+      });
       return new Response(
         JSON.stringify({ error: 'Invalid authentication session' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: responseHeaders }
       );
     }
 
@@ -60,9 +140,18 @@ Deno.serve(async (req: Request) => {
     const cohortId = body?.cohortId;
 
     if (!cohortId || typeof cohortId !== 'string') {
+      logTelemetry({
+        service: 'create-razorpay-order',
+        level: 'warn',
+        traceId,
+        durationMs: getDuration(),
+        event: 'order.create',
+        errorCode: 'MISSING_COHORT_ID',
+        message: 'Missing or invalid cohortId parameter',
+      });
       return new Response(
         JSON.stringify({ error: 'Missing cohortId parameter' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: responseHeaders }
       );
     }
 
@@ -77,9 +166,19 @@ Deno.serve(async (req: Request) => {
     );
 
     if (checkoutError || !checkoutData) {
+      logTelemetry({
+        service: 'create-razorpay-order',
+        level: 'warn',
+        traceId,
+        durationMs: getDuration(),
+        event: 'order.create',
+        errorCode: 'CHECKOUT_RESERVATION_FAILED',
+        message: `Failed to initiate atomic cohort reservation: ${checkoutError?.message}`,
+        metadata: { cohortId, userId: user.id, error: checkoutError },
+      });
       return new Response(
         JSON.stringify({ error: checkoutError?.message || 'Unable to initiate cohort checkout' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: responseHeaders }
       );
     }
 
@@ -104,9 +203,19 @@ Deno.serve(async (req: Request) => {
           })
           .eq('id', reservationId);
       }
+      logTelemetry({
+        service: 'create-razorpay-order',
+        level: 'warn',
+        traceId,
+        durationMs: getDuration(),
+        event: 'order.create',
+        errorCode: 'FREE_ENROLLMENT_PROHIBITED',
+        message: `Free enrollment rejected for cohort ${cohortId}`,
+        metadata: { cohortId, amountInPaise, priceInr },
+      });
       return new Response(
         JSON.stringify({ error: 'Free enrollment is prohibited under the platform paid-only policy. Cohorts must have a valid positive price.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: responseHeaders }
       );
     }
 
@@ -130,15 +239,25 @@ Deno.serve(async (req: Request) => {
             user_id: user.id,
             email: user.email || '',
             cohort_title: checkoutData.title || '',
+            trace_id: traceId,
           },
         }),
       });
 
       if (!rzpRes.ok) {
         const errorText = await rzpRes.text();
-        console.error('Razorpay order creation error:', errorText);
+        logTelemetry({
+          service: 'create-razorpay-order',
+          level: 'error',
+          traceId,
+          durationMs: getDuration(),
+          event: 'order.create',
+          errorCode: 'GATEWAY_ERROR',
+          message: 'Razorpay API returned error creating order',
+          metadata: { statusCode: rzpRes.status, errorText: errorText.slice(0, 500) },
+        });
 
-        // Problem 5: Immediately release the atomic seat reservation on gateway failure
+        // Release the atomic seat reservation on gateway failure
         if (reservationId) {
           await supabase
             .from('payments')
@@ -156,7 +275,7 @@ Deno.serve(async (req: Request) => {
 
         return new Response(
           JSON.stringify({ error: 'Payment gateway error initiating order' }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 502, headers: responseHeaders }
         );
       }
 
@@ -178,14 +297,23 @@ Deno.serve(async (req: Request) => {
           .eq('id', reservationId);
       }
 
+      logTelemetry({
+        service: 'create-razorpay-order',
+        level: 'error',
+        traceId,
+        durationMs: getDuration(),
+        event: 'order.create',
+        errorCode: 'GATEWAY_UNCONFIGURED',
+        message: 'Payment gateway credentials are not configured on this server',
+      });
+
       return new Response(
         JSON.stringify({ error: 'Payment gateway credentials are not configured on this server' }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 503, headers: responseHeaders }
       );
     }
 
     // 5. Critical Gate: Link provider order ID to the atomically reserved payment row
-    // Fail-Closed: If database update fails, abort immediately, release seat, and return error.
     let paymentRecordId = reservationId;
 
     if (reservationId) {
@@ -201,6 +329,7 @@ Deno.serve(async (req: Request) => {
           },
           metadata: {
             initiated_at: new Date().toISOString(),
+            trace_id: traceId,
             user_email: user.email,
             cohort_title: checkoutData.title,
             cohort_price_inr: checkoutData.price_inr,
@@ -212,7 +341,17 @@ Deno.serve(async (req: Request) => {
         .eq('id', reservationId);
 
       if (updateOrderError) {
-        console.error('CRITICAL: Failed to link order ID to atomic reservation:', updateOrderError);
+        logTelemetry({
+          service: 'create-razorpay-order',
+          level: 'error',
+          traceId,
+          durationMs: getDuration(),
+          event: 'order.create',
+          errorCode: 'RESERVATION_LINK_FAILED',
+          message: `CRITICAL: Failed to link order ID to atomic reservation: ${updateOrderError.message}`,
+          metadata: { reservationId, razorpayOrderId, error: updateOrderError },
+        });
+
         // Release reservation
         await supabase
           .from('payments')
@@ -232,7 +371,7 @@ Deno.serve(async (req: Request) => {
             error: 'Unable to initiate checkout: payment attempt could not be recorded in database.',
             details: updateOrderError.message,
           }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 500, headers: responseHeaders }
         );
       }
     } else {
@@ -257,6 +396,7 @@ Deno.serve(async (req: Request) => {
           },
           metadata: {
             initiated_at: new Date().toISOString(),
+            trace_id: traceId,
             user_email: user.email,
             cohort_title: checkoutData.title,
             cohort_price_inr: checkoutData.price_inr,
@@ -268,17 +408,37 @@ Deno.serve(async (req: Request) => {
         .single();
 
       if (insertOrderError || !insertedPayment) {
-        console.error('CRITICAL: Failed to persist pending payment attempt in database:', insertOrderError);
+        logTelemetry({
+          service: 'create-razorpay-order',
+          level: 'error',
+          traceId,
+          durationMs: getDuration(),
+          event: 'order.create',
+          errorCode: 'FALLBACK_INSERT_FAILED',
+          message: 'CRITICAL: Failed to persist pending payment attempt in database',
+          metadata: { error: insertOrderError },
+        });
+
         return new Response(
           JSON.stringify({
             error: 'Unable to initiate checkout: payment attempt could not be recorded in database.',
             details: insertOrderError?.message || 'Database write unconfirmed',
           }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 500, headers: responseHeaders }
         );
       }
       paymentRecordId = insertedPayment.id;
     }
+
+    logTelemetry({
+      service: 'create-razorpay-order',
+      level: 'info',
+      traceId,
+      durationMs: getDuration(),
+      event: 'order.create',
+      message: `Created order ${razorpayOrderId} for cohort ${cohortId} (user: ${user.id})`,
+      metadata: { orderId: razorpayOrderId, cohortId, amount: amountInPaise, paymentRecordId },
+    });
 
     // 6. Return verified order details to frontend only after local payment record is securely persisted
     return new Response(
@@ -292,13 +452,23 @@ Deno.serve(async (req: Request) => {
         paymentRecordId,
         expiresAt: checkoutData.expires_at,
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: responseHeaders }
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+    logTelemetry({
+      service: 'create-razorpay-order',
+      level: 'error',
+      traceId,
+      durationMs: getDuration(),
+      event: 'order.create',
+      errorCode: 'UNHANDLED_EXCEPTION',
+      message: `Unhandled exception in create-razorpay-order: ${message}`,
+      metadata: { error: message },
+    });
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: responseHeaders,
     });
   }
 });

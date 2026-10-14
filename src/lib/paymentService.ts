@@ -119,6 +119,8 @@ export async function createCohortRazorpayOrder(cohortId: string): Promise<Razor
     throw new Error('Cohort ID is required to initiate checkout.');
   }
 
+  const correlationId = `corr_ord_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
   const { data, error } = await supabase.functions.invoke<{
     success?: boolean;
     orderId: string;
@@ -129,6 +131,9 @@ export async function createCohortRazorpayOrder(cohortId: string): Promise<Razor
     error?: string;
   }>('create-razorpay-order', {
     body: { cohortId },
+    headers: {
+      'x-correlation-id': correlationId,
+    },
   });
 
   if (error || !data || !data.orderId) {
@@ -157,6 +162,8 @@ export async function verifyRazorpayPayment(
     throw new Error('Incomplete payment response received from gateway.');
   }
 
+  const correlationId = `corr_ver_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
   const { data, error } = await supabase.functions.invoke<{
     success: boolean;
     verified: boolean;
@@ -168,6 +175,9 @@ export async function verifyRazorpayPayment(
       paymentId: paymentData.razorpay_payment_id,
       signature: paymentData.razorpay_signature,
       cohortId,
+    },
+    headers: {
+      'x-correlation-id': correlationId,
     },
   });
 

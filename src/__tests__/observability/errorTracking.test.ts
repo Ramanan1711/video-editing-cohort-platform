@@ -302,4 +302,81 @@ describe('Error Tracking Telemetry Engine', () => {
       });
     });
   });
+
+  describe('Active Upstream Alerting & Sentry Fallback Resilience', () => {
+    it('broadcasts operational alerts to Supabase Realtime channel when Sentry DSN is absent', async () => {
+      const channelSendMock = vi.fn().mockResolvedValue('ok');
+      const mockChannel = {
+        send: channelSendMock,
+      };
+      const channelSpy = vi.spyOn(supabase, 'channel').mockReturnValue(mockChannel as never);
+
+      errorTracker.captureException(new Error('Fatal unhandled runtime exception'), {
+        level: 'fatal',
+        handled: false,
+      });
+
+      expect(channelSpy).toHaveBeenCalledWith('system:operational_alerts');
+      expect(channelSendMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'broadcast',
+          event: 'operational_alert',
+          payload: expect.objectContaining({
+            title: 'Error',
+            message: 'Fatal unhandled runtime exception',
+            level: 'fatal',
+            handled: false,
+          }),
+        })
+      );
+    });
+
+    it('dispatches active upstream webhook alerts when alertWebhookUrl is configured without Sentry', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+
+      errorTracker.setAlertWebhookUrl('https://ops.example.com/api/telemetry-alerts');
+      errorTracker.captureException(new Error('Payment gateway timeout on checkout'), {
+        level: 'error',
+      });
+
+      expect(fetchSpy).toHaveBeenCalled();
+      const calledUrl = fetchSpy.mock.calls[0][0];
+      const calledInit = fetchSpy.mock.calls[0][1] as RequestInit;
+
+      expect(calledUrl).toBe('https://ops.example.com/api/telemetry-alerts');
+      expect(calledInit.method).toBe('POST');
+      expect(calledInit.headers).toHaveProperty('Content-Type', 'application/json');
+      expect(calledInit.headers).toHaveProperty('X-Telemetry-Source', 'client-error-tracker');
+      expect(String(calledInit.body)).toContain('Payment gateway timeout on checkout');
+    });
+
+    it('notifies registered in-app alert listeners in real time via onOperationalAlert', () => {
+      const alertListener = vi.fn();
+      const unsubscribe = errorTracker.onOperationalAlert(alertListener);
+
+      errorTracker.captureException(new Error('Storage quota exceeded'), {
+        level: 'fatal',
+      });
+
+      expect(alertListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Storage quota exceeded',
+          level: 'fatal',
+        })
+      );
+
+      unsubscribe();
+      errorTracker.captureException(new Error('Secondary failure'));
+      expect(alertListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('queues fatal and error captureMessage events for durable server persistence', () => {
+      const entry = errorTracker.captureMessage('Critical memory leak warning', 'error');
+
+      const queue = errorTracker.getOfflineQueue();
+      expect(queue.some((e) => e.id === entry.id)).toBe(true);
+      expect(entry.level).toBe('error');
+    });
+  });
 });
+
