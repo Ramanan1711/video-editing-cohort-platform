@@ -3,10 +3,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
 import { z } from 'https://deno.land/x/zod/mod.ts';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://platform.iunoware.com',
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type, x-razorpay-signature, x-correlation-id, x-request-id',
   'Access-Control-Expose-Headers': 'x-correlation-id',
+  'Vary': 'Origin',
 };
 
 interface StructuredTelemetry {

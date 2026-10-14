@@ -213,6 +213,105 @@ export async function uploadCourseAsset(file: File, folder = 'lessons'): Promise
   return `course-assets/${path}`;
 }
 
+export const ALLOWED_SUBMISSION_MIME_TYPES = [
+  'video/mp4',
+  'video/quicktime',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/pdf',
+] as const;
+
+/**
+ * Inspects initial bytes (magic numbers) of a file to detect its true MIME type.
+ * Protects against Stored XSS and file-extension spoofing (e.g. HTML/script/executable disguised as video or zip).
+ */
+export async function sniffFileMimeType(file: File): Promise<string> {
+  // Read first 64 bytes
+  const slice = file.slice(0, 64);
+  const buffer = await slice.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+
+  if (bytes.length < 4) {
+    throw new Error('File is too small to verify authentic format.');
+  }
+
+  // 1. Proactive Block for Stored XSS: Check for HTML, SVG, XML, script tags in header
+  const headerStr = Array.from(bytes.slice(0, 32))
+    .map((b) => String.fromCharCode(b))
+    .join('');
+  const lowerHeader = headerStr.toLowerCase();
+  if (
+    lowerHeader.includes('<html') ||
+    lowerHeader.includes('<!doctype') ||
+    lowerHeader.includes('<script') ||
+    lowerHeader.includes('<svg') ||
+    lowerHeader.includes('<?xml')
+  ) {
+    throw new Error(
+      'Security alert: Detected executable markup or script tags in file header. Upload rejected to prevent Stored XSS.'
+    );
+  }
+
+  // DOS/Windows executable (MZ)
+  if (bytes[0] === 0x4d && bytes[1] === 0x5a) {
+    throw new Error('Security alert: Executable binary detected. Executable uploads are strictly prohibited.');
+  }
+
+  // Linux ELF executable (\x7fELF)
+  if (bytes[0] === 0x7f && bytes[1] === 0x45 && bytes[2] === 0x4c && bytes[3] === 0x46) {
+    throw new Error('Security alert: Executable binary detected. Executable uploads are strictly prohibited.');
+  }
+
+  // 2. PDF Signature: %PDF- (0x25 0x50 0x44 0x46 0x2D)
+  if (
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46 &&
+    bytes[4] === 0x2d
+  ) {
+    return 'application/pdf';
+  }
+
+  // 3. ZIP Signature: PK\x03\x04 (0x50 0x4B 0x03 0x04) or PK\x05\x06 (empty) or PK\x07\x08
+  if (
+    bytes[0] === 0x50 &&
+    bytes[1] === 0x4b &&
+    (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07) &&
+    (bytes[3] === 0x04 || bytes[3] === 0x06 || bytes[3] === 0x08)
+  ) {
+    return 'application/zip';
+  }
+
+  // 4. MP4 / QuickTime (MOV) Box Type Signature:
+  // Bytes 4-7 contain ISO box type: 'ftyp', 'moov', 'mdat', 'wide', 'skip'
+  if (bytes.length >= 8) {
+    const boxType = String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7]);
+    if (boxType === 'ftyp') {
+      const majorBrand = bytes.length >= 12
+        ? String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]).trim().toLowerCase()
+        : '';
+      if (majorBrand === 'qt') {
+        return 'video/quicktime';
+      }
+      return 'video/mp4';
+    }
+    if (['moov', 'mdat', 'wide', 'skip'].includes(boxType.toLowerCase())) {
+      return 'video/quicktime';
+    }
+  }
+
+  // Fallback check against inferred type if file is valid and extension matches allowed types
+  const inferred = inferMimeType(file.name);
+  if ((ALLOWED_SUBMISSION_MIME_TYPES as readonly string[]).includes(inferred)) {
+    return inferred;
+  }
+
+  throw new Error(
+    `Unsupported or unverified file type (${inferred}). Only MP4, MOV, ZIP, and PDF deliverables are allowed.`
+  );
+}
+
 export interface UploadSubmissionOptions {
   onProgress?: (percent: number) => void;
   signal?: AbortSignal;
@@ -227,15 +326,22 @@ export async function uploadSubmissionFile(
     throw new DOMException('Upload aborted by user', 'AbortError');
   }
 
+  // Enforce magic-byte content verification before upload
+  const verifiedMimeType = await sniffFileMimeType(file);
+  if (!(ALLOWED_SUBMISSION_MIME_TYPES as readonly string[]).includes(verifiedMimeType)) {
+    throw new Error(
+      `File format "${verifiedMimeType}" is not permitted. Only MP4, MOV, ZIP, and PDF files may be uploaded.`
+    );
+  }
+
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
   const path = `${userId}/${crypto.randomUUID()}-${safeName}`;
-  const contentType = file.type || inferMimeType(file.name);
 
   options?.onProgress?.(10);
 
   const { error: uploadError } = await supabase.storage.from('submissions').upload(path, file, {
     upsert: false,
-    contentType,
+    contentType: verifiedMimeType,
   });
 
   if (options?.signal?.aborted) {

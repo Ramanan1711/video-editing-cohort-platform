@@ -11,12 +11,39 @@ export const UnlockChallengesSchema = z
     cohort_id: (data.cohort_id || data.cohortId) ?? null,
   }));
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-cron-secret, x-correlation-id, x-request-id',
-  'Access-Control-Expose-Headers': 'x-correlation-id',
-};
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://platform.iunoware.com',
+  'https://staging.iunoware.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173',
+  'http://127.0.0.1:5173',
+];
+
+export function isOriginAllowed(origin: string): boolean {
+  if (!origin) return true; // Direct non-browser callers (crons or server-to-server)
+  const configured = (Deno.env.get('ALLOWED_ORIGINS') || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  const allowlist = [...DEFAULT_ALLOWED_ORIGINS, ...configured];
+  if (allowlist.includes(origin)) return true;
+  return /^https:\/\/([a-zA-Z0-9-]+\.)*iunoware\.com$/.test(origin);
+}
+
+export function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  const isAllowed = isOriginAllowed(origin);
+  const matchedOrigin = isAllowed && origin ? origin : 'https://platform.iunoware.com';
+
+  return {
+    'Access-Control-Allow-Origin': matchedOrigin,
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type, x-cron-secret, x-correlation-id, x-request-id',
+    'Access-Control-Expose-Headers': 'x-correlation-id',
+    'Vary': 'Origin',
+  };
+}
 
 interface StructuredTelemetry {
   timestamp: string;
@@ -53,7 +80,7 @@ Deno.serve(async (req: Request) => {
     crypto.randomUUID();
 
   const responseHeaders = {
-    ...corsHeaders,
+    ...getCorsHeaders(req),
     'Content-Type': 'application/json',
     'x-correlation-id': traceId,
   };

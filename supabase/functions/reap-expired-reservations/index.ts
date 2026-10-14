@@ -8,12 +8,41 @@ export const ReapExpiredReservationsSchema = z
   })
   .optional();
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
-};
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://platform.iunoware.com',
+  'https://staging.iunoware.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173',
+  'http://127.0.0.1:5173',
+];
+
+export function isOriginAllowed(origin: string): boolean {
+  if (!origin) return true;
+  const configured = (Deno.env.get('ALLOWED_ORIGINS') || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  const allowlist = [...DEFAULT_ALLOWED_ORIGINS, ...configured];
+  if (allowlist.includes(origin)) return true;
+  return /^https:\/\/([a-zA-Z0-9-]+\.)*iunoware\.com$/.test(origin);
+}
+
+export function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  const isAllowed = isOriginAllowed(origin);
+  const matchedOrigin = isAllowed && origin ? origin : 'https://platform.iunoware.com';
+
+  return {
+    'Access-Control-Allow-Origin': matchedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
+    'Vary': 'Origin',
+  };
+}
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });

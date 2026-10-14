@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-08T06:50:53.443Z",
-  "migrationCount": 55,
+  "generatedAt": "2026-10-14T07:53:41.079Z",
+  "migrationCount": 62,
   "migrations": [
     {
       "order": 1,
@@ -122,8 +122,8 @@
     {
       "order": 8,
       "filename": "20260928000001_secure_profile_contact_fields.sql",
-      "sha256": "273990c59f48b03597736abad86a413676fd7dc540c938dbb971d7200f9320ba",
-      "sizeBytes": 4153,
+      "sha256": "80b67c2f134a91330cff0ee7a301a62067838522d8986a5f49f4004158d27adc",
+      "sizeBytes": 4282,
       "hasSecurityDefinerWithoutSearchPath": true,
       "tableCreations": [
         "mentor_cohorts"
@@ -198,8 +198,8 @@
     {
       "order": 13,
       "filename": "20260928000006_canonical_cohorts_enrollments_mentor_mapping.sql",
-      "sha256": "bd427848c7a56ffeffc02b9b1e36c272034f7904f0db3d57f1fc14401a67bfe3",
-      "sizeBytes": 17707,
+      "sha256": "08a20275454c63ea831a7b40866e5dc4416473772650a74195dbf0b816309485",
+      "sizeBytes": 17765,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [
         "cohorts",
@@ -216,8 +216,8 @@
     {
       "order": 14,
       "filename": "20260928000007_canonical_courses_entity_and_curriculum.sql",
-      "sha256": "8ea24b9660e4cdc887a78ff99507967780c2c37d4b5596308a48de2753750747",
-      "sizeBytes": 11949,
+      "sha256": "a9caed92c762f6ed4c8d8a15b140690998f495fe796aa2feb1dd5da1e1ec9cef",
+      "sizeBytes": 12002,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [
         "courses"
@@ -231,8 +231,8 @@
     {
       "order": 15,
       "filename": "20260928000008_canonical_modules_crud_and_ordering.sql",
-      "sha256": "d138fa2b1657601f92d241d96411a59de2f48abedfa5a83b181c6df854c313d3",
-      "sizeBytes": 15911,
+      "sha256": "d1553366568eab79812788c76829e43d51707b5030883b3b04f7957d50a67998",
+      "sizeBytes": 15964,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -245,8 +245,8 @@
     {
       "order": 16,
       "filename": "20260928000009_canonical_lessons_watch_verification_and_crud.sql",
-      "sha256": "52a315faf562f3ded83f4f833e751d8fe8f3fb7b36fd2b8617060d6f82825dd2",
-      "sizeBytes": 18572,
+      "sha256": "e8ea154a4888ceceefb6e7b5ba25f8b8447f9a61d2ded44f6212f52db8c856e8",
+      "sizeBytes": 18625,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -262,8 +262,8 @@
     {
       "order": 17,
       "filename": "20260928000010_canonical_lesson_resources_and_storage_privacy.sql",
-      "sha256": "ddb171ced97b2101a1480c81eeaf532ef724603ce0f986b3478fe9c042a8fca2",
-      "sizeBytes": 12552,
+      "sha256": "8d223cfc9fadecb680b249b4c38fcbb14038da506bcad57af5fd3037e2ee4638",
+      "sizeBytes": 12620,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -274,8 +274,8 @@
     {
       "order": 18,
       "filename": "20260928000011_canonical_lesson_progress_authoritative_verification.sql",
-      "sha256": "181fd3e007f171111cefb3c60b151fb13e5fab43f19804c6c653d3f0f02da1eb",
-      "sizeBytes": 19454,
+      "sha256": "30747689c365fb255c15b21ae10304ad0a8b53d313e3b1215d2ef8182b2e586c",
+      "sizeBytes": 19523,
       "hasSecurityDefinerWithoutSearchPath": true,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -288,8 +288,8 @@
     {
       "order": 19,
       "filename": "20260928000012_canonical_assignments_cohort_scoping_and_instructions_sync.sql",
-      "sha256": "d44849e2765880555a3d50b3b6955ca4092185934a6ba12d2cc95c081b5834da",
-      "sizeBytes": 11383,
+      "sha256": "6703a31807a6d78cd0c843089bf33a19d8118b2a128684708574748125ff6688",
+      "sizeBytes": 11443,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -584,8 +584,8 @@
     {
       "order": 39,
       "filename": "20260928000032_canonical_security_hardening_profiles_and_challenges.sql",
-      "sha256": "29474d458c6305ee64c8b4e1d086ec6e7f18467c694663adb7bbbbded64f91e1",
-      "sizeBytes": 18211,
+      "sha256": "0fdd29216f2b4572a6e6bc91034c280bb36a73b5b8d4dd9ce8f17624bc08f21a",
+      "sizeBytes": 18225,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -769,8 +769,8 @@
     {
       "order": 54,
       "filename": "20261008000002_allow_community_storage_read_and_signed_urls.sql",
-      "sha256": "b447e3be8c217ece61416e9971f7ad22e31bf2144c579c51e5530d77ef938415",
-      "sizeBytes": 2923,
+      "sha256": "e7a115a11e7aed1c55c19d15a8c19605abec523d0385c7726b49165a93200ce7",
+      "sizeBytes": 2924,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -780,8 +780,8 @@
     {
       "order": 55,
       "filename": "20261008000003_course_challenges_and_authoring.sql",
-      "sha256": "bf5f5fb76f182ff4b93389308693828b7d347ba1eccbeb85b2f1c06bd11502cd",
-      "sizeBytes": 6068,
+      "sha256": "0262c848a8a0d56e067314675fa4085caf39ae79309fbb533b4fb52a5cdf0cb7",
+      "sizeBytes": 6069,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [
         "course_challenges",
@@ -795,8 +795,8 @@
     {
       "order": 56,
       "filename": "20261009000001_sync_admin_subroles_and_harden_rls_helpers.sql",
-      "sha256": "c0422b7e0729d7785cdb300798ff8513595f340bfe54937e850f8168330c3682",
-      "sizeBytes": 9644,
+      "sha256": "a520c1825f986e0648b96ac2f1acd274f6f26ebb20dd09d61ef809cf9d12b86b",
+      "sizeBytes": 9645,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -809,16 +809,32 @@
     {
       "order": 57,
       "filename": "20261009000002_remove_hardcoded_sprint_tracks.sql",
-      "sha256": "b2588bbcd03c2e3f809045d98f80c00c57fea8ccca138446ef7fe3f249d881a1",
-      "sizeBytes": 5384,
+      "sha256": "871f00206dcc4fcc6051a2f0cffb1e5d1d11827ed4e6f75d96f9135279cc7eaf",
+      "sizeBytes": 9922,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
-        "ensure_cohort_daily_challenges"
+        "ensure_cohort_daily_challenges",
+        "admin_clear_cohort_daily_challenges"
       ]
     },
     {
       "order": 58,
+      "filename": "20261009000003_fix_daily_challenges_rls_and_purge_all_hardcoded_sprints.sql",
+      "sha256": "7912eb80e0333a1f2afc04faa41a36874f97fc4a34bd21c138a81bb4536677a7",
+      "sizeBytes": 10704,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "ensure_cohort_daily_challenges",
+        "is_mentor_or_admin",
+        "admin_clear_cohort_daily_challenges",
+        "admin_delete_daily_challenge",
+        "admin_bulk_upsert_daily_challenges"
+      ]
+    },
+    {
+      "order": 59,
       "filename": "20261014000001_fix_admin_role_default_and_restore_user_roles.sql",
       "sha256": "7d613144a9fae3e36001fa9d7c5a5cb4ac57bb54364ebb18a6f5217c7fa1caf3",
       "sizeBytes": 7550,
@@ -829,15 +845,41 @@
       ]
     },
     {
-      "order": 59,
+      "order": 60,
       "filename": "20261014000002_automated_seat_reaper_and_concurrency_lock.sql",
-      "sha256": "f80cd93ffc83600f46c214604a353fe82fb77c057e52b25b529044a6faeb3d2a",
-      "sizeBytes": 11121,
+      "sha256": "2729f2d1181c9c8b30a1dc82c504f117856bff72638ad1e2bf6dbb16746ff545",
+      "sizeBytes": 11122,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
         "release_expired_cohort_reservations",
         "record_successful_payment_and_enroll"
+      ]
+    },
+    {
+      "order": 61,
+      "filename": "20261014000003_timezone_aware_midnight_challenge_unlock.sql",
+      "sha256": "bf28f9fae20396b7304a6b5d0baa69ba376c2785a6a9fe7031031926d578878d",
+      "sizeBytes": 7459,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "unlock_scheduled_daily_challenges",
+        "unlock_cohort_daily_challenges"
+      ]
+    },
+    {
+      "order": 62,
+      "filename": "20261014000004_security_hardening_rate_limits_and_privileges.sql",
+      "sha256": "d0f6be0706675a47c1d3b4d6bb30c2c4793954ae03e8205e1c1ba9cff2998317",
+      "sizeBytes": 10130,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [
+        "api_rate_limits"
+      ],
+      "rpcDefinitions": [
+        "fn_protect_profile_privilege_fields",
+        "check_and_consume_rate_limit"
       ]
     }
   ]

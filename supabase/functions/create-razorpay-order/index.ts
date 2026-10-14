@@ -18,12 +18,39 @@ export const CreateOrderSchema = z
     currency: data.currency,
   }));
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-correlation-id, x-request-id',
-  'Access-Control-Expose-Headers': 'x-correlation-id',
-};
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://platform.iunoware.com',
+  'https://staging.iunoware.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173',
+  'http://127.0.0.1:5173',
+];
+
+export function isOriginAllowed(origin: string): boolean {
+  if (!origin) return true; // Direct non-browser callers (server-to-server or test runners)
+  const configured = (Deno.env.get('ALLOWED_ORIGINS') || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  const allowlist = [...DEFAULT_ALLOWED_ORIGINS, ...configured];
+  if (allowlist.includes(origin)) return true;
+  return /^https:\/\/([a-zA-Z0-9-]+\.)*iunoware\.com$/.test(origin);
+}
+
+export function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  const isAllowed = isOriginAllowed(origin);
+  const matchedOrigin = isAllowed && origin ? origin : 'https://platform.iunoware.com';
+
+  return {
+    'Access-Control-Allow-Origin': matchedOrigin,
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type, x-correlation-id, x-request-id',
+    'Access-Control-Expose-Headers': 'x-correlation-id',
+    'Vary': 'Origin',
+  };
+}
 
 interface StructuredTelemetry {
   timestamp: string;
@@ -60,12 +87,29 @@ Deno.serve(async (req: Request) => {
     crypto.randomUUID();
 
   const responseHeaders = {
-    ...corsHeaders,
+    ...getCorsHeaders(req),
     'Content-Type': 'application/json',
     'x-correlation-id': traceId,
   };
 
   const getDuration = () => Math.round(performance.now() - startTime);
+
+  const origin = req.headers.get('origin');
+  if (origin && !isOriginAllowed(origin)) {
+    logTelemetry({
+      service: 'create-razorpay-order',
+      level: 'warn',
+      traceId,
+      durationMs: getDuration(),
+      event: 'order.cors_blocked',
+      errorCode: 'CORS_FORBIDDEN',
+      message: `Blocked unauthorized origin: ${origin}`,
+    });
+    return new Response(JSON.stringify({ error: 'CORS origin not allowed' }), {
+      status: 403,
+      headers: responseHeaders,
+    });
+  }
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: responseHeaders });
@@ -152,7 +196,87 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 2. Parse request payload with runtime Zod validation
+    // 2. Enforce Rate Limiting (max 5 order creations per user/IP per 10 minutes)
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      req.headers.get('cf-connecting-ip') ||
+      req.headers.get('x-real-ip') ||
+      'unknown_ip';
+
+    const userRateKey = `order_create:user:${user.id}`;
+    const ipRateKey = `order_create:ip:${clientIp}`;
+
+    const { data: userRateData } = await supabase.rpc('check_and_consume_rate_limit', {
+      p_key: userRateKey,
+      p_max_requests: 5,
+      p_window_seconds: 600,
+    });
+
+    const userRate = Array.isArray(userRateData) && userRateData[0] ? userRateData[0] : null;
+
+    if (userRate && userRate.allowed === false) {
+      const retryAfter = userRate.reset_seconds || 600;
+      logTelemetry({
+        service: 'create-razorpay-order',
+        level: 'warn',
+        traceId,
+        durationMs: getDuration(),
+        event: 'order.create',
+        errorCode: 'RATE_LIMIT_EXCEEDED',
+        message: `Rate limit exceeded for user ${user.id}`,
+        metadata: { userId: user.id, clientIp, resetSeconds: retryAfter },
+      });
+      return new Response(
+        JSON.stringify({
+          error: 'Rate limit exceeded. Maximum 5 checkout attempts per 10 minutes. Please wait before retrying.',
+          retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...responseHeaders,
+            'Retry-After': String(retryAfter),
+          },
+        }
+      );
+    }
+
+    if (clientIp !== 'unknown_ip') {
+      const { data: ipRateData } = await supabase.rpc('check_and_consume_rate_limit', {
+        p_key: ipRateKey,
+        p_max_requests: 10,
+        p_window_seconds: 600,
+      });
+      const ipRate = Array.isArray(ipRateData) && ipRateData[0] ? ipRateData[0] : null;
+      if (ipRate && ipRate.allowed === false) {
+        const retryAfter = ipRate.reset_seconds || 600;
+        logTelemetry({
+          service: 'create-razorpay-order',
+          level: 'warn',
+          traceId,
+          durationMs: getDuration(),
+          event: 'order.create',
+          errorCode: 'RATE_LIMIT_EXCEEDED',
+          message: `Rate limit exceeded for IP ${clientIp}`,
+          metadata: { userId: user.id, clientIp, resetSeconds: retryAfter },
+        });
+        return new Response(
+          JSON.stringify({
+            error: 'Rate limit exceeded from your IP address. Please wait before retrying.',
+            retryAfter,
+          }),
+          {
+            status: 429,
+            headers: {
+              ...responseHeaders,
+              'Retry-After': String(retryAfter),
+            },
+          }
+        );
+      }
+    }
+
+    // 3. Parse request payload with runtime Zod validation
     const rawBody = await req.json().catch(() => null);
     const parseResult = CreateOrderSchema.safeParse(rawBody);
 
