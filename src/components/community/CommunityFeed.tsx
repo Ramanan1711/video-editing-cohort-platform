@@ -25,12 +25,14 @@ import {
   togglePostReaction,
   togglePinCommunityPost,
   getCommunityPostViews,
+  isValidUuid,
   type CommunityPost,
   type CommunityComment,
 } from '../../lib/communityService';
 
 interface CommunityFeedProps {
   onOpenCreateModal: () => void;
+  cohortId?: string;
   selectedChannelId?: string;
   refreshKey?: number;
 }
@@ -54,6 +56,7 @@ function formatRelativeTime(dateString: string): string {
 
 export const CommunityFeed: React.FC<CommunityFeedProps> = ({
   onOpenCreateModal,
+  cohortId,
   selectedChannelId,
   refreshKey = 0,
 }) => {
@@ -92,7 +95,13 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
     let active = true;
     setLoading(true);
 
-    listCohortPosts(selectedChannelId)
+    const targetCohortId = isValidUuid(cohortId)
+      ? cohortId
+      : isValidUuid(selectedChannelId)
+      ? selectedChannelId
+      : undefined;
+
+    listCohortPosts(targetCohortId)
       .then((data) => {
         if (!active) return;
         setPosts(data);
@@ -132,7 +141,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
     return () => {
       active = false;
     };
-  }, [selectedChannelId, refreshKey]);
+  }, [cohortId, selectedChannelId, refreshKey]);
 
   // Toggle Like on any post
   const handleToggleLike = async (postId: string) => {

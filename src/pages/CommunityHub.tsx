@@ -16,9 +16,9 @@ export const CommunityHub: React.FC = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
 
-  // Derive active view and channel directly from URL search params
   const tabParam = searchParams.get('tab');
   const channelParam = searchParams.get('channel');
+  const cohortParam = searchParams.get('cohort');
 
   const activeView: CommunityActiveView = tabParam === 'messages' ? 'messages' : tabParam === 'levelup' ? 'levelup' : 'feed';
   const selectedChannelId: string = channelParam || 'batch-15-community';
@@ -98,7 +98,7 @@ export const CommunityHub: React.FC = () => {
         <main className="flex flex-1 overflow-hidden pb-16 md:pb-0">
           {activeView === 'feed' ? (
             <CommunityFeed
-              selectedChannelId={selectedChannelId}
+              cohortId={cohortParam || undefined}
               onOpenCreateModal={() => setShowCreateModal(true)}
               refreshKey={feedRefreshKey}
             />

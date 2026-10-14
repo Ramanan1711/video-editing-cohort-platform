@@ -20,6 +20,12 @@ export interface CommunityPost {
   file_name?: string | null;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidUuid(id?: string | null): boolean {
+  return Boolean(id && UUID_REGEX.test(id.trim()));
+}
+
 export function detectMediaType(urlOrFilename: string): 'video' | 'image' | 'file' {
   const lower = urlOrFilename.toLowerCase();
   if (
@@ -226,10 +232,10 @@ export async function listCohortPosts(
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false });
 
-    if (cohortId) {
+    if (cohortId && isValidUuid(cohortId)) {
       query = query.eq('cohort_id', cohortId);
     }
-    if (lessonId) {
+    if (lessonId && isValidUuid(lessonId)) {
       query = query.eq('lesson_id', lessonId);
     }
 
@@ -389,8 +395,8 @@ export async function createCommunityPost(
     author_id: authorId,
     body: envelopeBody,
   };
-  if (cohortId) payload.cohort_id = cohortId;
-  if (lessonId) payload.lesson_id = lessonId;
+  if (cohortId && isValidUuid(cohortId)) payload.cohort_id = cohortId;
+  if (lessonId && isValidUuid(lessonId)) payload.lesson_id = lessonId;
   if (title?.trim()) payload.title = title.trim();
   if (typeof isPinned === 'boolean') payload.is_pinned = isPinned;
   if (mediaUrl) {
