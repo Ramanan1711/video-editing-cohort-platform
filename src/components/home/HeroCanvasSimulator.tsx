@@ -21,10 +21,24 @@ interface Particle {
 export const HeroCanvasSimulator: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isVisibleRef = useRef(true);
 
   const [mode, setMode] = useState<SimulatorMode>('wave');
   const [fps, setFps] = useState<number>(60);
   const [particleCount, setParticleCount] = useState<number>(1000);
+
+  // Suspend particle physics and canvas updates when offscreen
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisibleRef.current = entry.isIntersecting;
+      },
+      { threshold: 0.05 }
+    );
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   // Mouse tracking state
   const mouseRef = useRef<{ x: number; y: number; targetX: number; targetY: number; isInside: boolean; clickBurst: number }>({
@@ -190,38 +204,37 @@ export const HeroCanvasSimulator: React.FC = () => {
     const ro = new ResizeObserver(resize);
     if (containerRef.current) ro.observe(containerRef.current);
 
-    let isIntersecting = true;
-    let isTabVisible = !document.hidden;
-    let isRunning = false;
+    let disposed = false;
 
     // Animation Render Loop
     let time = 0;
     const render = (now: number) => {
-      if (!isRunning) return;
+      if (disposed) return;
 
-      const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
-      lastFrameTime = now;
-      time += dt;
+      if (isVisibleRef.current && !document.hidden) {
+        const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
+        lastFrameTime = now;
+        time += dt;
 
-      // FPS tracking
-      frameCount++;
-      if (now - lastFpsUpdate >= 1000) {
-        setFps(Math.round((frameCount * 1000) / (now - lastFpsUpdate)));
-        frameCount = 0;
-        lastFpsUpdate = now;
-      }
+        // FPS tracking
+        frameCount++;
+        if (now - lastFpsUpdate >= 1000) {
+          setFps(Math.round((frameCount * 1000) / (now - lastFpsUpdate)));
+          frameCount = 0;
+          lastFpsUpdate = now;
+        }
 
-      // Smooth mouse lerp
-      const mouse = mouseRef.current;
-      mouse.x += (mouse.targetX - mouse.x) * 0.08;
-      mouse.y += (mouse.targetY - mouse.y) * 0.08;
+        // Smooth mouse lerp
+        const mouse = mouseRef.current;
+        mouse.x += (mouse.targetX - mouse.x) * 0.08;
+        mouse.y += (mouse.targetY - mouse.y) * 0.08;
 
-      if (mouse.clickBurst > 0) {
-        mouse.clickBurst = Math.max(0, mouse.clickBurst - dt * 2);
-      }
+        if (mouse.clickBurst > 0) {
+          mouse.clickBurst = Math.max(0, mouse.clickBurst - dt * 2);
+        }
 
-      // Clear with subtle trail
-      ctx.clearRect(0, 0, width, height);
+        // Clear with subtle trail
+        ctx.clearRect(0, 0, width, height);
 
       // Dynamic Radial Spotlight centered at mouse position
       const spotX = mouse.isInside ? mouse.x : width / 2;
@@ -404,49 +417,14 @@ export const HeroCanvasSimulator: React.FC = () => {
       }
 
       ctx.globalAlpha = 1.0;
-      animationFrameId = requestAnimationFrame(render);
-    };
-
-    const startLoop = () => {
-      if (isRunning || !isIntersecting || !isTabVisible) return;
-      isRunning = true;
-      lastFrameTime = performance.now();
-      animationFrameId = requestAnimationFrame(render);
-    };
-
-    const stopLoop = () => {
-      isRunning = false;
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
-
-    // IntersectionObserver to suspend simulation when scrolled offscreen
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        isIntersecting = entry.isIntersecting;
-        if (isIntersecting) {
-          startLoop();
-        } else {
-          stopLoop();
-        }
-      },
-      { threshold: 0.05 }
-    );
-
-    if (containerRef.current) {
-      io.observe(containerRef.current);
-    }
-
-    const handleVisibilityChange = () => {
-      isTabVisible = !document.hidden;
-      if (isTabVisible && isIntersecting) {
-        startLoop();
       } else {
-        stopLoop();
+        lastFrameTime = now;
       }
+
+      animationFrameId = requestAnimationFrame(render);
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    animationFrameId = requestAnimationFrame(render);
 
     // Mouse listeners on container
     const handleMouseMove = (e: MouseEvent) => {
@@ -469,14 +447,13 @@ export const HeroCanvasSimulator: React.FC = () => {
       el.addEventListener('mouseleave', handleMouseLeave);
     }
 
-    startLoop();
-
     return () => {
+      disposed = true;
       reinitParticlesRef.current = null;
-      stopLoop();
-      io.disconnect();
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
       ro.disconnect();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (el) {
         el.removeEventListener('mousemove', handleMouseMove);
         el.removeEventListener('mouseleave', handleMouseLeave);
