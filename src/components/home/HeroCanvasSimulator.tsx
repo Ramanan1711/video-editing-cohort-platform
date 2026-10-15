@@ -27,17 +27,38 @@ export const HeroCanvasSimulator: React.FC = () => {
   const [fps, setFps] = useState<number>(60);
   const [particleCount, setParticleCount] = useState<number>(1000);
 
+  const resumeRef = useRef<(() => void) | null>(null);
+  const pauseRef = useRef<(() => void) | null>(null);
+
   // Suspend particle physics and canvas updates when offscreen
   useEffect(() => {
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         isVisibleRef.current = entry.isIntersecting;
+        if (entry.isIntersecting) {
+          resumeRef.current?.();
+        } else {
+          pauseRef.current?.();
+        }
       },
       { threshold: 0.05 }
     );
     if (containerRef.current) observer.observe(containerRef.current);
-    return () => observer.disconnect();
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isVisibleRef.current) {
+        resumeRef.current?.();
+      } else {
+        pauseRef.current?.();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Mouse tracking state
@@ -205,36 +226,60 @@ export const HeroCanvasSimulator: React.FC = () => {
     if (containerRef.current) ro.observe(containerRef.current);
 
     let disposed = false;
+    let isRunning = false;
+    animationFrameId = 0;
+
+    const startLoop = () => {
+      if (disposed || isRunning || !isVisibleRef.current || document.hidden) return;
+      isRunning = true;
+      lastFrameTime = performance.now();
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    const stopLoop = () => {
+      isRunning = false;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = 0;
+      }
+    };
+
+    resumeRef.current = startLoop;
+    pauseRef.current = stopLoop;
 
     // Animation Render Loop
     let time = 0;
     const render = (now: number) => {
-      if (disposed) return;
+      if (disposed || !isRunning) return;
 
-      if (isVisibleRef.current && !document.hidden) {
-        const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
-        lastFrameTime = now;
-        time += dt;
+      if (!isVisibleRef.current || document.hidden) {
+        stopLoop();
+        return;
+      }
 
-        // FPS tracking
-        frameCount++;
-        if (now - lastFpsUpdate >= 1000) {
-          setFps(Math.round((frameCount * 1000) / (now - lastFpsUpdate)));
-          frameCount = 0;
-          lastFpsUpdate = now;
-        }
+      const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
+      lastFrameTime = now;
+      time += dt;
 
-        // Smooth mouse lerp
-        const mouse = mouseRef.current;
-        mouse.x += (mouse.targetX - mouse.x) * 0.08;
-        mouse.y += (mouse.targetY - mouse.y) * 0.08;
+      // FPS tracking
+      frameCount++;
+      if (now - lastFpsUpdate >= 1000) {
+        setFps(Math.round((frameCount * 1000) / (now - lastFpsUpdate)));
+        frameCount = 0;
+        lastFpsUpdate = now;
+      }
 
-        if (mouse.clickBurst > 0) {
-          mouse.clickBurst = Math.max(0, mouse.clickBurst - dt * 2);
-        }
+      // Smooth mouse lerp
+      const mouse = mouseRef.current;
+      mouse.x += (mouse.targetX - mouse.x) * 0.08;
+      mouse.y += (mouse.targetY - mouse.y) * 0.08;
 
-        // Clear with subtle trail
-        ctx.clearRect(0, 0, width, height);
+      if (mouse.clickBurst > 0) {
+        mouse.clickBurst = Math.max(0, mouse.clickBurst - dt * 2);
+      }
+
+      // Clear with subtle trail
+      ctx.clearRect(0, 0, width, height);
 
       // Dynamic Radial Spotlight centered at mouse position
       const spotX = mouse.isInside ? mouse.x : width / 2;
@@ -417,14 +462,10 @@ export const HeroCanvasSimulator: React.FC = () => {
       }
 
       ctx.globalAlpha = 1.0;
-      } else {
-        lastFrameTime = now;
-      }
-
       animationFrameId = requestAnimationFrame(render);
     };
 
-    animationFrameId = requestAnimationFrame(render);
+    startLoop();
 
     // Mouse listeners on container
     const handleMouseMove = (e: MouseEvent) => {
@@ -449,10 +490,10 @@ export const HeroCanvasSimulator: React.FC = () => {
 
     return () => {
       disposed = true;
+      stopLoop();
+      if (resumeRef.current === startLoop) resumeRef.current = null;
+      if (pauseRef.current === stopLoop) pauseRef.current = null;
       reinitParticlesRef.current = null;
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
       ro.disconnect();
       if (el) {
         el.removeEventListener('mousemove', handleMouseMove);

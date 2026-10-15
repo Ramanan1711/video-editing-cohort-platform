@@ -45,17 +45,38 @@ export const RobotTerminal: React.FC = () => {
     torsoPitch: 0,
   });
 
+  const resumeRef = useRef<(() => void) | null>(null);
+  const pauseRef = useRef<(() => void) | null>(null);
+
   // Suspend GPU / canvas work when offscreen
   useEffect(() => {
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         isVisibleRef.current = entry.isIntersecting;
+        if (entry.isIntersecting) {
+          resumeRef.current?.();
+        } else {
+          pauseRef.current?.();
+        }
       },
       { threshold: 0.05 }
     );
     if (containerRef.current) observer.observe(containerRef.current);
-    return () => observer.disconnect();
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isVisibleRef.current) {
+        resumeRef.current?.();
+      } else {
+        pauseRef.current?.();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -530,63 +551,83 @@ export const RobotTerminal: React.FC = () => {
         setUptimeSeconds((prev) => prev + 1);
       }, 1000);
 
-      const animate = (time: number) => {
-        if (disposed) return;
+      let isRunning = false;
 
-        if (isVisibleRef.current && !document.hidden) {
-          const delta = Math.min((time - lastTime) * 0.001, 0.05);
-          lastTime = time;
-
-          // Mouse Lerp
-          const lerpFactor = 0.08;
-          mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * lerpFactor;
-          mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * lerpFactor;
-
-          let targetYaw: number;
-          let targetPitch: number;
-          let targetRoll: number;
-
-          if (mouseRef.current.active) {
-            // Front-facing mouse tracking centered on neck axis
-            targetYaw = mouseRef.current.x * 0.22;
-            targetPitch = -mouseRef.current.y * 0.14;
-            targetRoll = -mouseRef.current.x * 0.035;
-          } else {
-            const elapsed = time * 0.001;
-            targetYaw = Math.sin(elapsed * 0.8) * 0.06;
-            targetPitch = Math.cos(elapsed * 1.2) * 0.03;
-            targetRoll = Math.sin(elapsed * 0.6) * 0.015;
-          }
-
-          currentHeadYaw += (targetYaw - currentHeadYaw) * 0.08;
-          currentHeadPitch += (targetPitch - currentHeadPitch) * 0.08;
-          currentHeadRoll += (targetRoll - currentHeadRoll) * 0.08;
-
-          // Torso stays grounded with subtle micro-reaction
-          currentBodyYaw += (targetYaw * 0.05 - currentBodyYaw) * 0.04;
-          currentBodyPitch += (targetPitch * 0.03 - currentBodyPitch) * 0.04;
-
-          // In front-facing view, Z is pitch (nod up/down), Y is yaw (turn left/right), X is roll
-          headPivot.rotation.set(currentHeadRoll, currentHeadYaw, currentHeadPitch, 'ZYX');
-          bodyPivot.rotation.set(0, currentBodyYaw, currentBodyPitch, 'ZYX');
-
-          // Spin fan blades smoothly
-          if (fanBladesMesh) {
-            fanBladesMesh.rotation.x -= fanSpeedRef.current * 4.2 * delta;
-          }
-
-          // Refresh CRT Canvas
-          updateScreenCanvas(time * 0.001);
-
-          renderer?.render(scene, camera);
-        } else {
-          lastTime = time;
-        }
-
+      const startLoop = () => {
+        if (disposed || isRunning || !isVisibleRef.current || document.hidden) return;
+        isRunning = true;
+        lastTime = performance.now();
         animId = requestAnimationFrame(animate);
       };
 
-      animId = requestAnimationFrame(animate);
+      const stopLoop = () => {
+        isRunning = false;
+        if (animId) {
+          cancelAnimationFrame(animId);
+          animId = 0;
+        }
+      };
+
+      resumeRef.current = startLoop;
+      pauseRef.current = stopLoop;
+
+      const animate = (time: number) => {
+        if (disposed || !isRunning) return;
+
+        if (!isVisibleRef.current || document.hidden) {
+          stopLoop();
+          return;
+        }
+
+        const delta = Math.min((time - lastTime) * 0.001, 0.05);
+        lastTime = time;
+
+        // Mouse Lerp
+        const lerpFactor = 0.08;
+        mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * lerpFactor;
+        mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * lerpFactor;
+
+        let targetYaw: number;
+        let targetPitch: number;
+        let targetRoll: number;
+
+        if (mouseRef.current.active) {
+          // Front-facing mouse tracking centered on neck axis
+          targetYaw = mouseRef.current.x * 0.22;
+          targetPitch = -mouseRef.current.y * 0.14;
+          targetRoll = -mouseRef.current.x * 0.035;
+        } else {
+          const elapsed = time * 0.001;
+          targetYaw = Math.sin(elapsed * 0.8) * 0.06;
+          targetPitch = Math.cos(elapsed * 1.2) * 0.03;
+          targetRoll = Math.sin(elapsed * 0.6) * 0.015;
+        }
+
+        currentHeadYaw += (targetYaw - currentHeadYaw) * 0.08;
+        currentHeadPitch += (targetPitch - currentHeadPitch) * 0.08;
+        currentHeadRoll += (targetRoll - currentHeadRoll) * 0.08;
+
+        // Torso stays grounded with subtle micro-reaction
+        currentBodyYaw += (targetYaw * 0.05 - currentBodyYaw) * 0.04;
+        currentBodyPitch += (targetPitch * 0.03 - currentBodyPitch) * 0.04;
+
+        // In front-facing view, Z is pitch (nod up/down), Y is yaw (turn left/right), X is roll
+        headPivot.rotation.set(currentHeadRoll, currentHeadYaw, currentHeadPitch, 'ZYX');
+        bodyPivot.rotation.set(0, currentBodyYaw, currentBodyPitch, 'ZYX');
+
+        // Spin fan blades smoothly
+        if (fanBladesMesh) {
+          fanBladesMesh.rotation.x -= fanSpeedRef.current * 4.2 * delta;
+        }
+
+        // Refresh CRT Canvas
+        updateScreenCanvas(time * 0.001);
+
+        renderer?.render(scene, camera);
+        animId = requestAnimationFrame(animate);
+      };
+
+      startLoop();
 
       // Resize handler
       const handleResize = () => {
@@ -602,9 +643,9 @@ export const RobotTerminal: React.FC = () => {
 
       return () => {
         disposed = true;
-        if (animId) {
-          cancelAnimationFrame(animId);
-        }
+        stopLoop();
+        if (resumeRef.current === startLoop) resumeRef.current = null;
+        if (pauseRef.current === stopLoop) pauseRef.current = null;
         clearInterval(intervalId);
         window.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseleave', handleMouseLeave);
@@ -629,10 +670,28 @@ export const RobotTerminal: React.FC = () => {
 
     let animId: number;
     let disposed = false;
+    let isRunning = false;
     let targetX = 0;
     let targetY = 0;
     let currX = 0;
     let currY = 0;
+
+    const startFallbackLoop = () => {
+      if (disposed || isRunning || !isVisibleRef.current || document.hidden) return;
+      isRunning = true;
+      animId = requestAnimationFrame(animateFallback);
+    };
+
+    const stopFallbackLoop = () => {
+      isRunning = false;
+      if (animId) {
+        cancelAnimationFrame(animId);
+        animId = 0;
+      }
+    };
+
+    resumeRef.current = startFallbackLoop;
+    pauseRef.current = stopFallbackLoop;
 
     const handleMouseMove = (e: MouseEvent) => {
       targetX = (e.clientX / window.innerWidth - 0.5) * 2;
@@ -642,27 +701,30 @@ export const RobotTerminal: React.FC = () => {
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
 
     const animateFallback = () => {
-      if (disposed) return;
+      if (disposed || !isRunning) return;
 
-      if (isVisibleRef.current && !document.hidden) {
-        currX += (targetX - currX) * 0.08;
-        currY += (targetY - currY) * 0.08;
-
-        setFallbackTransform({
-          yaw: currX * 14 + 10,
-          pitch: -currY * 9,
-          roll: -currX * 2.0,
-          glareX: -currX * 14,
-          glareY: -currY * 14,
-          torsoYaw: currX * 2.5 + 4,
-          torsoPitch: -currY * 1.5,
-        });
+      if (!isVisibleRef.current || document.hidden) {
+        stopFallbackLoop();
+        return;
       }
+
+      currX += (targetX - currX) * 0.08;
+      currY += (targetY - currY) * 0.08;
+
+      setFallbackTransform({
+        yaw: currX * 14 + 10,
+        pitch: -currY * 9,
+        roll: -currX * 2.0,
+        glareX: -currX * 14,
+        glareY: -currY * 14,
+        torsoYaw: currX * 2.5 + 4,
+        torsoPitch: -currY * 1.5,
+      });
 
       animId = requestAnimationFrame(animateFallback);
     };
 
-    animId = requestAnimationFrame(animateFallback);
+    startFallbackLoop();
 
     const fallbackIntervalId = setInterval(() => {
       if (!isVisibleRef.current || document.hidden) return;
@@ -675,7 +737,9 @@ export const RobotTerminal: React.FC = () => {
 
     return () => {
       disposed = true;
-      if (animId) cancelAnimationFrame(animId);
+      stopFallbackLoop();
+      if (resumeRef.current === startFallbackLoop) resumeRef.current = null;
+      if (pauseRef.current === stopFallbackLoop) pauseRef.current = null;
       clearInterval(fallbackIntervalId);
       window.removeEventListener('mousemove', handleMouseMove);
     };
