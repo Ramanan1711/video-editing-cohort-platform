@@ -130,6 +130,51 @@ describe('Real WhatsApp Integration & Configuration', () => {
         );
       });
     });
+
+    it('renders "Scan QR to Chat on Mobile" tab with dynamic qrserver image URL and template selection', async () => {
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+      render(
+        <WhatsAppSupportWidget
+          userId="user-test-123"
+          studentName="Rahul Sharma"
+          cohortName="Batch 15"
+          currentDay={3}
+        />
+      );
+
+      // Open widget
+      fireEvent.click(screen.getByRole('button', { name: /Open WhatsApp Mentor Support/i }));
+
+      // Switch to Scan QR tab
+      const qrTabBtn = screen.getByRole('button', { name: /Scan QR to Chat on Mobile/i });
+      fireEvent.click(qrTabBtn);
+
+      // Verify QR Code image is rendered with correct qrserver API and encoded wa.me link
+      const qrImg = screen.getByRole('img', { name: /Scan QR to Chat on Mobile/i });
+      expect(qrImg).toBeInTheDocument();
+      const initialSrc = qrImg.getAttribute('src');
+      expect(initialSrc).toContain('https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=');
+      expect(initialSrc).toContain(encodeURIComponent('https://wa.me/919080995108'));
+      expect(initialSrc).toContain(encodeURIComponent(encodeURIComponent('Day 3')));
+
+      // Switch template to Blocker
+      const blockerBtn = screen.getByRole('button', { name: /^Blocker$/i });
+      fireEvent.click(blockerBtn);
+
+      const blockerSrc = qrImg.getAttribute('src');
+      expect(blockerSrc).toContain(encodeURIComponent(encodeURIComponent('blocker in my production task for Day 3')));
+
+      // Verify secondary open on device button still works from the QR tab
+      const launchBtn = screen.getByRole('button', { name: /Or launch WhatsApp on this device/i });
+      fireEvent.click(launchBtn);
+
+      expect(openSpy).toHaveBeenCalledWith(
+        expect.stringContaining(encodeURIComponent('blocker in my production task for Day 3')),
+        '_blank',
+        'noopener,noreferrer'
+      );
+    });
   });
 
   describe('WhatsAppBatchGroupBanner Component', () => {
