@@ -26,7 +26,7 @@ export function MentorshipSection() {
                 A Senior Mentor in Your Pocket via WhatsApp.
               </h2>
               <p className="mt-4 text-sm text-slate-400 leading-relaxed">
-                No impersonal forums or ticket systems that take days to answer. With ProCut Hub, you communicate directly with an assigned lead engineer or senior video editor.
+                No impersonal forums or ticket systems that take days to answer. With Iunoware Academy, you communicate directly with an assigned lead engineer or senior video editor.
               </p>
 
               <div className="mt-8 space-y-4">
@@ -125,12 +125,12 @@ export function MentorshipSection() {
               <div className="flex items-center gap-3 border-b border-white/10 pb-4">
                 <div className="relative">
                   <div className="flex size-10 items-center justify-center rounded-full bg-[#128C7E] text-white font-bold text-sm shadow-md shadow-emerald-950/40">
-                    PH
+                    IA
                   </div>
                   <span className="absolute bottom-0 right-0 size-3 rounded-full bg-emerald-400 ring-2 ring-[#030712]" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-black text-white">ProCut Hub Mentor Desk</h3>
+                  <h3 className="text-xs font-black text-white">Iunoware Academy Mentor Desk</h3>
                   <p className="text-[10px] text-emerald-400 font-bold">Online • Mentor Response Target &lt;15 mins</p>
                 </div>
               </div>

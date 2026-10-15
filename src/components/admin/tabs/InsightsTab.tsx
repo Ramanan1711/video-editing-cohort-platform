@@ -321,7 +321,7 @@ export function InsightsTab({
                       <button
                         type="button"
                         onClick={() => {
-                          const message = `Hi ${student.studentName}, checking in from CUT / CRAFT! We noticed you haven't been active in ${student.cohortName} lately. Do you need help with your current timeline cut or feedback revisions?`;
+                          const message = `Hi ${student.studentName}, checking in from Iunoware Academy! We noticed you haven't been active in ${student.cohortName} lately. Do you need help with your current timeline cut or feedback revisions?`;
                           navigator.clipboard.writeText(message);
                           onCopyNoteSuccess?.(`Check-in message copied to clipboard for ${student.studentName}!`);
                         }}

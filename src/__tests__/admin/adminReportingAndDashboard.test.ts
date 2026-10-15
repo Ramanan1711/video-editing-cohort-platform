@@ -207,7 +207,7 @@ describe('Admin Dashboard & Reporting System', () => {
 
     it('exports a complete, structured multi-section Executive Report CSV', () => {
       const csv = exportExecutiveReportCSV(mockMetrics);
-      expect(csv).toContain('CUT / CRAFT — EXECUTIVE PLATFORM REPORT');
+      expect(csv).toContain('IUNOWARE ACADEMY — EXECUTIVE PLATFORM REPORT');
       expect(csv).toContain('--- EXECUTIVE KPI OVERVIEW ---');
       expect(csv).toContain('Enrollment Conversion Rate,75,%');
       expect(csv).toContain('Course Completion Rate,60,%');

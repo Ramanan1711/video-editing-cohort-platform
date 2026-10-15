@@ -134,7 +134,7 @@ export function CertificateModal({
             </div>
             <div>
               <h3 className="text-lg font-bold">Certificate Requirements Incomplete</h3>
-              <p className="text-xs text-slate-400">CUT / CRAFT Academy Credential Verification</p>
+              <p className="text-xs text-slate-400">Iunoware Academy Credential Verification</p>
             </div>
           </div>
 
@@ -361,7 +361,7 @@ export function CertificateModal({
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ea580c';
     ctx.font = 'bold 24px sans-serif';
-    ctx.fillText('CUT / CRAFT ACADEMY OF POST-PRODUCTION', 1200, 220);
+    ctx.fillText('IUNOWARE ACADEMY OF POST-PRODUCTION', 1200, 220);
 
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 78px serif';
@@ -453,7 +453,7 @@ export function CertificateModal({
     ctx.fillText('Alex Vance', 480, 1230);
     ctx.fillStyle = '#64748b';
     ctx.font = '20px sans-serif';
-    ctx.fillText('Lead Instructor, CUT / CRAFT Faculty', 480, 1265);
+    ctx.fillText('Lead Instructor, Iunoware Academy Faculty', 480, 1265);
 
     // Center Gold Seal
     const sealX = 1200;
@@ -484,8 +484,8 @@ export function CertificateModal({
     ctx.stroke();
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.fillText('★ CUT / CRAFT ★', 0, -26);
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText('★ IUNOWARE ACADEMY ★', 0, -26);
     ctx.font = 'bold 22px sans-serif';
     ctx.fillText('VERIFIED', 0, 6);
     ctx.font = 'bold 14px sans-serif';
@@ -509,7 +509,7 @@ export function CertificateModal({
     ctx.fillText('Sarah Lin', 1920, 1230);
     ctx.fillStyle = '#64748b';
     ctx.font = '20px sans-serif';
-    ctx.fillText('Director of Education, CUT / CRAFT Academy', 1920, 1265);
+    ctx.fillText('Director of Education, Iunoware Academy', 1920, 1265);
 
     // Footer Metadata
     ctx.strokeStyle = '#e2e8f0';
@@ -525,7 +525,7 @@ export function CertificateModal({
     ctx.fillText(`Issue Date: ${dateStr}`, 180, 1475);
 
     ctx.textAlign = 'center';
-    ctx.fillText('Verify authentic credential at cutcraft.studio/verify-certificate', 1200, 1475);
+    ctx.fillText('Verify authentic credential at iunoware.com/verify-certificate', 1200, 1475);
 
     ctx.textAlign = 'right';
     ctx.font = 'bold 22px monospace';
@@ -533,7 +533,7 @@ export function CertificateModal({
 
     // Trigger instant download
     const link = document.createElement('a');
-    link.download = `CUT_CRAFT_Certificate_${(studentName || 'Student').replace(/\s+/g, '_')}.png`;
+    link.download = `Iunoware_Academy_Certificate_${(studentName || 'Student').replace(/\s+/g, '_')}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   };
@@ -686,7 +686,7 @@ export function CertificateModal({
               </div>
 
               <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-orange-600">
-                CUT / CRAFT ACADEMY OF POST-PRODUCTION
+                IUNOWARE ACADEMY OF POST-PRODUCTION
               </p>
 
               <h2 className="mt-1 font-serif text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-950">
@@ -764,7 +764,7 @@ export function CertificateModal({
                 </svg>
                 <div className="mx-auto h-px w-24 sm:w-36 bg-slate-300" />
                 <p className="mt-1 text-[11px] font-bold text-slate-900">Alex Vance</p>
-                <p className="text-[9px] sm:text-[10px] text-slate-400">Lead Instructor, CUT / CRAFT</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-400">Lead Instructor, Iunoware Academy</p>
               </div>
 
               {/* Center: Official Embossed Seal */}
@@ -812,7 +812,7 @@ export function CertificateModal({
                 rel="noopener noreferrer"
                 className="hidden sm:inline text-slate-500 hover:text-orange-600 transition underline underline-offset-2"
               >
-                Verify authentic credential at cutcraft.studio/verify-certificate
+                Verify authentic credential at iunoware.com/verify-certificate
               </a>
               <span>
                 Credential ID:{' '}

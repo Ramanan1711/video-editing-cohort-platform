@@ -33,7 +33,7 @@ export function CurriculumSection() {
               The Daily Rhythm
             </p>
             <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-white">
-              A Day in the Life of a ProCut Hub Intern
+              A Day in the Life of an Iunoware Academy Intern
             </h2>
             <p className="mt-3 text-sm text-slate-400 leading-relaxed">
               Every single day follows an engineered 4-step sequence designed to build professional velocity without burning you out.

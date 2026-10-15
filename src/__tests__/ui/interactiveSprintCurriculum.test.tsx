@@ -44,7 +44,7 @@ describe('InteractiveSprintCurriculum Component', () => {
     renderComponent('video', 1);
 
     // Track badge and description
-    expect(screen.getByText('ProCut Visual Track')).toBeInTheDocument();
+    expect(screen.getByText('Iunoware Visual Track')).toBeInTheDocument();
     expect(screen.getByText(/Video Editing & Post-Production Software Stack/i)).toBeInTheDocument();
 
     // Software stack strip

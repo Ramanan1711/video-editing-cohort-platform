@@ -154,12 +154,12 @@ describe('StudentDashboard - Courses Catalog & Player View', () => {
     );
   };
 
-  it('renders top navigation bar with ProCut Hub branding and Courses active tab', async () => {
+  it('renders top navigation bar with Iunoware Academy branding and Courses active tab', async () => {
     renderDashboard();
 
     // Top Navigation Brand & Active Tab
-    expect(await screen.findByText('ProCut')).toBeInTheDocument();
-    expect(screen.getAllByText('Hub').length).toBeGreaterThan(0);
+    expect(await screen.findByText('Iunoware')).toBeInTheDocument();
+    expect(screen.getAllByText('Academy').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /^courses$/i })).toBeInTheDocument();
   });
 

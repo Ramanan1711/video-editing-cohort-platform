@@ -168,7 +168,7 @@ export function formatWhatsAppChallengeMessage(
 ): string {
   const trackEmoji = trackType === 'coding' ? '💻' : '🎬';
   return (
-    `🚀 *ProCut Hub 15-Day Internship — Day ${dayNumber} Challenge Drop*\n\n` +
+    `🚀 *Iunoware Academy 15-Day Internship — Day ${dayNumber} Challenge Drop*\n\n` +
     `Hey ${studentName}! ${trackEmoji} Today's production task is now LIVE:\n\n` +
     `📌 *Task:* ${title}\n` +
     `⏱️ *Deadline:* Tonight before 11:59 PM\n\n` +

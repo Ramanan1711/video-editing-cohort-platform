@@ -105,7 +105,7 @@ export function VerifyCertificate() {
               <Award size={20} />
             </div>
             <div>
-              <span className="font-black text-sm tracking-wider uppercase text-white">CUT / CRAFT</span>
+              <span className="font-black text-sm tracking-wider uppercase text-white">IUNOWARE</span>
               <span className="text-[10px] block text-orange-400 font-bold uppercase tracking-widest -mt-0.5">
                 Academy Credential Registry
               </span>
@@ -136,7 +136,7 @@ export function VerifyCertificate() {
             Verify Academic Credential
           </h1>
           <p className="mt-2 text-sm text-slate-400">
-            Verify the authenticity and 4-pillar graduation requirements for any CUT / CRAFT Academy credential holder.
+            Verify the authenticity and 4-pillar graduation requirements for any Iunoware Academy credential holder.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-6 flex flex-col sm:flex-row gap-2.5 max-w-lg mx-auto">
@@ -211,7 +211,7 @@ export function VerifyCertificate() {
               <div>
                 <p className="text-xs uppercase tracking-wider font-bold text-slate-400">Cohort / Program</p>
                 <p className="text-lg font-black text-white mt-1">{result.cohort_name}</p>
-                <p className="text-xs text-slate-400 mt-0.5">CUT / CRAFT Academy</p>
+                <p className="text-xs text-slate-400 mt-0.5">Iunoware Academy</p>
               </div>
 
               <div>
@@ -308,7 +308,7 @@ export function VerifyCertificate() {
             <div className="mt-8 rounded-xl border border-white/10 bg-slate-950/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-400">
               <div className="flex items-center gap-2">
                 <div className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Authoritative database-persisted record verified in CUT / CRAFT Registry</span>
+                <span>Authoritative database-persisted record verified in Iunoware Academy Registry</span>
               </div>
               <span className="font-mono text-slate-500">SHA-256 Ledger Verified</span>
             </div>
@@ -348,7 +348,7 @@ export function VerifyCertificate() {
             </div>
             <h3 className="text-base font-bold text-white">Ready for Verification</h3>
             <p className="mt-1 text-xs text-slate-400">
-              Enter any CUT / CRAFT Credential ID above to inspect its real-time authenticity and graduation requirements.
+              Enter any Iunoware Academy Credential ID above to inspect its real-time authenticity and graduation requirements.
             </p>
           </div>
         )}
@@ -357,7 +357,7 @@ export function VerifyCertificate() {
       {/* Footer */}
       <footer className="border-t border-white/10 bg-slate-900/60 py-6 text-center text-xs text-slate-500 print:hidden">
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>&copy; {new Date().getFullYear()} CUT / CRAFT Academy. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Iunoware Academy. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <Link to="/" className="hover:text-slate-300 transition">Home</Link>
             <Link to="/login" className="hover:text-slate-300 transition">Sign In</Link>

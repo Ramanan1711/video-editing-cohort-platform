@@ -24,7 +24,7 @@ vi.mock('../../lib/communityService', () => ({
     {
       id: 'post-pinned',
       author_id: 'user-admin',
-      author_name: 'CUT / CRAFT',
+      author_name: 'Iunoware Academy',
       author_role: 'creator',
       title: '🏆 B15 - W2 - Top 3 Projects 🏆',
       body: 'Congratulations to our top creators this week! Shibin, Thilak, and Meshak.',
@@ -171,16 +171,16 @@ describe('CommunityHub & Components', () => {
     localStorage.clear();
   });
 
-  it('renders top navigation bar with brand CUT / CRAFT, workspace menu button, center tabs, and utility controls', () => {
+  it('renders top navigation bar with brand Iunoware Academy, workspace menu button, center tabs, and utility controls', () => {
     render(
       <MemoryRouter initialEntries={['/community']}>
         <CommunityHub />
       </MemoryRouter>
     );
 
-    // ProCut Hub Brand Identity
-    expect(screen.getAllByText('ProCut').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Hub').length).toBeGreaterThan(0);
+    // Iunoware Academy Brand Identity
+    expect(screen.getAllByText('Iunoware').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Academy').length).toBeGreaterThan(0);
 
     // Workspace Navigation Menu Button (Hamburger icon: three minus symbols one below one: ☰)
     const menuBtn = screen.getByRole('button', { name: /open workspace navigation/i });
@@ -222,7 +222,7 @@ describe('CommunityHub & Components', () => {
     expect(screen.queryByText('Keep Learning More')).not.toBeInTheDocument();
   });
 
-  it('renders pinned post with CREATOR badge and TOP 3 LEADERBOARD with CUT / CRAFT branding', async () => {
+  it('renders pinned post with CREATOR badge and TOP 3 LEADERBOARD with Iunoware Academy branding', async () => {
     render(
       <MemoryRouter initialEntries={['/community']}>
         <CommunityHub />
@@ -232,7 +232,7 @@ describe('CommunityHub & Components', () => {
     await waitFor(() => {
       expect(screen.getByText('Pinned')).toBeInTheDocument();
     });
-    expect(screen.getAllByText('CUT / CRAFT').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Iunoware Academy').length).toBeGreaterThan(0);
     expect(screen.getByText('CREATOR')).toBeInTheDocument();
     expect(screen.getByText(/TOP 3 LEADERBOARD/i)).toBeInTheDocument();
     expect(screen.getByText('Shibin')).toBeInTheDocument();

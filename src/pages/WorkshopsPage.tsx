@@ -228,7 +228,7 @@ export function WorkshopsPage() {
 
   const handleAddToCalendar = (workshop: WorkshopItem) => {
     const title = encodeURIComponent(workshop.title);
-    const details = encodeURIComponent(workshop.description || 'ProCut Hub Cohort Live Session');
+    const details = encodeURIComponent(workshop.description || 'Iunoware Academy Cohort Live Session');
     const location = encodeURIComponent(workshop.meetingUrl);
     const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}`;
     window.open(gCalUrl, '_blank', 'noopener,noreferrer');

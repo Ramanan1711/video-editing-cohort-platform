@@ -75,7 +75,7 @@ describe('15-Day Internship Platform & WhatsApp Suite', () => {
       'https://procut.app/student/dashboard?tab=internship_sprint'
     );
 
-    expect(msg).toContain('ProCut Hub 15-Day Internship — Day 3 Challenge Drop');
+    expect(msg).toContain('Iunoware Academy 15-Day Internship — Day 3 Challenge Drop');
     expect(msg).toContain('Hey Alex!');
     expect(msg).toContain('Dynamic Typography & Kinetic Titles');
     expect(msg).toContain('https://procut.app/student/dashboard?tab=internship_sprint');

@@ -455,7 +455,7 @@ export function useStudentDashboard(
       return {
         id: cohort.id,
         title: cleanName,
-        platform: 'ProCut Hub',
+        platform: 'Iunoware Academy',
         sections: sectionsCount,
         lectures: lecturesCount,
         progress: computedProgress,
@@ -580,7 +580,7 @@ export function useStudentDashboard(
     if (completed && hasVideo && currentWatchPct < 80) {
       setEngagementAlert({
         title: 'Video Watch Verification Required',
-        message: `You have currently watched ${currentWatchPct}% of "${selectedLesson.title}". CUT / CRAFT requires at least 80% verified video watch progress before marking a lesson complete and issuing milestone credits.`,
+        message: `You have currently watched ${currentWatchPct}% of "${selectedLesson.title}". Iunoware Academy requires at least 80% verified video watch progress before marking a lesson complete and issuing milestone credits.`,
       });
       return;
     }

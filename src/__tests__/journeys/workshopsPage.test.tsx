@@ -57,12 +57,12 @@ describe('WorkshopsPage - Full Screen Workshops Layout', () => {
     );
   };
 
-  it('renders top navigation bar with active Workshops tab and ProCut Hub branding', async () => {
+  it('renders top navigation bar with active Workshops tab and Iunoware Academy branding', async () => {
     renderWorkshops();
 
     // Top Navigation Brand & Active Tab
-    expect(await screen.findByText('ProCut')).toBeInTheDocument();
-    expect(screen.getAllByText('Hub').length).toBeGreaterThan(0);
+    expect(await screen.findByText('Iunoware')).toBeInTheDocument();
+    expect(screen.getAllByText('Academy').length).toBeGreaterThan(0);
 
     const workshopsTab = screen.getByRole('button', { name: /^workshops$/i });
     expect(workshopsTab).toBeInTheDocument();

@@ -109,7 +109,7 @@ export function WorkspaceSidebar() {
             </span>
             {!collapsed && (
               <div>
-                <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">CUT / CRAFT</p>
+                <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">Iunoware Academy</p>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Workspace</p>
               </div>
             )}

@@ -826,7 +826,7 @@ class ErrorTracker {
         timestamp: new Date().toISOString(),
         platform: 'javascript',
         level: 'info',
-        message: 'CUT/CRAFT Telemetry Connectivity Probe',
+        message: 'Iunoware Academy Telemetry Connectivity Probe',
         tags: { probe: 'preflight_verification', environment: this.environment },
       };
 

@@ -33,7 +33,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 Gamified Daily Sprints That Make Quitting Impossible.
               </h2>
               <p className="text-sm text-slate-400 leading-relaxed">
-                We engineered ProCut Hub around positive momentum. Daily streaks, XP points, and cohort leaderboards keep your focus high until Day 15.
+                We engineered Iunoware Academy around positive momentum. Daily streaks, XP points, and cohort leaderboards keep your focus high until Day 15.
               </p>
 
               <div className="space-y-4 text-xs sm:text-sm text-slate-300">
@@ -377,7 +377,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
               className="p-7 sm:p-9 border border-emerald-500/40 bg-gradient-to-b from-emerald-950/20 to-white/[0.02] rounded-2xl space-y-4 shadow-xl shadow-emerald-950/20"
             >
               <div className="flex items-center justify-between border-b border-emerald-500/20 pb-3">
-                <span className="text-xs font-black uppercase tracking-wider text-emerald-400">Day 15: ProCut Graduate</span>
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-400">Day 15: Iunoware Academy Graduate</span>
                 <span className="text-xs font-bold text-emerald-400">Production-Grade Proof</span>
               </div>
               {activeTransformation === 'creative' ? (
@@ -454,7 +454,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 <div className="flex items-start justify-between border-b border-white/10 pb-5">
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-400">
-                      ProCut Hub · Verified Credential
+                      Iunoware Academy · Verified Credential
                     </span>
                     <h3 className="text-lg font-black text-white mt-1">
                       Certificate of Internship Completion

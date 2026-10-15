@@ -118,7 +118,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors">
       <div className="flex h-[73px] w-full items-center justify-between px-3.5 sm:px-6 lg:px-8">
-        {/* Left: Navigation Menu (☰) & ProCut Hub Brand Logo */}
+        {/* Left: Navigation Menu (☰) & Iunoware Academy Brand Logo */}
         <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
           <button
             onClick={() => setNavDrawerOpen(true)}
@@ -129,21 +129,21 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
             <Menu size={20} />
           </button>
 
-          {/* Brand Logo - ProCut Hub */}
+          {/* Brand Logo - Iunoware Academy */}
           <Link
             to={profile?.role === 'admin' ? '/admin' : '/student/dashboard'}
             className="flex items-center gap-1.5 sm:gap-2 shrink-0 group"
-            title="ProCut Hub"
+            title="Iunoware Academy"
           >
             <div className="flex items-center gap-1 sm:gap-1.5 leading-none">
               <span className="text-lg sm:text-xl font-black tracking-tight text-orange-500 group-hover:text-orange-600 transition">
-                ProCut
+                Iunoware
               </span>
               <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white transition">
-                Hub
+                Academy
               </span>
             </div>
-            <span className="sr-only">ProCut Hub</span>
+            <span className="sr-only">Iunoware Academy</span>
           </Link>
         </div>
 
@@ -229,7 +229,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
                     </span>
                     <div>
                       <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
-                        CUT / CRAFT
+                        Iunoware Academy
                       </p>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                         Workspace

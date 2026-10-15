@@ -1811,7 +1811,7 @@ export async function exportSubmissionsCSV(cohortId?: string): Promise<string> {
 
 export function exportExecutiveReportCSV(metrics: AdminExecutiveMetrics): string {
   const lines: string[] = [];
-  lines.push(`"CUT / CRAFT — EXECUTIVE PLATFORM REPORT"`);
+  lines.push(`"IUNOWARE ACADEMY — EXECUTIVE PLATFORM REPORT"`);
   lines.push(`"Generated At: ${new Date().toISOString()}","Timeframe: ${metrics.timeframe.toUpperCase()}"`);
   lines.push('');
   lines.push('--- EXECUTIVE KPI OVERVIEW ---');

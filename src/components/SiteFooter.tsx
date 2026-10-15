@@ -14,10 +14,10 @@ export function SiteFooter() {
               </div>
               <div className="flex items-center gap-1 leading-none">
                 <span className="text-lg font-black tracking-tight text-orange-500">
-                  ProCut
+                  Iunoware
                 </span>
                 <span className="text-lg font-black tracking-tight text-white">
-                  Hub
+                  Academy
                 </span>
               </div>
             </Link>
@@ -123,11 +123,11 @@ export function SiteFooter() {
 
         {/* Bottom Bar */}
         <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <p>© 2026 ProCut Hub. All rights reserved. Designed for serious craft and rapid momentum.</p>
+          <p>© 2026 Iunoware Academy. All rights reserved. Designed for serious craft and rapid momentum.</p>
           <div className="flex items-center gap-6">
             <a href="#faq" className="hover:text-white transition">FAQ</a>
             <a href="#pricing" className="hover:text-white transition">Pricing</a>
-            <a href="mailto:support@procuthub.com" className="hover:text-white transition">Support</a>
+            <a href="mailto:support@iunoware.com" className="hover:text-white transition">Support</a>
           </div>
         </div>
       </div>

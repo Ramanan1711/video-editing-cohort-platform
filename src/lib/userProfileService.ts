@@ -87,7 +87,7 @@ const DEMO_OVERVIEW: UserProfileOverview = {
       progressPercent: 68,
       totalLessons: 25,
       completedLessons: 17,
-      platform: 'ProCut Hub',
+      platform: 'Iunoware Academy',
     },
     {
       cohortId: 'cohort-python-ai',
@@ -100,7 +100,7 @@ const DEMO_OVERVIEW: UserProfileOverview = {
       progressPercent: 24,
       totalLessons: 20,
       completedLessons: 5,
-      platform: 'ProCut Hub',
+      platform: 'Iunoware Academy',
     },
   ],
   payments: [
@@ -287,7 +287,7 @@ export async function getUserProfileOverview(userId: string): Promise<UserProfil
         progressPercent,
         totalLessons,
         completedLessons: completedCount,
-        platform: 'ProCut Hub',
+        platform: 'Iunoware Academy',
       };
     });
 

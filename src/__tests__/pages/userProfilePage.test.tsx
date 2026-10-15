@@ -46,7 +46,7 @@ describe('UserProfile Page Component (Dedicated Student Profile Area)', () => {
         progressPercent: 50,
         totalLessons: 10,
         completedLessons: 5,
-        platform: 'ProCut Hub',
+        platform: 'Iunoware Academy',
       },
       {
         cohortId: 'cohort-python-id',
@@ -59,7 +59,7 @@ describe('UserProfile Page Component (Dedicated Student Profile Area)', () => {
         progressPercent: 20,
         totalLessons: 10,
         completedLessons: 2,
-        platform: 'ProCut Hub',
+        platform: 'Iunoware Academy',
       },
     ],
     payments: [

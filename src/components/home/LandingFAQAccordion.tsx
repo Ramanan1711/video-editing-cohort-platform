@@ -18,7 +18,7 @@ const defaultFaqs: FAQItem[] = [
   },
   {
     q: 'How is WhatsApp integrated into the learning experience?',
-    a: 'ProCut Hub connects directly to your WhatsApp. You receive daily challenge drops, workshop reminders, and personalized inactivity alerts. Plus, you can click one button to open a direct WhatsApp chat with your mentor for real-time blocker resolution with an average daytime response SLA under 15 minutes.',
+    a: 'Iunoware Academy connects directly to your WhatsApp. You receive daily challenge drops, workshop reminders, and personalized inactivity alerts. Plus, you can click one button to open a direct WhatsApp chat with your mentor for real-time blocker resolution with an average daytime response SLA under 15 minutes.',
   },
   {
     q: 'How much time do I need to commit each day?',

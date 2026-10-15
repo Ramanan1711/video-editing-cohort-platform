@@ -13,7 +13,7 @@ export function ComparisonSection() {
             Why 94% of Our Interns Finish (and Traditional Courses Fail)*
           </h2>
           <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-            Most online courses are passive video libraries. ProCut Hub enforces a structured daily production discipline with real accountability.
+            Most online courses are passive video libraries. Iunoware Academy enforces a structured daily production discipline with real accountability.
           </p>
         </div>
 
@@ -61,7 +61,7 @@ export function ComparisonSection() {
             </ul>
           </TiltCard>
 
-          {/* The ProCut Way */}
+          {/* The Iunoware Academy Way */}
           <TiltCard
             maxTilt={5}
             scale={1.01}
@@ -72,7 +72,7 @@ export function ComparisonSection() {
           >
             <div className="flex items-center justify-between border-b border-emerald-500/20 pb-4">
               <div>
-                <span className="text-xs font-black uppercase tracking-wider text-emerald-400">The ProCut Sprint</span>
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-400">The Iunoware Sprint</span>
                 <h3 className="text-xl font-black text-white mt-1">15-Day Production Sprint</h3>
               </div>
               <span className="flex size-10 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30">

@@ -196,7 +196,7 @@ describe('Certificate Verification UI & Modal Tests', () => {
       });
 
       expect(screen.getByText('Verify Online')).toBeDefined();
-      expect(screen.getByText(/Verify authentic credential at cutcraft.studio\/verify-certificate/)).toBeDefined();
+      expect(screen.getByText(/Verify authentic credential at iunoware.com\/verify-certificate/)).toBeDefined();
     });
   });
 });

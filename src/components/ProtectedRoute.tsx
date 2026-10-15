@@ -55,7 +55,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
               <LogOut size={14} /> Sign Out of Platform
             </button>
             <p className="text-[11px] text-slate-500">
-              Need assistance? Contact support at <span className="font-mono text-slate-400">support@cutcraft.studio</span>
+              Need assistance? Contact support at <span className="font-mono text-slate-400">support@iunoware.com</span>
             </p>
           </div>
         </div>
@@ -83,7 +83,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
               <LogOut size={14} /> Sign Out
             </button>
             <p className="text-[11px] text-slate-500">
-              Need assistance? Contact support at <span className="font-mono text-slate-400">support@cutcraft.studio</span>
+              Need assistance? Contact support at <span className="font-mono text-slate-400">support@iunoware.com</span>
             </p>
           </div>
         </div>

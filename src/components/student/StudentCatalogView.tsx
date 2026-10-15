@@ -231,10 +231,10 @@ export function StudentCatalogView({
                   <span className="absolute bottom-3.5 left-3.5 size-3 border-b-2 border-l-2 border-white/25 pointer-events-none" />
                   <span className="absolute bottom-3.5 right-3.5 size-3 border-b-2 border-r-2 border-white/25 pointer-events-none" />
 
-                  {/* Top ProCut Logo */}
+                  {/* Top Iunoware Academy Logo */}
                   <div className="flex flex-col items-center leading-none mb-1.5">
-                    <span className="text-xs font-black tracking-widest text-[#f59e0b]">PROCUT</span>
-                    <span className="text-[6px] font-bold tracking-widest text-slate-400 uppercase">HUB</span>
+                    <span className="text-xs font-black tracking-widest text-[#f59e0b]">IUNOWARE</span>
+                    <span className="text-[6px] font-bold tracking-widest text-slate-400 uppercase">ACADEMY</span>
                   </div>
 
                   {/* Film Reel Icon */}

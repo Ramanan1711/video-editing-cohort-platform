@@ -37,17 +37,17 @@ export const LeaderboardCard: React.FC<LeaderboardCardProps> = ({
 
       {/* Floating Graphic Coins (SVG / CSS) */}
       <div className="pointer-events-none absolute top-4 left-6 hidden sm:flex size-14 items-center justify-center rounded-full border border-amber-400/40 bg-gradient-to-tr from-amber-600/30 to-yellow-400/20 shadow-lg shadow-amber-500/10 -rotate-12 backdrop-blur-xs">
-        <span className="text-xs font-black tracking-widest text-amber-300">CUT</span>
+        <span className="text-[10px] font-black tracking-widest text-amber-300">IUNO</span>
       </div>
       <div className="pointer-events-none absolute bottom-4 left-10 hidden sm:flex size-11 items-center justify-center rounded-full border border-amber-400/30 bg-gradient-to-tr from-amber-700/20 to-yellow-500/15 shadow-md rotate-12 backdrop-blur-xs">
-        <span className="text-[10px] font-black text-amber-200">CRAFT</span>
+        <span className="text-[9px] font-black text-amber-200">WARE</span>
       </div>
 
       {/* Center Header */}
       <div className="relative z-10 flex flex-col items-center text-center">
         <div className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-950/40 px-3 py-1 text-[11px] font-black tracking-wider uppercase text-amber-400">
           <Sparkles size={12} className="text-amber-400" />
-          <span>CUT / CRAFT</span>
+          <span>Iunoware Academy</span>
         </div>
 
         <div className="mt-3 flex items-center justify-center gap-2">
