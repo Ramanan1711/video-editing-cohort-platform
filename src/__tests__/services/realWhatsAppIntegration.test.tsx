@@ -4,8 +4,10 @@ import {
   DEFAULT_ACADEMY_WHATSAPP,
   DEFAULT_WHATSAPP_GROUP_FALLBACK_URL,
   formatWhatsAppTaskBlockerMessage,
+  generateWhatsAppClickToChatUrl,
   getWhatsAppProvider,
   ManualClickToChatProvider,
+  normalizeWhatsAppPhone,
 } from '../../lib/whatsappService';
 import { WhatsAppSupportWidget } from '../../components/internship/WhatsAppSupportWidget';
 import { WhatsAppBatchGroupBanner } from '../../components/student/WhatsAppBatchGroupBanner';
@@ -59,6 +61,27 @@ describe('Real WhatsApp Integration & Configuration', () => {
       expect(msg).toContain('Day 3: Sound Design & Audio Balancing');
       expect(msg).toContain('Audio stems are clipping at -3dB in the dialogue track.');
       expect(msg).toContain('Could you please guide me?');
+    });
+
+    it('normalizes Indian phone numbers with leading zeros, missing country code, and symbols', () => {
+      // 10-digit standard Indian mobile without country code
+      expect(normalizeWhatsAppPhone('9080995108')).toBe('919080995108');
+
+      // 11-digit mobile with leading zero
+      expect(normalizeWhatsAppPhone('09080995108')).toBe('919080995108');
+
+      // Formatted with spaces and dashes
+      expect(normalizeWhatsAppPhone('+91 90809-95108')).toBe('919080995108');
+
+      // Already formatted with country code
+      expect(normalizeWhatsAppPhone('919080995108')).toBe('919080995108');
+
+      // Validates in generateWhatsAppClickToChatUrl
+      const url = generateWhatsAppClickToChatUrl('09080995108', 'Hello');
+      expect(url).toBe('https://wa.me/919080995108?text=Hello');
+
+      const url10 = generateWhatsAppClickToChatUrl('9080995108', 'Hello');
+      expect(url10).toBe('https://wa.me/919080995108?text=Hello');
     });
   });
 

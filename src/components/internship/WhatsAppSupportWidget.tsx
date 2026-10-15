@@ -11,6 +11,7 @@ import {
 import {
   DEFAULT_ACADEMY_WHATSAPP,
   generateWhatsAppClickToChatUrl,
+  normalizeWhatsAppPhone,
   sendWhatsAppNotification,
   type WhatsAppEventType,
 } from '../../lib/whatsappService';
@@ -45,7 +46,7 @@ export function WhatsAppSupportWidget({
     if (!studentPhone.trim()) return;
     try {
       setIsSavingPhone(true);
-      const clean = studentPhone.replace(/[^0-9]/g, '');
+      const clean = normalizeWhatsAppPhone(studentPhone);
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -119,7 +120,7 @@ export function WhatsAppSupportWidget({
                     Mentor WhatsApp Direct
                   </h3>
                   <p className="text-[11px] text-emerald-100 mt-1">
-                    +{mentorPhone.replace(/[^0-9]/g, '')} • Typically replies in 15–30 mins
+                    +{normalizeWhatsAppPhone(mentorPhone)} • Typically replies in 15–30 mins
                   </p>
                 </div>
               </div>

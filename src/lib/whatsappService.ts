@@ -109,10 +109,30 @@ export const DEFAULT_WHATSAPP_GROUP_FALLBACK_URL =
   'https://chat.whatsapp.com/G7tEsqF5Mq1FzLzZHlpHjz?mode=gi_t';
 
 /**
+ * Normalizes WhatsApp phone numbers to international E.164 format without '+'
+ * Handles Indian 10-digit mobile numbers, leading zeros, and symbols
+ */
+export function normalizeWhatsAppPhone(rawPhone: string, defaultCountryCode = '91'): string {
+  let digits = rawPhone.replace(/[^0-9]/g, '');
+
+  // If user entered with leading zero (e.g. 09080995108), strip the zero
+  if (digits.length === 11 && digits.startsWith('0')) {
+    digits = digits.substring(1);
+  }
+
+  // If 10-digit number (standard Indian mobile), prepend country code
+  if (digits.length === 10) {
+    digits = `${defaultCountryCode}${digits}`;
+  }
+
+  return digits;
+}
+
+/**
  * Generate a direct click-to-chat WhatsApp link
  */
 export function generateWhatsAppClickToChatUrl(phone: string, text: string): string {
-  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  const cleanPhone = normalizeWhatsAppPhone(phone);
   const encodedText = encodeURIComponent(text);
   return `https://wa.me/${cleanPhone}?text=${encodedText}`;
 }
@@ -231,7 +251,7 @@ export class MetaWhatsAppProvider implements IWhatsAppProvider {
   }
 
   async send(to: string, message: string, metadata?: Record<string, unknown>): Promise<WhatsAppProviderSendResult> {
-    const cleanPhone = to.replace(/[^0-9]/g, '');
+    const cleanPhone = normalizeWhatsAppPhone(to);
     const url = `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`;
 
     const payload = metadata?.templateName
@@ -309,7 +329,7 @@ export class TwilioWhatsAppProvider implements IWhatsAppProvider {
   }
 
   async send(to: string, message: string): Promise<WhatsAppProviderSendResult> {
-    const cleanPhone = to.replace(/[^0-9]/g, '');
+    const cleanPhone = normalizeWhatsAppPhone(to);
     const cleanFrom = this.fromNumber.startsWith('whatsapp:')
       ? this.fromNumber
       : `whatsapp:+${this.fromNumber.replace(/[^0-9]/g, '')}`;
@@ -375,7 +395,7 @@ export class WebhookWhatsAppProvider implements IWhatsAppProvider {
   }
 
   async send(to: string, message: string, metadata?: Record<string, unknown>): Promise<WhatsAppProviderSendResult> {
-    const cleanPhone = to.replace(/[^0-9]/g, '');
+    const cleanPhone = normalizeWhatsAppPhone(to);
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -615,7 +635,7 @@ async function dispatchWithInFlightRetries(
 export async function dispatchWhatsAppMessage(
   options: WhatsAppDispatchOptions
 ): Promise<WhatsAppDispatchResult> {
-  const cleanPhone = options.phone.replace(/[^0-9]/g, '');
+  const cleanPhone = normalizeWhatsAppPhone(options.phone);
   const providerInstance = getWhatsAppProvider(options.provider);
   const providerName = providerInstance.name;
   const idempotencyKey = options.idempotencyKey || null;
