@@ -34,7 +34,9 @@ describe('Real WhatsApp Integration & Configuration', () => {
     });
 
     it('resolves default fallback group URL', () => {
-      expect(DEFAULT_WHATSAPP_GROUP_FALLBACK_URL).toBe('https://chat.whatsapp.com/invite');
+      expect(DEFAULT_WHATSAPP_GROUP_FALLBACK_URL).toBe(
+        'https://chat.whatsapp.com/G7tEsqF5Mq1FzLzZHlpHjz?mode=gi_t'
+      );
     });
 
     it('getWhatsAppProvider defaults to ManualClickToChatProvider when configured with manual', () => {

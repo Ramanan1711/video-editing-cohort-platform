@@ -106,7 +106,7 @@ export const DEFAULT_ACADEMY_WHATSAPP =
  */
 export const DEFAULT_WHATSAPP_GROUP_FALLBACK_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WHATSAPP_GROUP_FALLBACK_URL) ||
-  'https://chat.whatsapp.com/invite';
+  'https://chat.whatsapp.com/G7tEsqF5Mq1FzLzZHlpHjz?mode=gi_t';
 
 /**
  * Generate a direct click-to-chat WhatsApp link
