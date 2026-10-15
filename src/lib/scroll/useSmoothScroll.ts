@@ -32,11 +32,11 @@ export function useSmoothScroll(enabled = true) {
     }
 
     const lenis = new Lenis({
-      lerp: 0.08, // Buttery smooth linear interpolation on desktop
+      lerp: 0.08,
       wheelMultiplier: 1.05,
-      touchMultiplier: 0, // Disables touch interpolation entirely
+      touchMultiplier: 1.2,
       smoothWheel: true,
-      syncTouch: false, // Never intercept touch events; keep native hardware momentum on touch screens
+      syncTouch: false, // <-- FIX: Preserves native mobile 120Hz momentum
       autoResize: true,
     });
 

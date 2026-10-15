@@ -70,7 +70,7 @@ describe('4.2 Lenis Smooth Scroll Touch Calibration', () => {
     expect((window as unknown as { lenis?: unknown }).lenis).toBeUndefined();
   });
 
-  it('initializes Lenis on desktop with syncTouch: false and touchMultiplier: 0', () => {
+  it('initializes Lenis on desktop with syncTouch: false and touchMultiplier: 1.2', () => {
     vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({
       matches: query.includes('fine'), // Fine pointer (desktop mouse/trackpad)
       media: query,
@@ -91,7 +91,7 @@ describe('4.2 Lenis Smooth Scroll Touch Calibration', () => {
     expect(instance.options).toMatchObject({
       lerp: 0.08,
       wheelMultiplier: 1.05,
-      touchMultiplier: 0,
+      touchMultiplier: 1.2,
       smoothWheel: true,
       syncTouch: false,
       autoResize: true,
