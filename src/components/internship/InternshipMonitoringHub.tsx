@@ -151,6 +151,10 @@ export function InternshipMonitoringHub({
     const nextDay = Math.min(internTotalDays, intern.completedDaysCount + 1);
     const message = formatWhatsAppInactivityNudge(intern.fullName, nextDay, resumeUrl);
 
+    const url = generateWhatsAppClickToChatUrl(phone, message);
+    // Open immediately on user gesture to guarantee zero popup-blocker issues
+    window.open(url, '_blank', 'noopener,noreferrer');
+
     try {
       setSendingNudgeId(intern.userId);
       const result = await dispatchWhatsAppMessage({
@@ -160,9 +164,6 @@ export function InternshipMonitoringHub({
         eventType: 'inactivity_nudge',
         message,
       });
-
-      const url = generateWhatsAppClickToChatUrl(phone, message);
-      window.open(url, '_blank', 'noopener,noreferrer');
       if (result.success) {
         toast.success(`Automated WhatsApp nudge dispatched to ${intern.fullName}!`);
       } else {

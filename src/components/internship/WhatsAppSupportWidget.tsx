@@ -8,7 +8,12 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { DEFAULT_ACADEMY_WHATSAPP, generateWhatsAppClickToChatUrl, sendWhatsAppNotification } from '../../lib/whatsappService';
+import {
+  DEFAULT_ACADEMY_WHATSAPP,
+  generateWhatsAppClickToChatUrl,
+  sendWhatsAppNotification,
+  type WhatsAppEventType,
+} from '../../lib/whatsappService';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../context/useToast';
 
@@ -62,14 +67,16 @@ export function WhatsAppSupportWidget({
     }
   };
 
-  const handleLaunchWhatsApp = (text: string, eventType: 'custom' | 'daily_challenge' | 'welcome' = 'custom') => {
+  const handleLaunchWhatsApp = (text: string, eventType: WhatsAppEventType = 'custom') => {
     const targetPhone = mentorPhone || DEFAULT_ACADEMY_WHATSAPP;
     const url = generateWhatsAppClickToChatUrl(targetPhone, text);
+
+    // 1. Open immediately on user gesture to guarantee zero popup-blocker issues
     window.open(url, '_blank', 'noopener,noreferrer');
 
-    // Record log asynchronously without delaying or risking popup-blocker triggers
-    sendWhatsAppNotification(userId, targetPhone, eventType, text).catch((e) => {
-      console.warn('WhatsApp log dispatch fallback:', e);
+    // 2. Log in background asynchronously without blocking the UI
+    sendWhatsAppNotification(userId, targetPhone, eventType, text).catch((err) => {
+      console.warn('Background WhatsApp telemetry log failed:', err);
     });
   };
 
