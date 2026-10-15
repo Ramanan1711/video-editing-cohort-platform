@@ -31,7 +31,7 @@ describe('WhatsAppMonitoringModal Component', () => {
       user_id: 'u-1',
       student_name: 'Jordan Lee',
       student_email: 'jordan@test.com',
-      recipient_phone: '919876543210',
+      recipient_phone: whatsappService.DEFAULT_ACADEMY_WHATSAPP,
       event_type: 'daily_challenge',
       message_body: '🚀 Day 1 challenge is live!',
       provider: 'mock',

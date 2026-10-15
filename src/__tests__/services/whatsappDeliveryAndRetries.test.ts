@@ -12,6 +12,7 @@ import {
   syncWhatsAppDeliveryStatus,
   retrySingleWhatsAppMessage,
   getCohortWhatsAppStats,
+  DEFAULT_ACADEMY_WHATSAPP,
 } from '../../lib/whatsappService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -34,7 +35,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
   describe('Provider Adapters', () => {
     it('MockWhatsAppProvider returns successful sent status with pseudo wamid', async () => {
       const provider = new MockWhatsAppProvider();
-      const res = await provider.send('+91 98765 43210', 'Hello from test');
+      const res = await provider.send(DEFAULT_ACADEMY_WHATSAPP, 'Hello from test');
 
       expect(res.success).toBe(true);
       expect(res.status).toBe('sent');
@@ -44,7 +45,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
 
     it('MockWhatsAppProvider simulates gateway service outage when requested', async () => {
       const provider = new MockWhatsAppProvider(true);
-      const res = await provider.send('+91 98765 43210', 'Hello from test');
+      const res = await provider.send(DEFAULT_ACADEMY_WHATSAPP, 'Hello from test');
 
       expect(res.success).toBe(false);
       expect(res.status).toBe('failed');
@@ -63,7 +64,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
       globalThis.fetch = mockFetch;
 
       const provider = new MetaWhatsAppProvider('phone-id-123', 'access-token-xyz');
-      const res = await provider.send('919876543210', 'Test Meta Message');
+      const res = await provider.send(DEFAULT_ACADEMY_WHATSAPP, 'Test Meta Message');
 
       expect(res.success).toBe(true);
       expect(res.providerMessageId).toBe('wamid.HBgLMTA...');
@@ -89,7 +90,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
       globalThis.fetch = mockFetch;
 
       const provider = new TwilioWhatsAppProvider('AC_SID', 'AUTH_TOKEN', '14155238886');
-      const res = await provider.send('+919876543210', 'Test Twilio Message');
+      const res = await provider.send(`+${DEFAULT_ACADEMY_WHATSAPP}`, 'Test Twilio Message');
 
       expect(res.success).toBe(true);
       expect(res.providerMessageId).toBe('SM1234567890abcdef');
@@ -115,7 +116,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
       globalThis.fetch = mockFetch;
 
       const provider = new WebhookWhatsAppProvider('https://custom-gateway.io/api/send', 'secret_key');
-      const res = await provider.send('919876543210', 'Hello Custom Gateway');
+      const res = await provider.send(DEFAULT_ACADEMY_WHATSAPP, 'Hello Custom Gateway');
 
       expect(res.success).toBe(true);
       expect(res.providerMessageId).toBe('gw_msg_999');
@@ -123,7 +124,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
 
     it('ManualClickToChatProvider generates wa.me links with status queued and no API secrets', async () => {
       const provider = new ManualClickToChatProvider();
-      const res = await provider.send('+91 98765 43210', 'Hello Manual');
+      const res = await provider.send(DEFAULT_ACADEMY_WHATSAPP, 'Hello Manual');
 
       expect(res.success).toBe(true);
       expect(res.status).toBe('queued');
@@ -133,7 +134,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
 
     it('ServerQueuedWhatsAppProvider queues messages for backend worker execution without client secrets', async () => {
       const provider = new ServerQueuedWhatsAppProvider('meta');
-      const res = await provider.send('+91 98765 43210', 'Hello Queued Meta');
+      const res = await provider.send(DEFAULT_ACADEMY_WHATSAPP, 'Hello Queued Meta');
 
       expect(res.success).toBe(true);
       expect(res.status).toBe('queued');
@@ -170,7 +171,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
               id: '00000000-0000-0000-0000-000000000001',
               user_id: 'u-1',
               cohort_id: 'c-1',
-              recipient_phone: '919876543210',
+              recipient_phone: DEFAULT_ACADEMY_WHATSAPP,
               event_type: 'daily_challenge',
               message_body: 'Day 1 task is live!',
               provider: 'mock',
@@ -199,7 +200,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
       const result = await dispatchWhatsAppMessage({
         userId: 'u-1',
         cohortId: 'c-1',
-        phone: '+91 98765 43210',
+        phone: DEFAULT_ACADEMY_WHATSAPP,
         eventType: 'daily_challenge',
         message: 'Day 1 task is live!',
         provider: 'mock',
@@ -208,7 +209,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
       expect(result.success).toBe(true);
       expect(supabase.rpc).toHaveBeenCalledWith('dispatch_whatsapp_message', expect.objectContaining({
         p_user_id: 'u-1',
-        p_recipient_phone: '919876543210',
+        p_recipient_phone: DEFAULT_ACADEMY_WHATSAPP,
         p_event_type: 'daily_challenge',
       }));
     });
@@ -226,7 +227,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
 
       const result = await dispatchWhatsAppMessage({
         userId: 'u-optout',
-        phone: '+91 98765 43210',
+        phone: DEFAULT_ACADEMY_WHATSAPP,
         eventType: 'inactivity_nudge',
         message: 'Keep your streak!',
       });
@@ -249,7 +250,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
           id: '00000000-0000-0000-0000-000000000002',
           user_id: 'u-2',
           cohort_id: 'c-1',
-          recipient_phone: '919876543210',
+          recipient_phone: DEFAULT_ACADEMY_WHATSAPP,
           event_type: 'daily_challenge',
           message_body: 'Queued task drop',
           provider: 'meta',
@@ -263,7 +264,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
       const result = await dispatchWhatsAppMessage({
         userId: 'u-2',
         cohortId: 'c-1',
-        phone: '+91 98765 43210',
+        phone: DEFAULT_ACADEMY_WHATSAPP,
         eventType: 'daily_challenge',
         message: 'Queued task drop',
         provider: 'meta',
@@ -283,7 +284,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
       const mockCandidate = {
         id: 'retry-candidate-1',
         user_id: 'u-1',
-        recipient_phone: '919876543210',
+        recipient_phone: DEFAULT_ACADEMY_WHATSAPP,
         message_body: 'Retry task drop',
         provider: 'mock',
         status: 'queued',
@@ -348,7 +349,7 @@ describe('WhatsApp Automated Provider Integration, Delivery Tracking & Retries',
             single: vi.fn().mockResolvedValue({
               data: {
                 id: 'failed-log-uuid',
-                recipient_phone: '919876543210',
+                recipient_phone: DEFAULT_ACADEMY_WHATSAPP,
                 message_body: 'Retry single note',
                 provider: 'mock',
                 status: 'failed',
