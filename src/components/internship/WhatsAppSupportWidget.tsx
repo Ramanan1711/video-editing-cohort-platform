@@ -8,7 +8,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { generateWhatsAppClickToChatUrl, sendWhatsAppNotification } from '../../lib/whatsappService';
+import { DEFAULT_ACADEMY_WHATSAPP, generateWhatsAppClickToChatUrl, sendWhatsAppNotification } from '../../lib/whatsappService';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../context/useToast';
 
@@ -27,7 +27,7 @@ export function WhatsAppSupportWidget({
   cohortName = '15-Day Internship',
   currentDay = 1,
   initialPhone = '',
-  mentorPhone = '919876543210',
+  mentorPhone = DEFAULT_ACADEMY_WHATSAPP,
 }: WhatsAppSupportWidgetProps) {
   const toast = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -62,15 +62,15 @@ export function WhatsAppSupportWidget({
     }
   };
 
-  const handleLaunchWhatsApp = async (text: string, eventType: 'custom' | 'daily_challenge' | 'welcome' = 'custom') => {
-    // Record log
-    try {
-      await sendWhatsAppNotification(userId, mentorPhone, eventType, text);
-    } catch (e) {
-      console.warn('WhatsApp log dispatch fallback:', e);
-    }
-    const url = generateWhatsAppClickToChatUrl(mentorPhone, text);
+  const handleLaunchWhatsApp = (text: string, eventType: 'custom' | 'daily_challenge' | 'welcome' = 'custom') => {
+    const targetPhone = mentorPhone || DEFAULT_ACADEMY_WHATSAPP;
+    const url = generateWhatsAppClickToChatUrl(targetPhone, text);
     window.open(url, '_blank', 'noopener,noreferrer');
+
+    // Record log asynchronously without delaying or risking popup-blocker triggers
+    sendWhatsAppNotification(userId, targetPhone, eventType, text).catch((e) => {
+      console.warn('WhatsApp log dispatch fallback:', e);
+    });
   };
 
   const defaultChallengeMsg = `Hi Mentor! I am ${studentName} from ${cohortName}. I am working on Day ${currentDay} and have a quick question.`;
@@ -112,7 +112,7 @@ export function WhatsAppSupportWidget({
                     Mentor WhatsApp Direct
                   </h3>
                   <p className="text-[11px] text-emerald-100 mt-1">
-                    Typically replies in 15–30 mins
+                    +{mentorPhone.replace(/[^0-9]/g, '')} • Typically replies in 15–30 mins
                   </p>
                 </div>
               </div>
@@ -240,7 +240,7 @@ export function WhatsAppSupportWidget({
               <div className="flex gap-2">
                 <input
                   type="tel"
-                  placeholder="+91 98765 43210"
+                  placeholder="+91 90809 95108"
                   value={studentPhone}
                   onChange={(e) => setStudentPhone(e.target.value)}
                   className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-emerald-500"

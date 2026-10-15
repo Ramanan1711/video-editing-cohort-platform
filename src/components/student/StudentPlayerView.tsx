@@ -34,6 +34,7 @@ import { clearPendingCohortCheckout, markJustEnrolledCohort } from '../../lib/co
 import { NotificationCenter } from '../NotificationCenter';
 import { MilestonePanel, EnrollmentPanel, AssignmentPanel } from '../StudentFlowPanels';
 import { SprintChallengeTracker } from '../internship/SprintChallengeTracker';
+import { DEFAULT_ACADEMY_WHATSAPP } from '../../lib/whatsappService';
 import { StudentCalendar } from '../StudentCalendar';
 import { CommunityBoard } from '../CommunityBoard';
 import { Button } from '../ui/Button';
@@ -659,6 +660,7 @@ export function StudentPlayerView({
                       streakCount={sprintStreak}
                       overallScore={sprintScore}
                       totalDays={totalSprintDays}
+                      mentorPhone={course.cohort.mentor_phone || DEFAULT_ACADEMY_WHATSAPP}
                       onRefresh={() => setRefreshKey((k) => k + 1)}
                     />
                   )}

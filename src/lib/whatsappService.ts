@@ -93,12 +93,47 @@ export interface IWhatsAppProvider {
 // ---------------------------------------------------------------------------
 
 /**
+ * Authoritative Academy WhatsApp Phone Number (defaults to India country code 91)
+ * Configured via VITE_WHATSAPP_SUPPORT_PHONE in .env
+ */
+export const DEFAULT_ACADEMY_WHATSAPP =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WHATSAPP_SUPPORT_PHONE) ||
+  '919080995108';
+
+/**
+ * Fallback WhatsApp Cohort Batch Community Group invite URL
+ * Configured via VITE_WHATSAPP_GROUP_FALLBACK_URL in .env
+ */
+export const DEFAULT_WHATSAPP_GROUP_FALLBACK_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WHATSAPP_GROUP_FALLBACK_URL) ||
+  'https://chat.whatsapp.com/invite';
+
+/**
  * Generate a direct click-to-chat WhatsApp link
  */
 export function generateWhatsAppClickToChatUrl(phone: string, text: string): string {
   const cleanPhone = phone.replace(/[^0-9]/g, '');
   const encodedText = encodeURIComponent(text);
   return `https://wa.me/${cleanPhone}?text=${encodedText}`;
+}
+
+/**
+ * Formats contextual task blocker message for direct mentor assistance
+ */
+export function formatWhatsAppTaskBlockerMessage(
+  studentName: string,
+  cohortName: string,
+  dayNumber: number,
+  dayTitle: string,
+  blockerDetails?: string
+): string {
+  const details = blockerDetails?.trim() ? `\n\nIssue Details:\n${blockerDetails.trim()}` : '';
+  return (
+    `Hi Mentor! I am ${studentName} from ${cohortName}.\n` +
+    `I am currently working on Day ${dayNumber}: ${dayTitle}.\n` +
+    `I have a question / blocker regarding the challenge requirements.${details}\n\n` +
+    `Could you please guide me?`
+  );
 }
 
 /**
@@ -487,7 +522,7 @@ export class MockWhatsAppProvider implements IWhatsAppProvider {
  */
 export function getWhatsAppProvider(providerOverride?: WhatsAppProviderType): IWhatsAppProvider {
   const metaEnv = ((typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {}) as Record<string, string | undefined>;
-  const providerType = providerOverride || (metaEnv.VITE_WHATSAPP_PROVIDER as WhatsAppProviderType) || 'mock';
+  const providerType = providerOverride || (metaEnv.VITE_WHATSAPP_PROVIDER as WhatsAppProviderType) || 'manual';
 
   if (providerType === 'manual') {
     return new ManualClickToChatProvider();

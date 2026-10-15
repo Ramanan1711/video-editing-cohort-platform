@@ -10,6 +10,11 @@ import { LevelUpModal } from '../components/community/LevelUpModal';
 import { WorkshopsModal } from '../components/community/WorkshopsModal';
 import { CohortDiscoveryModal } from '../components/StudentFlowPanels';
 import { WhatsAppSupportWidget } from '../components/internship/WhatsAppSupportWidget';
+import { WhatsAppBatchGroupBanner } from '../components/student/WhatsAppBatchGroupBanner';
+import {
+  DEFAULT_ACADEMY_WHATSAPP,
+  DEFAULT_WHATSAPP_GROUP_FALLBACK_URL,
+} from '../lib/whatsappService';
 import { StateFallback } from '../components/ui/StateFallback';
 import { Button } from '../components/ui/Button';
 import { CelebrationOnboardingModal } from '../components/student/CelebrationOnboardingModal';
@@ -296,6 +301,17 @@ export function StudentDashboard() {
         </div>
       )}
 
+      {/* Official WhatsApp Batch Group Community Banner */}
+      {dashboard.course.cohort && (
+        <WhatsAppBatchGroupBanner
+          cohortId={dashboard.course.cohort.id}
+          cohortName={dashboard.course.cohort.name}
+          whatsappGroupUrl={dashboard.course.cohort.whatsapp_group_url}
+          mentorPhone={dashboard.course.cohort.mentor_phone || DEFAULT_ACADEMY_WHATSAPP}
+          studentName={profile?.full_name || 'Editor'}
+        />
+      )}
+
       {/* Main View Router */}
       {dashboardView === 'catalog' ? (
         <StudentCatalogView
@@ -470,6 +486,7 @@ export function StudentDashboard() {
           cohortName={celebratedCohortInfo.name}
           cohortId={celebratedCohortInfo.id}
           studentName={profile?.full_name || user?.user_metadata?.full_name || 'Editor'}
+          whatsappGroupUrl={dashboard.course.cohort?.whatsapp_group_url || DEFAULT_WHATSAPP_GROUP_FALLBACK_URL}
           onLaunchLesson1={handleLaunchLesson1}
         />
       )}
@@ -482,6 +499,7 @@ export function StudentDashboard() {
           cohortName={dashboard.course.cohort?.name}
           currentDay={Math.min(dashboard.totalSprintDays, dashboard.sprintCompletedCount + 1)}
           initialPhone={profile?.whatsapp_number || ''}
+          mentorPhone={dashboard.course.cohort?.mentor_phone || DEFAULT_ACADEMY_WHATSAPP}
         />
       )}
     </div>

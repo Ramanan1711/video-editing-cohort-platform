@@ -44,6 +44,8 @@ export interface Cohort {
   duration_days?: number;
   price_inr?: number;
   currency?: string;
+  mentor_phone?: string | null;
+  whatsapp_group_url?: string | null;
 }
 
 export interface DbCohortRow {
@@ -61,6 +63,8 @@ export interface DbCohortRow {
   duration_days?: number;
   price_inr?: number;
   currency?: string;
+  mentor_phone?: string | null;
+  whatsapp_group_url?: string | null;
 }
 
 export interface Lesson {
@@ -168,6 +172,8 @@ export async function listCohorts(): Promise<Cohort[]> {
         duration_days: cohort.duration_days ?? 15,
         price_inr: cohort.price_inr ?? DEFAULT_COHORT_FEE_INR,
         currency: cohort.currency ?? DEFAULT_CURRENCY,
+        mentor_phone: cohort.mentor_phone ?? null,
+        whatsapp_group_url: cohort.whatsapp_group_url ?? null,
       }));
     },
     300_000,

@@ -27,7 +27,7 @@ import {
   type DailyChallengeSubmission,
 } from '../../lib/internshipService';
 import { getSecureAssetUrl } from '../../lib/courseService';
-import { generateWhatsAppClickToChatUrl } from '../../lib/whatsappService';
+import { DEFAULT_ACADEMY_WHATSAPP, generateWhatsAppClickToChatUrl } from '../../lib/whatsappService';
 import { DynamicChallengeSubmissionBox } from './DynamicChallengeSubmissionBox';
 
 interface SprintChallengeTrackerProps {
@@ -56,7 +56,7 @@ export function SprintChallengeTracker({
   streakCount,
   overallScore,
   onRefresh,
-  mentorPhone = '919876543210',
+  mentorPhone = DEFAULT_ACADEMY_WHATSAPP,
   isMentor = false,
 }: SprintChallengeTrackerProps) {
   const toast = useToast();
@@ -221,7 +221,7 @@ export function SprintChallengeTracker({
 
       // Pre-fill instant WhatsApp notification
       const waMsg = `Hi Mentor! I am ${studentName} from ${cohortName}. I have submitted Day ${dayNum}: ${dayTitle}.\nDeliverable: ${data.submissionUrl.trim()}\nNotes: ${data.notes.trim() || 'Ready for evaluation'}\nPlease review when convenient!`;
-      generateWhatsAppClickToChatUrl(mentorPhone, waMsg);
+      generateWhatsAppClickToChatUrl(mentorPhone || DEFAULT_ACADEMY_WHATSAPP, waMsg);
 
       toast.success(
         `Day ${dayNum} challenge submitted! Your mentor has been queued for review.`
@@ -678,7 +678,7 @@ export function SprintChallengeTracker({
                     </span>
                     <a
                       href={generateWhatsAppClickToChatUrl(
-                        mentorPhone,
+                        mentorPhone || DEFAULT_ACADEMY_WHATSAPP,
                         `Hi Mentor! I am ${studentName} from ${cohortName}. I have submitted Day ${selectedDay.dayNumber}: ${selectedDay.title}.\nDeliverable: ${selectedDay.submission.submission_url}\nPlease review when convenient!`
                       )}
                       target="_blank"
@@ -797,7 +797,7 @@ export function SprintChallengeTracker({
                 cohortName={cohortName}
                 onSubmit={handleSubmitTask}
                 onCancel={() => setSelectedDay(null)}
-                mentorPhone={mentorPhone}
+                mentorPhone={mentorPhone || DEFAULT_ACADEMY_WHATSAPP}
                 studentName={studentName}
                 dayTitle={selectedDay.title}
                 dayNumber={selectedDay.dayNumber}

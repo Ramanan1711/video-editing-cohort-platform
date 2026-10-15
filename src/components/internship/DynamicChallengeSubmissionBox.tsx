@@ -31,7 +31,11 @@ import {
   formatFileSize,
   getSecureSubmissionUrl,
 } from '../../lib/services/assetStorageService';
-import { generateWhatsAppClickToChatUrl } from '../../lib/whatsappService';
+import {
+  DEFAULT_ACADEMY_WHATSAPP,
+  formatWhatsAppTaskBlockerMessage,
+  generateWhatsAppClickToChatUrl,
+} from '../../lib/whatsappService';
 import {
   type SubmissionMode,
   detectCloudPlatform,
@@ -75,7 +79,7 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
   trackType,
   onSubmit,
   onCancel,
-  mentorPhone = '919876543210',
+  mentorPhone = DEFAULT_ACADEMY_WHATSAPP,
   studentName = 'Student',
   cohortName = 'Production Cohort',
   dayTitle = 'Sprint Challenge',
@@ -993,8 +997,8 @@ export const DynamicChallengeSubmissionBox: React.FC<DynamicChallengeSubmissionB
         </div>
         <a
           href={generateWhatsAppClickToChatUrl(
-            mentorPhone,
-            `Hi Mentor! I am ${studentName} from ${cohortName}. I am currently working on Day ${dayNumber}: ${dayTitle} and have a question regarding the challenge requirements.`
+            mentorPhone || DEFAULT_ACADEMY_WHATSAPP,
+            formatWhatsAppTaskBlockerMessage(studentName, cohortName, dayNumber, dayTitle)
           )}
           target="_blank"
           rel="noopener noreferrer"

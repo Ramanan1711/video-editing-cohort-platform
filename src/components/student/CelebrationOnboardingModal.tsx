@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
+import { DEFAULT_WHATSAPP_GROUP_FALLBACK_URL } from '../../lib/whatsappService';
 
 export interface CelebrationOnboardingModalProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ export const CelebrationOnboardingModal: React.FC<CelebrationOnboardingModalProp
   if (!isOpen) return null;
 
   const defaultWhatsappUrl =
-    whatsappGroupUrl || 'https://chat.whatsapp.com/sample-cohort-group';
+    whatsappGroupUrl || DEFAULT_WHATSAPP_GROUP_FALLBACK_URL;
 
   return (
     <div

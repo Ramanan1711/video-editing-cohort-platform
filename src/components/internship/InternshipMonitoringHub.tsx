@@ -141,7 +141,11 @@ export function InternshipMonitoringHub({
   }, [interns, searchQuery, riskFilter]);
 
   const handleSendWhatsAppNudge = async (intern: InternMonitoringRecord) => {
-    const phone = intern.phone || '919876543210';
+    const phone = intern.phone?.trim();
+    if (!phone) {
+      toast.error(`No WhatsApp phone number recorded for ${intern.fullName}.`);
+      return;
+    }
     const resumeUrl = window.location.origin + '/student/dashboard?tab=internship_sprint';
     const internTotalDays = intern.totalDays || 15;
     const nextDay = Math.min(internTotalDays, intern.completedDaysCount + 1);
