@@ -28,7 +28,7 @@ export const CommunitySidebar: React.FC<CommunitySidebarProps> = ({
   activeView,
   onSelectView,
   onCreateClick,
-  unreadMessagesCount = 2,
+  unreadMessagesCount = 0,
   collapsed = false,
   onToggleCollapse,
   onCloseMobile,

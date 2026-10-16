@@ -41,8 +41,8 @@ interface CommunityTopNavProps {
 export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
   activeTab,
   onTabChange,
-  unreadMessagesCount = 2,
-  unreadNotificationsCount: _unreadNotificationsCount = 10,
+  unreadMessagesCount = 0,
+  unreadNotificationsCount: _unreadNotificationsCount = 0,
   onOpenLevelUpModal: _onOpenLevelUpModal,
   onOpenWorkshopsModal: _onOpenWorkshopsModal,
 }) => {

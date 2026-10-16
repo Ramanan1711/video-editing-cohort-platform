@@ -73,8 +73,7 @@ export const CommunityHub: React.FC = () => {
       <CommunityTopNav
         activeTab={activeView === 'feed' ? 'community' : activeView === 'messages' ? 'messages' : 'levelup'}
         onTabChange={handleTopNavTabChange}
-        unreadMessagesCount={2}
-        unreadNotificationsCount={10}
+        unreadMessagesCount={0}
         onOpenLevelUpModal={() => setShowLevelUpModal(true)}
         onOpenWorkshopsModal={() => setShowWorkshopsModal(true)}
       />
@@ -90,8 +89,7 @@ export const CommunityHub: React.FC = () => {
           onCreateClick={() => setShowCreateModal(true)}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          unreadMessagesCount={2}
-          qaUnreadCount={16}
+          unreadMessagesCount={0}
         />
 
         {/* Center Main View Area: Feed vs Messages vs Level Up Tab */}
@@ -134,8 +132,7 @@ export const CommunityHub: React.FC = () => {
                 setShowCreateModal(true);
                 setMobileSidebarOpen(false);
               }}
-              unreadMessagesCount={2}
-              qaUnreadCount={16}
+              unreadMessagesCount={0}
               isMobileDrawer={true}
               onCloseMobile={() => setMobileSidebarOpen(false)}
             />
@@ -172,9 +169,6 @@ export const CommunityHub: React.FC = () => {
         >
           <MessageSquare size={18} />
           <span>Chat</span>
-          <span className="absolute top-0.5 right-2 flex size-3.5 items-center justify-center rounded-full bg-orange-500 text-[8px] font-black text-white">
-            2
-          </span>
         </button>
 
         <button
