@@ -487,10 +487,11 @@ export async function sendChatMessage(
     role: 'student' | 'mentor' | 'admin' | 'creator';
     avatar?: string;
   },
-  content: string
+  content: string,
+  attachmentUrl?: string
 ): Promise<ChatMessage> {
   const trimmed = content.trim();
-  if (!trimmed) {
+  if (!trimmed && !attachmentUrl) {
     throw new Error('Message content cannot be empty.');
   }
 
@@ -506,9 +507,13 @@ export async function sendChatMessage(
     sender_name: sender.name,
     sender_role: sender.role,
     sender_avatar: sender.avatar,
-    content: trimmed,
-    body: trimmed,
+    content: trimmed || (attachmentUrl ? 'Shared an attachment' : ''),
+    body: trimmed || (attachmentUrl ? 'Shared an attachment' : ''),
   };
+
+  if (attachmentUrl) {
+    payload.attachment_url = attachmentUrl;
+  }
 
   let { data, error } = await supabase
     .from('community_messages')
@@ -516,13 +521,14 @@ export async function sendChatMessage(
     .select()
     .single();
 
-  // Resilience: if database schema does not have body / content / author_id / sender_id (42703 / PGRST204)
+  // Resilience: if database schema does not have body / content / author_id / sender_id / attachment_url (42703 / PGRST204)
   if (error && (error.code === '42703' || error.code === 'PGRST204')) {
     const errorMsg = error.message || '';
     if (errorMsg.includes('body')) delete payload.body;
     if (errorMsg.includes('content')) delete payload.content;
     if (errorMsg.includes('author_id')) delete payload.author_id;
     if (errorMsg.includes('sender_id')) delete payload.sender_id;
+    if (errorMsg.includes('attachment_url')) delete payload.attachment_url;
 
     const retryRes = await supabase
       .from('community_messages')
@@ -537,8 +543,8 @@ export async function sendChatMessage(
   // Resilience: if database schema enforces a NOT NULL constraint on body or author_id (23502)
   if (error && error.code === '23502') {
     const errorMsg = error.message || '';
-    if (errorMsg.includes('body')) payload.body = trimmed;
-    if (errorMsg.includes('content')) payload.content = trimmed;
+    if (errorMsg.includes('body')) payload.body = trimmed || 'Shared an attachment';
+    if (errorMsg.includes('content')) payload.content = trimmed || 'Shared an attachment';
     if (errorMsg.includes('author_id')) payload.author_id = sender.id;
     if (errorMsg.includes('sender_id')) payload.sender_id = sender.id;
 
@@ -568,7 +574,7 @@ export async function sendChatMessage(
     sender_id: String(row.sender_id || row.author_id || sender.id),
     sender_name: String(row.sender_name || sender.name),
     sender_role: ((row.sender_role || sender.role) as 'student' | 'mentor' | 'admin' | 'creator'),
-    content: String(row.content || row.body || trimmed),
+    content: String(row.content || row.body || trimmed || 'Shared an attachment'),
     created_at: String(row.created_at || new Date().toISOString()),
   };
   if (row.sender_avatar || sender.avatar) {
@@ -577,8 +583,8 @@ export async function sendChatMessage(
   if (row.reactions) {
     result.reactions = row.reactions as Record<string, number>;
   }
-  if (row.attachment_url) {
-    result.attachment_url = row.attachment_url as string;
+  if (row.attachment_url || attachmentUrl) {
+    result.attachment_url = (row.attachment_url as string) || attachmentUrl;
   }
   return result;
 }

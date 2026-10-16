@@ -9,6 +9,12 @@ import {
   MoreVertical,
   AlertCircle,
   ArrowLeft,
+  X,
+  Loader2,
+  Trash2,
+  Share2,
+  Users,
+  Check,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import {
@@ -26,6 +32,10 @@ import {
   type ChatChannel,
   type DirectMessageUser,
 } from '../../lib/communityMessageService';
+import { uploadCommunityMedia } from '../../lib/communityService';
+import { PostMediaRenderer } from './PostMediaRenderer';
+
+const COMMON_EMOJIS = ['🔥', '🎬', '🚀', '👏', '💯', '✨', '🙌', '💡', '👍', '❤️', '🤩', '⚡'];
 
 interface CommunityMessagesProps {
   initialChannelId?: string;
@@ -48,6 +58,18 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
   const [sending, setSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Attachment upload states
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+
+  // Emoji picker state
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Header options menu state
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Dynamically load channels and direct message contacts strictly for user's enrolled courses
   useEffect(() => {
@@ -210,9 +232,46 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
     }
   }, [isDm, currentChannelId, currentDmTarget?.id, user?.id]);
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 50 * 1024 * 1024) {
+        setErrorMessage('Attachment size exceeds the 50MB limit.');
+        return;
+      }
+      setSelectedFile(file);
+      setErrorMessage(null);
+    }
+  };
+
+  const handleAddEmoji = (emoji: string) => {
+    setDraft((prev) => `${prev} ${emoji} `);
+    setShowEmojiPicker(false);
+  };
+
+  const handleCopyChatLink = async () => {
+    try {
+      const url = window.location.href;
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+      }
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+      setShowOptionsMenu(false);
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleClearChatDraft = () => {
+    setDraft('');
+    setSelectedFile(null);
+    setShowOptionsMenu(false);
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!draft.trim() || sending) return;
+    if ((!draft.trim() && !selectedFile) || sending || uploadingAttachment) return;
 
     if (!user) {
       setErrorMessage('You must be signed in to send messages to the community.');
@@ -236,7 +295,15 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
         : currentChannelId;
 
     try {
-      const sent = await sendChatMessage(targetChannelId, sender, draft);
+      let attachmentUrl: string | undefined;
+
+      if (selectedFile) {
+        setUploadingAttachment(true);
+        const uploaded = await uploadCommunityMedia(selectedFile);
+        attachmentUrl = uploaded.url;
+      }
+
+      const sent = await sendChatMessage(targetChannelId, sender, draft, attachmentUrl);
       setMessages((prev) => {
         if (prev.some((m) => m.id === sent.id)) return prev;
         return [...prev, sent];
@@ -244,11 +311,12 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
       if (isDm && currentDmTarget) {
         setDirectMessages((prev) =>
           prev.map((dm) =>
-            dm.id === currentDmTarget.id ? { ...dm, last_message: draft.trim() } : dm
+            dm.id === currentDmTarget.id ? { ...dm, last_message: draft.trim() || 'Shared an attachment' } : dm
           )
         );
       }
       setDraft('');
+      setSelectedFile(null);
       scrollToBottom();
     } catch (err: unknown) {
       const msg =
@@ -258,6 +326,7 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
       setErrorMessage(msg);
     } finally {
       setSending(false);
+      setUploadingAttachment(false);
     }
   };
 
@@ -433,7 +502,7 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
         }`}
       >
         {/* Chat Stream Header */}
-        <div className="h-16 border-b border-slate-200/80 px-3.5 sm:px-5 flex items-center justify-between bg-white dark:border-slate-800 dark:bg-slate-950">
+        <div className="h-16 border-b border-slate-200/80 px-3.5 sm:px-5 flex items-center justify-between bg-white dark:border-slate-800 dark:bg-slate-950 relative">
           <div className="flex items-center gap-2.5 sm:gap-3 truncate">
             {/* Mobile Back Button to Channels */}
             <button
@@ -465,12 +534,47 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
             </div>
           </div>
 
-          <button
-            title="Channel options"
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
-          >
-            <MoreVertical size={16} />
-          </button>
+          {/* Top-Right Three Dots Menu */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+              title="Chat options"
+              aria-label="Chat options"
+              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 transition cursor-pointer"
+            >
+              <MoreVertical size={16} />
+            </button>
+
+            {showOptionsMenu && (
+              <div className="absolute right-0 top-10 w-48 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 z-30 animate-in fade-in zoom-in-95 duration-100">
+                <button
+                  type="button"
+                  onClick={handleCopyChatLink}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition cursor-pointer"
+                >
+                  {copiedLink ? <Check size={14} className="text-emerald-500" /> : <Share2 size={14} />}
+                  <span>{copiedLink ? 'Link Copied!' : 'Copy Chat Link'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleClearChatDraft}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition cursor-pointer"
+                >
+                  <Trash2 size={14} />
+                  <span>Clear Input Draft</span>
+                </button>
+
+                {activeChannel && (
+                  <div className="mt-1 border-t border-slate-100 dark:border-slate-800 pt-1 px-3 py-1.5 text-[10px] text-slate-400 flex items-center gap-1.5">
+                    <Users size={12} />
+                    <span>Scoped to enrolled cohort</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Message Bubble Feed */}
@@ -504,59 +608,118 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
             </div>
           ) : (
             messages.map((msg) => {
-            const isMe = msg.sender_id === user?.id;
+              const isMe = msg.sender_id === user?.id;
 
-            return (
-              <div
-                key={msg.id}
-                className={`flex gap-3 max-w-xl ${isMe ? 'ml-auto flex-row-reverse' : ''}`}
-              >
-                {/* Avatar */}
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-800 text-xs font-black dark:bg-slate-800 dark:text-slate-200">
-                  {msg.sender_name.slice(0, 2).toUpperCase()}
-                </div>
-
-                {/* Message Bubble */}
-                <div className={`space-y-1 ${isMe ? 'text-right' : ''}`}>
-                  <div className={`flex items-center gap-2 text-[11px] ${isMe ? 'justify-end' : ''}`}>
-                    <span className="font-black text-slate-900 dark:text-white">
-                      {isMe ? 'You' : msg.sender_name}
-                    </span>
-                    {msg.sender_role === 'creator' ? (
-                      <span className="rounded-full bg-orange-500 px-1.5 py-0.2 text-[9px] font-black uppercase text-white">
-                        CREATOR
-                      </span>
-                    ) : msg.sender_role === 'mentor' ? (
-                      <span className="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[9px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                        MENTOR
-                      </span>
-                    ) : null}
-                    <span className="text-slate-400 text-[10px]">
-                      {new Date(msg.created_at).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex gap-3 max-w-xl ${isMe ? 'ml-auto flex-row-reverse' : ''}`}
+                >
+                  {/* Avatar */}
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-800 text-xs font-black dark:bg-slate-800 dark:text-slate-200">
+                    {msg.sender_name.slice(0, 2).toUpperCase()}
                   </div>
 
-                  <div
-                    className={`rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-2xs ${
-                      isMe
-                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-tr-xs'
-                        : 'bg-white text-slate-900 border border-slate-200/70 rounded-tl-xs dark:border-slate-800 dark:bg-slate-900 dark:text-white'
-                    }`}
-                  >
-                    {msg.content}
+                  {/* Message Bubble */}
+                  <div className={`space-y-1.5 ${isMe ? 'text-right' : ''}`}>
+                    <div className={`flex items-center gap-2 text-[11px] ${isMe ? 'justify-end' : ''}`}>
+                      <span className="font-black text-slate-900 dark:text-white">
+                        {isMe ? 'You' : msg.sender_name}
+                      </span>
+                      {msg.sender_role === 'creator' ? (
+                        <span className="rounded-full bg-orange-500 px-1.5 py-0.2 text-[9px] font-black uppercase text-white">
+                          CREATOR
+                        </span>
+                      ) : msg.sender_role === 'mentor' ? (
+                        <span className="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[9px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                          MENTOR
+                        </span>
+                      ) : null}
+                      <span className="text-slate-400 text-[10px]">
+                        {new Date(msg.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-2xs ${
+                        isMe
+                          ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-tr-xs'
+                          : 'bg-white text-slate-900 border border-slate-200/70 rounded-tl-xs dark:border-slate-800 dark:bg-slate-900 dark:text-white'
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+
+                    {/* Attachment preview if present */}
+                    {msg.attachment_url && (
+                      <div className="pt-1 max-w-xs sm:max-w-sm">
+                        <PostMediaRenderer
+                          mediaUrl={msg.attachment_url}
+                          fileName="Attachment"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            );
-          }))}
+              );
+            })
+          )}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Message Input Composer */}
-        <div className="p-4 bg-white border-t border-slate-200/80 dark:border-slate-800 dark:bg-slate-950">
+        <div className="p-4 bg-white border-t border-slate-200/80 dark:border-slate-800 dark:bg-slate-950 relative">
+          {/* Selected File Attachment Pill */}
+          {selectedFile && (
+            <div className="mb-2.5 flex items-center justify-between gap-2 rounded-xl bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-900 dark:bg-orange-950/40 dark:text-orange-200 border border-orange-200/60 dark:border-orange-900/60 animate-in fade-in">
+              <div className="flex items-center gap-2 truncate">
+                <Paperclip size={14} className="text-orange-600 shrink-0" />
+                <span className="truncate">{selectedFile.name}</span>
+                <span className="text-[10px] text-orange-600 font-bold">
+                  ({(selectedFile.size / 1024 / 1024).toFixed(1)} MB)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedFile(null)}
+                className="text-orange-700 hover:text-orange-950 dark:text-orange-300 dark:hover:text-white cursor-pointer"
+                title="Remove attachment"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          {/* Hidden File Input */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            className="hidden"
+            accept="image/*,video/*,.pdf,.zip,.rar,.prproj,.drp"
+          />
+
+          {/* Emoji Picker Popover */}
+          {showEmojiPicker && (
+            <div className="absolute bottom-18 left-12 z-50 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl dark:border-slate-800 dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-150">
+              <div className="grid grid-cols-6 gap-1.5">
+                {COMMON_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => handleAddEmoji(emoji)}
+                    className="flex size-8 items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-lg transition cursor-pointer"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {errorMessage && (
             <div className="mb-2.5 flex items-center justify-between gap-2 rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/60">
               <div className="flex items-center gap-1.5">
@@ -572,20 +735,33 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
               </button>
             </div>
           )}
+
           <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+            {/* Attachment Button */}
             <button
               type="button"
+              onClick={() => fileInputRef.current?.click()}
               title="Attach media or project file"
-              className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 transition"
+              disabled={uploadingAttachment}
+              className={`rounded-xl p-2 transition cursor-pointer ${
+                selectedFile
+                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400'
+                  : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800'
+              }`}
             >
               <Paperclip size={18} />
             </button>
 
+            {/* Emoji Button */}
             <button
               type="button"
               title="Add emoji"
-              onClick={() => setDraft((d) => `${d} 🔥`)}
-              className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 transition"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className={`rounded-xl p-2 transition cursor-pointer ${
+                showEmojiPicker
+                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400'
+                  : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800'
+              }`}
             >
               <Smile size={18} />
             </button>
@@ -600,10 +776,14 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
 
             <button
               type="submit"
-              disabled={!draft.trim() || sending}
-              className="flex items-center justify-center rounded-xl bg-orange-500 px-4 py-2.5 text-xs font-black text-white hover:bg-orange-600 disabled:opacity-40 transition shadow-sm"
+              disabled={(!draft.trim() && !selectedFile) || sending || uploadingAttachment}
+              className="flex items-center justify-center rounded-xl bg-orange-500 px-4 py-2.5 text-xs font-black text-white hover:bg-orange-600 disabled:opacity-40 transition shadow-sm cursor-pointer"
             >
-              <Send size={15} />
+              {sending || uploadingAttachment ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <Send size={15} />
+              )}
             </button>
           </form>
         </div>
