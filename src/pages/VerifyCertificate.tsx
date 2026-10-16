@@ -100,11 +100,11 @@ export function VerifyCertificate() {
       {/* Top Navigation */}
       <header className="border-b border-white/10 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 print:hidden">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5 group">
+          <Link to="/" className="flex items-center gap-3 group">
             <img
               src={BRAND_LOGO_URL}
               alt="Iunoware Academy Logo"
-              className="size-9 rounded-xl object-contain shadow-lg shadow-orange-500/20 group-hover:scale-105 transition"
+              className="h-9 w-auto object-contain drop-shadow-[0_2px_8px_rgba(249,115,22,0.25)] group-hover:scale-105 transition"
             />
             <div>
               <span className="font-black text-sm tracking-wider uppercase text-white">IUNOWARE</span>

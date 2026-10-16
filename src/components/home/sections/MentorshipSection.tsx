@@ -124,11 +124,11 @@ export function MentorshipSection() {
               className="rounded-3xl border border-surface-subtle bg-surface-card/95 backdrop-blur-xl p-6 sm:p-7 shadow-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] shadow-emerald-950/20 space-y-4"
             >
               <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                <div className="relative">
+                <div className="relative flex items-center justify-center size-11 rounded-full bg-[#030712] border border-emerald-500/30 p-1.5 shadow-md shadow-emerald-950/40">
                   <img
                     src={BRAND_LOGO_URL}
                     alt="Iunoware Academy"
-                    className="size-10 rounded-full object-contain p-0.5 bg-[#030712] border border-emerald-500/30 shadow-md shadow-emerald-950/40"
+                    className="w-full h-auto object-contain"
                   />
                   <span className="absolute bottom-0 right-0 size-3 rounded-full bg-emerald-400 ring-2 ring-[#030712]" />
                 </div>

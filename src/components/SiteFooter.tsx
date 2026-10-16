@@ -9,17 +9,17 @@ export function SiteFooter() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-10">
           {/* Brand Info */}
           <div className="md:col-span-2 space-y-4">
-            <Link to="/" className="flex items-center gap-2.5">
+            <Link to="/" className="flex items-center gap-3">
               <img
                 src={BRAND_LOGO_URL}
                 alt="Iunoware Academy Logo"
-                className="size-8 rounded-xl object-contain shadow-md shadow-orange-500/20"
+                className="h-8 w-auto object-contain drop-shadow-[0_2px_6px_rgba(249,115,22,0.25)]"
               />
-              <div className="flex items-center gap-1 leading-none">
-                <span className="text-lg font-black tracking-tight text-orange-500">
+              <div className="flex items-center gap-1.5 leading-none">
+                <span className="text-xl font-black tracking-tight text-white">
                   Iunoware
                 </span>
-                <span className="text-lg font-black tracking-tight text-white">
+                <span className="text-xl font-black tracking-tight text-orange-500">
                   Academy
                 </span>
               </div>

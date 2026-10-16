@@ -237,7 +237,7 @@ export function StudentCatalogView({
                     <img
                       src={BRAND_LOGO_URL}
                       alt="Iunoware Academy"
-                      className="size-6 object-contain rounded-md mb-1 shadow-xs"
+                      className="h-7 w-auto object-contain mb-1.5 drop-shadow-[0_2px_4px_rgba(249,115,22,0.3)]"
                     />
                     <span className="text-xs font-black tracking-widest text-[#f59e0b]">IUNOWARE</span>
                     <span className="text-[6px] font-bold tracking-widest text-slate-400 uppercase">ACADEMY</span>

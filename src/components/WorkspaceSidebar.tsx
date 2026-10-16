@@ -107,7 +107,7 @@ export function WorkspaceSidebar() {
             <img
               src={BRAND_LOGO_URL}
               alt="Iunoware Academy"
-              className="size-9 rounded-xl object-contain shrink-0 shadow-xs"
+              className="h-8 w-auto object-contain shrink-0 drop-shadow-[0_2px_6px_rgba(249,115,22,0.25)]"
             />
             {!collapsed && (
               <div>

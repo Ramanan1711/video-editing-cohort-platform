@@ -57,23 +57,20 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 w-full border-b border-surface-subtle bg-surface-base/85 backdrop-blur-xl transition-colors">
       <div className="mx-auto flex max-w-7xl h-18 items-center justify-between px-5 lg:px-8">
         {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-2.5 group">
+        <Link to="/" className="flex items-center gap-3 group">
           <img
             src={BRAND_LOGO_URL}
             alt="Iunoware Academy Logo"
-            className="size-9 rounded-xl object-contain shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform"
+            className="h-10 w-auto object-contain drop-shadow-[0_2px_8px_rgba(249,115,22,0.28)] group-hover:scale-105 transition-transform"
           />
-          <div className="flex items-center gap-1 leading-none font-sans">
-            <span className="text-xl font-black tracking-tight text-orange-500">
+          <div className="flex items-center gap-1.5 leading-none font-sans">
+            <span className="text-2xl font-black tracking-tight text-white group-hover:text-orange-400 transition-colors">
               Iunoware
             </span>
-            {/* <span className="text-xl font-black tracking-tight text-white">
-              Global
-            </span> */}
+            <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-orange-400">
+              Academy
+            </span>
           </div>
-          <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-orange-400">
-            Academy
-          </span>
         </Link>
 
         {/* Center Navigation Links */}

@@ -685,7 +685,7 @@ export function CertificateModal({
               <img
                 src={BRAND_LOGO_URL}
                 alt="Iunoware Academy"
-                className="mx-auto mb-1 size-10 rounded-xl object-contain shadow-md shadow-orange-500/20"
+                className="mx-auto mb-2 h-12 sm:h-14 w-auto object-contain drop-shadow-[0_4px_10px_rgba(249,115,22,0.25)]"
               />
 
               <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-orange-600">

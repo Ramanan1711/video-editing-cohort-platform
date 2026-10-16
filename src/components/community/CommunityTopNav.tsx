@@ -138,7 +138,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
             <img
               src={BRAND_LOGO_URL}
               alt="Iunoware Academy Logo"
-              className="size-8 sm:size-9 rounded-xl object-contain shadow-xs shrink-0 group-hover:scale-105 transition-transform"
+              className="h-8 sm:h-9 w-auto object-contain shrink-0 drop-shadow-[0_2px_6px_rgba(249,115,22,0.25)] group-hover:scale-105 transition-transform"
             />
             <div className="flex items-center gap-1 sm:gap-1.5 leading-none">
               <span className="text-lg sm:text-xl font-black tracking-tight text-orange-500 group-hover:text-orange-600 transition">
@@ -232,7 +232,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
                     <img
                       src={BRAND_LOGO_URL}
                       alt="Iunoware Academy"
-                      className="size-9 rounded-xl object-contain shadow-xs shrink-0"
+                      className="h-8 w-auto object-contain shrink-0 drop-shadow-[0_2px_6px_rgba(249,115,22,0.25)]"
                     />
                     <div>
                       <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
