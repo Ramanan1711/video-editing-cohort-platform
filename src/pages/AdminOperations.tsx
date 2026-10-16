@@ -1122,7 +1122,7 @@ export function AdminOperations() {
       <main className="mx-auto max-w-6xl px-5 py-8 lg:px-8">
         {/* Toast Alerts */}
         {error && (
-          <div className="mb-5 flex items-center justify-between rounded-xl bg-red-50 p-3.5 text-xs text-red-700">
+          <div className="mb-5 flex items-center justify-between rounded-xl bg-red-50 dark:bg-red-950/40 border border-transparent dark:border-red-900/60 p-3.5 text-xs text-red-700 dark:text-red-300">
             <span>{error}</span>
             <button onClick={() => setError(null)}>
               <X size={15} />
@@ -1131,7 +1131,7 @@ export function AdminOperations() {
         )}
 
         {success && (
-          <div className="mb-5 flex items-center justify-between rounded-xl bg-emerald-50 p-3.5 text-xs text-emerald-700">
+          <div className="mb-5 flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-transparent dark:border-emerald-900/60 p-3.5 text-xs text-emerald-700 dark:text-emerald-300">
             <span>{success}</span>
             <button onClick={() => setSuccess(null)}>
               <X size={15} />
@@ -1140,7 +1140,7 @@ export function AdminOperations() {
         )}
 
         {/* Navigation Tabs */}
-        <nav className="mb-8 flex gap-2 overflow-x-auto border-b border-slate-200 pb-1 text-xs font-bold">
+        <nav className="mb-8 flex gap-2 overflow-x-auto border-b border-slate-200 dark:border-slate-800 pb-1 text-xs font-bold">
           {tabs.map((item) => {
             const hasAccess = !item.permission || hasAdminPermission(profile?.admin_role, item.permission);
             if (!hasAccess && item.id === 'audit') return null;
@@ -1161,7 +1161,7 @@ export function AdminOperations() {
                   tab === item.id
                     ? 'bg-orange-500 text-white shadow-2xs font-black'
                     : hasAccess
-                    ? 'text-slate-600 hover:bg-slate-200/60'
+                    ? 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'
                     : 'text-slate-400 opacity-60 cursor-not-allowed'
                 }`}
               >
@@ -1170,7 +1170,7 @@ export function AdminOperations() {
                 {typeof item.count === 'number' && item.count > 0 && (
                   <span
                     className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                      tab === item.id ? 'bg-orange-600 text-white' : 'bg-slate-200 text-slate-600'
+                      tab === item.id ? 'bg-orange-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     }`}
                   >
                     {item.count}

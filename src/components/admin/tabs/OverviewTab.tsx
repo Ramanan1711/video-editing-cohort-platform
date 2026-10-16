@@ -368,7 +368,7 @@ export function OverviewTab({
               onNavigateTab('enrollments');
               onOpenEnrollModal();
             }}
-            className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 p-3.5 text-left transition hover:border-orange-300 hover:bg-white dark:hover:bg-slate-800"
+            className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/70 p-3.5 text-left transition hover:border-orange-300 hover:bg-white dark:hover:bg-slate-800"
           >
             <div className="flex size-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-400">
               <UserPlus size={18} />
@@ -381,7 +381,7 @@ export function OverviewTab({
 
           <button
             onClick={() => onNavigateTab('announcements')}
-            className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 p-3.5 text-left transition hover:border-orange-300 hover:bg-white dark:hover:bg-slate-800"
+            className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/70 p-3.5 text-left transition hover:border-orange-300 hover:bg-white dark:hover:bg-slate-800"
           >
             <div className="flex size-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400">
               <Megaphone size={18} />
@@ -394,7 +394,7 @@ export function OverviewTab({
 
           <button
             onClick={() => onNavigateTab('sessions')}
-            className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 p-3.5 text-left transition hover:border-orange-300 hover:bg-white dark:hover:bg-slate-800"
+            className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/70 p-3.5 text-left transition hover:border-orange-300 hover:bg-white dark:hover:bg-slate-800"
           >
             <div className="flex size-9 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-400">
               <Radio size={18} />
@@ -407,7 +407,7 @@ export function OverviewTab({
 
           <Link
             to="/admin/courses"
-            className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850 p-3.5 text-left transition hover:border-orange-300 hover:bg-white dark:hover:bg-slate-800"
+            className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/70 p-3.5 text-left transition hover:border-orange-300 hover:bg-white dark:hover:bg-slate-800"
           >
             <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400">
               <BookOpen size={18} />

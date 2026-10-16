@@ -233,17 +233,17 @@ export function EnrollmentsTab({
   };
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 dark:bg-slate-900 dark:border-slate-800">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-lg font-black text-slate-950">Cohort Enrollments</h2>
-          <p className="mt-1 text-xs text-slate-500">
+          <h2 className="text-lg font-black text-slate-950 dark:text-white">Cohort Enrollments</h2>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             Inspect student cohort rosters, assign enrollments manually, or adjust completion status.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs shadow-2xs">
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs shadow-2xs">
             <Layers size={13} className="text-slate-400" />
             <select
               value={selectedCohortId}
@@ -251,11 +251,11 @@ export function EnrollmentsTab({
                 onSelectCohortId(e.target.value);
                 setEnrollmentPage(1);
               }}
-              className="bg-transparent text-xs font-bold text-slate-700 outline-none"
+              className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
             >
-              <option value="all">All Cohorts ({enrollments.length})</option>
+              <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">All Cohorts ({enrollments.length})</option>
               {cohorts.map((c) => (
-                <option key={c.id} value={c.id}>
+                <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                   {c.name}
                 </option>
               ))}
@@ -323,14 +323,14 @@ export function EnrollmentsTab({
       </div>
 
       {/* View Selector: Student Rosters vs Mentor Cohort Scoping */}
-      <div className="mt-5 flex gap-2 border-b border-slate-100 pb-3">
+      <div className="mt-5 flex gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
         <button
           type="button"
           onClick={() => setEnrollmentView('students')}
           className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
             enrollmentView === 'students'
               ? 'bg-orange-500 text-white shadow-2xs font-black'
-              : 'text-slate-600 hover:bg-slate-100'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
           Student Rosters ({filteredEnrollments.length})
@@ -341,7 +341,7 @@ export function EnrollmentsTab({
           className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
             enrollmentView === 'mentors'
               ? 'bg-orange-500 text-white shadow-2xs font-black'
-              : 'text-slate-600 hover:bg-slate-100'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
           <Sparkles size={13} />
@@ -351,7 +351,7 @@ export function EnrollmentsTab({
 
       {/* View 1: Student Enrollments */}
       {enrollmentView === 'students' && (
-        <div className="mt-6 divide-y divide-slate-100">
+        <div className="mt-6 divide-y divide-slate-100 dark:divide-slate-800">
           {pagedEnrollments.length ? (
             pagedEnrollments.map((item) => (
               <div
@@ -360,15 +360,15 @@ export function EnrollmentsTab({
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <strong className="text-sm font-bold text-slate-950">{item.student_name}</strong>
-                    <span className="text-xs text-slate-400">({item.student_email})</span>
-                    <span className="rounded-md bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700">
+                    <strong className="text-sm font-bold text-slate-950 dark:text-white">{item.student_name}</strong>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">({item.student_email})</span>
+                    <span className="rounded-md bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 text-[10px] font-bold text-orange-700 dark:text-orange-300">
                       {item.cohort_name && item.cohort_name !== 'Cohort'
                         ? item.cohort_name
                         : (cohorts.find((c) => c.id === item.cohort_id)?.name || item.cohort_name || 'Cohort')}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                     Enrolled {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
                 </div>
@@ -388,23 +388,23 @@ export function EnrollmentsTab({
                       !canManageEnrollments ? 'cursor-not-allowed opacity-75 ' : ''
                     }${
                       item.status === 'active' || item.status === 'enrolled'
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300'
                         : item.status === 'completed'
-                        ? 'border-purple-200 bg-purple-50 text-purple-800'
+                        ? 'border-purple-200 bg-purple-50 text-purple-800 dark:border-purple-800/60 dark:bg-purple-950/50 dark:text-purple-300'
                         : item.status === 'waitlisted' || item.status === 'waitlist'
-                        ? 'border-amber-200 bg-amber-50 text-amber-800'
+                        ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-300'
                         : item.status === 'inactive'
-                        ? 'border-slate-300 bg-slate-100 text-slate-500'
-                        : 'border-slate-200 bg-slate-100 text-slate-600'
+                        ? 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                        : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
                     }`}
                   >
-                    <option value="active">Active</option>
-                    <option value="enrolled">Enrolled</option>
-                    <option value="completed">Completed</option>
-                    <option value="dropped">Dropped</option>
-                    <option value="waitlisted">Waitlisted</option>
-                    <option value="waitlist">Waitlist</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="active" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Active</option>
+                    <option value="enrolled" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Enrolled</option>
+                    <option value="completed" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Completed</option>
+                    <option value="dropped" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Dropped</option>
+                    <option value="waitlisted" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Waitlisted</option>
+                    <option value="waitlist" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Waitlist</option>
+                    <option value="inactive" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Inactive</option>
                   </select>
 
                   {canManageEnrollments && (
@@ -417,7 +417,7 @@ export function EnrollmentsTab({
                           cohortName: item.cohort_name,
                         })
                       }
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
                       title="Remove from cohort"
                     >
                       <Trash2 size={15} />
@@ -427,7 +427,7 @@ export function EnrollmentsTab({
               </div>
             ))
           ) : (
-            <p className="py-12 text-center text-xs text-slate-400">No student enrollments found for this filter.</p>
+            <p className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">No student enrollments found for this filter.</p>
           )}
 
           {filteredEnrollments.length > enrollmentPageSize && (
@@ -450,8 +450,8 @@ export function EnrollmentsTab({
         <div className="mt-6">
           <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
             <div>
-              <h3 className="text-sm font-black text-slate-950">Mentor Cohort Scoping &amp; Staffing</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="text-sm font-black text-slate-950 dark:text-white">Mentor Cohort Scoping &amp; Staffing</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Assigned mentors are strictly isolated to review submissions and student rosters within their designated cohorts.
               </p>
             </div>
@@ -469,7 +469,7 @@ export function EnrollmentsTab({
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+              <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 <tr>
                   <th className="py-2.5 px-3">Mentor</th>
                   <th className="py-2.5 px-3">Assigned Cohort</th>
@@ -478,34 +478,34 @@ export function EnrollmentsTab({
                   <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 {filteredMentorAssignments.length ? (
                   filteredMentorAssignments.map((assignment) => (
-                    <tr key={`${assignment.mentor_id}-${assignment.cohort_id}`} className="hover:bg-slate-50/60 transition">
+                    <tr key={`${assignment.mentor_id}-${assignment.cohort_id}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-2">
-                          <div className="flex size-7 items-center justify-center rounded-lg bg-orange-100 font-bold text-orange-700 text-xs">
+                          <div className="flex size-7 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-950/60 font-bold text-orange-700 dark:text-orange-300 text-xs">
                             {assignment.mentor?.full_name?.[0] || 'M'}
                           </div>
                           <div>
-                            <strong className="text-slate-900 block font-bold">
+                            <strong className="text-slate-900 dark:text-white block font-bold">
                               {assignment.mentor?.full_name || 'Mentor'}
                             </strong>
-                            <span className="text-[11px] text-slate-400">{assignment.mentor?.email}</span>
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500">{assignment.mentor?.email}</span>
                           </div>
                         </div>
                       </td>
                       <td className="py-3 px-3">
-                        <span className="rounded-md bg-purple-50 px-2 py-0.5 text-[11px] font-bold text-purple-700 border border-purple-200/60">
+                        <span className="rounded-md bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 text-[11px] font-bold text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60">
                           {assignment.cohort?.name || 'Cohort'}
                         </span>
                       </td>
                       <td className="py-3 px-3">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
-                          <ShieldCheck size={11} className="text-emerald-600" /> RLS &amp; RPC Scoped
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                          <ShieldCheck size={11} className="text-emerald-600 dark:text-emerald-400" /> RLS &amp; RPC Scoped
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-slate-500 text-[11px]">
+                      <td className="py-3 px-3 text-slate-500 dark:text-slate-400 text-[11px]">
                         {assignment.assigned_at
                           ? new Date(assignment.assigned_at).toLocaleDateString([], {
                               month: 'short',
@@ -527,7 +527,7 @@ export function EnrollmentsTab({
                                 assignment.cohort?.name || 'Cohort'
                               )
                             }
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
                             title="Unassign mentor from cohort"
                           >
                             <Trash2 size={15} />
@@ -538,7 +538,7 @@ export function EnrollmentsTab({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-slate-400">
+                    <td colSpan={5} className="py-10 text-center text-slate-400 dark:text-slate-500">
                       No mentor cohort assignments found for this filter. Click &ldquo;Assign Mentor&rdquo; above.
                     </td>
                   </tr>
@@ -552,43 +552,43 @@ export function EnrollmentsTab({
       {/* Manual Enrollment Modal */}
       {showEnrollModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
-          <form onSubmit={handleEnrollSubmit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-black text-slate-950">Enroll Student into Cohort</h3>
-              <button type="button" onClick={() => setShowEnrollModal(false)} className="text-slate-400 hover:text-slate-700">
+          <form onSubmit={handleEnrollSubmit} className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-transparent dark:border-slate-800 p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-black text-slate-950 dark:text-white">Enroll Student into Cohort</h3>
+              <button type="button" onClick={() => setShowEnrollModal(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                 <X size={18} />
               </button>
             </div>
 
             <div className="mt-4 space-y-3">
-              <label className="block text-xs font-bold text-slate-700">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                 Select Student User
                 <select
                   value={enrollStudentId}
                   onChange={(e) => setEnrollStudentId(e.target.value)}
                   required
-                  className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs outline-none focus:border-orange-400"
+                  className="mt-1.5 block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-2.5 text-xs outline-none focus:border-orange-400"
                 >
-                  <option value="">Choose registered user...</option>
+                  <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Choose registered user...</option>
                   {users.map((u) => (
-                    <option key={u.id} value={u.id}>
+                    <option key={u.id} value={u.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                       {u.full_name || 'Unnamed'} ({u.email}) — [{u.role.toUpperCase()}]
                     </option>
                   ))}
                 </select>
               </label>
 
-              <label className="block text-xs font-bold text-slate-700">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                 Target Cohort
                 <select
                   value={enrollTargetCohortId}
                   onChange={(e) => setEnrollTargetCohortId(e.target.value)}
                   required
-                  className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs outline-none focus:border-orange-400"
+                  className="mt-1.5 block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-2.5 text-xs outline-none focus:border-orange-400"
                 >
-                  <option value="">Choose cohort...</option>
+                  <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Choose cohort...</option>
                   {cohorts.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                       {c.name}
                     </option>
                   ))}
@@ -596,7 +596,7 @@ export function EnrollmentsTab({
               </label>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
               <Button
                 variant="secondary"
                 size="sm"
@@ -616,48 +616,48 @@ export function EnrollmentsTab({
       {/* Assign Mentor Modal */}
       {showAssignMentorModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
-          <form onSubmit={handleAssignMentorSubmit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <form onSubmit={handleAssignMentorSubmit} className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-transparent dark:border-slate-800 p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="text-orange-500" size={18} />
-                <h3 className="text-base font-black text-slate-950">Assign Mentor to Cohort</h3>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">Assign Mentor to Cohort</h3>
               </div>
-              <button type="button" onClick={() => setShowAssignMentorModal(false)} className="text-slate-400 hover:text-slate-700">
+              <button type="button" onClick={() => setShowAssignMentorModal(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                 <X size={18} />
               </button>
             </div>
 
             <div className="mt-4 space-y-3">
-              <label className="block text-xs font-bold text-slate-700">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                 Select Mentor Account
                 <select
                   value={assignMentorId}
                   onChange={(e) => setAssignMentorId(e.target.value)}
                   required
-                  className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs outline-none focus:border-orange-400"
+                  className="mt-1.5 block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-2.5 text-xs outline-none focus:border-orange-400"
                 >
-                  <option value="">Choose mentor or admin...</option>
+                  <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Choose mentor or admin...</option>
                   {users
                     .filter((u) => u.role === 'mentor' || u.role === 'admin')
                     .map((u) => (
-                      <option key={u.id} value={u.id}>
+                      <option key={u.id} value={u.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                         {u.full_name || 'Unnamed'} ({u.email}) — [{u.role.toUpperCase()}]
                       </option>
                     ))}
                 </select>
               </label>
 
-              <label className="block text-xs font-bold text-slate-700">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                 Target Cohort
                 <select
                   value={assignCohortId}
                   onChange={(e) => setAssignCohortId(e.target.value)}
                   required
-                  className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs outline-none focus:border-orange-400"
+                  className="mt-1.5 block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-2.5 text-xs outline-none focus:border-orange-400"
                 >
-                  <option value="">Choose cohort...</option>
+                  <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Choose cohort...</option>
                   {cohorts.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                       {c.name}
                     </option>
                   ))}
@@ -665,7 +665,7 @@ export function EnrollmentsTab({
               </label>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
               <Button
                 variant="secondary"
                 size="sm"
@@ -687,34 +687,34 @@ export function EnrollmentsTab({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
           <form
             onSubmit={handleBulkEnrollSubmit}
-            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+            className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-transparent dark:border-slate-800 p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <UploadCloud className="text-orange-500" size={18} />
-                <h3 className="text-base font-black text-slate-950">Bulk CSV Student Enrollment</h3>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">Bulk CSV Student Enrollment</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowBulkEnrollModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
               >
                 <X size={18} />
               </button>
             </div>
 
             <div className="mt-4 space-y-4">
-              <label className="block text-xs font-bold text-slate-700">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                 Target Cohort
                 <select
                   value={bulkCohortId}
                   onChange={(e) => setBulkCohortId(e.target.value)}
                   required
-                  className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-700 outline-none focus:border-orange-400"
+                  className="mt-1.5 block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-2.5 text-xs font-bold outline-none focus:border-orange-400"
                 >
-                  <option value="">Choose target cohort...</option>
+                  <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Choose target cohort...</option>
                   {cohorts.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                       {c.name}
                     </option>
                   ))}
@@ -723,7 +723,7 @@ export function EnrollmentsTab({
 
               <div>
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                     CSV Data (email, full_name)
                   </label>
                   <button
@@ -735,9 +735,9 @@ export function EnrollmentsTab({
                   </button>
                 </div>
 
-                <div className="mt-1.5 mb-2.5 flex items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-2.5">
+                <div className="mt-1.5 mb-2.5 flex items-center gap-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 p-2.5">
                   <UploadCloud size={16} className="text-slate-400 shrink-0" />
-                  <div className="flex-1 text-[11px] text-slate-600">
+                  <div className="flex-1 text-[11px] text-slate-600 dark:text-slate-300">
                     <label className="cursor-pointer font-bold text-orange-600 hover:underline">
                       <span>Upload .csv file</span>
                       <input
@@ -747,12 +747,12 @@ export function EnrollmentsTab({
                         className="sr-only"
                       />
                     </label>
-                    <span className="text-slate-400 ml-1">or paste rows directly below</span>
+                    <span className="text-slate-400 dark:text-slate-500 ml-1">or paste rows directly below</span>
                   </div>
                 </div>
 
-                <p className="mt-0.5 text-[11px] font-normal text-slate-500">
-                  Format: One entry per line. Example: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">alex@example.com, Alex Turner</code>
+                <p className="mt-0.5 text-[11px] font-normal text-slate-500 dark:text-slate-400">
+                  Format: One entry per line. Example: <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-slate-700 dark:text-slate-300">alex@example.com, Alex Turner</code>
                 </p>
                 <textarea
                   rows={5}
@@ -760,17 +760,17 @@ export function EnrollmentsTab({
                   value={bulkCsvText}
                   onChange={(e) => setBulkCsvText(e.target.value)}
                   placeholder={`jane@example.com, Jane Doe\njohn@example.com, John Smith\nsam@example.com`}
-                  className="mt-1.5 block w-full resize-none font-mono text-xs rounded-xl border border-slate-200 p-2.5 outline-none focus:border-orange-400"
+                  className="mt-1.5 block w-full resize-none font-mono text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-2.5 outline-none focus:border-orange-400"
                 />
               </div>
 
               {bulkResult && (
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs">
-                  <p className="font-bold text-emerald-800">
+                <div className="rounded-xl border border-emerald-100 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/40 p-3 text-xs">
+                  <p className="font-bold text-emerald-800 dark:text-emerald-300">
                     ✓ Bulk Enrollment Completed: {bulkResult.added} enrolled directly, {bulkResult.invitations || 0} pre-enrollment invitations recorded, {bulkResult.skipped} already enrolled/skipped.
                   </p>
                   {bulkResult.errors.length > 0 && (
-                    <ul className="mt-1.5 list-disc pl-4 text-[11px] text-red-600">
+                    <ul className="mt-1.5 list-disc pl-4 text-[11px] text-red-600 dark:text-red-400">
                       {bulkResult.errors.map((err, i) => (
                         <li key={i}>{err}</li>
                       ))}
@@ -780,7 +780,7 @@ export function EnrollmentsTab({
               )}
             </div>
 
-            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
               <Button
                 variant="secondary"
                 size="sm"
@@ -800,22 +800,22 @@ export function EnrollmentsTab({
       {/* Student Removal Impact Warning Modal */}
       {removalWarningUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-red-100 text-red-600 shrink-0">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-transparent dark:border-slate-800 p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 shrink-0">
                 <AlertTriangle size={20} />
               </div>
               <div>
-                <h3 className="text-base font-black text-slate-950">Confirm Student Removal</h3>
-                <p className="text-xs text-slate-500">Irreversible roster membership modification</p>
+                <h3 className="text-base font-black text-slate-950 dark:text-white">Confirm Student Removal</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Irreversible roster membership modification</p>
               </div>
             </div>
 
-            <div className="mt-4 space-y-3 text-xs text-slate-600 leading-relaxed">
+            <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
               <p>
-                Are you sure you want to remove <strong className="text-slate-950 font-bold">{removalWarningUser.studentName}</strong> from <strong className="text-slate-950 font-bold">{removalWarningUser.cohortName}</strong>?
+                Are you sure you want to remove <strong className="text-slate-950 dark:text-white font-bold">{removalWarningUser.studentName}</strong> from <strong className="text-slate-950 dark:text-white font-bold">{removalWarningUser.cohortName}</strong>?
               </p>
-              <div className="rounded-xl border border-red-100 bg-red-50/60 p-3.5 text-[11px] text-red-800 space-y-1.5">
+              <div className="rounded-xl border border-red-100 dark:border-red-900/60 bg-red-50/60 dark:bg-red-950/30 p-3.5 text-[11px] text-red-800 dark:text-red-300 space-y-1.5">
                 <strong className="block font-bold">Removal Impact Notice:</strong>
                 <ul className="list-disc pl-4 space-y-1">
                   <li>Immediately revokes student access to cohort lessons, assets, and assignment briefs.</li>
@@ -826,7 +826,7 @@ export function EnrollmentsTab({
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
               <Button
                 variant="secondary"
                 size="sm"

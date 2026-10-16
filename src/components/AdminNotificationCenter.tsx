@@ -133,14 +133,14 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
               <button
                 onClick={() => void fetchAlerts()}
                 disabled={loading}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 disabled:opacity-50"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-50"
                 title="Refresh alerts"
               >
                 <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200"
               >
                 <X size={15} />
               </button>
@@ -148,7 +148,7 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex border-b border-slate-100 px-3 pt-2 text-[11px] font-bold gap-1 overflow-x-auto scrollbar-none">
+          <div className="flex border-b border-slate-100 dark:border-slate-800 px-3 pt-2 text-[11px] font-bold gap-1 overflow-x-auto scrollbar-none">
             {[
               { id: 'all' as const, label: 'All', count: alerts.length },
               {
@@ -177,8 +177,8 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
                 onClick={() => setFilter(tab.id)}
                 className={`pb-2 px-2.5 border-b-2 whitespace-nowrap transition ${
                   filter === tab.id
-                    ? 'border-orange-500 text-orange-600'
-                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                    ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                    : 'border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 {tab.label} {tab.count > 0 && `(${tab.count})`}
@@ -187,12 +187,12 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
           </div>
 
           {/* Alerts List */}
-          <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
+          <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
             {filteredAlerts.length === 0 ? (
               <div className="p-8 text-center">
                 <CheckCircle2 size={24} className="mx-auto text-emerald-500 mb-2" />
-                <p className="text-xs font-bold text-slate-800">All Metrics Healthy</p>
-                <p className="mt-1 text-[11px] text-slate-400">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">All Metrics Healthy</p>
+                <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
                   No active escalations matching this filter.
                 </p>
               </div>
@@ -206,20 +206,20 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
                     key={alert.id}
                     className={`p-4 transition ${
                       isCritical
-                        ? 'bg-red-50/40 hover:bg-red-50/70'
+                        ? 'bg-red-50/40 hover:bg-red-50/70 dark:bg-red-950/20 dark:hover:bg-red-950/40'
                         : isWarning
-                        ? 'bg-amber-50/30 hover:bg-amber-50/60'
-                        : 'bg-white hover:bg-slate-50'
+                        ? 'bg-amber-50/30 hover:bg-amber-50/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/40'
+                        : 'bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/60'
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       <div
                         className={`flex size-8 shrink-0 items-center justify-center rounded-xl text-xs ${
                           isCritical
-                            ? 'bg-red-100 text-red-700 font-bold'
+                            ? 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400 font-bold'
                             : isWarning
-                            ? 'bg-amber-100 text-amber-800 font-bold'
-                            : 'bg-blue-100 text-blue-700'
+                            ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400 font-bold'
+                            : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400'
                         }`}
                       >
                         {alert.type === 'sla_breach' ? (
@@ -238,10 +238,10 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
                           <span
                             className={`rounded-md px-1.5 py-0.2 text-[9px] font-black uppercase tracking-wider ${
                               isCritical
-                                ? 'bg-red-100 text-red-800'
+                                ? 'bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300'
                                 : isWarning
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-blue-100 text-blue-800'
+                                ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+                                : 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300'
                             }`}
                           >
                             {alert.severity}
@@ -250,8 +250,8 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
                             {alert.type.replace('_', ' ')}
                           </span>
                         </div>
-                        <h4 className="text-xs font-bold text-slate-950 leading-tight">{alert.title}</h4>
-                        <p className="mt-1 text-[11px] text-slate-600 leading-relaxed">{alert.description}</p>
+                        <h4 className="text-xs font-bold text-slate-950 dark:text-white leading-tight">{alert.title}</h4>
+                        <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{alert.description}</p>
 
                         {/* Action Link */}
                         <div className="mt-2.5 flex items-center gap-2">
@@ -259,7 +259,7 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
                             <Link
                               to="/review/submissions"
                               onClick={() => setIsOpen(false)}
-                              className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline"
                             >
                               <span>{alert.actionLabel || 'Inspect'}</span>
                               <ExternalLink size={11} />
@@ -268,7 +268,7 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
                             <Link
                               to="/admin/courses"
                               onClick={() => setIsOpen(false)}
-                              className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline"
                             >
                               <span>{alert.actionLabel || 'Inspect'}</span>
                               <ExternalLink size={11} />
@@ -280,7 +280,7 @@ export function AdminNotificationCenter({ onNavigateTab }: AdminNotificationCent
                                 onNavigateTab(alert.targetTab!);
                                 setIsOpen(false);
                               }}
-                              className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline"
                             >
                               <span>{alert.actionLabel || 'View Details'}</span>
                               <ExternalLink size={11} />

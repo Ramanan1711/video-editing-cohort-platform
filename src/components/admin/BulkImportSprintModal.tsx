@@ -209,37 +209,37 @@ export const BulkImportSprintModal: React.FC<BulkImportSprintModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-xs">
-      <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-200">
+      <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white dark:bg-slate-900 shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/70">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-4 bg-slate-50/70 dark:bg-slate-800/50">
           <div className="flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 border border-indigo-200/50">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50">
               <Layers size={18} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Bulk Import Sprint Tasks</h3>
-              <p className="text-xs text-slate-500">
-                Author &amp; upload curriculum tasks for <span className="font-semibold text-slate-700">{cohortTitle}</span>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Bulk Import Sprint Tasks</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Author &amp; upload curriculum tasks for <span className="font-semibold text-slate-700 dark:text-slate-300">{cohortTitle}</span>
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Tab Controls & Template Download */}
-        <div className="flex items-center justify-between border-b border-slate-100 bg-white px-6 pt-3">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 pt-3">
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('upload')}
               className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-bold transition ${
                 activeTab === 'upload'
-                  ? 'border-indigo-600 text-indigo-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
+                  ? 'border-indigo-600 text-indigo-700 dark:border-indigo-500 dark:text-indigo-400'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               <Upload size={14} />
@@ -249,8 +249,8 @@ export const BulkImportSprintModal: React.FC<BulkImportSprintModalProps> = ({
               onClick={() => setActiveTab('json')}
               className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-bold transition ${
                 activeTab === 'json'
-                  ? 'border-indigo-600 text-indigo-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
+                  ? 'border-indigo-600 text-indigo-700 dark:border-indigo-500 dark:text-indigo-400'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               <FileCode size={14} />
@@ -260,7 +260,7 @@ export const BulkImportSprintModal: React.FC<BulkImportSprintModalProps> = ({
           <button
             type="button"
             onClick={handleDownloadSample}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition pb-2"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition pb-2"
           >
             <Download size={13} />
             Download Sample JSON
@@ -271,7 +271,7 @@ export const BulkImportSprintModal: React.FC<BulkImportSprintModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {activeTab === 'upload' && (
             <div className="space-y-4">
-              <div className="rounded-2xl border-2 border-dashed border-slate-300 p-8 text-center bg-slate-50/50 hover:bg-slate-50 transition">
+              <div className="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 p-8 text-center bg-slate-50/50 dark:bg-slate-950/40 hover:bg-slate-50 dark:hover:bg-slate-950/60 transition">
                 <input
                   type="file"
                   id="sprint-file-upload"
@@ -280,19 +280,19 @@ export const BulkImportSprintModal: React.FC<BulkImportSprintModalProps> = ({
                   onChange={handleFileUpload}
                 />
                 <label htmlFor="sprint-file-upload" className="cursor-pointer block">
-                  <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 mb-3 shadow-2xs">
+                  <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 mb-3 shadow-2xs">
                     <Upload size={22} />
                   </div>
-                  <p className="text-sm font-bold text-slate-900">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
                     Click to select or drag and drop your task curriculum file
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Accepts structured <span className="font-semibold text-slate-700">.json</span> or{' '}
-                    <span className="font-semibold text-slate-700">.csv</span> with headers: Day, Title, Description, Instructions, Starter Files URL
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Accepts structured <span className="font-semibold text-slate-700 dark:text-slate-300">.json</span> or{' '}
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">.csv</span> with headers: Day, Title, Description, Instructions, Starter Files URL
                   </p>
                 </label>
               </div>
-              <div className="flex items-center gap-4 text-xs text-slate-500">
+              <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1">
                   <FileCode size={14} className="text-indigo-500" /> JSON Array of objects
                 </span>
@@ -305,7 +305,7 @@ export const BulkImportSprintModal: React.FC<BulkImportSprintModalProps> = ({
 
           {activeTab === 'json' && (
             <div className="space-y-3">
-              <label className="block text-xs font-bold text-slate-700">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                 Paste JSON Array of Daily Challenges:
               </label>
               <textarea
@@ -317,14 +317,14 @@ export const BulkImportSprintModal: React.FC<BulkImportSprintModalProps> = ({
                 onBlur={handleJsonBlur}
                 placeholder={`[\n  {\n    "day_number": 1,\n    "title": "Orientation & Setup",\n    "description": "Workspace setup",\n    "submission_type": "drive_link"\n  }\n]`}
                 rows={10}
-                className="w-full rounded-xl border border-slate-200 bg-slate-900 p-4 font-mono text-xs text-emerald-400 focus:border-indigo-500 focus:outline-hidden"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-900 p-4 font-mono text-xs text-emerald-400 focus:border-indigo-500 focus:outline-hidden"
               />
             </div>
           )}
 
           {parseError && (
-            <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200">
-              <AlertCircle size={16} className="shrink-0 text-rose-600" />
+            <div className="flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 p-3 text-xs text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">
+              <AlertCircle size={16} className="shrink-0 text-rose-600 dark:text-rose-400" />
               <span>{parseError}</span>
             </div>
           )}
@@ -334,41 +334,41 @@ export const BulkImportSprintModal: React.FC<BulkImportSprintModalProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CheckCircle2 size={16} className={previewRows.length > 0 ? 'text-emerald-600' : 'text-slate-400'} />
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Ready to Commit ({previewRows.length} Tasks)
                 </h4>
               </div>
               {previewRows.length > 0 && (
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-slate-500">
                   Total days: {Math.max(...previewRows.map((r) => r.day_number))}
                 </span>
               )}
             </div>
 
             {previewRows.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-400">
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center text-xs text-slate-400 dark:text-slate-500">
                 Upload a file or paste JSON above to preview the challenges before saving.
               </div>
             ) : (
-              <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xs divide-y divide-slate-100">
+              <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs divide-y divide-slate-100 dark:divide-slate-800">
                 {previewRows.map((row) => (
-                  <div key={row.day_number} className="flex items-center justify-between p-3 text-xs hover:bg-slate-50 transition">
+                  <div key={row.day_number} className="flex items-center justify-between p-3 text-xs hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
                     <div className="flex items-center gap-3">
-                      <span className="flex size-6 items-center justify-center rounded-md bg-indigo-50 font-black text-indigo-700 text-[10px]">
+                      <span className="flex size-6 items-center justify-center rounded-md bg-indigo-50 dark:bg-indigo-950/50 font-black text-indigo-700 dark:text-indigo-300 text-[10px]">
                         D{row.day_number}
                       </span>
                       <div>
-                        <p className="font-bold text-slate-900">{row.title}</p>
-                        <p className="text-[11px] text-slate-400 line-clamp-1">{row.description || 'No description'}</p>
+                        <p className="font-bold text-slate-900 dark:text-white">{row.title}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 line-clamp-1">{row.description || 'No description'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                      <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
                         {row.submission_type?.replace('_', ' ')}
                       </span>
                       <span
                         className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                          row.is_published ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                          row.is_published ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                         }`}
                       >
                         {row.is_published ? 'Published' : 'Draft'}
@@ -382,9 +382,9 @@ export const BulkImportSprintModal: React.FC<BulkImportSprintModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-6 py-4">
-          <p className="text-xs text-slate-500">
-            Commits directly to Supabase <code className="font-mono text-slate-700 font-semibold">public.daily_challenges</code>
+        <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 px-6 py-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Commits directly to Supabase <code className="font-mono text-slate-700 dark:text-slate-300 font-semibold">public.daily_challenges</code>
           </p>
           <div className="flex items-center gap-2.5">
             <Button variant="secondary" onClick={onClose} disabled={importing}>

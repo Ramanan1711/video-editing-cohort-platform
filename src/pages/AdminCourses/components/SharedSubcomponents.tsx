@@ -15,10 +15,10 @@ export function StatCard({ label, value, icon }: { label: string; value: number;
   return (
     <Card className="flex items-center justify-between p-5 shadow-sm">
       <div>
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
-        <p className="mt-1 text-2xl font-black text-slate-950">{value}</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{label}</p>
+        <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{value}</p>
       </div>
-      <div className="flex size-10 items-center justify-center rounded-xl bg-slate-100/70">{icon}</div>
+      <div className="flex size-10 items-center justify-center rounded-xl bg-slate-100/70 dark:bg-slate-800">{icon}</div>
     </Card>
   );
 }
@@ -26,20 +26,20 @@ export function StatCard({ label, value, icon }: { label: string; value: number;
 export function VisibilityBadge({ rule }: { rule: VisibilityRule }) {
   if (rule === 'after_completion') {
     return (
-      <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+      <span className="inline-flex items-center gap-1 rounded bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60">
         <Lock size={10} /> Locked until complete
       </span>
     );
   }
   if (rule === 'public') {
     return (
-      <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+      <span className="inline-flex items-center gap-1 rounded bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
         <Eye size={10} /> Public Preview
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
+    <span className="inline-flex items-center gap-1 rounded bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60">
       Enrolled only
     </span>
   );
@@ -81,7 +81,7 @@ export function FormField({
 }) {
   return (
     <label className="block text-left">
-      <span className="mb-1.5 block text-sm font-bold text-slate-700">
+      <span className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">
         {label} {required && <span className="text-red-500">*</span>}
       </span>
       <input
@@ -91,7 +91,7 @@ export function FormField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-950 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+        className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm text-slate-950 dark:text-white outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
       />
     </label>
   );
@@ -114,7 +114,7 @@ export function TextareaField({
 }) {
   return (
     <label className="block text-left">
-      <span className="mb-1.5 block text-sm font-bold text-slate-700">
+      <span className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">
         {label} {required && <span className="text-red-500">*</span>}
       </span>
       <textarea
@@ -123,7 +123,7 @@ export function TextareaField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-950 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+        className="w-full resize-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm text-slate-950 dark:text-white outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
       />
     </label>
   );

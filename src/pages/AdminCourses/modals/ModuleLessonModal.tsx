@@ -35,7 +35,7 @@ export function ModuleLessonModal() {
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm">
       <form
         onSubmit={handleSave}
-        className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl transition"
+        className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl transition"
       >
         {/* Modal Header */}
         <div className="mb-5 flex items-start justify-between">
@@ -43,7 +43,7 @@ export function ModuleLessonModal() {
             <p className="text-xs font-black uppercase tracking-wider text-orange-500">
               {editor.id ? 'Edit' : 'Create'} {editor.type}
             </p>
-            <h3 className="mt-1 text-xl font-black text-slate-950">
+            <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
               {editor.type === 'module' && (editor.id ? 'Edit Module' : 'New Module')}
               {editor.type === 'lesson' && (editor.id ? 'Edit Lesson' : 'New Lesson')}
               {editor.type === 'assignment' && (editor.id ? 'Edit Assignment' : 'New Assignment')}
@@ -56,7 +56,7 @@ export function ModuleLessonModal() {
               setEditor(null);
               setUploadFile(null);
             }}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             aria-label="Close"
           >
             <X size={18} />
@@ -94,7 +94,7 @@ export function ModuleLessonModal() {
                     required
                   />
                   <label className="block text-left">
-                    <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                    <span className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">
                       Module Status
                     </span>
                     <select
@@ -105,12 +105,12 @@ export function ModuleLessonModal() {
                           status: e.target.value as 'draft' | 'review' | 'published' | 'archived',
                         })
                       }
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
                     >
-                      <option value="draft">Draft</option>
-                      <option value="review">In Review</option>
-                      <option value="published">Published</option>
-                      <option value="archived">Archived</option>
+                      <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Draft</option>
+                      <option value="review" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">In Review</option>
+                      <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Published</option>
+                      <option value="archived" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Archived</option>
                     </select>
                   </label>
                 </div>
@@ -134,7 +134,7 @@ export function ModuleLessonModal() {
                     />
                   </div>
                   <label className="block text-left">
-                    <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                    <span className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">
                       Status
                     </span>
                     <select
@@ -145,12 +145,12 @@ export function ModuleLessonModal() {
                           status: e.target.value as 'draft' | 'review' | 'published' | 'archived',
                         })
                       }
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
                     >
-                      <option value="draft">Draft</option>
-                      <option value="review">In Review</option>
-                      <option value="published">Published</option>
-                      <option value="archived">Archived</option>
+                      <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Draft</option>
+                      <option value="review" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">In Review</option>
+                      <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Published</option>
+                      <option value="archived" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Archived</option>
                     </select>
                   </label>
                 </div>
@@ -181,8 +181,8 @@ export function ModuleLessonModal() {
                 </div>
 
                 {/* Video URL or Video File Upload */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-700">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 p-4">
+                  <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                     Lesson Video Content
                   </span>
                   <FormField
@@ -192,14 +192,14 @@ export function ModuleLessonModal() {
                     placeholder="https://..."
                   />
                   <div className="mt-3">
-                    <span className="mb-1.5 block text-xs font-semibold text-slate-600">
+                    <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-400">
                       Or Upload Video File (.mp4, .mov, .webm)
                     </span>
                     <input
                       type="file"
                       accept="video/mp4,video/quicktime,video/webm,video/*"
                       onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-                      className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
+                      className="block w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 px-3 py-2 text-xs"
                     />
                     {uploadFile && (
                       <p className="mt-1 text-xs text-emerald-600 font-semibold">
@@ -232,16 +232,16 @@ export function ModuleLessonModal() {
                   rows={4}
                 />
                 <label className="block">
-                  <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                  <span className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">
                     Deadline / Due Date (Optional)
                   </span>
                   <input
                     type="datetime-local"
                     value={assignEditor.deadline}
                     onChange={(e) => setEditor({ ...assignEditor, deadline: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-950 outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm text-slate-950 dark:text-white outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
                   />
-                  <span className="mt-1 block text-xs text-slate-400">
+                  <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
                     Students will see a countdown and deadline badge on their dashboard.
                   </span>
                 </label>
@@ -263,15 +263,15 @@ export function ModuleLessonModal() {
 
                 {/* Resource Source Mode */}
                 <div>
-                  <span className="mb-1.5 block text-sm font-bold text-slate-700">Resource Source</span>
+                  <span className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Resource Source</span>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setEditor({ ...resEditor, sourceMode: 'upload' })}
                       className={`rounded-xl border py-2 text-xs font-bold transition ${
                         resEditor.sourceMode === 'upload'
-                          ? 'border-orange-500 bg-orange-50 text-orange-700'
-                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                          ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300'
+                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                     >
                       <Upload size={14} className="mr-1 inline" /> Upload File
@@ -281,8 +281,8 @@ export function ModuleLessonModal() {
                       onClick={() => setEditor({ ...resEditor, sourceMode: 'url' })}
                       className={`rounded-xl border py-2 text-xs font-bold transition ${
                         resEditor.sourceMode === 'url'
-                          ? 'border-orange-500 bg-orange-50 text-orange-700'
-                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                          ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300'
+                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                     >
                       <ExternalLink size={14} className="mr-1 inline" /> External URL
@@ -292,7 +292,7 @@ export function ModuleLessonModal() {
 
                 {resEditor.sourceMode === 'upload' ? (
                   <div>
-                    <span className="mb-1.5 block text-sm font-bold text-slate-700">
+                    <span className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">
                       Select File (Videos, PDFs, Docs, Images, Project Files)
                     </span>
                     <input
@@ -309,9 +309,9 @@ export function ModuleLessonModal() {
                           });
                         }
                       }}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 px-3 py-2 text-xs"
                     />
-                    <p className="mt-1 text-xs text-slate-400">
+                    <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                       Supports Premiere (.prproj), Resolve (.drp), Final Cut (.fcpxml), ZIP, PDF, Docs, Images &amp; Videos.
                     </p>
                     {uploadFile && (
@@ -338,32 +338,32 @@ export function ModuleLessonModal() {
 
                 {/* Resource Type */}
                 <div>
-                  <span className="mb-1.5 block text-sm font-bold text-slate-700">Resource Category</span>
+                  <span className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Resource Category</span>
                   <select
                     value={resEditor.resourceType}
                     onChange={(e) => setEditor({ ...resEditor, resourceType: e.target.value as ResourceType })}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none focus:border-orange-400"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white outline-none focus:border-orange-400"
                   >
-                    <option value="project_file">Project File (.prproj, .drp, .fcpxml, .aep, .zip)</option>
-                    <option value="pdf">PDF Document</option>
-                    <option value="document">Text / Word Document</option>
-                    <option value="video">Video Asset</option>
-                    <option value="image">Image / Graphic</option>
-                    <option value="link">External Resource Link</option>
-                    <option value="other">Other Asset</option>
+                    <option value="project_file" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Project File (.prproj, .drp, .fcpxml, .aep, .zip)</option>
+                    <option value="pdf" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">PDF Document</option>
+                    <option value="document" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Text / Word Document</option>
+                    <option value="video" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Video Asset</option>
+                    <option value="image" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Image / Graphic</option>
+                    <option value="link" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">External Resource Link</option>
+                    <option value="other" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Other Asset</option>
                   </select>
                 </div>
 
                 {/* Resource Visibility Rules */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <span className="mb-1 block text-sm font-bold text-slate-900">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 p-4">
+                  <span className="mb-1 block text-sm font-bold text-slate-900 dark:text-white">
                     Resource Visibility Rule
                   </span>
-                  <p className="mb-3 text-xs text-slate-500">
+                  <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
                     Determine who can access and download this file.
                   </p>
                   <div className="space-y-2">
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 hover:border-orange-300">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 hover:border-orange-300 dark:hover:border-orange-500/50">
                       <input
                         type="radio"
                         name="visibility"
@@ -373,16 +373,16 @@ export function ModuleLessonModal() {
                         className="mt-1 text-orange-600 focus:ring-orange-500"
                       />
                       <div>
-                        <strong className="block text-xs font-bold text-slate-900">
+                        <strong className="block text-xs font-bold text-slate-900 dark:text-white">
                           Enrolled Students (Default)
                         </strong>
-                        <span className="text-[11px] text-slate-500">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
                           Visible to all students actively enrolled in this cohort.
                         </span>
                       </div>
                     </label>
 
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 hover:border-orange-300">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 hover:border-orange-300 dark:hover:border-orange-500/50">
                       <input
                         type="radio"
                         name="visibility"
@@ -392,16 +392,16 @@ export function ModuleLessonModal() {
                         className="mt-1 text-orange-600 focus:ring-orange-500"
                       />
                       <div>
-                        <strong className="block text-xs font-bold text-slate-900">
+                        <strong className="block text-xs font-bold text-slate-900 dark:text-white">
                           Public Preview
                         </strong>
-                        <span className="text-[11px] text-slate-500">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
                           Accessible to everyone, including prospective students exploring the course.
                         </span>
                       </div>
                     </label>
 
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 hover:border-orange-300">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 hover:border-orange-300 dark:hover:border-orange-500/50">
                       <input
                         type="radio"
                         name="visibility"
@@ -411,10 +411,10 @@ export function ModuleLessonModal() {
                         className="mt-1 text-orange-600 focus:ring-orange-500"
                       />
                       <div>
-                        <strong className="flex items-center gap-1 text-xs font-bold text-slate-900">
-                          <Lock size={12} className="text-amber-600" /> Locked until Lesson Completed
+                        <strong className="flex items-center gap-1 text-xs font-bold text-slate-900 dark:text-white">
+                          <Lock size={12} className="text-amber-600 dark:text-amber-400" /> Locked until Lesson Completed
                         </strong>
-                        <span className="text-[11px] text-slate-500">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
                           Only unlocked after the student marks this lesson complete (great for solutions &amp; source project files).
                         </span>
                       </div>
@@ -427,7 +427,7 @@ export function ModuleLessonModal() {
         </div>
 
         {/* Modal Actions */}
-        <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+        <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
           <Button
             type="button"
             variant="secondary"

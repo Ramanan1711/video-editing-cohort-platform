@@ -476,7 +476,7 @@ export function ReviewSubmissions() {
       <main className="mx-auto max-w-6xl px-5 py-8 lg:px-8">
         {/* Toast Alerts */}
         {error && (
-          <div className="mb-5 flex items-center justify-between rounded-xl bg-red-50 p-3.5 text-xs text-red-700">
+          <div className="mb-5 flex items-center justify-between rounded-xl bg-red-50 dark:bg-red-950/40 border border-transparent dark:border-red-900/60 p-3.5 text-xs text-red-700 dark:text-red-300">
             <span>{error}</span>
             <button onClick={() => setError(null)}>
               <X size={15} />
@@ -485,7 +485,7 @@ export function ReviewSubmissions() {
         )}
 
         {success && (
-          <div className="mb-5 flex items-center justify-between rounded-xl bg-emerald-50 p-3.5 text-xs text-emerald-700">
+          <div className="mb-5 flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-transparent dark:border-emerald-900/60 p-3.5 text-xs text-emerald-700 dark:text-emerald-300">
             <span>{success}</span>
             <button onClick={() => setSuccess(null)}>
               <X size={15} />
@@ -495,9 +495,9 @@ export function ReviewSubmissions() {
 
         {/* SLA Status Bar */}
         {counts.overdue > 0 && (
-          <div className="mb-6 flex items-center justify-between rounded-xl border border-red-200 bg-red-50/80 p-3.5 text-xs text-red-800">
+          <div className="mb-6 flex items-center justify-between rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50/80 dark:bg-red-950/40 p-3.5 text-xs text-red-800 dark:text-red-300">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="text-red-600" size={16} />
+              <AlertTriangle className="text-red-600 dark:text-red-400" size={16} />
               <span>
                 <strong>SLA Alert:</strong> {counts.overdue} submission{counts.overdue > 1 ? 's are' : ' is'} overdue
                 (&gt; 24h waiting time in queue).
@@ -508,7 +508,7 @@ export function ReviewSubmissions() {
                 setStatusTab('pending');
                 setSortOption('urgency');
               }}
-              className="font-bold underline hover:text-red-900"
+              className="font-bold underline hover:text-red-900 dark:hover:text-red-200"
             >
               Prioritize Urgent Reviews →
             </button>
@@ -516,7 +516,7 @@ export function ReviewSubmissions() {
         )}
 
         {/* Status Tabs and Controls */}
-        <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
+        <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 dark:border-slate-800 pb-5 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap gap-2 text-xs font-bold">
             <button
               onClick={() => setStatusTab('pending')}
@@ -566,11 +566,11 @@ export function ReviewSubmissions() {
               <select
                 value={selectedCohort}
                 onChange={(e) => setSelectedCohort(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs outline-none focus:border-orange-400"
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-2xs outline-none focus:border-orange-400"
               >
-                <option value="all">All Cohorts</option>
+                <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">All Cohorts</option>
                 {availableCohorts.map((name) => (
-                  <option key={name} value={name}>
+                  <option key={name} value={name} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                     {name}
                   </option>
                 ))}
@@ -581,22 +581,22 @@ export function ReviewSubmissions() {
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs outline-none focus:border-orange-400"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-2xs outline-none focus:border-orange-400"
             >
-              <option value="urgency">Urgency (Longest Waiting First)</option>
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
+              <option value="urgency" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Urgency (Longest Waiting First)</option>
+              <option value="newest" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Newest First</option>
+              <option value="oldest" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Oldest First</option>
             </select>
 
             {/* Search Input */}
             <div className="relative flex-1 sm:flex-initial">
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
+              <Search className="absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" size={14} />
               <input
                 type="text"
                 placeholder="Search student or assignment..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-56 rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-900 shadow-2xs outline-none placeholder:text-slate-400 focus:border-orange-400"
+                className="w-full sm:w-56 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 pl-9 pr-3 text-xs text-slate-900 dark:text-white shadow-2xs outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-orange-400"
               />
             </div>
           </div>
@@ -613,12 +613,12 @@ export function ReviewSubmissions() {
             isRetrying={retrying}
           />
         ) : profile?.role !== 'admin' && assignedCohorts.length === 0 ? (
-          <Card className="p-10 text-center max-w-lg mx-auto border border-amber-200 bg-amber-50/40">
-            <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 mb-4 shadow-2xs">
+          <Card className="p-10 text-center max-w-lg mx-auto border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 mb-4 shadow-2xs">
               <Layers size={24} />
             </div>
-            <h2 className="text-lg font-black text-slate-950">No Cohorts Assigned</h2>
-            <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+            <h2 className="text-lg font-black text-slate-950 dark:text-white">No Cohorts Assigned</h2>
+            <p className="mt-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
               Your mentor account is not currently assigned to any active cohort review rosters. Once a platform administrator assigns you to a cohort, student submissions will appear here for grading and feedback.
             </p>
             <div className="mt-6 flex justify-center gap-3">
@@ -654,10 +654,10 @@ export function ReviewSubmissions() {
               return (
                 <Card
                   key={submission.id}
-                  className="overflow-hidden p-6 shadow-2xs hover:border-slate-300 transition"
+                  className="overflow-hidden p-6 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition"
                 >
                   {/* Top Metadata Header */}
-                  <div className="flex flex-col justify-between gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-start">
+                  <div className="flex flex-col justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5 md:flex-row md:items-start">
                     <div className="flex items-start gap-3.5">
                       <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 to-amber-600 text-sm font-black text-white shadow-2xs">
                         {submission.student_name?.charAt(0).toUpperCase() || 'S'}
@@ -665,20 +665,20 @@ export function ReviewSubmissions() {
 
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <strong className="text-base font-black text-slate-950">
+                          <strong className="text-base font-black text-slate-950 dark:text-white">
                             {submission.student_name || 'Student'}
                           </strong>
-                          <span className="text-xs text-slate-400">({submission.student_email})</span>
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                          <span className="text-xs text-slate-400 dark:text-slate-400">({submission.student_email})</span>
+                          <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">
                             {submission.cohort_name}
                           </span>
                         </div>
 
-                        <h3 className="mt-1 text-sm font-bold text-orange-600">
+                        <h3 className="mt-1 text-sm font-bold text-orange-600 dark:text-orange-400">
                           Assignment: {submission.assignment_title}
                         </h3>
 
-                        <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                        <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-400 dark:text-slate-400">
                           <span className="flex items-center gap-1">
                             <Clock size={12} />
                             Submitted{' '}
@@ -720,13 +720,13 @@ export function ReviewSubmissions() {
                               <span
                                 className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-[10px] font-black ${
                                   submission.sla_status === 'overdue'
-                                    ? 'bg-red-100 text-red-700 border border-red-200'
+                                    ? 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/60'
                                     : submission.sla_status === 'warning'
-                                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                    ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60'
+                                    : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60'
                                 }`}
                               >
-                                <Clock size={11} className={submission.sla_status === 'overdue' ? 'animate-pulse text-red-600' : ''} />
+                                <Clock size={11} className={submission.sla_status === 'overdue' ? 'animate-pulse text-red-600 dark:text-red-400' : ''} />
                                 <span>{timeLabel}</span>
                                 <span className="font-normal opacity-75">({waiting}h in queue)</span>
                               </span>
@@ -745,21 +745,21 @@ export function ReviewSubmissions() {
                       )}
 
                       {submission.status === 'pending' ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-transparent dark:border-blue-900/50 px-3 py-1 text-xs font-bold text-blue-700 dark:text-blue-300">
                           <Clock size={13} /> Pending Review
                         </span>
                       ) : submission.status === 'resubmit' ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-transparent dark:border-amber-900/50 px-3 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
                           <RotateCcw size={13} /> Revision Requested
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-transparent dark:border-emerald-900/50 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                           <Check size={13} /> Reviewed &amp; Approved
                         </span>
                       )}
 
                       {isResubmission && (
-                        <span className="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700">
+                        <span className="rounded-full bg-purple-50 dark:bg-purple-950/40 border border-transparent dark:border-purple-900/50 px-2.5 py-1 text-xs font-bold text-purple-700 dark:text-purple-300">
                           Revision #{submission.detailed_feedback_history?.length}
                         </span>
                       )}
@@ -768,11 +768,11 @@ export function ReviewSubmissions() {
 
                   {/* Tab bar for resubmission history comparison */}
                   {isResubmission && (
-                    <div className="mt-4 flex gap-2 border-b border-slate-100 pb-2 text-xs font-bold">
+                    <div className="mt-4 flex gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 text-xs font-bold">
                       <button
                         onClick={() => setActiveViewTab((prev) => ({ ...prev, [submission.id]: 'current' }))}
                         className={`rounded-lg px-3 py-1 transition ${
-                          viewTab === 'current' ? 'bg-orange-500 text-white' : 'text-slate-500 hover:bg-slate-100'
+                          viewTab === 'current' ? 'bg-orange-500 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
                         Latest Cut (Round #{submission.detailed_feedback_history?.length})
@@ -780,7 +780,7 @@ export function ReviewSubmissions() {
                       <button
                         onClick={() => setActiveViewTab((prev) => ({ ...prev, [submission.id]: 'history' }))}
                         className={`rounded-lg px-3 py-1 transition ${
-                          viewTab === 'history' ? 'bg-orange-500 text-white' : 'text-slate-500 hover:bg-slate-100'
+                          viewTab === 'history' ? 'bg-orange-500 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
                         <History size={12} className="inline mr-1" /> Compare Previous Critiques
@@ -790,22 +790,22 @@ export function ReviewSubmissions() {
 
                   {/* Previous Critique View (if toggled) */}
                   {isResubmission && viewTab === 'history' ? (
-                    <div className="mt-4 rounded-xl border border-purple-100 bg-purple-50/50 p-4 space-y-3">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-purple-900">
+                    <div className="mt-4 rounded-xl border border-purple-100 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/30 p-4 space-y-3">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-purple-900 dark:text-purple-300">
                         Prior Revision Rounds &amp; Mentor Notes
                       </h4>
                       {submission.detailed_feedback_history?.map((hist, idx) => (
-                        <div key={hist.id || idx} className="rounded-lg bg-white p-3.5 text-xs shadow-2xs">
+                        <div key={hist.id || idx} className="rounded-lg bg-white dark:bg-slate-900 border border-transparent dark:border-slate-800 p-3.5 text-xs shadow-2xs">
                           <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
-                            <span className="font-bold text-purple-700">Round #{(submission.detailed_feedback_history?.length ?? 0) - idx}</span>
+                            <span className="font-bold text-purple-700 dark:text-purple-400">Round #{(submission.detailed_feedback_history?.length ?? 0) - idx}</span>
                             <span>{new Date(hist.created_at).toLocaleString()}</span>
                           </div>
-                          <p className="whitespace-pre-wrap text-slate-800">{hist.comments}</p>
+                          <p className="whitespace-pre-wrap text-slate-800 dark:text-slate-200">{hist.comments}</p>
 
                           {hist.timestamped_notes && hist.timestamped_notes.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1.5 border-t border-slate-100 pt-2">
+                            <div className="mt-2 flex flex-wrap gap-1.5 border-t border-slate-100 dark:border-slate-800 pt-2">
                               {hist.timestamped_notes.map((n) => (
-                                <span key={n.id} className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700">
+                                <span key={n.id} className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] text-slate-700 dark:text-slate-300">
                                   [{n.formatted_time}] {n.category}: {n.text}
                                 </span>
                               ))}
@@ -818,16 +818,16 @@ export function ReviewSubmissions() {
                     <>
                       {/* Assignment Challenge Brief */}
                       {submission.assignment_instructions && (
-                        <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 text-xs text-slate-600">
-                          <strong className="block font-bold text-slate-800 mb-1">Assignment Challenge Brief:</strong>
+                        <div className="mt-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3.5 text-xs text-slate-600 dark:text-slate-300">
+                          <strong className="block font-bold text-slate-800 dark:text-slate-200 mb-1">Assignment Challenge Brief:</strong>
                           <p className="leading-relaxed">{submission.assignment_instructions}</p>
                         </div>
                       )}
 
                       {/* Video Player & Asset Preview Container */}
-                      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-950/5 p-4">
+                      <div className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-950/5 dark:bg-slate-900/50 p-4">
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                             {getSubmissionFileIcon(fileType)}
                             <span>Submitted Student Asset ({fileType.replace('_', ' ').toUpperCase()})</span>
                           </span>
@@ -836,7 +836,7 @@ export function ReviewSubmissions() {
                             href={resolvedUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-50 transition"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                           >
                             <Download size={13} />
                             <span>Download File</span>
@@ -869,7 +869,7 @@ export function ReviewSubmissions() {
                             </div>
 
                             {/* Timestamp Note Builder Bar */}
-                            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
+                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-2xs">
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                 <button
                                   type="button"
@@ -884,7 +884,7 @@ export function ReviewSubmissions() {
                                     }
                                   }}
                                   title="Click to capture current video playhead"
-                                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-mono font-bold text-white hover:bg-slate-800 transition"
+                                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-slate-900 dark:bg-slate-800 border border-transparent dark:border-slate-700 px-2.5 py-1 text-xs font-mono font-bold text-white hover:bg-slate-800 dark:hover:bg-slate-700 transition"
                                 >
                                   <Clock size={12} className="text-orange-400" />
                                   {formatTimecode(activePlaybackTime[submission.id] || 0)}
@@ -904,14 +904,14 @@ export function ReviewSubmissions() {
                                         | 'general',
                                     }))
                                   }
-                                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-orange-400"
+                                  className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-orange-400"
                                 >
-                                  <option value="pacing">⏱ Pacing</option>
-                                  <option value="audio">🎵 Audio</option>
-                                  <option value="color">🎨 Color</option>
-                                  <option value="storytelling">📖 Storytelling</option>
-                                  <option value="technical">🛠 Technical</option>
-                                  <option value="general">💬 General</option>
+                                  <option value="pacing" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">⏱ Pacing</option>
+                                  <option value="audio" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">🎵 Audio</option>
+                                  <option value="color" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">🎨 Color</option>
+                                  <option value="storytelling" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">📖 Storytelling</option>
+                                  <option value="technical" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">🛠 Technical</option>
+                                  <option value="general" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">💬 General</option>
                                 </select>
 
                                 <input
@@ -930,7 +930,7 @@ export function ReviewSubmissions() {
                                       handleAddTimecodedNote(submission.id);
                                     }
                                   }}
-                                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-orange-400"
+                                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-white outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-orange-400"
                                 />
 
                                 <Button
@@ -945,19 +945,19 @@ export function ReviewSubmissions() {
 
                               {/* Interactive Timecoded Markers List */}
                               {subTimestamps.length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-2.5">
+                                <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 dark:border-slate-800 pt-2.5">
                                   {subTimestamps.map((note) => (
                                     <button
                                       key={note.id}
                                       onClick={() => seekVideo(submission.id, note.timestamp_seconds)}
-                                      className="group flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-left text-xs transition hover:border-orange-300 hover:bg-orange-50/50"
+                                      className="group flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 px-2.5 py-1 text-left text-xs transition hover:border-orange-300 dark:hover:border-orange-500 hover:bg-orange-50/50 dark:hover:bg-slate-800"
                                       title="Click to seek video to timestamp"
                                     >
-                                      <span className="font-mono font-bold text-orange-600 group-hover:underline">
+                                      <span className="font-mono font-bold text-orange-600 dark:text-orange-400 group-hover:underline">
                                         [{note.formatted_time}]
                                       </span>
-                                      <span className="font-bold text-slate-700 capitalize">{note.category}:</span>
-                                      <span className="text-slate-600 truncate max-w-xs">{note.text}</span>
+                                      <span className="font-bold text-slate-700 dark:text-slate-300 capitalize">{note.category}:</span>
+                                      <span className="text-slate-600 dark:text-slate-400 truncate max-w-xs">{note.text}</span>
                                     </button>
                                   ))}
                                 </div>
@@ -973,14 +973,14 @@ export function ReviewSubmissions() {
                             />
                           </div>
                         ) : (
-                          <div className="flex items-center justify-between rounded-xl bg-white p-4 border border-slate-200">
+                          <div className="flex items-center justify-between rounded-xl bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800">
                             <div className="flex items-center gap-3">
-                              <div className="flex size-10 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                              <div className="flex size-10 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400">
                                 <FileArchive size={20} />
                               </div>
                               <div>
-                                <p className="text-xs font-bold text-slate-900">Project Archive / Timeline Rushes</p>
-                                <p className="text-[11px] text-slate-500">
+                                <p className="text-xs font-bold text-slate-900 dark:text-white">Project Archive / Timeline Rushes</p>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
                                    Download to inspect in Premiere Pro, DaVinci Resolve, or FCPX
                                 </p>
                               </div>
@@ -989,7 +989,7 @@ export function ReviewSubmissions() {
                               href={resolvedUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="rounded-lg bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-orange-600 transition"
+                              className="rounded-lg bg-slate-950 dark:bg-slate-800 border border-transparent dark:border-slate-700 px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-orange-600 dark:hover:bg-orange-600 transition"
                             >
                               Open in NLE
                             </a>
@@ -998,11 +998,11 @@ export function ReviewSubmissions() {
                       </div>
 
                       {/* 5-Axis Rubric Matrix Scoring */}
-                      <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                      <div className="mt-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
                           <div className="flex items-center gap-2">
-                            <Sliders size={14} className="text-orange-600" />
-                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                            <Sliders size={14} className="text-orange-600 dark:text-orange-400" />
+                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
                               Rubric Assessment (5-Point Standardized Matrix)
                             </h4>
                           </div>
@@ -1025,11 +1025,11 @@ export function ReviewSubmissions() {
                                 });
                                 e.target.value = '';
                               }}
-                              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-700 outline-none hover:border-orange-300 focus:border-orange-500"
+                              className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none hover:border-orange-300 focus:border-orange-500"
                             >
-                              <option value="">Apply Rubric Template...</option>
+                              <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Apply Rubric Template...</option>
                               {RUBRIC_REVIEW_TEMPLATES.map((t) => (
-                                <option key={t.id} value={t.id}>
+                                <option key={t.id} value={t.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                                   {t.name} ({t.stage})
                                 </option>
                               ))}
@@ -1044,12 +1044,12 @@ export function ReviewSubmissions() {
                               else if (avg >= 3.3) grade = 'B (Competent)';
                               else if (avg >= 2.5) grade = 'C (Developing)';
                               return (
-                                <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 px-2.5 py-1 text-xs font-black text-orange-700">
+                                <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400 border border-transparent dark:border-orange-900/40 px-2.5 py-1 text-xs font-black">
                                   <span>Avg: {avg} / 5.0</span>
                                   <span className="opacity-40">•</span>
                                   <span>{grade}</span>
                                   <span className="opacity-40">•</span>
-                                  <span className="text-[10px] font-bold text-orange-600">({rubricTotal}/25)</span>
+                                  <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">({rubricTotal}/25)</span>
                                 </span>
                               );
                             })()}
@@ -1078,13 +1078,13 @@ export function ReviewSubmissions() {
                                 ? 'Advanced'
                                 : 'Mastered';
                             return (
-                              <div key={key} className="rounded-lg bg-slate-50 p-2.5 flex flex-col justify-between">
+                              <div key={key} className="rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-transparent dark:border-slate-800 p-2.5 flex flex-col justify-between">
                                 <div>
                                   <div className="flex items-center justify-between">
-                                    <p className="font-bold text-slate-700 text-[11px] truncate">{label}</p>
-                                    <span className="text-[10px] font-black text-orange-600">{scoreVal}/5</span>
+                                    <p className="font-bold text-slate-700 dark:text-slate-200 text-[11px] truncate">{label}</p>
+                                    <span className="text-[10px] font-black text-orange-600 dark:text-orange-400">{scoreVal}/5</span>
                                   </div>
-                                  <p className="text-[9px] text-slate-400 font-medium">{levelDesc}</p>
+                                  <p className="text-[9px] text-slate-400 dark:text-slate-400 font-medium">{levelDesc}</p>
                                 </div>
                                 <div className="mt-2 flex items-center justify-between gap-1">
                                   {[1, 2, 3, 4, 5].map((score) => (
@@ -1106,7 +1106,7 @@ export function ReviewSubmissions() {
                                       className={`h-8 w-full sm:h-7 sm:w-7 rounded-lg text-xs font-bold transition touch-manipulation ${
                                         scoreVal >= score
                                           ? 'bg-orange-500 text-white'
-                                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                                          : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
                                       }`}
                                     >
                                       {score}
@@ -1121,7 +1121,7 @@ export function ReviewSubmissions() {
 
                       {/* Quick Review Canned Templates */}
                       <div className="mt-4">
-                        <p className="text-[11px] font-bold text-slate-500 mb-1.5">
+                        <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                           Quick Critique Templates (click to inject):
                         </p>
                         <div className="flex flex-wrap gap-1.5">
@@ -1130,7 +1130,7 @@ export function ReviewSubmissions() {
                               key={tmpl.label}
                               type="button"
                               onClick={() => handleInsertTemplate(submission.id, tmpl.text)}
-                              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 transition hover:border-orange-300 hover:bg-orange-50"
+                              className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-300 transition hover:border-orange-300 dark:hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30"
                             >
                               + {tmpl.label}
                             </button>
@@ -1140,7 +1140,7 @@ export function ReviewSubmissions() {
 
                       {/* Feedback Textarea Form */}
                       <div className="mt-4">
-                        <label className="block text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                        <label className="block text-left text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                           Student-Facing Feedback &amp; Action Items
                           <textarea
                             value={feedbackNotes[submission.id] ?? ''}
@@ -1149,14 +1149,14 @@ export function ReviewSubmissions() {
                             }
                             rows={3}
                             placeholder="Detail timeline pacing, audio ducking, color balance adjustments, or next steps for the student..."
-                            className="mt-2 w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-xs sm:text-sm font-normal text-slate-900 outline-none focus:border-orange-400 focus:bg-white"
+                            className="mt-2 w-full resize-none rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-xs sm:text-sm font-normal text-slate-900 dark:text-white outline-none focus:border-orange-400"
                           />
                         </label>
                       </div>
 
                       {/* Private Staff Notes (Collapsible) */}
                       <div className="mt-3">
-                        <label className="block text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        <label className="block text-left text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
                           <Lock size={11} className="inline mr-1 text-slate-400" />
                           Private Mentor Notes (Hidden from Student)
                           <input
@@ -1166,18 +1166,18 @@ export function ReviewSubmissions() {
                               setPrivateNotes((prev) => ({ ...prev, [submission.id]: e.target.value }))
                             }
                             placeholder="Internal observations, student learning behavior notes, or questions for admin..."
-                            className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 outline-none focus:border-orange-400 focus:bg-white"
+                            className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-orange-400"
                           />
                         </label>
                       </div>
 
                       {/* Action Bar */}
-                      <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                      <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setEscalatingSubmission(submission)}
-                          className="w-full sm:w-auto text-xs text-slate-500 hover:text-red-700 justify-center"
+                          className="w-full sm:w-auto text-xs text-slate-500 dark:text-slate-400 hover:text-red-700 dark:hover:text-red-400 justify-center"
                         >
                           <Flag size={13} /> Escalate to Admin
                         </Button>
@@ -1188,7 +1188,7 @@ export function ReviewSubmissions() {
                             size="sm"
                             onClick={() => void review(submission, 'resubmit')}
                             loading={savingId === submission.id}
-                            className="w-full sm:w-auto text-xs font-bold text-amber-800 hover:text-amber-900 justify-center"
+                            className="w-full sm:w-auto text-xs font-bold text-amber-800 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 justify-center"
                           >
                             <RotateCcw size={14} /> Request Revision (Resubmit)
                           </Button>
@@ -1239,50 +1239,50 @@ export function ReviewSubmissions() {
 
       {/* Escalate to Admin Modal */}
       {escalatingSubmission && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
           <Card className="w-full max-w-md p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-red-600">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                 <Flag size={18} />
-                <h2 className="text-base font-black text-slate-950">Escalate to Administration</h2>
+                <h2 className="text-base font-black text-slate-950 dark:text-white">Escalate to Administration</h2>
               </div>
               <button
                 onClick={() => setEscalatingSubmission(null)}
-                className="text-slate-400 hover:text-slate-700"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
                 <X size={16} />
               </button>
             </div>
 
             <form onSubmit={handleEscalate} className="mt-4 space-y-4 text-xs">
-              <p className="text-slate-500">
-                Flagging submission by <strong>{escalatingSubmission.student_name}</strong> for administrator review.
+              <p className="text-slate-500 dark:text-slate-400">
+                Flagging submission by <strong className="text-slate-950 dark:text-white font-bold">{escalatingSubmission.student_name}</strong> for administrator review.
               </p>
 
               <div>
-                <label className="block font-bold text-slate-700">Reason Category</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300">Reason Category</label>
                 <select
                   value={escalationReason}
                   onChange={(e) => setEscalationReason(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-900 outline-none focus:border-orange-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-orange-400"
                 >
-                  <option value="Second Opinion Needed">Second Opinion Needed on Assessment</option>
-                  <option value="Plagiarism / Unoriginal Assets">Plagiarism / Uncredited Footage</option>
-                  <option value="Content Guideline Violation">Content Guideline Violation</option>
-                  <option value="Student Assistance / Distress">Student Needs Academic Assistance</option>
-                  <option value="Technical Issue">Technical Asset Malfunction</option>
+                  <option value="Second Opinion Needed" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Second Opinion Needed on Assessment</option>
+                  <option value="Plagiarism / Unoriginal Assets" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Plagiarism / Uncredited Footage</option>
+                  <option value="Content Guideline Violation" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Content Guideline Violation</option>
+                  <option value="Student Assistance / Distress" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Student Needs Academic Assistance</option>
+                  <option value="Technical Issue" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Technical Asset Malfunction</option>
                 </select>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700">Context &amp; Details for Admin</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300">Context &amp; Details for Admin</label>
                 <textarea
                   rows={3}
                   required
                   placeholder="Explain why this submission requires administrative intervention..."
                   value={escalationDetail}
                   onChange={(e) => setEscalationDetail(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-900 outline-none focus:border-orange-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-orange-400"
                 />
               </div>
 
@@ -1295,7 +1295,7 @@ export function ReviewSubmissions() {
                 >
                   Cancel
                 </Button>
-                <Button size="sm" type="submit" loading={submittingEscalation} className="bg-red-600 hover:bg-red-700">
+                <Button size="sm" type="submit" loading={submittingEscalation} className="bg-red-600 hover:bg-red-700 text-white">
                   <Flag size={13} /> Confirm Escalation
                 </Button>
               </div>

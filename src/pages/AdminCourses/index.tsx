@@ -91,13 +91,13 @@ function AdminCoursesView() {
 
   if (profile?.role !== 'admin') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] p-8 text-center">
-        <Card className="max-w-md p-8">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+      <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] dark:bg-slate-950 p-8 text-center">
+        <Card className="max-w-md p-8 dark:bg-slate-900 dark:border-slate-800">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400">
             <Lock size={22} />
           </div>
-          <h2 className="mt-4 text-xl font-black text-slate-950">Admin access required</h2>
-          <p className="mt-2 text-sm text-slate-500">You need administrator privileges to author and manage courses.</p>
+          <h2 className="mt-4 text-xl font-black text-slate-950 dark:text-white">Admin access required</h2>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">You need administrator privileges to author and manage courses.</p>
         </Card>
       </div>
     );
@@ -160,24 +160,24 @@ function AdminCoursesView() {
 
         {/* Feedback Messages */}
         {error && (
-          <div className="mb-6 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mb-6 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/40 px-4 py-3 text-sm text-red-700 dark:text-red-300">
             <div className="flex items-center gap-2">
               <AlertCircle size={17} className="shrink-0" />
               <span>{error}</span>
             </div>
-            <button onClick={() => setError(null)} className="p-1 hover:text-red-900" aria-label="Dismiss error">
+            <button onClick={() => setError(null)} className="p-1 hover:text-red-900 dark:hover:text-red-100" aria-label="Dismiss error">
               <X size={15} />
             </button>
           </div>
         )}
 
         {success && (
-          <div className="mb-6 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <div className="mb-6 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/40 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
             <div className="flex items-center gap-2">
               <Check size={17} className="shrink-0" />
               <span>{success}</span>
             </div>
-            <button onClick={() => setSuccess(null)} className="p-1 hover:text-emerald-900" aria-label="Dismiss message">
+            <button onClick={() => setSuccess(null)} className="p-1 hover:text-emerald-900 dark:hover:text-emerald-100" aria-label="Dismiss message">
               <X size={15} />
             </button>
           </div>
@@ -186,7 +186,7 @@ function AdminCoursesView() {
         {/* Controls / Filter Bar with Status Pills */}
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-bold text-slate-500 mr-1 flex items-center gap-1">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 flex items-center gap-1">
               <Filter size={13} /> Lifecycle:
             </span>
             {(['all', 'draft', 'review', 'published', 'archived'] as const).map((s) => (
@@ -195,8 +195,8 @@ function AdminCoursesView() {
                 onClick={() => setStatusFilter(s)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-bold transition capitalize ${
                   statusFilter === s
-                    ? 'bg-slate-900 text-white shadow-2xs'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? 'bg-slate-900 text-white shadow-2xs dark:bg-white dark:text-slate-900'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800'
                 }`}
               >
                 {s === 'all' ? 'All Cohorts' : s === 'review' ? 'In Review' : s}
@@ -204,13 +204,13 @@ function AdminCoursesView() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-sm focus-within:border-orange-400">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 py-2 text-sm text-slate-500 dark:text-slate-400 shadow-sm focus-within:border-orange-400">
             <Search size={17} className="text-slate-400" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search cohorts..."
-              className="w-48 bg-transparent outline-none placeholder:text-slate-400 sm:w-64 text-xs"
+              className="w-48 bg-transparent outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 sm:w-64 text-xs dark:text-white"
             />
           </div>
         </div>
@@ -234,9 +234,9 @@ function AdminCoursesView() {
               const isExpanded = expandedCohortId === cohort.id;
 
               return (
-                <Card key={cohort.id} className="overflow-hidden shadow-sm transition">
+                <Card key={cohort.id} className="overflow-hidden shadow-sm transition dark:bg-slate-900 dark:border-slate-800">
                   {/* Cohort Header */}
-                  <div className="flex flex-col justify-between gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center">
+                  <div className="flex flex-col justify-between gap-4 border-b border-slate-100 dark:border-slate-800 p-5 sm:flex-row sm:items-center">
                     <button
                       onClick={() => setExpandedCohortId(isExpanded ? null : cohort.id)}
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
@@ -247,21 +247,21 @@ function AdminCoursesView() {
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h2 className="truncate text-lg font-black text-slate-950">{cohort.name}</h2>
+                          <h2 className="truncate text-lg font-black text-slate-950 dark:text-white">{cohort.name}</h2>
                           {cohort.course_id && (
-                            <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700 border border-indigo-200">
+                            <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
                               Course: {courses.find((c) => c.id === cohort.course_id)?.title || 'Master Syllabus'}
                             </span>
                           )}
                           <span
                             className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
                               cohort.status === 'published'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
                                 : cohort.status === 'review'
-                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
                                 : cohort.status === 'draft'
-                                ? 'bg-slate-100 text-slate-700 border border-slate-200'
-                                : 'bg-slate-200 text-slate-600 border border-slate-300'
+                                ? 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                                : 'bg-slate-200 text-slate-600 border border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
                             }`}
                           >
                             {cohort.status === 'published'
@@ -272,19 +272,19 @@ function AdminCoursesView() {
                               ? '○ Draft'
                               : '✕ Archived'}
                           </span>
-                          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
+                          <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-bold text-slate-600 dark:text-slate-300">
                             {cohortModules.length} {cohortModules.length === 1 ? 'module' : 'modules'}
                           </span>
                           {cohort.capacity && (
-                            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                            <span className="rounded-full bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300">
                               Cap: {cohort.capacity} seats
                             </span>
                           )}
-                          <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                          <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
                             ₹{(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} {cohort.currency || DEFAULT_CURRENCY}
                           </span>
                         </div>
-                        <p className="mt-0.5 truncate text-xs text-slate-500">
+                        <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                           {cohort.description || 'No description set'}
                         </p>
                       </div>
@@ -298,7 +298,7 @@ function AdminCoursesView() {
                             e.stopPropagation();
                             void handleUpdateCohortStatus(cohort.id, 'review', cohort.name);
                           }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 hover:bg-amber-100 transition"
+                          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition"
                           title="Submit cohort for content review"
                         >
                           <Send size={12} /> Submit Review
@@ -322,7 +322,7 @@ function AdminCoursesView() {
                             e.stopPropagation();
                             void handleUpdateCohortStatus(cohort.id, 'archived', cohort.name);
                           }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
                           title="Archive cohort"
                         >
                           <Archive size={12} /> Archive
@@ -334,7 +334,7 @@ function AdminCoursesView() {
                             e.stopPropagation();
                             void handleUpdateCohortStatus(cohort.id, 'draft', cohort.name);
                           }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
                           title="Restore cohort to draft"
                         >
                           <RotateCcw size={12} /> Restore Draft
@@ -350,7 +350,7 @@ function AdminCoursesView() {
                         <>
                           <button
                             onClick={() => openCohortEditor(cohort)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition"
+                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white transition"
                             title="Edit Cohort"
                             aria-label="Edit Cohort"
                           >
@@ -358,7 +358,7 @@ function AdminCoursesView() {
                           </button>
                           <button
                             onClick={() => void handleDelete('cohort', cohort.id, cohort.name)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
+                            className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
                             title="Delete Cohort"
                             aria-label="Delete Cohort"
                           >
@@ -371,9 +371,9 @@ function AdminCoursesView() {
 
                   {/* Cohort Contents (Modules & Lessons vs Course Challenges vs 15-Day Sprint Challenges) */}
                   {isExpanded && (
-                    <div className="bg-slate-50/70 p-5 lg:p-6">
+                    <div className="bg-slate-50/70 dark:bg-slate-950/50 p-5 lg:p-6">
                       {/* Cohort Sub-tabs */}
-                      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
@@ -381,7 +381,7 @@ function AdminCoursesView() {
                             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
                               (cohortActiveTab[cohort.id] || 'curriculum') === 'curriculum'
                                 ? 'bg-orange-500 text-white shadow-sm'
-                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800 dark:hover:bg-slate-800'
                             }`}
                           >
                             <BookOpen size={15} />
@@ -390,7 +390,7 @@ function AdminCoursesView() {
                               className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                                 (cohortActiveTab[cohort.id] || 'curriculum') === 'curriculum'
                                   ? 'bg-white/20 text-white'
-                                  : 'bg-slate-100 text-slate-700'
+                                  : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                               }`}
                             >
                               {cohortModules.length}
@@ -402,13 +402,13 @@ function AdminCoursesView() {
                             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
                               cohortActiveTab[cohort.id] === 'challenges'
                                 ? 'bg-amber-600 text-white shadow-sm'
-                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800 dark:hover:bg-slate-800'
                             }`}
                           >
                             <Flame
                               size={15}
                               className={
-                                cohortActiveTab[cohort.id] === 'challenges' ? 'text-amber-200' : 'text-amber-600'
+                                cohortActiveTab[cohort.id] === 'challenges' ? 'text-amber-200' : 'text-amber-600 dark:text-amber-400'
                               }
                             />
                             Course Challenges &amp; Projects
@@ -416,7 +416,7 @@ function AdminCoursesView() {
                               className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                                 cohortActiveTab[cohort.id] === 'challenges'
                                   ? 'bg-white/20 text-white'
-                                  : 'bg-amber-100 text-amber-800'
+                                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                               }`}
                             >
                               {courseChallengesByCohort[cohort.id]?.length ?? 'Quests'}
@@ -428,13 +428,13 @@ function AdminCoursesView() {
                             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
                               cohortActiveTab[cohort.id] === 'sprint'
                                 ? 'bg-indigo-600 text-white shadow-sm'
-                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800 dark:hover:bg-slate-800'
                             }`}
                           >
                             <Calendar
                               size={15}
                               className={
-                                cohortActiveTab[cohort.id] === 'sprint' ? 'text-indigo-200' : 'text-indigo-600'
+                                cohortActiveTab[cohort.id] === 'sprint' ? 'text-indigo-200' : 'text-indigo-600 dark:text-indigo-400'
                               }
                             />
                             Sprint Track (Daily Tasks)
@@ -442,7 +442,7 @@ function AdminCoursesView() {
                               className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                                 cohortActiveTab[cohort.id] === 'sprint'
                                   ? 'bg-white/20 text-white'
-                                  : 'bg-indigo-100 text-indigo-800'
+                                  : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300'
                               }`}
                             >
                               {challengesByCohort[cohort.id]?.length ?? 0}

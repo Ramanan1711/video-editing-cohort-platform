@@ -39,39 +39,39 @@ export function SprintTrackStudio({ cohort }: { cohort: Cohort }) {
         {challenges.map((challenge) => (
           <div
             key={challenge.id}
-            className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs transition hover:border-slate-300 sm:flex-row sm:items-center"
+            className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs transition hover:border-slate-300 dark:hover:border-slate-700 sm:flex-row sm:items-center"
           >
             <div className="flex items-start gap-3.5">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-xs font-black text-amber-700 border border-amber-200">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 dark:bg-amber-950/40 text-xs font-black text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
                 D{challenge.day_number}
               </span>
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-sm font-bold text-slate-900">{challenge.title}</h4>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">{challenge.title}</h4>
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                       challenge.is_published === false
-                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                        : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                        ? 'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
                     }`}
                   >
                     {challenge.is_published === false ? 'Draft' : 'Published'}
                   </span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                  <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                     {challenge.track_type}
                   </span>
-                  <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-100">
+                  <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800/60">
                     {challenge.submission_type.replace('_', ' ')}
                   </span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                  <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
                     {challenge.deadline_hours}h deadline
                   </span>
                 </div>
                 {challenge.description && (
-                  <p className="text-xs text-slate-600 line-clamp-2">{challenge.description}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">{challenge.description}</p>
                 )}
                 {challenge.instructions && (
-                  <p className="text-[11px] text-slate-400 italic line-clamp-1">
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 italic line-clamp-1">
                     Instructions: {challenge.instructions}
                   </p>
                 )}
@@ -87,7 +87,7 @@ export function SprintTrackStudio({ cohort }: { cohort: Cohort }) {
                         window.open(challenge.starter_files_url, '_blank');
                       }
                     }}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:underline"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline"
                   >
                     <ExternalLink size={11} /> Starter Files
                   </button>
@@ -99,14 +99,14 @@ export function SprintTrackStudio({ cohort }: { cohort: Cohort }) {
               <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
                 <button
                   onClick={() => openChallengeEditor(cohort.id, challenge)}
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition"
                   title="Edit Challenge"
                 >
                   <Pencil size={15} />
                 </button>
                 <button
                   onClick={() => void handleDeleteChallenge(cohort.id, challenge.id, challenge.title)}
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition"
                   title="Delete Challenge"
                 >
                   <Trash2 size={15} />
@@ -120,10 +120,10 @@ export function SprintTrackStudio({ cohort }: { cohort: Cohort }) {
   }
 
   return (
-    <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-8 text-center">
+    <div className="rounded-xl border border-dashed border-amber-300 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 p-8 text-center">
       <Flame className="mx-auto mb-2 text-amber-500" size={28} />
-      <p className="text-sm font-bold text-slate-900">No Daily Challenges Configured</p>
-      <p className="mt-1 text-xs text-slate-600 max-w-md mx-auto">
+      <p className="text-sm font-bold text-slate-900 dark:text-white">No Daily Challenges Configured</p>
+      <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto">
         Sprint participants will need daily drills to build their portfolio and qualify for their completion certificate.
       </p>
       {canManageCurriculum && (

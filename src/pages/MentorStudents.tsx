@@ -175,11 +175,11 @@ export function MentorStudents() {
 
   if (!isMentorOrAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] p-8 text-center">
+      <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] dark:bg-slate-950 p-8 text-center">
         <Card className="max-w-md p-8">
           <AlertCircle className="mx-auto text-amber-500 mb-3" size={32} />
-          <h2 className="text-xl font-black text-slate-950">Mentor Clearance Required</h2>
-          <p className="mt-2 text-xs text-slate-500">
+          <h2 className="text-xl font-black text-slate-950 dark:text-white">Mentor Clearance Required</h2>
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
             Student progress tracking is restricted to cohort mentors and administrators.
           </p>
         </Card>
@@ -231,7 +231,7 @@ export function MentorStudents() {
       <main className="mx-auto max-w-6xl px-5 py-8 lg:px-8">
         {/* Toast Alerts */}
         {error && (
-          <div className="mb-5 flex items-center justify-between rounded-xl bg-red-50 p-3.5 text-xs text-red-700">
+          <div className="mb-5 flex items-center justify-between rounded-xl bg-red-50 dark:bg-red-950/40 border border-transparent dark:border-red-900/60 p-3.5 text-xs text-red-700 dark:text-red-300">
             <span>{error}</span>
             <button onClick={() => setError(null)}>
               <X size={15} />
@@ -240,7 +240,7 @@ export function MentorStudents() {
         )}
 
         {success && (
-          <div className="mb-5 flex items-center justify-between rounded-xl bg-emerald-50 p-3.5 text-xs text-emerald-700">
+          <div className="mb-5 flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-transparent dark:border-emerald-900/60 p-3.5 text-xs text-emerald-700 dark:text-emerald-300">
             <span>{success}</span>
             <button onClick={() => setSuccess(null)}>
               <X size={15} />
@@ -297,8 +297,8 @@ export function MentorStudents() {
               onClick={() => setFilterMode('all')}
               className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                 filterMode === 'all'
-                  ? 'bg-slate-950 text-white shadow-2xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  ? 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 shadow-2xs'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               All Students ({students.length})
@@ -308,7 +308,7 @@ export function MentorStudents() {
               className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                 filterMode === 'attention'
                   ? 'bg-amber-500 text-white shadow-2xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               Requires Attention ({attentionCount})
@@ -318,7 +318,7 @@ export function MentorStudents() {
               className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                 filterMode === 'on_track'
                   ? 'bg-blue-600 text-white shadow-2xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               On Track
@@ -328,7 +328,7 @@ export function MentorStudents() {
               className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                 filterMode === 'completed'
                   ? 'bg-emerald-600 text-white shadow-2xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               Completed
@@ -340,11 +340,11 @@ export function MentorStudents() {
               <select
                 value={selectedCohort}
                 onChange={(e) => setSelectedCohort(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs outline-none focus:border-orange-400"
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-2xs outline-none focus:border-orange-400"
               >
-                <option value="all">All Cohorts</option>
+                <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">All Cohorts</option>
                 {cohorts.map((c) => (
-                  <option key={c.id} value={c.id}>
+                  <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                     {c.name}
                   </option>
                 ))}
@@ -352,13 +352,13 @@ export function MentorStudents() {
             )}
 
             <div className="relative flex-1 sm:flex-initial">
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
+              <Search className="absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" size={14} />
               <input
                 type="text"
                 placeholder="Search students or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-56 rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-900 shadow-2xs outline-none placeholder:text-slate-400 focus:border-orange-400"
+                className="w-full sm:w-56 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 pl-9 pr-3 text-xs text-slate-900 dark:text-white shadow-2xs outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-orange-400"
               />
             </div>
           </div>
@@ -379,34 +379,34 @@ export function MentorStudents() {
             {filteredStudents.map((student) => (
               <Card
                 key={`${student.cohort_id}-${student.student_id}`}
-                className="p-5 transition hover:border-slate-300"
+                className="p-5 transition hover:border-slate-300 dark:hover:border-slate-700"
               >
                 <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                   <div className="flex items-start gap-3.5">
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-sm font-black text-orange-700">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-950/60 text-sm font-black text-orange-700 dark:text-orange-400">
                       {student.student_name[0] || 'S'}
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-black text-slate-950">{student.student_name}</p>
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                        <p className="text-sm font-black text-slate-950 dark:text-white">{student.student_name}</p>
+                        <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-400">
                           {student.cohort_name}
                         </span>
                         {student.needs_attention && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-950/50 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
                             <AlertCircle size={10} /> Needs Attention
                           </span>
                         )}
                         {student.progress_pct === 100 && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-950/50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
                             <CheckCircle2 size={10} /> Graduated
                           </span>
                         )}
                       </div>
-                      <p className="mt-0.5 text-xs text-slate-400">{student.student_email}</p>
+                      <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-400">{student.student_email}</p>
 
                       {student.attention_reasons.length > 0 && (
-                        <p className="mt-1.5 text-[11px] font-medium text-amber-700">
+                        <p className="mt-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
                           Note: {student.attention_reasons.join(' · ')}
                         </p>
                       )}
@@ -417,10 +417,10 @@ export function MentorStudents() {
                     {/* Progress Bar */}
                     <div className="w-36">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-bold text-slate-600">Curriculum</span>
-                        <span className="font-black text-slate-950">{student.progress_pct}%</span>
+                        <span className="font-bold text-slate-600 dark:text-slate-400">Curriculum</span>
+                        <span className="font-black text-slate-950 dark:text-white">{student.progress_pct}%</span>
                       </div>
-                      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                         <div
                           className={`h-full rounded-full transition-all ${
                             student.progress_pct === 100 ? 'bg-emerald-500' : 'bg-orange-500'
@@ -435,12 +435,12 @@ export function MentorStudents() {
 
                     {/* Submissions & Revisions */}
                     <div className="text-right">
-                      <p className="text-xs font-black text-slate-950">
+                      <p className="text-xs font-black text-slate-950 dark:text-white">
                         {student.passed_count} / {student.total_assignments} Passed
                       </p>
-                      <p className="mt-0.5 text-[10px] text-slate-500">
+                      <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
                         {student.resubmission_count > 0 ? (
-                          <span className="text-orange-600 font-bold">{student.resubmission_count} revisions</span>
+                          <span className="text-orange-600 dark:text-orange-400 font-bold">{student.resubmission_count} revisions</span>
                         ) : (
                           '0 revisions'
                         )}
@@ -488,52 +488,52 @@ export function MentorStudents() {
 
       {/* Student Dossier Slide-Over / Modal */}
       {selectedStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-7 shadow-2xl">
-            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="flex size-12 items-center justify-center rounded-xl bg-orange-100 text-base font-black text-orange-700">
+                <div className="flex size-12 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-950/60 text-base font-black text-orange-700 dark:text-orange-400">
                   {selectedStudent.student_name[0] || 'S'}
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-slate-950">{selectedStudent.student_name}</h2>
-                  <p className="text-xs text-slate-400">
+                  <h2 className="text-lg font-black text-slate-950 dark:text-white">{selectedStudent.student_name}</h2>
+                  <p className="text-xs text-slate-400 dark:text-slate-400">
                     {selectedStudent.student_email} · {selectedStudent.cohort_name}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedStudent(null)}
-                className="rounded-lg p-1 text-slate-400 hover:text-slate-700"
+                className="rounded-lg p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* Quick Metrics Bar */}
-            <div className="mt-5 grid grid-cols-3 gap-3 rounded-xl bg-slate-50 p-3.5 text-center text-xs">
+            <div className="mt-5 grid grid-cols-3 gap-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-transparent dark:border-slate-800 p-3.5 text-center text-xs">
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Curriculum</p>
-                <p className="mt-0.5 text-base font-black text-slate-950">{selectedStudent.progress_pct}%</p>
-                <p className="text-[10px] text-slate-500">{selectedStudent.completed_lessons} lessons done</p>
+                <p className="mt-0.5 text-base font-black text-slate-950 dark:text-white">{selectedStudent.progress_pct}%</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">{selectedStudent.completed_lessons} lessons done</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Submissions</p>
-                <p className="mt-0.5 text-base font-black text-slate-950">{selectedStudent.submissions_count}</p>
-                <p className="text-[10px] text-slate-500">{selectedStudent.passed_count} passed</p>
+                <p className="mt-0.5 text-base font-black text-slate-950 dark:text-white">{selectedStudent.submissions_count}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">{selectedStudent.passed_count} passed</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Revisions</p>
-                <p className="mt-0.5 text-base font-black text-orange-600">
+                <p className="mt-0.5 text-base font-black text-orange-600 dark:text-orange-400">
                   {selectedStudent.resubmission_count}
                 </p>
-                <p className="text-[10px] text-slate-500">Requested to date</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">Requested to date</p>
               </div>
             </div>
 
             {/* Submission & Feedback History */}
             <div className="mt-6">
-              <h3 className="text-xs font-black text-slate-950 uppercase tracking-wider">
+              <h3 className="text-xs font-black text-slate-950 dark:text-white uppercase tracking-wider">
                 Submission &amp; Critique History
               </h3>
 
@@ -544,25 +544,25 @@ export function MentorStudents() {
                   studentSubmissions.map((sub) => (
                     <div
                       key={sub.id}
-                      className="rounded-xl border border-slate-100 bg-white p-4 shadow-2xs"
+                      className="rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800/40 p-4 shadow-2xs"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-xs font-black text-slate-950">{sub.assignment_title}</p>
+                          <p className="text-xs font-black text-slate-950 dark:text-white">{sub.assignment_title}</p>
                           <p className="mt-0.5 text-[10px] text-slate-400">
                             Submitted {sub.created_at ? new Date(sub.created_at).toLocaleDateString() : 'N/A'}
                           </p>
                         </div>
                         {sub.status === 'reviewed' ? (
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                          <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-transparent dark:border-emerald-800/50 px-2 py-0.5 text-[10px] font-bold">
                             Approved
                           </span>
                         ) : sub.status === 'resubmit' ? (
-                          <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700">
+                          <span className="rounded-full bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 border border-transparent dark:border-orange-800/50 px-2 py-0.5 text-[10px] font-bold">
                             Revision Requested
                           </span>
                         ) : (
-                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                          <span className="rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-transparent dark:border-blue-800/50 px-2 py-0.5 text-[10px] font-bold">
                             Pending Review
                           </span>
                         )}
@@ -575,7 +575,7 @@ export function MentorStudents() {
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => void handleOpenAsset(e, sub.file_url)}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
                         >
                           View submitted asset <ExternalLink size={11} />
                         </a>
@@ -583,12 +583,12 @@ export function MentorStudents() {
 
                       {/* Feedback Notes */}
                       {sub.detailed_feedback_history && sub.detailed_feedback_history.length > 0 && (
-                        <div className="mt-3 border-t border-slate-100 pt-2.5 space-y-2">
+                        <div className="mt-3 border-t border-slate-100 dark:border-slate-800 pt-2.5 space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                             Mentor Critiques ({sub.detailed_feedback_history.length})
                           </p>
                           {sub.detailed_feedback_history.map((fb) => (
-                            <div key={fb.id} className="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-700">
+                            <div key={fb.id} className="rounded-lg bg-slate-50 dark:bg-slate-800/70 p-2.5 text-xs text-slate-700 dark:text-slate-300">
                               <p className="whitespace-pre-wrap">{fb.comments}</p>
                               <span className="mt-1 block text-[10px] text-slate-400">
                                 {new Date(fb.created_at).toLocaleString()}
@@ -605,7 +605,7 @@ export function MentorStudents() {
               </div>
             </div>
 
-            <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
               <Button
                 variant="secondary"
                 size="sm"
@@ -633,25 +633,25 @@ export function MentorStudents() {
 
       {/* Direct Message Modal */}
       {messageStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs">
           <Card className="w-full max-w-md p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-base font-black text-slate-950">Message {messageStudent.student_name}</h2>
-              <button onClick={() => setMessageStudent(null)} className="text-slate-400 hover:text-slate-700">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h2 className="text-base font-black text-slate-950 dark:text-white">Message {messageStudent.student_name}</h2>
+              <button onClick={() => setMessageStudent(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                 <X size={16} />
               </button>
             </div>
 
             <form onSubmit={handleSendMessage} className="mt-4 space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700">Message / Encouragement</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300">Message / Encouragement</label>
                 <textarea
                   rows={4}
                   required
                   placeholder="Hey, noticed you've been working on the rough cut. Let me know if you need help with the pacing..."
                   value={messageBody}
                   onChange={(e) => setMessageBody(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 outline-none focus:border-orange-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-orange-400"
                 />
               </div>
 
