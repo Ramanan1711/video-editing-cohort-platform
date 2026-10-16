@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
   Users,
   MessageSquare,
@@ -48,11 +48,64 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
 }) => {
   const { user, profile } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
+  const location = useLocation();
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+  const [showAppLauncher, setShowAppLauncher] = useState(false);
+  const launcherRef = useRef<HTMLDivElement>(null);
   useModalScrollLock(navDrawerOpen);
+
+  // Close App Launcher when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (launcherRef.current && !launcherRef.current.contains(event.target as Node)) {
+        setShowAppLauncher(false);
+      }
+    }
+    if (showAppLauncher) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAppLauncher]);
+
+  // Close App Launcher on Escape key
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setShowAppLauncher(false);
+      }
+    }
+    if (showAppLauncher) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showAppLauncher]);
 
   const isAdmin = profile?.role === 'admin';
   const isMentor = profile?.role === 'mentor';
+
+  const launcherApps = [
+    { to: '/student/dashboard', label: 'Student Portal', desc: 'Lectures & tasks', icon: Home },
+    { to: '/community', label: 'Community Hub', desc: 'Discussions & chat', icon: Users },
+    { to: '/workshops', label: 'Workshops', desc: 'Live sessions', icon: Video },
+    { to: '/profile', label: 'My Profile', desc: 'Stats & badges', icon: User },
+    ...(isAdmin || isMentor
+      ? [
+          { to: '/mentor', label: 'Mentor Hub', desc: 'Cohort overview', icon: Sparkles },
+          { to: '/review/submissions', label: 'Review Queue', desc: 'Project critiques', icon: FileCheck2 },
+          { to: '/mentor/students', label: 'Student Tracker', desc: 'Track progress', icon: GraduationCap },
+        ]
+      : []),
+    ...(isAdmin
+      ? [
+          { to: '/admin', label: 'Admin Console', desc: 'Operations & stats', icon: BarChart3 },
+          { to: '/admin/courses', label: 'Course Studio', desc: 'Curriculum manager', icon: BookOpen },
+        ]
+      : []),
+  ];
 
   const workspaceLinks = isAdmin
     ? [
@@ -186,12 +239,74 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
             );
           })}
 
-          <button
-            title="App Launcher"
-            className="rounded-full p-1.5 lg:p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 transition"
-          >
-            <LayoutGrid size={16} />
-          </button>
+          {/* App Launcher Quick Switcher */}
+          <div className="relative" ref={launcherRef}>
+            <button
+              type="button"
+              onClick={() => setShowAppLauncher((prev) => !prev)}
+              title="Quick App Launcher"
+              aria-label="Quick App Launcher"
+              aria-expanded={showAppLauncher}
+              aria-haspopup="true"
+              className={`rounded-full p-1.5 lg:p-2 transition cursor-pointer ${
+                showAppLauncher
+                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 ring-2 ring-orange-400/40'
+                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800'
+              }`}
+            >
+              <LayoutGrid size={16} />
+            </button>
+
+            {showAppLauncher && (
+              <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 top-full mt-2.5 w-72 sm:w-80 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2 px-1 dark:border-slate-800">
+                  <span className="text-xs font-black tracking-tight text-slate-900 dark:text-white">
+                    Iunoware Apps
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                    {profile?.role || 'Student'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5 pt-2">
+                  {launcherApps.map((app) => {
+                    const Icon = app.icon;
+                    const isCurrent = location.pathname === app.to;
+                    return (
+                      <Link
+                        key={app.to}
+                        to={app.to}
+                        onClick={() => setShowAppLauncher(false)}
+                        className={`flex items-start gap-2.5 rounded-xl p-2 transition ${
+                          isCurrent
+                            ? 'bg-orange-50 border border-orange-200 text-orange-900 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-200'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/70 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <div
+                          className={`flex size-7 shrink-0 items-center justify-center rounded-lg ${
+                            isCurrent
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          }`}
+                        >
+                          <Icon size={14} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold leading-tight truncate">
+                            {app.label}
+                          </p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight truncate">
+                            {app.desc}
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Right: Actions & User Avatar */}
