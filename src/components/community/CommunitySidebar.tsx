@@ -36,7 +36,7 @@ export const CommunitySidebar: React.FC<CommunitySidebarProps> = ({
 }) => {
   if (collapsed && !isMobileDrawer) {
     return (
-      <aside className="hidden md:flex w-16 border-r border-slate-200/80 bg-white p-3 flex-col items-center gap-4 dark:border-slate-800 dark:bg-slate-950">
+      <aside className="hidden md:flex w-16 h-full shrink-0 border-r border-slate-200/80 bg-white p-3 flex-col items-center gap-4 dark:border-slate-800 dark:bg-slate-950">
         <button
           onClick={onToggleCollapse}
           title="Expand sidebar"
@@ -87,7 +87,7 @@ export const CommunitySidebar: React.FC<CommunitySidebarProps> = ({
       className={`${
         isMobileDrawer
           ? 'w-full h-full'
-          : 'hidden md:flex w-64 shrink-0 border-r border-slate-200/80'
+          : 'hidden md:flex w-64 h-full shrink-0 border-r border-slate-200/80'
       } bg-white flex flex-col justify-between p-4 dark:border-slate-800 dark:bg-slate-950 overflow-y-auto`}
     >
       <div className="space-y-4">

@@ -68,7 +68,7 @@ export const CommunityHub: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-100/70 dark:bg-slate-950 font-sans">
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-100/70 dark:bg-slate-950 font-sans">
       {/* 1. Top Navigation Bar */}
       <CommunityTopNav
         activeTab={activeView === 'feed' ? 'community' : activeView === 'messages' ? 'messages' : 'levelup'}
