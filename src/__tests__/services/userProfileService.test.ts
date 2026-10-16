@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getUserProfileOverview,
   updateUserProfileContact,
+  normalizePaymentAmountInr,
 } from '../../lib/userProfileService';
 import { supabase } from '../../lib/supabaseClient';
 import * as attendanceModule from '../../lib/attendanceService';
@@ -283,6 +284,163 @@ describe('User Profile Service (Multi-Course Enrollment, Attendance & Fee Aggreg
         whatsapp_number: '+91 91234 56789',
       })
     );
+  });
+
+  describe('Payment Amount Normalization & Resilient Reconciliation', () => {
+    it('normalizes payment amounts correctly whether in paise or rupees', () => {
+      // 1. In paise (standard Razorpay capture: 499900 paise = 4999 INR)
+      expect(normalizePaymentAmountInr(499900, 4999)).toBe(4999);
+      expect(normalizePaymentAmountInr(999800, null)).toBe(9998);
+      expect(normalizePaymentAmountInr('499900', 4999)).toBe(4999);
+
+      // 2. Already in rupees (direct DB insertion or admin enrollment: 4999 INR)
+      expect(normalizePaymentAmountInr(4999, 4999)).toBe(4999);
+      expect(normalizePaymentAmountInr(9998, 9998)).toBe(9998);
+      expect(normalizePaymentAmountInr(1999, null)).toBe(1999);
+      expect(normalizePaymentAmountInr('4999', 4999)).toBe(4999);
+
+      // 3. Edge cases: null, undefined, 0
+      expect(normalizePaymentAmountInr(null, 4999)).toBe(0);
+      expect(normalizePaymentAmountInr(undefined, 4999)).toBe(0);
+      expect(normalizePaymentAmountInr(0, 4999)).toBe(0);
+    });
+
+    it('correctly handles payments stored directly in Rupees without dividing by 100', async () => {
+      const mockUserId = 'user-rupee-amount-789';
+
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { id: mockUserId, email: 'student@iunoware.com', full_name: 'Direct Student' },
+                  error: null,
+                }),
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [{ cohort_id: 'c-1', status: 'enrolled', enrolled_at: '2026-10-01T00:00:00Z' }],
+                error: null,
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: [{ id: 'c-1', title: '15-Day Video Editing Internship', price_inr: 4999, currency: 'INR' }],
+                error: null,
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'payments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  // Crucial: payment.amount is stored as 4999 (Rupees), NOT 499900 (paise)
+                  data: [{ id: 'p-1', order_id: 'ord_direct', cohort_id: 'c-1', amount: 4999, status: 'captured', created_at: '2026-10-01T00:00:00Z' }],
+                  error: null,
+                }),
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'modules') {
+          return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ data: [] }) }) } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'lesson_progress') {
+          return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [] }) }) } as unknown as ReturnType<typeof supabase.from>;
+        }
+        return { select: vi.fn() } as unknown as ReturnType<typeof supabase.from>;
+      });
+
+      vi.mocked(attendanceModule.getStudentAttendanceHistory).mockResolvedValue([]);
+
+      const result = await getUserProfileOverview(mockUserId);
+
+      // Must be 4999 INR, NOT 50 INR!
+      expect(result.stats.totalFeePaidInr).toBe(4999);
+      expect(result.payments[0].amountInr).toBe(4999);
+    });
+
+    it('reconciles active enrolled courses when payments table has no records (e.g. admin enrolled)', async () => {
+      const mockUserId = 'user-admin-enrolled-101';
+
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { id: mockUserId, email: 'admin.invite@iunoware.com', full_name: 'Invited Student' },
+                  error: null,
+                }),
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                // Student has active enrollment
+                data: [{ cohort_id: 'c-101', status: 'enrolled', enrolled_at: '2026-10-10T00:00:00Z' }],
+                error: null,
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: [{ id: 'c-101', title: 'Iunoware Masterclass', price_inr: 4999, currency: 'INR' }],
+                error: null,
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'payments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  // No payments in payments table
+                  data: [],
+                  error: null,
+                }),
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'modules') {
+          return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ data: [] }) }) } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'lesson_progress') {
+          return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [] }) }) } as unknown as ReturnType<typeof supabase.from>;
+        }
+        return { select: vi.fn() } as unknown as ReturnType<typeof supabase.from>;
+      });
+
+      vi.mocked(attendanceModule.getStudentAttendanceHistory).mockResolvedValue([]);
+
+      const result = await getUserProfileOverview(mockUserId);
+
+      // Total fee paid must reconcile to the enrolled course price (4999 INR, not 0)
+      expect(result.stats.totalFeePaidInr).toBe(4999);
+      expect(result.payments).toHaveLength(1);
+      expect(result.payments[0].amountInr).toBe(4999);
+      expect(result.payments[0].status).toBe('captured');
+    });
   });
 });
 

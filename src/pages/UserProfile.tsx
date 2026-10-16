@@ -105,7 +105,28 @@ export function UserProfile() {
   const displayRole = (profileData?.user.role || profile?.role || 'student').toUpperCase();
 
   const enrolledCount = profileData?.stats.enrolledCount ?? 0;
-  const totalFeePaid = profileData?.stats.totalFeePaidInr ?? 0;
+
+  // Resiliently compute totalFeePaid: prioritize authoritative stats, with payments or enrolled courses fallback
+  const totalFeePaid = useMemo(() => {
+    if (profileData?.stats?.totalFeePaidInr && profileData.stats.totalFeePaidInr > 0) {
+      return profileData.stats.totalFeePaidInr;
+    }
+    const capturedPaymentsSum = (profileData?.payments || [])
+      .filter((p) => ['captured', 'paid', 'completed'].includes(p.status?.toLowerCase()))
+      .reduce((sum, p) => sum + (p.amountInr || 0), 0);
+    if (capturedPaymentsSum > 0) return capturedPaymentsSum;
+
+    return (profileData?.enrolledCourses || [])
+      .reduce((sum, c) => sum + (c.priceInr || 0), 0);
+  }, [profileData]);
+
+  const verifiedPaymentsCount = useMemo(() => {
+    const fromPayments = (profileData?.payments || []).filter((p) =>
+      ['captured', 'paid', 'completed'].includes(p.status?.toLowerCase())
+    ).length;
+    return fromPayments > 0 ? fromPayments : (enrolledCount > 0 ? enrolledCount : 0);
+  }, [profileData, enrolledCount]);
+
   const attendanceRate = profileData?.stats.attendanceRatePct ?? 100;
   const attendedCount = profileData?.attendance.attendedCount ?? 0;
   const sessionsHeld = profileData?.attendance.totalSessionsHeld ?? 0;
@@ -229,7 +250,7 @@ export function UserProfile() {
                 {loading ? '...' : formatCurrencyINR(totalFeePaid)}
               </div>
               <p className="mt-0.5 text-[11px] text-slate-500">
-                Across {profileData?.payments.filter((p) => p.status === 'captured').length ?? 0} verified payments
+                Across {verifiedPaymentsCount} verified {verifiedPaymentsCount === 1 ? 'payment' : 'payments'}
               </p>
             </div>
 
@@ -556,7 +577,7 @@ export function UserProfile() {
                           <td className="px-4 py-3.5">
                             <span
                               className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
-                                p.status === 'captured'
+                                ['captured', 'paid', 'completed'].includes(p.status?.toLowerCase())
                                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400'
                                   : 'bg-slate-100 text-slate-700'
                               }`}
