@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Camera, Video, Sparkles, MessageCircle, Code2, Award } from 'lucide-react';
+import { Camera, Video, MessageCircle, Code2, Award } from 'lucide-react';
+import { BRAND_LOGO_URL } from '../constants/branding';
 
 export function SiteFooter() {
   return (
@@ -9,9 +10,11 @@ export function SiteFooter() {
           {/* Brand Info */}
           <div className="md:col-span-2 space-y-4">
             <Link to="/" className="flex items-center gap-2.5">
-              <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20">
-                <Sparkles size={16} />
-              </div>
+              <img
+                src={BRAND_LOGO_URL}
+                alt="Iunoware Academy Logo"
+                className="size-8 rounded-xl object-contain shadow-md shadow-orange-500/20"
+              />
               <div className="flex items-center gap-1 leading-none">
                 <span className="text-lg font-black tracking-tight text-orange-500">
                   Iunoware

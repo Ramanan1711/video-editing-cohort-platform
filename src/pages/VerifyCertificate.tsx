@@ -6,7 +6,6 @@ import {
   Search,
   CheckCircle2,
   Calendar,
-  Award,
   BookOpen,
   FileCheck2,
   Flame,
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import { getPublicCertificate, type PublicCertificate } from '../lib/courseService';
 import { Button } from '../components/ui/Button';
+import { BRAND_LOGO_URL } from '../constants/branding';
 
 export function VerifyCertificate() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -101,9 +101,11 @@ export function VerifyCertificate() {
       <header className="border-b border-white/10 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 print:hidden">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="size-9 rounded-xl bg-gradient-to-tr from-amber-600 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 group-hover:scale-105 transition">
-              <Award size={20} />
-            </div>
+            <img
+              src={BRAND_LOGO_URL}
+              alt="Iunoware Academy Logo"
+              className="size-9 rounded-xl object-contain shadow-lg shadow-orange-500/20 group-hover:scale-105 transition"
+            />
             <div>
               <span className="font-black text-sm tracking-wider uppercase text-white">IUNOWARE</span>
               <span className="text-[10px] block text-orange-400 font-bold uppercase tracking-widest -mt-0.5">

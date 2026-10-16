@@ -19,6 +19,7 @@ import {
 import { Button } from './ui/Button';
 import { verifyCertificateEligibility, type CertificateEligibilityResult } from '../lib/courseService';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
+import { BRAND_LOGO_URL } from '../constants/branding';
 
 interface CertificateModalProps {
   isOpen: boolean;
@@ -681,9 +682,11 @@ export function CertificateModal({
 
             {/* Header Section */}
             <div className="relative z-10 text-center">
-              <div className="mx-auto mb-1 flex size-10 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-600 to-orange-500 text-white shadow-md shadow-orange-500/20">
-                <Award size={20} />
-              </div>
+              <img
+                src={BRAND_LOGO_URL}
+                alt="Iunoware Academy"
+                className="mx-auto mb-1 size-10 rounded-xl object-contain shadow-md shadow-orange-500/20"
+              />
 
               <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-orange-600">
                 IUNOWARE ACADEMY OF POST-PRODUCTION

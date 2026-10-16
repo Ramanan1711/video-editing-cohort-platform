@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   Mail,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '../components/ui/Button';
@@ -14,6 +13,7 @@ import { CustomCursor } from '../components/home/CustomCursor';
 import { StudioBar } from '../components/home/StudioBar';
 import { TiltCard } from '../components/home/TiltCard';
 import { soundFx } from '../lib/soundFx';
+import { BRAND_LOGO_URL } from '../constants/branding';
 
 export const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -66,11 +66,13 @@ export const ForgotPassword: React.FC = () => {
           <Link
             to="/"
             data-cursor="HOME"
-            className="mx-auto mb-8 flex items-center justify-center gap-2 group w-fit"
+            className="mx-auto mb-8 flex items-center justify-center gap-2.5 group w-fit"
           >
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform">
-              <Sparkles size={19} />
-            </div>
+            <img
+              src={BRAND_LOGO_URL}
+              alt="Iunoware Academy Logo"
+              className="size-10 rounded-2xl object-contain shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform"
+            />
             <div className="flex items-center gap-1 leading-none font-sans">
               <span className="text-2xl font-black tracking-tight text-white">
                 Iunoware

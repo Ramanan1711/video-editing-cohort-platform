@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom';
 import {
   BarChart3,
   BookOpen,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   FileCheck2,
@@ -17,6 +16,7 @@ import {
 import { useAuth } from '../context/useAuth';
 import { useSidebar } from '../context/useSidebar';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
+import { BRAND_LOGO_URL } from '../constants/branding';
 
 export function WorkspaceSidebar() {
   const { profile } = useAuth();
@@ -104,9 +104,11 @@ export function WorkspaceSidebar() {
       >
         <div className={`mb-8 flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white dark:bg-orange-500">
-              <CalendarDays size={18} />
-            </span>
+            <img
+              src={BRAND_LOGO_URL}
+              alt="Iunoware Academy"
+              className="size-9 rounded-xl object-contain shrink-0 shadow-xs"
+            />
             {!collapsed && (
               <div>
                 <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">Iunoware Academy</p>

@@ -14,7 +14,6 @@ import {
   Menu,
   X,
   BarChart3,
-  CalendarDays,
   FileCheck2,
   GraduationCap,
   Home,
@@ -24,6 +23,7 @@ import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
 import { UserProfileDropdown } from '../UserProfileDropdown';
 import { NotificationCenter } from '../NotificationCenter';
+import { BRAND_LOGO_URL } from '../../constants/branding';
 
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
@@ -132,9 +132,14 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
           {/* Brand Logo - Iunoware Academy */}
           <Link
             to={profile?.role === 'admin' ? '/admin' : '/student/dashboard'}
-            className="flex items-center gap-1.5 sm:gap-2 shrink-0 group"
+            className="flex items-center gap-2 sm:gap-2.5 shrink-0 group"
             title="Iunoware Academy"
           >
+            <img
+              src={BRAND_LOGO_URL}
+              alt="Iunoware Academy Logo"
+              className="size-8 sm:size-9 rounded-xl object-contain shadow-xs shrink-0 group-hover:scale-105 transition-transform"
+            />
             <div className="flex items-center gap-1 sm:gap-1.5 leading-none">
               <span className="text-lg sm:text-xl font-black tracking-tight text-orange-500 group-hover:text-orange-600 transition">
                 Iunoware
@@ -224,9 +229,11 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
               <div>
                 <div className="mb-6 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white dark:bg-orange-500">
-                      <CalendarDays size={18} />
-                    </span>
+                    <img
+                      src={BRAND_LOGO_URL}
+                      alt="Iunoware Academy"
+                      className="size-9 rounded-xl object-contain shadow-xs shrink-0"
+                    />
                     <div>
                       <p className="text-sm font-black tracking-tight text-slate-950 dark:text-white">
                         Iunoware Academy

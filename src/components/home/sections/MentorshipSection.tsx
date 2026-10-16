@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, MessageCircle } from 'lucide-react';
 import { TiltCard } from '../TiltCard';
 import { soundFx } from '../../../lib/soundFx';
+import { BRAND_LOGO_URL } from '../../../constants/branding';
 
 export function MentorshipSection() {
   const [activeChatScenario, setActiveChatScenario] = useState<'code' | 'video' | 'nudge'>('video');
@@ -124,9 +125,11 @@ export function MentorshipSection() {
             >
               <div className="flex items-center gap-3 border-b border-white/10 pb-4">
                 <div className="relative">
-                  <div className="flex size-10 items-center justify-center rounded-full bg-[#128C7E] text-white font-bold text-sm shadow-md shadow-emerald-950/40">
-                    IA
-                  </div>
+                  <img
+                    src={BRAND_LOGO_URL}
+                    alt="Iunoware Academy"
+                    className="size-10 rounded-full object-contain p-0.5 bg-[#030712] border border-emerald-500/30 shadow-md shadow-emerald-950/40"
+                  />
                   <span className="absolute bottom-0 right-0 size-3 rounded-full bg-emerald-400 ring-2 ring-[#030712]" />
                 </div>
                 <div>

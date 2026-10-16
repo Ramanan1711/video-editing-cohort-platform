@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, Sparkles, X, ArrowRight, Volume2, VolumeX } from 'lucide-react';
+import { Menu, X, ArrowRight, Volume2, VolumeX } from 'lucide-react';
 import { Button } from './ui/Button';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 import { soundFx } from '../lib/soundFx';
+import { BRAND_LOGO_URL } from '../constants/branding';
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -57,9 +58,11 @@ export function SiteHeader() {
       <div className="mx-auto flex max-w-7xl h-18 items-center justify-between px-5 lg:px-8">
         {/* Brand Logo */}
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 text-white shadow-md shadow-orange-500/25 group-hover:scale-105 transition-transform">
-            <Sparkles size={18} />
-          </div>
+          <img
+            src={BRAND_LOGO_URL}
+            alt="Iunoware Academy Logo"
+            className="size-9 rounded-xl object-contain shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform"
+          />
           <div className="flex items-center gap-1 leading-none font-sans">
             <span className="text-xl font-black tracking-tight text-orange-500">
               Iunoware

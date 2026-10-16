@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BookOpen, ChevronDown, Lock, RotateCw, Search, User, Video, X } from 'lucide-react';
 import type { CatalogCourseItem, EnrolledCourseProgressSummary } from '../../hooks/useStudentDashboard';
+import { BRAND_LOGO_URL } from '../../constants/branding';
 
 export interface StudentCatalogViewProps {
   totalCatalogCount: number;
@@ -233,6 +234,11 @@ export function StudentCatalogView({
 
                   {/* Top Iunoware Academy Logo */}
                   <div className="flex flex-col items-center leading-none mb-1.5">
+                    <img
+                      src={BRAND_LOGO_URL}
+                      alt="Iunoware Academy"
+                      className="size-6 object-contain rounded-md mb-1 shadow-xs"
+                    />
                     <span className="text-xs font-black tracking-widest text-[#f59e0b]">IUNOWARE</span>
                     <span className="text-[6px] font-bold tracking-widest text-slate-400 uppercase">ACADEMY</span>
                   </div>

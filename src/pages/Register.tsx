@@ -21,6 +21,7 @@ import {
   resolveTargetCohortId,
 } from '../lib/cohortCheckoutPersistence';
 import { listCohorts, type Cohort } from '../lib/courseService';
+import { BRAND_LOGO_URL } from '../constants/branding';
 
 export const Register: React.FC = () => {
   const [fullName, setFullName] = useState('');
@@ -200,10 +201,12 @@ export const Register: React.FC = () => {
 
         <main className="flex-1 flex items-center justify-center px-5 py-12">
           <div className="w-full max-w-md">
-            <Link to="/" data-cursor="HOME" className="mx-auto mb-8 flex items-center justify-center gap-2 group w-fit">
-              <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform">
-                <Sparkles size={19} />
-              </div>
+            <Link to="/" data-cursor="HOME" className="mx-auto mb-8 flex items-center justify-center gap-2.5 group w-fit">
+              <img
+                src={BRAND_LOGO_URL}
+                alt="Iunoware Academy Logo"
+                className="size-10 rounded-2xl object-contain shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform"
+              />
               <div className="flex items-center gap-1 leading-none font-sans">
                 <span className="text-2xl font-black tracking-tight text-white">Iunoware</span>
                 {/* <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">Global</span> */}
@@ -318,10 +321,12 @@ export const Register: React.FC = () => {
 
         <main className="flex-1 flex items-center justify-center px-5 py-12">
           <div className="w-full max-w-md">
-            <Link to="/" data-cursor="HOME" className="mx-auto mb-8 flex items-center justify-center gap-2 group w-fit">
-              <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform">
-                <Sparkles size={19} />
-              </div>
+            <Link to="/" data-cursor="HOME" className="mx-auto mb-8 flex items-center justify-center gap-2.5 group w-fit">
+              <img
+                src={BRAND_LOGO_URL}
+                alt="Iunoware Academy Logo"
+                className="size-10 rounded-2xl object-contain shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform"
+              />
               <div className="flex items-center gap-1 leading-none font-sans">
                 <span className="text-2xl font-black tracking-tight text-white">Iunoware</span>
                 {/* <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">Global</span> */}
@@ -401,10 +406,12 @@ export const Register: React.FC = () => {
       <main className="flex-1 flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-md">
           {/* Logo Header */}
-          <Link to="/" data-cursor="HOME" className="mx-auto mb-8 flex items-center justify-center gap-2 group w-fit">
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform">
-              <Sparkles size={19} />
-            </div>
+          <Link to="/" data-cursor="HOME" className="mx-auto mb-8 flex items-center justify-center gap-2.5 group w-fit">
+            <img
+              src={BRAND_LOGO_URL}
+              alt="Iunoware Academy Logo"
+              className="size-10 rounded-2xl object-contain shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform"
+            />
             <div className="flex items-center gap-1 leading-none font-sans">
               <span className="text-2xl font-black tracking-tight text-white">Iunoware</span>
               {/* <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">Global</span> */}
