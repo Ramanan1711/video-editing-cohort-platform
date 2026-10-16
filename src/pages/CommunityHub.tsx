@@ -95,7 +95,7 @@ export const CommunityHub: React.FC = () => {
         />
 
         {/* Center Main View Area: Feed vs Messages vs Level Up Tab */}
-        <main className="flex flex-1 overflow-hidden pb-16 md:pb-0">
+        <main className="flex flex-1 overflow-hidden pb-16 md:pb-0 bg-white dark:bg-slate-950">
           {activeView === 'feed' ? (
             <CommunityFeed
               cohortId={cohortParam || undefined}

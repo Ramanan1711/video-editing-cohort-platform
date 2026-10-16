@@ -352,7 +352,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
   }, [posts, filterType]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-4xl mx-auto">
+    <div className="flex-1 overflow-y-auto w-full bg-white dark:bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6 max-w-4xl mx-auto">
       {/* Toast Notification */}
       {shareToast && (
         <div className="fixed bottom-6 right-6 z-50 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
