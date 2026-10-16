@@ -105,7 +105,7 @@ graph TB
     ReviewQueue --> DB
     AdminStudio --> DB
     AdminOps --> DB
-    Client -. Payment Checkout .-> Edge
+    Client -.->|"Payment Checkout"| Edge
     Edge --> RazorpayGateway
     Edge --> DB
     DB --> CloudStorage
@@ -120,41 +120,41 @@ graph TB
 
 ```mermaid
 flowchart TD
-    Start([Visitor Discovers Iunoware Academy]) --> Explore[Explore 15-Day Sprint Roadmap & 3D Simulator]
-    Explore --> PromoCheck{Active Announcement / Promo Banner?}
-    PromoCheck -- Yes --> ViewPromo[Review Limited-Time Offer]
-    PromoCheck -- No --> BrowseCohorts[Browse Available Creative Cohorts]
+    Start(["Visitor Discovers Iunoware Academy"]) --> Explore["Explore 15-Day Sprint Roadmap & 3D Simulator"]
+    Explore --> PromoCheck{"Active Announcement / Promo Banner?"}
+    PromoCheck -- Yes --> ViewPromo["Review Limited-Time Offer"]
+    PromoCheck -- No --> BrowseCohorts["Browse Available Creative Cohorts"]
     ViewPromo --> BrowseCohorts
 
-    BrowseCohorts --> AuthCheck{Registered & Authenticated?}
-    AuthCheck -- No --> SignUp[Register / Sign In via Supabase Auth]
-    SignUp --> Checkout[Initiate Cohort Checkout]
+    BrowseCohorts --> AuthCheck{"Registered & Authenticated?"}
+    AuthCheck -- No --> SignUp["Register / Sign In via Supabase Auth"]
+    SignUp --> Checkout["Initiate Cohort Checkout"]
     AuthCheck -- Yes --> Checkout
 
-    Checkout --> Razorpay[Razorpay Payment Sheet (INR)]
-    Razorpay -- Captured --> SignatureCheck[HMAC-SHA256 Signature Verification]
-    SignatureCheck --> RecordEnrollment[Concurrent Cohort Enrollment Created]
+    Checkout --> Razorpay["Razorpay Payment Sheet (INR)"]
+    Razorpay -- Captured --> SignatureCheck["HMAC-SHA256 Signature Verification"]
+    SignatureCheck --> RecordEnrollment["Concurrent Cohort Enrollment Created"]
 
-    RecordEnrollment --> WelcomeWA[WhatsApp Welcome Notification & Batch Group Link]
-    WelcomeWA --> Dashboard[Access Student Workspace]
+    RecordEnrollment --> WelcomeWA["WhatsApp Welcome Notification & Batch Group Link"]
+    WelcomeWA --> Dashboard["Access Student Workspace"]
 
-    Dashboard --> DailySprint[Day 1-15: Stream Lesson & Download Production Assets]
-    DailySprint --> EditCut[Cut, Grade & Mix Deliverable in Premiere / Resolve]
-    EditCut --> UploadSubmission[Submit Project Cut URL]
+    Dashboard --> DailySprint["Day 1-15: Stream Lesson & Download Production Assets"]
+    DailySprint --> EditCut["Cut, Grade & Mix Deliverable in Premiere / Resolve"]
+    EditCut --> UploadSubmission["Submit Project Cut URL"]
 
-    UploadSubmission --> Queue[Enters Mentor Review Queue <24h SLA]
-    Queue --> Evaluation[Mentor Grades 5-Axis Rubric & Leaves Timecoded Notes]
-    Evaluation --> NotifyStudent[Instant WhatsApp & In-App Alert Dispatched]
+    UploadSubmission --> Queue["Enters Mentor Review Queue (&lt;24h SLA)"]
+    Queue --> Evaluation["Mentor Grades 5-Axis Rubric & Leaves Timecoded Notes"]
+    Evaluation --> NotifyStudent["Instant WhatsApp & In-App Alert Dispatched"]
 
-    NotifyStudent --> RevisionCheck{Revision Requested?}
-    RevisionCheck -- Yes --> Resubmit[Inspect Prior Critiques & Resubmit Revision]
+    NotifyStudent --> RevisionCheck{"Revision Requested?"}
+    RevisionCheck -- Yes --> Resubmit["Inspect Prior Critiques & Resubmit Revision"]
     Resubmit --> Queue
-    RevisionCheck -- No --> NextMilestone[Advance Sprint Streak & Next Day Milestone]
+    RevisionCheck -- No --> NextMilestone["Advance Sprint Streak & Next Day Milestone"]
 
-    NextMilestone --> Check15{All 15 Sprint Days Approved?}
+    NextMilestone --> Check15{"All 15 Sprint Days Approved?"}
     Check15 -- No --> DailySprint
-    Check15 -- Yes --> GenerateCert[Authoritative Certificate Generation]
-    GenerateCert --> FormalReport[Internship Performance Report & Verifiable Credential]
+    Check15 -- Yes --> GenerateCert["Authoritative Certificate Generation"]
+    GenerateCert --> FormalReport["Internship Performance Report & Verifiable Credential"]
 ```
 
 ---
@@ -187,7 +187,7 @@ sequenceDiagram
     Edge->>Edge: Authoritative HMAC-SHA256 Validation
     Edge->>DB: Execute record_successful_cohort_payment()
     Note over DB: Atomically records enrollment without<br/>deactivating prior courses
-    DB-->>Edge: Status: enrolled
+    DB-->>Edge: "Status: enrolled"
     Edge-->>UI: Verified & Access Granted
 
     UI->>DB: Query modules, lessons & sprint challenges
@@ -210,15 +210,15 @@ sequenceDiagram
 
     Student->>System: Submits timeline cut URL (Drive, Frame.io, YouTube, Vimeo)
     System->>System: Logs submission, timestamp, and marks daily attendance
-    System->>Mentor: Enqueues into Review Station with <24h SLA counter
+    System->>Mentor: "Enqueues into Review Station with SLA counter (&lt;24h)"
 
-    alt Turnaround within <24 Hours (Healthy SLA)
+    alt Turnaround within 24 Hours (Healthy SLA)
         Mentor->>System: Plays video in-app & captures timecoded frame notes
         Mentor->>System: Scores 5-Axis Rubric (Storytelling, Pacing, Audio, Color, Technical)
         Mentor->>System: Submits Review (Approved or Revision Requested)
         System->>WhatsApp: Queues WhatsApp Alert to Student Phone
         WhatsApp-->>Student: "Your Day 7 submission has been evaluated by your mentor!"
-    else SLA Warning (>24 Hours Waiting)
+    else SLA Warning (&gt;24 Hours Waiting)
         System->>System: Raises SLA alert in Admin Notification Center
     end
 
