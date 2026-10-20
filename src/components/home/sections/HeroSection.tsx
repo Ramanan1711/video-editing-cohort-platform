@@ -45,9 +45,11 @@ export function HeroSection({
       {/* HERO SECTION WITH 3D ROBOT TERMINAL & JUNCA STUDIO TYPOGRAPHY */}
       {/* ========================================================================= */}
       <section className="hero relative overflow-hidden bg-[#080808] border-b border-white/10 min-h-[92vh] lg:min-h-screen flex items-end pb-16 lg:pb-28">
-        {/* Atmospheric crimson volumetric gradient inspired by Junca Studio */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_75%_55%_at_70%_40%,rgba(220,38,38,0.22),transparent_70%)] gsap-parallax-slow" />
-        <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-red-600/10 blur-[140px] gsap-parallax-slow" />
+        {/* Atmospheric company brand 4-quadrant volumetric gradients */}
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_75%_55%_at_70%_40%,rgba(185,43,39,0.25),transparent_70%)] gsap-parallax-slow" />
+        <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-[#B92B27]/12 blur-[140px] gsap-parallax-slow" />
+        <div className="pointer-events-none absolute top-20 right-1/4 -z-10 size-[450px] rounded-full bg-[#2675EB]/10 blur-[130px]" />
+        <div className="pointer-events-none absolute bottom-12 left-1/3 -z-10 size-[400px] rounded-full bg-[#F2B705]/8 blur-[120px]" />
 
         {/* Interactive 3D / Gradient WebGL Canvas Hero Simulator */}
         <HeroCanvasSimulator />
@@ -63,10 +65,10 @@ export function HeroSection({
             {/* Verified Status Pill */}
             <div
               data-cursor="COHORT TELEMETRY"
-              className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-orange-500/30 bg-[#090d16]/80 px-4 py-1.5 shadow-lg shadow-orange-500/10 backdrop-blur-xl gsap-metric-reveal"
+              className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-[#F2B705]/30 bg-[#090d16]/80 px-4 py-1.5 shadow-lg shadow-[#B92B27]/10 backdrop-blur-xl gsap-metric-reveal"
             >
-              <span className="flex size-2 rounded-full bg-orange-500 animate-ping" />
-              <span className="text-[11px] font-black uppercase tracking-wider text-orange-400 font-mono">
+              <span className="flex size-2 rounded-full bg-[#38B44A] animate-ping" />
+              <span className="text-[11px] font-black uppercase tracking-wider text-[#F2B705] font-mono">
                 Stop Watching Tutorials · 15-Day Production Sprint
               </span>
               <span className="hidden sm:inline text-white/20">•</span>
@@ -92,7 +94,7 @@ export function HeroSection({
                 size="lg"
                 data-cursor="VIEW COHORTS"
                 onClick={() => soundFx.playSweep(260, 600, 0.1, 0.05)}
-                className="w-full sm:w-auto shadow-xl shadow-orange-500/30 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none justify-center px-8 py-3.5 hover:scale-105 transition-all"
+                className="w-full sm:w-auto shadow-xl shadow-[#B92B27]/30 bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] text-white font-black border-none justify-center px-8 py-3.5 hover:scale-105 transition-all"
               >
                 <span>View Active Cohorts</span>
                 <ArrowRight size={16} />
@@ -103,9 +105,9 @@ export function HeroSection({
                 size="lg"
                 data-cursor="INSPECT 15 DAYS"
                 onClick={() => soundFx.playBlip(480, 0.04, 'sine', 0.04)}
-                className="w-full sm:w-auto justify-center bg-white/5 border border-white/15 text-white hover:bg-white/10 hover:border-orange-500/40 backdrop-blur-xl px-7 py-3.5 font-bold transition-all"
+                className="w-full sm:w-auto justify-center bg-white/5 border border-white/15 text-white hover:bg-white/10 hover:border-[#2675EB]/50 backdrop-blur-xl px-7 py-3.5 font-bold transition-all"
               >
-                <Play size={15} className="text-orange-400" fill="currentColor" />
+                <Play size={15} className="text-[#2675EB]" fill="currentColor" />
                 <span>Inspect 15-Day Roadmap</span>
               </Button>
             </div>
@@ -113,17 +115,17 @@ export function HeroSection({
             {/* Substantiated Quality Metrics Banner */}
             <div className="mt-8 flex flex-wrap items-center justify-start gap-4 text-xs text-slate-300">
               <div className="inline-flex items-center gap-1.5 font-bold">
-                <CheckCircle2 size={15} className="text-emerald-400" />
+                <CheckCircle2 size={15} className="text-[#38B44A]" />
                 <span>15 Daily Submissions Required</span>
               </div>
               <span className="text-white/20">•</span>
               <div className="inline-flex items-center gap-1.5 font-bold">
-                <CheckCircle2 size={15} className="text-emerald-400" />
+                <CheckCircle2 size={15} className="text-[#38B44A]" />
                 <span>&lt;24h Mentor Review SLA</span>
               </div>
               <span className="text-white/20">•</span>
               <div className="inline-flex items-center gap-1.5 font-bold">
-                <div className="flex text-amber-400">
+                <div className="flex text-[#F2B705]">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} size={13} fill="currentColor" />
                   ))}
@@ -145,28 +147,28 @@ export function HeroSection({
         <div className="mx-auto max-w-7xl">
           {/* Live Interactive Platform Mockup with 3D Depth-Tilt & Specular Lighting */}
           <div className="mt-14 relative perspective-1200">
-            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-orange-500 to-amber-500 opacity-20 blur-2xl pointer-events-none" />
+            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-[#B92B27] via-[#F2B705] to-[#2675EB] opacity-25 blur-2xl pointer-events-none" />
             <TiltCard
               maxTilt={4}
               scale={1.01}
               perspective={1200}
               glareOpacity={0.2}
-              glareColor="rgba(251, 146, 60, 0.3)"
+              glareColor="rgba(242, 183, 5, 0.25)"
               className="relative rounded-3xl border border-surface-subtle bg-surface-card/90 backdrop-blur-2xl shadow-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] overflow-hidden"
             >
               {/* Mock Browser Header */}
               <div className="flex items-center justify-between border-b border-white/10 bg-[#060911]/80 px-5 py-3.5">
                 <div className="flex items-center gap-2">
-                  <span className="size-3 rounded-full bg-red-500/80" />
-                  <span className="size-3 rounded-full bg-amber-500/80" />
-                  <span className="size-3 rounded-full bg-emerald-500/80" />
+                  <span className="size-3 rounded-full bg-[#B92B27]" />
+                  <span className="size-3 rounded-full bg-[#F2B705]" />
+                  <span className="size-3 rounded-full bg-[#38B44A]" />
                   <span className="ml-2 font-mono text-[11px] font-bold text-slate-400">
                     procuthub.com/student/dashboard?tab=internship_sprint
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-black text-emerald-400">
-                    <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="flex items-center gap-1.5 rounded-full bg-[#38B44A]/15 border border-[#38B44A]/30 px-2.5 py-0.5 text-[10px] font-black text-[#38B44A]">
+                    <span className="size-1.5 rounded-full bg-[#38B44A] animate-pulse" />
                     Live Mentor Active
                   </span>
                 </div>
@@ -180,13 +182,13 @@ export function HeroSection({
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sprint Progress</p>
                     <p className="text-base font-black text-white font-mono">Day 04 / 15</p>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-md">
+                  <div className="rounded-xl border border-[#F2B705]/20 bg-[#F2B705]/5 p-3.5 backdrop-blur-md">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Daily Streak</p>
-                    <p className="text-base font-black text-orange-400 font-mono">4 Days Active 🔥</p>
+                    <p className="text-base font-black text-[#F2B705] font-mono">4 Days Active 🔥</p>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-md">
+                  <div className="rounded-xl border border-[#38B44A]/20 bg-[#38B44A]/5 p-3.5 backdrop-blur-md">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tasks Verified</p>
-                    <p className="text-base font-black text-emerald-400 font-mono">3 Approved</p>
+                    <p className="text-base font-black text-[#38B44A] font-mono">3 Approved</p>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-md">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rubric Score</p>
@@ -198,7 +200,7 @@ export function HeroSection({
                 <div className="rounded-xl border border-white/10 bg-[#040711]/60 p-4">
                   <div className="flex items-center justify-between text-xs font-bold mb-3">
                     <span className="flex items-center gap-1.5 text-slate-200">
-                      <Flame size={14} className="text-orange-500" />
+                      <Flame size={14} className="text-[#F2B705]" />
                       15-Day Sprint Heatmap
                     </span>
                     <span className="text-[11px] text-slate-400">Day 4 Milestone · On Schedule</span>
@@ -212,9 +214,9 @@ export function HeroSection({
                           key={day}
                           className={`flex flex-col items-center gap-1 py-1.5 rounded-lg border text-center transition ${
                             isDone
-                              ? 'bg-emerald-500 border-emerald-600 text-white shadow-2xs'
+                              ? 'bg-[#38B44A] border-[#2E9A3E] text-white shadow-2xs'
                               : isCurrent
-                              ? 'bg-orange-500 border-orange-600 text-white animate-pulse'
+                              ? 'bg-[#B92B27] border-[#D93830] text-white animate-pulse'
                               : 'bg-white/5 border-white/10 text-slate-400'
                           }`}
                         >
@@ -227,12 +229,12 @@ export function HeroSection({
 
                 {/* Active Task + WhatsApp Preview */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <div className="lg:col-span-2 rounded-xl border border-orange-500/30 bg-orange-500/10 p-5 space-y-3">
+                  <div className="lg:col-span-2 rounded-xl border border-[#B92B27]/40 bg-[#B92B27]/10 p-5 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="rounded-md bg-orange-500 text-white px-2 py-0.5 text-[10px] font-black uppercase">
+                      <span className="rounded-md bg-gradient-to-r from-[#B92B27] to-[#D93830] text-white px-2 py-0.5 text-[10px] font-black uppercase">
                         Today's Production Task
                       </span>
-                      <span className="text-xs font-bold text-orange-300 flex items-center gap-1">
+                      <span className="text-xs font-bold text-[#F2B705] flex items-center gap-1">
                         <Clock size={12} /> Deadline: 11:59 PM Tonight
                       </span>
                     </div>
@@ -242,28 +244,28 @@ export function HeroSection({
                     <p className="text-xs text-slate-300 leading-relaxed">
                       Implement fast timeline micro-transitions and publish your deliverable link for live mentor critique room review.
                     </p>
-                    <div className="flex items-center gap-2 pt-2 border-t border-orange-500/20">
+                    <div className="flex items-center gap-2 pt-2 border-t border-[#B92B27]/20">
                       <span className="text-[11px] font-bold text-slate-300">
                         Deliverable: Public GitHub PR or Video Cut Link
                       </span>
-                      <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-black text-orange-400">
+                      <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-black text-[#F2B705]">
                         Submit Task <ArrowRight size={11} />
                       </span>
                     </div>
                   </div>
 
                   {/* WhatsApp Co-pilot Snippet */}
-                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 flex flex-col justify-between">
+                  <div className="rounded-xl border border-[#38B44A]/30 bg-[#38B44A]/10 p-5 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="flex size-7 items-center justify-center rounded-full bg-[#25D366] text-white">
+                        <div className="flex size-7 items-center justify-center rounded-full bg-[#38B44A] text-white">
                           <MessageCircle size={14} />
                         </div>
                         <div>
                           <p className="text-xs font-black text-white leading-none">
                             Mentor WhatsApp
                           </p>
-                          <p className="text-[10px] text-emerald-400 mt-0.5">
+                          <p className="text-[10px] text-[#38B44A] mt-0.5">
                             Avg. reply under 15 mins
                           </p>
                         </div>
@@ -272,7 +274,7 @@ export function HeroSection({
                         &quot;Great job on Day 3's typography! For Day 4, pay special attention to retention at the 7-second mark.&quot;
                       </p>
                     </div>
-                    <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400">
+                    <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-[#38B44A]">
                       <span>1-Click Mentor Chat Enabled</span>
                       <CheckCircle2 size={12} />
                     </span>
@@ -286,10 +288,10 @@ export function HeroSection({
           <div className="mt-14 flex flex-col items-center">
             <a
               href="#active-cohorts"
-              className="group flex flex-col items-center gap-2 text-xs font-bold text-slate-400 hover:text-orange-400 transition"
+              className="group flex flex-col items-center gap-2 text-xs font-bold text-slate-400 hover:text-[#F2B705] transition"
             >
               <span>Scroll down to inspect live cohorts and curriculum</span>
-              <span className="flex size-8 items-center justify-center rounded-full border border-white/10 bg-[#090d16] text-slate-300 shadow-lg group-hover:border-orange-500 group-hover:text-orange-400 group-hover:translate-y-1 transition-all">
+              <span className="flex size-8 items-center justify-center rounded-full border border-white/10 bg-[#090d16] text-slate-300 shadow-lg group-hover:border-[#B92B27] group-hover:text-[#F2B705] group-hover:translate-y-1 transition-all">
                 <ArrowDown size={14} />
               </span>
             </a>
@@ -304,26 +306,26 @@ export function HeroSection({
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-slate-300">
             <div className="flex items-center gap-2 shrink-0">
-              <span className="flex size-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="flex size-2 rounded-full bg-[#38B44A] animate-pulse" />
               <span className="font-black text-white uppercase tracking-wider text-[11px]">
                 Verified Platform Operations
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-6 overflow-x-auto text-[11px] scrollbar-none">
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="font-bold text-orange-400">Daily Intake:</span>
+                <span className="font-bold text-[#D93830]">Daily Intake:</span>
                 <span>Automated GitHub PR &amp; Video URL Submissions</span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="font-bold text-emerald-400">Review SLA:</span>
+                <span className="font-bold text-[#38B44A]">Review SLA:</span>
                 <span>&lt;24h Written &amp; Audio Rubric Grading</span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="font-bold text-blue-400">Mentorship:</span>
+                <span className="font-bold text-[#2675EB]">Mentorship:</span>
                 <span>Dedicated WhatsApp 1-on-1 Blocker Triage</span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="font-bold text-purple-400">Certification:</span>
+                <span className="font-bold text-[#F2B705]">Certification:</span>
                 <span>Tamper-Proof Cryptographic Verification Hash</span>
               </div>
             </div>
@@ -337,7 +339,7 @@ export function HeroSection({
       <section id="active-cohorts" className="py-20 lg:py-28 bg-[#030712] relative">
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-14 gsap-header-reveal">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-400">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F2B705]">
               Live Cohort Registry
             </p>
             <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-white">
@@ -350,11 +352,11 @@ export function HeroSection({
 
           {loadingCohorts ? (
             <div className="flex flex-col items-center justify-center py-16 space-y-3">
-              <div className="size-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
+              <div className="size-8 rounded-full border-2 border-[#B92B27] border-t-transparent animate-spin" />
               <p className="text-xs font-bold text-slate-400">Loading active cohorts from database...</p>
             </div>
           ) : cohortError ? (
-            <div className="max-w-md mx-auto p-4 rounded-xl border border-red-500/30 bg-red-950/20 text-center text-xs text-red-400">
+            <div className="max-w-md mx-auto p-4 rounded-xl border border-[#B92B27]/40 bg-[#B92B27]/10 text-center text-xs text-[#D93830]">
               <p className="font-bold">Notice</p>
               <p className="mt-1">{cohortError}</p>
               <Button href="/register" size="sm" className="mt-3">
@@ -370,9 +372,9 @@ export function HeroSection({
                   scale={1.02}
                   perspective={1000}
                   glareOpacity={0.25}
-                  glareColor="rgba(249, 115, 22, 0.25)"
+                  glareColor="rgba(185, 43, 39, 0.25)"
                   data-cursor="RESERVE SEAT"
-                  className="glass-obsidian p-6 border-white/10 hover:border-orange-500/40 flex flex-col justify-between space-y-4 shadow-xl transition-all"
+                  className="glass-obsidian p-6 border-white/10 hover:border-[#B92B27]/50 flex flex-col justify-between space-y-4 shadow-xl transition-all"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -393,7 +395,7 @@ export function HeroSection({
 
                   <div className="pt-4 border-t border-white/10 flex items-center justify-between">
                     <div>
-                      <span className="text-xs font-bold text-orange-400 font-mono block">
+                      <span className="text-xs font-bold text-[#F2B705] font-mono block">
                         ₹{(cohort.price_inr ?? publishedPrice).toLocaleString('en-IN')} {cohort.currency || publishedCurrency}
                       </span>
                       <span className="text-[10px] text-slate-400 font-mono">15 Days Intensive</span>
@@ -406,7 +408,7 @@ export function HeroSection({
                         setPendingCohortCheckout(cohort.id, cohort.name, cohort.price_inr ?? undefined, cohort.currency ?? undefined);
                         soundFx.playSweep(300, 700, 0.1, 0.05);
                       }}
-                      className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold border-none shadow-md shadow-orange-500/20"
+                      className="bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] text-white font-bold border-none shadow-md shadow-[#B92B27]/25"
                     >
                       <span>Enroll</span>
                       <ArrowRight size={13} />
@@ -417,14 +419,14 @@ export function HeroSection({
             </div>
           ) : (
             <div className="text-center max-w-lg mx-auto p-8 rounded-2xl border border-white/10 bg-[#090d16]/80 backdrop-blur-xl space-y-4 shadow-xl">
-              <Sparkles className="size-8 text-orange-500 mx-auto" />
+              <Sparkles className="size-8 text-[#F2B705] mx-auto" />
               <h3 className="text-base font-black text-white">
                 Next Sprint Cycle Opening Soon
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Both our <strong>Full-Stack Software</strong> and <strong>Creative Video Editing</strong> 15-day sprint tracks are open for candidate registration.
               </p>
-              <Button href="/register" size="sm" className="bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold border-none">
+              <Button href="/register" size="sm" className="bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] text-white font-bold border-none">
                 Pre-Register for Next Batch
               </Button>
             </div>

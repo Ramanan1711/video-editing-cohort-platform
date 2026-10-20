@@ -20,12 +20,12 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
       {/* ========================================================================= */}
       <section className="border-t border-white/10 bg-[#070b16] py-20 lg:py-28 relative overflow-hidden">
         {/* Ambient Lighting Orb */}
-        <div className="gsap-parallax-slow absolute top-1/2 -left-40 size-96 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
+        <div className="gsap-parallax-slow absolute top-1/2 -left-40 size-96 rounded-full bg-[#B92B27]/10 blur-3xl pointer-events-none" />
 
         <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="gsap-header-reveal space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-1 text-xs font-black text-orange-400">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#F2B705]/10 border border-[#F2B705]/20 px-3 py-1 text-xs font-black text-[#F2B705]">
                 <Trophy size={14} />
                 <span>The Psychology of Finishing</span>
               </div>
@@ -38,7 +38,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
 
               <div className="space-y-4 text-xs sm:text-sm text-slate-300">
                 <div className="flex items-start gap-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-white font-bold shadow-md shadow-orange-500/20">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] text-white font-bold shadow-md shadow-[#B92B27]/20">
                     🔥
                   </span>
                   <div>
@@ -48,7 +48,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white font-bold shadow-md shadow-blue-500/20">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-[#2675EB] text-white font-bold shadow-md shadow-[#2675EB]/20">
                     ⚡
                   </span>
                   <div>
@@ -58,7 +58,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-purple-500 text-white font-bold shadow-md shadow-purple-500/20">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-[#38B44A] text-white font-bold shadow-md shadow-[#38B44A]/20">
                     🛡️
                   </span>
                   <div>
@@ -72,12 +72,12 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
             {/* Gamification Dashboard Mock with 3D Depth Tilt */}
             <TiltCard
               maxTilt={6}
-              glareColor="rgba(249, 115, 22, 0.15)"
-              className="rounded-3xl border border-white/10 bg-[#030712]/95 backdrop-blur-xl p-6 sm:p-8 space-y-6 shadow-2xl shadow-orange-950/20"
+              glareColor="rgba(185, 43, 39, 0.15)"
+              className="rounded-3xl border border-white/10 bg-[#030712]/95 backdrop-blur-xl p-6 sm:p-8 space-y-6 shadow-2xl shadow-black/40"
             >
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white font-black text-sm shadow-md shadow-orange-500/20">
+                  <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#B92B27] via-[#D93830] to-[#F2B705] text-white font-black text-sm shadow-md shadow-[#B92B27]/20">
                     15
                   </div>
                   <div>
@@ -85,7 +85,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                     <p className="text-[10px] text-slate-400">Live points rankings</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-black text-emerald-400">
+                <span className="rounded-full bg-[#38B44A]/10 border border-[#38B44A]/20 px-2.5 py-0.5 text-[10px] font-black text-[#38B44A]">
                   Active Sprint Participant
                 </span>
               </div>
@@ -100,7 +100,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                     key={user.rank}
                     className={`flex items-center justify-between p-3.5 rounded-xl border text-xs transition ${
                       user.rank === 3
-                        ? 'border-orange-500/60 bg-gradient-to-r from-orange-500/15 to-transparent text-white shadow-md shadow-orange-500/10'
+                        ? 'border-[#F2B705]/60 bg-gradient-to-r from-[#F2B705]/15 to-transparent text-white shadow-md shadow-[#F2B705]/10'
                         : 'border-white/10 bg-white/[0.03] text-slate-300'
                     }`}
                   >
@@ -112,7 +112,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-black text-orange-400">{user.xp}</p>
+                      <p className="font-black text-[#F2B705]">{user.xp}</p>
                       <p className="text-[10px] text-slate-400">{user.streak}</p>
                     </div>
                   </div>
@@ -129,7 +129,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
       <section id="workshops" className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden">
         <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F2B705]">
               Live Interactive Masterclasses
             </p>
             <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
@@ -141,8 +141,8 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-4 hover:border-blue-500/40 transition">
-              <span className="rounded-md bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[10px] font-black uppercase text-blue-400">
+            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-4 hover:border-[#2675EB]/40 transition">
+              <span className="rounded-md bg-[#2675EB]/10 border border-[#2675EB]/20 px-2 py-0.5 text-[10px] font-black uppercase text-[#2675EB]">
                 Every Saturday 6:00 PM
               </span>
               <h3 className="text-base font-black text-white">
@@ -156,8 +156,8 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
               </div>
             </TiltCard>
 
-            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-4 hover:border-purple-500/40 transition">
-              <span className="rounded-md bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 text-[10px] font-black uppercase text-purple-400">
+            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-4 hover:border-[#B92B27]/40 transition">
+              <span className="rounded-md bg-[#B92B27]/10 border border-[#B92B27]/20 px-2 py-0.5 text-[10px] font-black uppercase text-[#D93830]">
                 Mid-Sprint Day 10
               </span>
               <h3 className="text-base font-black text-white">
@@ -171,8 +171,8 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
               </div>
             </TiltCard>
 
-            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-4 hover:border-emerald-500/40 transition">
-              <span className="rounded-md bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-400">
+            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-4 hover:border-[#38B44A]/40 transition">
+              <span className="rounded-md bg-[#38B44A]/10 border border-[#38B44A]/20 px-2 py-0.5 text-[10px] font-black uppercase text-[#38B44A]">
                 Sprint Day 15
               </span>
               <h3 className="text-base font-black text-white">
@@ -221,7 +221,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
             ].map((tool) => (
               <span
                 key={tool}
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black text-slate-200 shadow-2xs hover:border-orange-500/60 hover:text-orange-400 hover:bg-orange-500/10 hover:shadow-lg hover:shadow-orange-500/10 transition cursor-default"
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black text-slate-200 shadow-2xs hover:border-[#B92B27]/60 hover:text-[#F2B705] hover:bg-[#B92B27]/10 hover:shadow-lg hover:shadow-[#B92B27]/10 transition cursor-default"
               >
                 {tool}
               </span>
@@ -237,7 +237,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
         <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
           <div className="gsap-header-reveal flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
             <div>
-              <span className="dot-label dot-label--emerald text-orange-400 font-bold mb-2">
+              <span className="dot-label dot-label--emerald text-[#38B44A] font-bold mb-2">
                 Featured Deliverables
               </span>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mt-1">
@@ -311,7 +311,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
       <section className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden">
         <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
           <div className="text-center max-w-2xl mx-auto mb-14">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F2B705]">
               Tangible Outcomes
             </p>
             <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
@@ -327,7 +327,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 onClick={() => setActiveTransformation('creative')}
                 className={`px-4 py-1.5 rounded-lg text-xs font-black cursor-pointer transition ${
                   activeTransformation === 'creative'
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20'
+                    ? 'bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] text-white shadow-md shadow-[#B92B27]/20'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -338,7 +338,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 onClick={() => setActiveTransformation('coding')}
                 className={`px-4 py-1.5 rounded-lg text-xs font-black cursor-pointer transition ${
                   activeTransformation === 'coding'
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20'
+                    ? 'bg-gradient-to-r from-[#2675EB] to-[#1B5FCC] text-white shadow-md shadow-[#2675EB]/20'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -349,10 +349,10 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Day 0 */}
-            <TiltCard className="p-7 sm:p-9 border border-red-500/20 bg-gradient-to-b from-red-950/15 to-white/[0.02] rounded-2xl space-y-4">
+            <TiltCard className="p-7 sm:p-9 border border-[#B92B27]/30 bg-gradient-to-b from-[#B92B27]/15 to-white/[0.02] rounded-2xl space-y-4">
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <span className="text-xs font-black uppercase tracking-wider text-slate-400">Day 00: Starting Point</span>
-                <span className="text-xs font-bold text-red-400">Unstructured &amp; Unaudited</span>
+                <span className="text-xs font-bold text-[#D93830]">Unstructured &amp; Unaudited</span>
               </div>
               {activeTransformation === 'creative' ? (
                 <ul className="space-y-3 text-xs text-slate-400">
@@ -373,12 +373,12 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
 
             {/* Day 15 */}
             <TiltCard
-              glareColor="rgba(16, 185, 129, 0.2)"
-              className="p-7 sm:p-9 border border-emerald-500/40 bg-gradient-to-b from-emerald-950/20 to-white/[0.02] rounded-2xl space-y-4 shadow-xl shadow-emerald-950/20"
+              glareColor="rgba(56, 180, 74, 0.2)"
+              className="p-7 sm:p-9 border border-[#38B44A]/40 bg-gradient-to-b from-[#38B44A]/20 to-white/[0.02] rounded-2xl space-y-4 shadow-xl shadow-[#38B44A]/20"
             >
-              <div className="flex items-center justify-between border-b border-emerald-500/20 pb-3">
-                <span className="text-xs font-black uppercase tracking-wider text-emerald-400">Day 15: Iunoware Academy Graduate</span>
-                <span className="text-xs font-bold text-emerald-400">Production-Grade Proof</span>
+              <div className="flex items-center justify-between border-b border-[#38B44A]/20 pb-3">
+                <span className="text-xs font-black uppercase tracking-wider text-[#38B44A]">Day 15: Iunoware Academy Graduate</span>
+                <span className="text-xs font-bold text-[#38B44A]">Production-Grade Proof</span>
               </div>
               {activeTransformation === 'creative' ? (
                 <ul className="space-y-3 text-xs text-slate-300">
@@ -405,12 +405,12 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
       {/* ========================================================================= */}
       <section id="credentials" className="border-t border-white/10 bg-[#070b16] py-20 lg:py-28 text-white relative overflow-hidden">
         {/* Ambient Amber Glow */}
-        <div className="gsap-parallax-slow absolute top-1/2 -right-40 size-96 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+        <div className="gsap-parallax-slow absolute top-1/2 -right-40 size-96 rounded-full bg-[#F2B705]/10 blur-3xl pointer-events-none" />
 
         <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="gsap-header-reveal space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-full bg-amber-400/10 border border-amber-400/20 px-3 py-1 text-xs font-black text-amber-300">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#F2B705]/10 border border-[#F2B705]/20 px-3 py-1 text-xs font-black text-[#F2B705]">
                 <Award size={14} />
                 <span>Proof of Competence</span>
               </div>
@@ -423,21 +423,21 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
 
               <div className="space-y-3.5 text-xs sm:text-sm text-slate-300">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                  <CheckCircle2 size={16} className="text-[#38B44A] shrink-0 mt-0.5" />
                   <span><strong>Cryptographic Verification:</strong> Each certificate includes a unique verification URL and QR code for recruiter validation.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                  <CheckCircle2 size={16} className="text-[#38B44A] shrink-0 mt-0.5" />
                   <span><strong>Mentor Letter of Recommendation:</strong> Detailed assessment of your problem-solving, work ethic, and timeline discipline.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                  <CheckCircle2 size={16} className="text-[#38B44A] shrink-0 mt-0.5" />
                   <span><strong>LinkedIn 1-Click Credential:</strong> Display your verified internship certificate directly on your professional profile.</span>
                 </div>
               </div>
 
               <div className="pt-2">
-                <Button href="/register" withArrow>
+                <Button href="/register" withArrow className="bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] text-white border-none shadow-lg shadow-[#B92B27]/25">
                   Earn Your Credential
                 </Button>
               </div>
@@ -445,22 +445,22 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
 
             {/* Realistic Certificate Mockup with 3D Depth Tilt */}
             <div className="relative">
-              <div className="absolute -inset-2 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 opacity-20 blur-2xl pointer-events-none" />
+              <div className="absolute -inset-2 rounded-3xl bg-gradient-to-tr from-[#B92B27] via-[#F2B705] to-[#2675EB] opacity-20 blur-2xl pointer-events-none" />
               <TiltCard
                 maxTilt={8}
-                glareColor="rgba(245, 158, 11, 0.2)"
-                className="relative rounded-2xl border border-amber-400/30 bg-gradient-to-b from-slate-900 via-[#070b16] to-[#030712] p-7 sm:p-9 shadow-2xl text-slate-100 space-y-6"
+                glareColor="rgba(242, 183, 5, 0.2)"
+                className="relative rounded-2xl border border-[#F2B705]/40 bg-gradient-to-b from-slate-900 via-[#070b16] to-[#030712] p-7 sm:p-9 shadow-2xl text-slate-100 space-y-6"
               >
                 <div className="flex items-start justify-between border-b border-white/10 pb-5">
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-400">
+                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#F2B705]">
                       Iunoware Academy · Verified Credential
                     </span>
                     <h3 className="text-lg font-black text-white mt-1">
                       Certificate of Internship Completion
                     </h3>
                   </div>
-                  <div className="flex size-11 items-center justify-center rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-400">
+                  <div className="flex size-11 items-center justify-center rounded-xl bg-[#F2B705]/10 border border-[#F2B705]/30 text-[#F2B705]">
                     <Award size={24} />
                   </div>
                 </div>
@@ -471,7 +471,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                   <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
                     has successfully satisfied all 15 production deliverables, passed mentor audits, and graduated with distinction in
                   </p>
-                  <p className="text-sm font-black text-orange-400">Full Stack &amp; Creative Production Track</p>
+                  <p className="text-sm font-black text-[#D93830]">Full Stack &amp; Creative Production Track</p>
                 </div>
 
                 <div className="flex items-center justify-between border-t border-white/10 pt-5 text-xs text-slate-400">
@@ -480,9 +480,9 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                     <p className="font-mono text-xs text-slate-300">PCH-2026-VERIFIED</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <QrCode size={26} className="text-amber-400" />
+                    <QrCode size={26} className="text-[#F2B705]" />
                     <div className="text-right">
-                      <p className="text-[10px] font-bold text-emerald-400">✓ Cryptographically Signed</p>
+                      <p className="text-[10px] font-bold text-[#38B44A]">✓ Cryptographically Signed</p>
                       <p className="text-[9px] text-slate-500">Scan to verify</p>
                     </div>
                   </div>
@@ -499,7 +499,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
       <section className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden">
         <div className="mx-auto max-w-7xl px-5 lg:px-8 text-center relative z-10">
           <div className="gsap-header-reveal max-w-2xl mx-auto space-y-3">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F2B705]">
               Career &amp; Client Standards
             </p>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
@@ -511,24 +511,24 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
           </div>
 
           <div className="gsap-cards-group mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto text-left">
-            <TiltCard className="p-6 border border-white/10 bg-white/[0.03] rounded-2xl space-y-2 hover:border-orange-500/40 transition">
-              <span className="text-xs font-black text-orange-400 uppercase">01 · Live Code &amp; Timelines</span>
+            <TiltCard className="p-6 border border-white/10 bg-white/[0.03] rounded-2xl space-y-2 hover:border-[#B92B27]/40 transition">
+              <span className="text-xs font-black text-[#D93830] uppercase">01 · Live Code &amp; Timelines</span>
               <h4 className="text-sm font-black text-white">Inspectable GitHub &amp; Video Links</h4>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Recruiters and clients can directly review your PR commits, branch discipline, and video cuts on live domains.
               </p>
             </TiltCard>
 
-            <TiltCard className="p-6 border border-white/10 bg-white/[0.03] rounded-2xl space-y-2 hover:border-blue-500/40 transition">
-              <span className="text-xs font-black text-blue-400 uppercase">02 · Rubric Transparency</span>
+            <TiltCard className="p-6 border border-white/10 bg-white/[0.03] rounded-2xl space-y-2 hover:border-[#2675EB]/40 transition">
+              <span className="text-xs font-black text-[#2675EB] uppercase">02 · Rubric Transparency</span>
               <h4 className="text-sm font-black text-white">Documented Mentor Audits</h4>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Every deliverable is scored across 5 industry criteria, confirming that senior practitioners verified the quality of your work.
               </p>
             </TiltCard>
 
-            <TiltCard className="p-6 border border-white/10 bg-white/[0.03] rounded-2xl space-y-2 hover:border-emerald-500/40 transition">
-              <span className="text-xs font-black text-emerald-400 uppercase">03 · Public Talent Directory</span>
+            <TiltCard className="p-6 border border-white/10 bg-white/[0.03] rounded-2xl space-y-2 hover:border-[#38B44A]/40 transition">
+              <span className="text-xs font-black text-[#38B44A] uppercase">03 · Public Talent Directory</span>
               <h4 className="text-sm font-black text-white">Verifiable Certificate URL</h4>
               <p className="text-xs text-slate-400 leading-relaxed">
                 A public link that hiring partners can independently check to validate that all 15 sprint milestones were completed.
@@ -551,12 +551,12 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
       {/* ========================================================================= */}
       <section className="bg-[#030712] border-t border-white/10 py-20 lg:py-28 text-white relative overflow-hidden">
         {/* Ambient Warm Glow */}
-        <div className="gsap-parallax-slow absolute top-1/2 left-1/4 -translate-y-1/2 size-96 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
+        <div className="gsap-parallax-slow absolute top-1/2 left-1/4 -translate-y-1/2 size-96 rounded-full bg-[#B92B27]/10 blur-3xl pointer-events-none" />
 
         <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="gsap-header-reveal lg:col-span-1 space-y-4">
-              <Quote size={36} className="text-orange-500/40" />
+              <Quote size={36} className="text-[#F2B705]/40" />
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
                 &quot;I finally finished work I am proud to send to clients.&quot;
               </h2>
@@ -566,8 +566,8 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
             </div>
 
             <div className="gsap-cards-group lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <TiltCard className="bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-xl border border-white/10 p-6 rounded-2xl text-white space-y-3 shadow-xl hover:border-orange-500/30 transition">
-                <div className="flex text-amber-400">
+              <TiltCard className="bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-xl border border-white/10 p-6 rounded-2xl text-white space-y-3 shadow-xl hover:border-[#B92B27]/40 transition">
+                <div className="flex text-[#F2B705]">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} size={14} fill="currentColor" />
                   ))}
@@ -577,12 +577,12 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 </p>
                 <div>
                   <p className="text-xs font-black text-white">Verified Student Review</p>
-                  <p className="text-[10px] text-orange-400">Full Stack Track · SaaS Auth Deliverable</p>
+                  <p className="text-[10px] text-[#2675EB]">Full Stack Track · SaaS Auth Deliverable</p>
                 </div>
               </TiltCard>
 
-              <TiltCard className="bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-xl border border-white/10 p-6 rounded-2xl text-white space-y-3 shadow-xl hover:border-orange-500/30 transition">
-                <div className="flex text-amber-400">
+              <TiltCard className="bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-xl border border-white/10 p-6 rounded-2xl text-white space-y-3 shadow-xl hover:border-[#B92B27]/40 transition">
+                <div className="flex text-[#F2B705]">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} size={14} fill="currentColor" />
                   ))}
@@ -592,7 +592,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 </p>
                 <div>
                   <p className="text-xs font-black text-white">Verified Student Review</p>
-                  <p className="text-[10px] text-orange-400">Video Editing Track · 60s Commercial Cut</p>
+                  <p className="text-[10px] text-[#D93830]">Video Editing Track · 60s Commercial Cut</p>
                 </div>
               </TiltCard>
             </div>

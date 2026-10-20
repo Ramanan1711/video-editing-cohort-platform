@@ -120,19 +120,19 @@ export const CustomCursor: React.FC = () => {
     >
       <div className="pointer-events-none">
         {cursorText ? (
-          // Expanded Junca-style action pill
-          <div className="flex items-center gap-1.5 rounded-full border border-orange-500/40 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 px-3.5 py-1.5 text-[11px] font-mono font-bold tracking-widest text-white uppercase shadow-2xl shadow-orange-500/40 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+          // Expanded Iunoware Brand action pill
+          <div className="flex items-center gap-1.5 rounded-full border border-[#B92B27]/50 bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] px-3.5 py-1.5 text-[11px] font-mono font-bold tracking-widest text-white uppercase shadow-2xl shadow-[#B92B27]/40 backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
             <span>{cursorText}</span>
             <ArrowUpRight size={13} className="shrink-0 text-white" />
           </div>
         ) : isHoveringInteractive ? (
           // Medium glowing reticle dot
-          <div className="size-6 rounded-full border border-orange-400/80 bg-orange-500/20 backdrop-blur-xs transition-transform duration-200 scale-125 shadow-lg shadow-orange-500/30" />
+          <div className="size-6 rounded-full border border-[#F2B705]/80 bg-[#B92B27]/20 backdrop-blur-xs transition-transform duration-200 scale-125 shadow-lg shadow-[#B92B27]/30" />
         ) : (
           // Subtle ambient cursor beacon
           <div className="relative size-3">
-            <span className="absolute inset-0 size-3 rounded-full bg-orange-500/80 shadow-xs shadow-orange-400" />
-            <span className="absolute -inset-1 size-5 rounded-full bg-orange-500/20 animate-ping" />
+            <span className="absolute inset-0 size-3 rounded-full bg-[#B92B27]/90 shadow-xs shadow-[#D93830]" />
+            <span className="absolute -inset-1 size-5 rounded-full bg-[#F2B705]/25 animate-ping" />
           </div>
         )}
       </div>

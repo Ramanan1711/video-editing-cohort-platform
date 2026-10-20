@@ -29,7 +29,7 @@ export function CurriculumSection() {
       <section id="how-it-works" className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative">
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-16 gsap-header-reveal">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-400">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F2B705]">
               The Daily Rhythm
             </p>
             <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-white">
@@ -44,8 +44,8 @@ export function CurriculumSection() {
             {/* Step 1 */}
             <TiltCard maxTilt={6} className="glass-obsidian p-6 border-white/10 space-y-4 shadow-xl">
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-black text-orange-500 font-mono">01</span>
-                <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500/15 border border-orange-500/30 text-orange-400">
+                <span className="text-2xl font-black text-[#B92B27] font-mono">01</span>
+                <span className="flex size-9 items-center justify-center rounded-xl bg-[#B92B27]/15 border border-[#B92B27]/30 text-[#D93830]">
                   <Clock size={16} />
                 </span>
               </div>
@@ -55,7 +55,7 @@ export function CurriculumSection() {
               <p className="text-xs text-slate-300 leading-relaxed">
                 Receive the day&apos;s realistic production challenge directly via WhatsApp and the portal, complete with source assets, raw footage, and Figma specs.
               </p>
-              <div className="text-[11px] font-bold text-orange-400 pt-2 border-t border-white/10 font-mono">
+              <div className="text-[11px] font-bold text-[#D93830] pt-2 border-t border-white/10 font-mono">
                 Duration: 15–20 min brief review
               </div>
             </TiltCard>
@@ -63,8 +63,8 @@ export function CurriculumSection() {
             {/* Step 2 */}
             <TiltCard maxTilt={6} className="glass-obsidian p-6 border-white/10 space-y-4 shadow-xl">
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-black text-blue-500 font-mono">02</span>
-                <span className="flex size-9 items-center justify-center rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400">
+                <span className="text-2xl font-black text-[#F2B705] font-mono">02</span>
+                <span className="flex size-9 items-center justify-center rounded-xl bg-[#F2B705]/15 border border-[#F2B705]/30 text-[#F2B705]">
                   <Play size={16} />
                 </span>
               </div>
@@ -74,7 +74,7 @@ export function CurriculumSection() {
               <p className="text-xs text-slate-300 leading-relaxed">
                 Execute the assignment in your timeline or IDE. Stuck? Jump into your 1:1 WhatsApp channel with senior mentors to unblock technical barriers instantly.
               </p>
-              <div className="text-[11px] font-bold text-blue-400 pt-2 border-t border-white/10 font-mono">
+              <div className="text-[11px] font-bold text-[#F2B705] pt-2 border-t border-white/10 font-mono">
                 Duration: 60–90 min build sprint
               </div>
             </TiltCard>
@@ -82,8 +82,8 @@ export function CurriculumSection() {
             {/* Step 3 */}
             <TiltCard maxTilt={6} className="glass-obsidian p-6 border-white/10 space-y-4 shadow-xl">
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-black text-purple-500 font-mono">03</span>
-                <span className="flex size-9 items-center justify-center rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400">
+                <span className="text-2xl font-black text-[#38B44A] font-mono">03</span>
+                <span className="flex size-9 items-center justify-center rounded-xl bg-[#38B44A]/15 border border-[#38B44A]/30 text-[#38B44A]">
                   <MessageCircle size={16} />
                 </span>
               </div>
@@ -93,7 +93,7 @@ export function CurriculumSection() {
               <p className="text-xs text-slate-300 leading-relaxed">
                 Upload your video export or submit a GitHub PR before the 11:59 PM deadline. Within 24 hours, receive detailed written and audio rubric feedback.
               </p>
-              <div className="text-[11px] font-bold text-purple-400 pt-2 border-t border-white/10 font-mono">
+              <div className="text-[11px] font-bold text-[#38B44A] pt-2 border-t border-white/10 font-mono">
                 SLA: &lt;24h mentor feedback guarantee
               </div>
             </TiltCard>
@@ -101,8 +101,8 @@ export function CurriculumSection() {
             {/* Step 4 */}
             <TiltCard maxTilt={6} className="glass-obsidian p-6 border-white/10 space-y-4 shadow-xl">
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-black text-emerald-500 font-mono">04</span>
-                <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                <span className="text-2xl font-black text-[#2675EB] font-mono">04</span>
+                <span className="flex size-9 items-center justify-center rounded-xl bg-[#2675EB]/15 border border-[#2675EB]/30 text-[#2675EB]">
                   <Flame size={16} />
                 </span>
               </div>
@@ -112,7 +112,7 @@ export function CurriculumSection() {
               <p className="text-xs text-slate-300 leading-relaxed">
                 Earn XP points, advance your level on the cohort leaderboard, and protect your consecutive daily streak to unlock your end-of-cohort letter of recommendation.
               </p>
-              <div className="text-[11px] font-bold text-emerald-400 pt-2 border-t border-white/10 font-mono">
+              <div className="text-[11px] font-bold text-[#2675EB] pt-2 border-t border-white/10 font-mono">
                 Result: Unstoppable shipping momentum
               </div>
             </TiltCard>
@@ -126,7 +126,7 @@ export function CurriculumSection() {
       <section id="tracks" className="border-t border-white/10 bg-[#060911] py-20 lg:py-28 relative">
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12 gsap-header-reveal">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-400">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F2B705]">
               Specialized Disciplines
             </p>
             <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-white">
@@ -147,7 +147,7 @@ export function CurriculumSection() {
                 }}
                 className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black transition cursor-pointer ${
                   selectedTrack === 'creative'
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25'
+                    ? 'bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] text-white shadow-lg shadow-[#B92B27]/25'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -163,7 +163,7 @@ export function CurriculumSection() {
                 }}
                 className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black transition cursor-pointer ${
                   selectedTrack === 'coding'
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25'
+                    ? 'bg-gradient-to-r from-[#2675EB] to-[#1B5FCC] text-white shadow-lg shadow-[#2675EB]/25'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -176,8 +176,8 @@ export function CurriculumSection() {
           {/* Track Content Showcase */}
           {selectedTrack === 'creative' ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-orange-500/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-orange-500/15 border border-orange-500/30 text-orange-400">
+              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#B92B27]/40 space-y-4 shadow-xl transition-all">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#B92B27]/15 border border-[#B92B27]/30 text-[#D93830]">
                   <Play size={20} />
                 </div>
                 <h3 className="text-base font-black text-white">Kinetic Typography &amp; Motion</h3>
@@ -189,11 +189,11 @@ export function CurriculumSection() {
                   <li className="flex items-center gap-2 text-slate-200">✓ Dynamic Kinetic Subtitle Timing</li>
                   <li className="flex items-center gap-2 text-slate-200">✓ Custom Lower Thirds &amp; Overlays</li>
                 </ul>
-                <span className="inline-block text-[11px] font-bold text-orange-400 pt-2 font-mono">Days 1–5 Deliverables →</span>
+                <span className="inline-block text-[11px] font-bold text-[#D93830] pt-2 font-mono">Days 1–5 Deliverables →</span>
               </TiltCard>
 
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-amber-500/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#F2B705]/40 space-y-4 shadow-xl transition-all">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#F2B705]/15 border border-[#F2B705]/30 text-[#F2B705]">
                   <Sparkles size={20} />
                 </div>
                 <h3 className="text-base font-black text-white">DaVinci Resolve Color &amp; Audio</h3>
@@ -205,11 +205,11 @@ export function CurriculumSection() {
                   <li className="flex items-center gap-2 text-slate-200">✓ Sub-Mix Audio Mastering (-14 LUFS)</li>
                   <li className="flex items-center gap-2 text-slate-200">✓ Risers, Impacts &amp; Atmosphere</li>
                 </ul>
-                <span className="inline-block text-[11px] font-bold text-amber-400 pt-2 font-mono">Days 6–10 Deliverables →</span>
+                <span className="inline-block text-[11px] font-bold text-[#F2B705] pt-2 font-mono">Days 6–10 Deliverables →</span>
               </TiltCard>
 
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-emerald-500/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#38B44A]/40 space-y-4 shadow-xl transition-all">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#38B44A]/15 border border-[#38B44A]/30 text-[#38B44A]">
                   <CheckCircle2 size={20} />
                 </div>
                 <h3 className="text-base font-black text-white">Commercial Reel &amp; Final Cut</h3>
@@ -221,13 +221,13 @@ export function CurriculumSection() {
                   <li className="flex items-center gap-2 text-slate-200">✓ Professional Client Handoff Specs</li>
                   <li className="flex items-center gap-2 text-slate-200">✓ Verified Portfolio Defense</li>
                 </ul>
-                <span className="inline-block text-[11px] font-bold text-emerald-400 pt-2 font-mono">Days 11–15 Capstone →</span>
+                <span className="inline-block text-[11px] font-bold text-[#38B44A] pt-2 font-mono">Days 11–15 Capstone →</span>
               </TiltCard>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-blue-500/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400">
+              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#2675EB]/40 space-y-4 shadow-xl transition-all">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#2675EB]/15 border border-[#2675EB]/30 text-[#2675EB]">
                   <Code2 size={20} />
                 </div>
                 <h3 className="text-base font-black text-white">React 19 &amp; Modern TypeScript</h3>
@@ -239,11 +239,11 @@ export function CurriculumSection() {
                   <li className="flex items-center gap-2 text-slate-200">✓ Optimistic UI &amp; State Reducers</li>
                   <li className="flex items-center gap-2 text-slate-200">✓ Tailwind Component Systems</li>
                 </ul>
-                <span className="inline-block text-[11px] font-bold text-blue-400 pt-2 font-mono">Days 1–5 Deliverables →</span>
+                <span className="inline-block text-[11px] font-bold text-[#2675EB] pt-2 font-mono">Days 1–5 Deliverables →</span>
               </TiltCard>
 
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-purple-500/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-400">
+              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#B92B27]/40 space-y-4 shadow-xl transition-all">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#B92B27]/15 border border-[#B92B27]/30 text-[#D93830]">
                   <Zap size={20} />
                 </div>
                 <h3 className="text-base font-black text-white">Supabase Backend &amp; Real-time APIs</h3>
@@ -255,11 +255,11 @@ export function CurriculumSection() {
                   <li className="flex items-center gap-2 text-slate-200">✓ Secure Row-Level Security Policies</li>
                   <li className="flex items-center gap-2 text-slate-200">✓ Live WebSocket Subscriptions</li>
                 </ul>
-                <span className="inline-block text-[11px] font-bold text-purple-400 pt-2 font-mono">Days 6–10 Deliverables →</span>
+                <span className="inline-block text-[11px] font-bold text-[#D93830] pt-2 font-mono">Days 6–10 Deliverables →</span>
               </TiltCard>
 
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-emerald-500/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#38B44A]/40 space-y-4 shadow-xl transition-all">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#38B44A]/15 border border-[#38B44A]/30 text-[#38B44A]">
                   <Award size={20} />
                 </div>
                 <h3 className="text-base font-black text-white">Full-Stack SaaS Capstone on Vercel</h3>
@@ -271,7 +271,7 @@ export function CurriculumSection() {
                   <li className="flex items-center gap-2 text-slate-200">✓ Vitest &amp; Cypress End-to-End Suite</li>
                   <li className="flex items-center gap-2 text-slate-200">✓ GitHub PR Review &amp; Code Defense</li>
                 </ul>
-                <span className="inline-block text-[11px] font-bold text-emerald-400 pt-2 font-mono">Days 11–15 Capstone →</span>
+                <span className="inline-block text-[11px] font-bold text-[#38B44A] pt-2 font-mono">Days 11–15 Capstone →</span>
               </TiltCard>
             </div>
           )}
@@ -292,7 +292,7 @@ export function CurriculumSection() {
                     soundFx.playBlip(320, 0.04, 'sine', 0.04);
                   }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
-                    activeSprintPhase === 'p1' ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
+                    activeSprintPhase === 'p1' ? 'bg-gradient-to-r from-[#B92B27] to-[#D93830] text-white shadow-md shadow-[#B92B27]/25' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
                   }`}
                 >
                   Phase 1 (Days 1–5)
@@ -305,7 +305,7 @@ export function CurriculumSection() {
                     soundFx.playBlip(420, 0.04, 'sine', 0.04);
                   }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
-                    activeSprintPhase === 'p2' ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
+                    activeSprintPhase === 'p2' ? 'bg-gradient-to-r from-[#F2B705] to-[#D99B02] text-slate-950 shadow-md shadow-[#F2B705]/25 font-bold' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
                   }`}
                 >
                   Phase 2 (Days 6–10)
@@ -318,7 +318,7 @@ export function CurriculumSection() {
                     soundFx.playBlip(560, 0.04, 'sine', 0.04);
                   }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
-                    activeSprintPhase === 'p3' ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
+                    activeSprintPhase === 'p3' ? 'bg-gradient-to-r from-[#38B44A] to-[#2E9A3E] text-white shadow-md shadow-[#38B44A]/25' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
                   }`}
                 >
                   Phase 3 (Days 11–15)
@@ -330,45 +330,45 @@ export function CurriculumSection() {
               {activeSprintPhase === 'p1' ? (
                 <>
                   <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-orange-400 font-mono">Day 01–02: Workspace &amp; Mechanics</p>
+                    <p className="font-black text-[#D93830] font-mono">Day 01–02: Workspace &amp; Mechanics</p>
                     <p className="mt-1 text-slate-400">Clone repositories, configure shortcut mapping, and build muscle memory.</p>
                   </div>
                   <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-orange-400 font-mono">Day 03–04: Reactive Motion &amp; State</p>
+                    <p className="font-black text-[#D93830] font-mono">Day 03–04: Reactive Motion &amp; State</p>
                     <p className="mt-1 text-slate-400">Keyframe typography or connect backend data flows with optimistic updates.</p>
                   </div>
                   <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-orange-400 font-mono">Day 05: Phase Checkpoint Audit</p>
+                    <p className="font-black text-[#D93830] font-mono">Day 05: Phase Checkpoint Audit</p>
                     <p className="mt-1 text-slate-400">First formal mentor scoring (0–100) and written critique feedback.</p>
                   </div>
                 </>
               ) : activeSprintPhase === 'p2' ? (
                 <>
                   <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-orange-400 font-mono">Day 06–07: Depth &amp; Subsystems</p>
+                    <p className="font-black text-[#F2B705] font-mono">Day 06–07: Depth &amp; Subsystems</p>
                     <p className="mt-1 text-slate-400">Complex sound design layers or multi-table PostgreSQL relational queries.</p>
                   </div>
                   <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-orange-400 font-mono">Day 08–09: Retention &amp; Mobile Web</p>
+                    <p className="font-black text-[#F2B705] font-mono">Day 08–09: Retention &amp; Mobile Web</p>
                     <p className="mt-1 text-slate-400">Pacing drop-off prevention and high-performance mobile viewport responsiveness.</p>
                   </div>
                   <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-orange-400 font-mono">Day 10: Halfway Live Review</p>
+                    <p className="font-black text-[#F2B705] font-mono">Day 10: Halfway Live Review</p>
                     <p className="mt-1 text-slate-400">Live Zoom workshop with mentors tearing down student timelines &amp; code.</p>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-orange-400 font-mono">Day 11–13: The Commercial Capstone</p>
+                    <p className="font-black text-[#38B44A] font-mono">Day 11–13: The Commercial Capstone</p>
                     <p className="mt-1 text-slate-400">48-hour deep sprint turning real client briefs into a showcase deliverable.</p>
                   </div>
                   <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-orange-400 font-mono">Day 14: Final Polish &amp; Loom Audit</p>
+                    <p className="font-black text-[#38B44A] font-mono">Day 14: Final Polish &amp; Loom Audit</p>
                     <p className="mt-1 text-slate-400">Submit video walkthrough explaining architectural &amp; editorial choices.</p>
                   </div>
                   <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-orange-400 font-mono">Day 15: Graduation &amp; LOR</p>
+                    <p className="font-black text-[#38B44A] font-mono">Day 15: Graduation &amp; LOR</p>
                     <p className="mt-1 text-slate-400">Receive verified digital certificate and mentor recommendation letter.</p>
                   </div>
                 </>
@@ -389,7 +389,7 @@ export function CurriculumSection() {
       <section id="assets" className="border-t border-white/10 bg-[#070b16] py-20 lg:py-28 relative">
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-16 gsap-header-reveal">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-400">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F2B705]">
               Production-Ready Resources
             </p>
             <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-white">
@@ -402,53 +402,53 @@ export function CurriculumSection() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 gsap-cards-group">
             <TiltCard maxTilt={6} className="glass-obsidian p-6 border-white/10 space-y-4 shadow-xl">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-orange-500/15 border border-orange-500/30 text-orange-400">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-[#B92B27]/15 border border-[#B92B27]/30 text-[#D93830]">
                 <Video size={18} />
               </div>
               <h3 className="text-base font-black text-white">4K Raw Commercial Footage</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Over 50 GB of multicam Sony FX3 &amp; RED RAW footage shots: interviews, tech B-roll, lifestyle, and dynamic transitions.
               </p>
-              <div className="text-[11px] font-bold text-orange-400 pt-2 border-t border-white/10 font-mono">
+              <div className="text-[11px] font-bold text-[#D93830] pt-2 border-t border-white/10 font-mono">
                 100% Commercial Usage Rights
               </div>
             </TiltCard>
 
             <TiltCard maxTilt={6} className="glass-obsidian p-6 border-white/10 space-y-4 shadow-xl">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-[#F2B705]/15 border border-[#F2B705]/30 text-[#F2B705]">
                 <Download size={18} />
               </div>
               <h3 className="text-base font-black text-white">Mastered Sound FX Vault</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Curated library of 300+ cinema-quality audio assets: deep sub-bass risers, whooshes, UI clicks, keyboard textures, and vinyl noise.
               </p>
-              <div className="text-[11px] font-bold text-amber-400 pt-2 border-t border-white/10 font-mono">
+              <div className="text-[11px] font-bold text-[#F2B705] pt-2 border-t border-white/10 font-mono">
                 24-bit 48kHz WAV Masters
               </div>
             </TiltCard>
 
             <TiltCard maxTilt={6} className="glass-obsidian p-6 border-white/10 space-y-4 shadow-xl">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-[#2675EB]/15 border border-[#2675EB]/30 text-[#2675EB]">
                 <Code2 size={18} />
               </div>
               <h3 className="text-base font-black text-white">Full-Stack Starter Repos</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Pre-configured React 19 + Supabase starter templates with Tailwind CSS, TypeScript, Vitest test runners, and authentication pre-wired.
               </p>
-              <div className="text-[11px] font-bold text-blue-400 pt-2 border-t border-white/10 font-mono">
+              <div className="text-[11px] font-bold text-[#2675EB] pt-2 border-t border-white/10 font-mono">
                 GitHub Template Repos
               </div>
             </TiltCard>
 
             <TiltCard maxTilt={6} className="glass-obsidian p-6 border-white/10 space-y-4 shadow-xl">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-[#38B44A]/15 border border-[#38B44A]/30 text-[#38B44A]">
                 <FileText size={18} />
               </div>
               <h3 className="text-base font-black text-white">Agency Brief &amp; Rubric Vault</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Exact PDF briefs used by leading agencies: client deliverables, storyboard templates, Loom walk-through checklists, and contract templates.
               </p>
-              <div className="text-[11px] font-bold text-purple-400 pt-2 border-t border-white/10 font-mono">
+              <div className="text-[11px] font-bold text-[#38B44A] pt-2 border-t border-white/10 font-mono">
                 Editable Notion / PDF Packs
               </div>
             </TiltCard>

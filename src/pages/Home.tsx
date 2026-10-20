@@ -68,10 +68,10 @@ export function Home() {
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-surface-base text-slate-100 font-sans selection:bg-orange-500 selection:text-white transition-colors relative overflow-x-hidden film-grain"
+      className="min-h-screen bg-surface-base text-slate-100 font-sans selection:bg-[#B92B27] selection:text-white transition-colors relative overflow-x-hidden film-grain"
     >
-      {/* Top GSAP Scroll Progress Indicator */}
-      <div className="fixed top-0 left-0 right-0 h-[3.5px] bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-400 origin-left scale-x-0 z-[100] gsap-scroll-progress pointer-events-none shadow-[0_0_12px_rgba(249,115,22,0.9)]" />
+      {/* Top GSAP Scroll Progress Indicator (Iunoware Brand Spectrum Gradient) */}
+      <div className="fixed top-0 left-0 right-0 h-[3.5px] bg-gradient-to-r from-[#B92B27] via-[#D93830] via-[#F2B705] via-[#38B44A] to-[#2675EB] origin-left scale-x-0 z-[100] gsap-scroll-progress pointer-events-none shadow-[0_0_12px_rgba(242,183,5,0.85)]" />
 
       {/* Cinematic Intro Video Overlay */}
       {showIntro && <HomeIntroVideo onComplete={handleIntroComplete} />}

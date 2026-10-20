@@ -6,6 +6,16 @@
   --color-surface-card: #0a0f1d;
   --color-surface-elevated: #10172a;
   --color-surface-subtle: rgba(255, 255, 255, 0.08);
+
+  /* Iunoware Corporate Brand Quadrant Colors */
+  --color-brand-red: #B92B27;
+  --color-brand-red-light: #D93830;
+  --color-brand-green: #38B44A;
+  --color-brand-green-dark: #2E9A3E;
+  --color-brand-blue: #2675EB;
+  --color-brand-blue-dark: #1B5FCC;
+  --color-brand-gold: #F2B705;
+  --color-brand-gold-dark: #D99B02;
 }
 
 @utility bg-surface-base {
@@ -26,6 +36,30 @@
 
 @utility shadow-specular {
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+@utility bg-gradient-brand-red {
+  background-image: linear-gradient(135deg, #B92B27 0%, #D93830 100%);
+}
+
+@utility bg-gradient-brand-green {
+  background-image: linear-gradient(135deg, #38B44A 0%, #2E9A3E 100%);
+}
+
+@utility bg-gradient-brand-blue {
+  background-image: linear-gradient(135deg, #2675EB 0%, #1B5FCC 100%);
+}
+
+@utility bg-gradient-brand-gold {
+  background-image: linear-gradient(135deg, #F2B705 0%, #D99B02 100%);
+}
+
+@utility bg-gradient-brand-primary {
+  background-image: linear-gradient(135deg, #B92B27 0%, #D93830 50%, #F2B705 100%);
+}
+
+@utility bg-gradient-brand-spectrum {
+  background-image: linear-gradient(90deg, #B92B27 0%, #D93830 25%, #F2B705 50%, #38B44A 75%, #2675EB 100%);
 }
 
 @keyframes fadeIn {
@@ -823,10 +857,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
   bottom: 2rem;
   left: 1.125rem;
   width: 2px;
-  background: linear-gradient(180deg, #f97316 0%, #fbbf24 45%, #10b981 100%);
-  opacity: 0.85;
+  background: linear-gradient(180deg, #B92B27 0%, #D93830 25%, #F2B705 50%, #38B44A 75%, #2675EB 100%);
+  opacity: 0.9;
   border-radius: 9999px;
-  box-shadow: 0 0 10px rgba(249, 115, 22, 0.4);
+  box-shadow: 0 0 12px rgba(242, 183, 5, 0.45);
   pointer-events: none;
 }
 
@@ -841,9 +875,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
   left: calc(1.125rem - 3px);
   width: 8px;
   height: 28px;
-  background: linear-gradient(180deg, #ffffff, #fbbf24);
+  background: linear-gradient(180deg, #ffffff, #F2B705);
   border-radius: 9999px;
-  filter: drop-shadow(0 0 8px #f97316);
+  filter: drop-shadow(0 0 8px #F2B705);
   animation: laserSlide 5s ease-in-out infinite alternate;
   pointer-events: none;
   z-index: 5;

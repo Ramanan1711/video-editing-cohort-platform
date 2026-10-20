@@ -35,10 +35,10 @@ export const StudioBar: React.FC = () => {
       {/* Left: Copyright */}
       <div className="pointer-events-auto flex items-center gap-4">
         <span className="text-slate-300 font-mono font-medium">©2026</span>
-        <div className="flex items-center gap-1.5 text-emerald-400 border-l border-white/15 pl-4">
+        <div className="flex items-center gap-1.5 text-[#38B44A] border-l border-white/15 pl-4">
           <span className="relative flex size-2">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#38B44A] opacity-75" />
+            <span className="relative inline-flex size-2 rounded-full bg-[#2E9A3E]" />
           </span>
           <span className="font-bold text-slate-300">BATCH 15 LIVE</span>
         </div>
@@ -62,7 +62,7 @@ export const StudioBar: React.FC = () => {
           viewBox="0 0 24 24"
           width="20"
           height="20"
-          className={`transition-transform duration-500 ${soundOn ? 'animate-spin text-orange-400' : 'text-slate-400 group-hover:text-white'}`}
+          className={`transition-transform duration-500 ${soundOn ? 'animate-spin text-[#F2B705]' : 'text-slate-400 group-hover:text-white'}`}
           fill="currentColor"
         >
           <g>

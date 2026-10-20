@@ -53,7 +53,7 @@ export function LandingFAQAccordion({ faqs = defaultFaqs }: LandingFAQAccordionP
     <section id="faq" className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden">
       <div className="mx-auto max-w-3xl px-5 lg:px-8 relative z-10">
         <div className="text-center">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F2B705]">
             Frequently Answered
           </p>
           <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
@@ -71,12 +71,12 @@ export function LandingFAQAccordion({ faqs = defaultFaqs }: LandingFAQAccordionP
                   setFaqOpen(next);
                   if (next !== null) soundFx.playBlip(440, 0.03, 'triangle', 0.03);
                 }}
-                className="flex w-full items-center justify-between gap-5 text-left text-sm font-black text-white hover:text-orange-400 transition"
+                className="flex w-full items-center justify-between gap-5 text-left text-sm font-black text-white hover:text-[#F2B705] transition"
               >
                 <span>{faq.q}</span>
                 <ChevronDown
                   className={`shrink-0 transition-transform ${
-                    faqOpen === index ? 'rotate-180 text-orange-400' : 'text-slate-400'
+                    faqOpen === index ? 'rotate-180 text-[#F2B705]' : 'text-slate-400'
                   }`}
                   size={18}
                 />

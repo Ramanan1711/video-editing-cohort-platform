@@ -61,13 +61,13 @@ export function SiteHeader() {
           <img
             src={BRAND_LOGO_URL}
             alt="Iunoware Academy Logo"
-            className="h-10 w-auto object-contain drop-shadow-[0_2px_8px_rgba(249,115,22,0.28)] group-hover:scale-105 transition-transform"
+            className="h-10 w-auto object-contain drop-shadow-[0_2px_8px_rgba(185,43,39,0.28)] group-hover:scale-105 transition-transform"
           />
           <div className="flex items-center gap-1.5 leading-none font-sans">
-            <span className="text-2xl font-black tracking-tight text-white group-hover:text-orange-400 transition-colors">
+            <span className="text-2xl font-black tracking-tight text-white group-hover:text-[#F2B705] transition-colors">
               Iunoware
             </span>
-            <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-orange-400">
+            <span className="hidden sm:inline-block rounded-full bg-[#B92B27]/15 border border-[#B92B27]/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#D93830]">
               Academy
             </span>
           </div>
@@ -80,7 +80,7 @@ export function SiteHeader() {
               key={link.href}
               href={link.href}
               onClick={(e) => handleAnchorClick(e, link.href)}
-              className="text-xs font-bold text-slate-300 hover:text-orange-400 transition-colors"
+              className="text-xs font-bold text-slate-300 hover:text-[#F2B705] transition-colors"
             >
               {link.label}
             </a>
@@ -94,14 +94,14 @@ export function SiteHeader() {
             type="button"
             onClick={handleToggleSfx}
             data-cursor={sfxEnabled ? 'MUTE SFX' : 'UNMUTE SFX'}
-            className="group flex items-center gap-1.5 rounded-full border border-surface-subtle bg-surface-card px-2.5 py-1 text-[11px] font-mono font-medium text-slate-300 hover:text-white hover:border-orange-500/40 transition cursor-pointer shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]"
+            className="group flex items-center gap-1.5 rounded-full border border-surface-subtle bg-surface-card px-2.5 py-1 text-[11px] font-mono font-medium text-slate-300 hover:text-white hover:border-[#F2B705]/40 transition cursor-pointer shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]"
             title={sfxEnabled ? 'Mute procedural audio effects' : 'Enable procedural audio effects'}
             aria-label={sfxEnabled ? 'Audio effects enabled. Click to mute.' : 'Audio effects muted. Click to enable.'}
           >
             {sfxEnabled ? (
               <>
-                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <Volume2 size={13} className="text-orange-400 group-hover:scale-110 transition-transform" />
+                <span className="size-1.5 rounded-full bg-[#38B44A] animate-pulse" />
+                <Volume2 size={13} className="text-[#F2B705] group-hover:scale-110 transition-transform" />
                 <span className="text-[10px] tracking-wider text-slate-200">SFX ON</span>
               </>
             ) : (
@@ -119,7 +119,7 @@ export function SiteHeader() {
           >
             Sign in
           </Link>
-          <Button href="/register" size="sm" className="shadow-lg shadow-orange-500/25 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 border-none text-white font-bold">
+          <Button href="/register" size="sm" className="shadow-lg shadow-[#B92B27]/25 bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] border-none text-white font-bold">
             <span>Join Next Cohort</span>
             <ArrowRight size={13} />
           </Button>
@@ -130,14 +130,14 @@ export function SiteHeader() {
           <button
             type="button"
             onClick={handleToggleSfx}
-            className="flex items-center gap-1.5 rounded-full border border-surface-subtle bg-surface-card px-2.5 py-1 text-[10px] font-mono font-medium text-slate-300 hover:text-white hover:border-orange-500/40 transition cursor-pointer shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]"
+            className="flex items-center gap-1.5 rounded-full border border-surface-subtle bg-surface-card px-2.5 py-1 text-[10px] font-mono font-medium text-slate-300 hover:text-white hover:border-[#F2B705]/40 transition cursor-pointer shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]"
             title={sfxEnabled ? 'Mute audio' : 'Enable audio'}
             aria-label={sfxEnabled ? 'Mute audio' : 'Enable audio'}
           >
             {sfxEnabled ? (
               <>
-                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <Volume2 size={13} className="text-orange-400" />
+                <span className="size-1.5 rounded-full bg-[#38B44A] animate-pulse" />
+                <Volume2 size={13} className="text-[#F2B705]" />
                 <span className="text-[9px] text-slate-200">SFX</span>
               </>
             ) : (
@@ -181,7 +181,7 @@ export function SiteHeader() {
               >
                 Sign in
               </Link>
-              <Button href="/register" withArrow className="w-full justify-center bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold">
+              <Button href="/register" withArrow className="w-full justify-center bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] text-white font-bold border-none shadow-lg shadow-[#B92B27]/25">
                 Join Next Cohort
               </Button>
             </div>

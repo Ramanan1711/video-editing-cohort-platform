@@ -117,7 +117,7 @@ export function HomepageAdvertisementModal() {
   if (activeAd.display_type === 'banner') {
     if (!isOpen && isDismissed) return null;
     return (
-      <div className="relative z-40 bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 px-4 py-2.5 text-white shadow-lg">
+      <div className="relative z-40 bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] px-4 py-2.5 text-white shadow-lg">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 text-xs font-bold">
           <div className="flex items-center gap-2.5 overflow-hidden">
             {activeAd.badge_text && (
@@ -127,7 +127,7 @@ export function HomepageAdvertisementModal() {
             )}
             <span className="truncate">{activeAd.title}</span>
             {activeAd.tagline && (
-              <span className="hidden md:inline font-normal text-orange-100 truncate">
+              <span className="hidden md:inline font-normal text-amber-100 truncate">
                 · {activeAd.tagline}
               </span>
             )}
@@ -136,7 +136,7 @@ export function HomepageAdvertisementModal() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleCtaClick}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1 text-xs font-black text-orange-950 shadow-xs hover:bg-orange-50 transition"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1 text-xs font-black text-slate-900 shadow-xs hover:bg-slate-100 transition"
             >
               <span>{activeAd.cta_text || 'Learn More'}</span>
               <ArrowRight size={13} />
@@ -160,9 +160,9 @@ export function HomepageAdvertisementModal() {
       return (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-14 right-5 z-40 flex items-center gap-2 rounded-full border border-orange-500/40 bg-surface-card/95 px-3.5 py-2 text-xs font-bold text-orange-400 shadow-xl backdrop-blur-md hover:scale-105 hover:border-orange-400 transition"
+          className="fixed bottom-14 right-5 z-40 flex items-center gap-2 rounded-full border border-[#B92B27]/40 bg-surface-card/95 px-3.5 py-2 text-xs font-bold text-[#F2B705] shadow-xl backdrop-blur-md hover:scale-105 hover:border-[#F2B705] transition"
         >
-          <Gift size={15} className="animate-bounce text-orange-500" />
+          <Gift size={15} className="animate-bounce text-[#D93830]" />
           <span>{activeAd.badge_text || 'Special Offer'}</span>
         </button>
       );
@@ -192,14 +192,14 @@ export function HomepageAdvertisementModal() {
         )}
 
         {activeAd.badge_text && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/20 border border-orange-500/40 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-orange-400 mb-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#B92B27]/20 border border-[#B92B27]/40 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#F2B705] mb-1.5">
             <Sparkles size={10} /> {activeAd.badge_text}
           </span>
         )}
 
         <h4 className="text-sm font-black text-white">{activeAd.title}</h4>
         {activeAd.tagline && (
-          <p className="mt-0.5 text-[11px] font-semibold text-orange-400">{activeAd.tagline}</p>
+          <p className="mt-0.5 text-[11px] font-semibold text-[#F2B705]">{activeAd.tagline}</p>
         )}
         {activeAd.description && (
           <p className="mt-1 text-xs text-slate-300 line-clamp-2 leading-relaxed">
@@ -216,7 +216,7 @@ export function HomepageAdvertisementModal() {
           </button>
           <button
             onClick={handleCtaClick}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-3.5 py-1.5 text-xs font-black text-white shadow-md shadow-orange-500/25 hover:scale-105 transition"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] px-3.5 py-1.5 text-xs font-black text-white shadow-md shadow-[#B92B27]/25 hover:scale-105 transition"
           >
             <span>{activeAd.cta_text || 'Claim Offer'}</span>
             <ArrowRight size={13} />
@@ -234,9 +234,9 @@ export function HomepageAdvertisementModal() {
         <button
           onClick={() => setIsOpen(true)}
           title="Re-open special promotion"
-          className="fixed bottom-14 right-5 z-40 group flex items-center gap-2 rounded-full border border-orange-500/40 bg-surface-card/90 px-3.5 py-2 text-xs font-bold text-orange-400 shadow-xl backdrop-blur-md hover:scale-105 hover:border-orange-400 transition cursor-pointer"
+          className="fixed bottom-14 right-5 z-40 group flex items-center gap-2 rounded-full border border-[#B92B27]/40 bg-surface-card/90 px-3.5 py-2 text-xs font-bold text-[#F2B705] shadow-xl backdrop-blur-md hover:scale-105 hover:border-[#F2B705] transition cursor-pointer"
         >
-          <Gift size={15} className="text-orange-500 group-hover:rotate-12 transition-transform" />
+          <Gift size={15} className="text-[#D93830] group-hover:rotate-12 transition-transform" />
           <span className="text-[11px] font-mono tracking-wider text-slate-200 group-hover:text-white">
             {activeAd.badge_text || 'Special Offer'}
           </span>
@@ -252,7 +252,7 @@ export function HomepageAdvertisementModal() {
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200"
         >
           <div
-            className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-surface-subtle bg-surface-card p-6 sm:p-7 text-slate-100 shadow-2xl shadow-orange-950/30 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] animate-in zoom-in-95 duration-200"
+            className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-surface-subtle bg-surface-card p-6 sm:p-7 text-slate-100 shadow-2xl shadow-[#B92B27]/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] animate-in zoom-in-95 duration-200"
           >
             {/* Top Close Button */}
             <button
@@ -266,8 +266,8 @@ export function HomepageAdvertisementModal() {
             {/* Top Badge Pill */}
             {activeAd.badge_text && (
               <div className="mb-3">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/40 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-orange-400 shadow-2xs">
-                  <Sparkles size={12} className="text-orange-400" />
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#B92B27]/20 to-[#F2B705]/20 border border-[#B92B27]/40 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#F2B705] shadow-2xs">
+                  <Sparkles size={12} className="text-[#F2B705]" />
                   {activeAd.badge_text}
                 </span>
               </div>
@@ -291,7 +291,7 @@ export function HomepageAdvertisementModal() {
               {activeAd.title}
             </h3>
             {activeAd.tagline && (
-              <p className="mt-1 text-sm font-bold text-orange-400">
+              <p className="mt-1 text-sm font-bold text-[#F2B705]">
                 {activeAd.tagline}
               </p>
             )}
@@ -316,7 +316,7 @@ export function HomepageAdvertisementModal() {
               <button
                 type="button"
                 onClick={handleCtaClick}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 px-6 py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-orange-500/30 hover:scale-105 transition"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] px-6 py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-[#B92B27]/30 hover:scale-105 transition"
               >
                 <span>{activeAd.cta_text || 'Claim Offer'}</span>
                 {activeAd.cta_link?.startsWith('http') ? (

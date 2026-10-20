@@ -67,13 +67,13 @@ const TRACK_DEFINITIONS: Record<SprintTrack, TrackMetadata> = {
     badge: 'Iunoware Visual Track',
     description: 'Master Hollywood pacing, multi-track audio stems, color grading science, and commercial client assemblies.',
     color: {
-      primary: 'text-orange-400',
-      border: 'border-orange-500/40',
-      borderHover: 'hover:border-orange-500/60',
-      bgBadge: 'bg-orange-500/20',
-      textBadge: 'text-orange-400',
-      gradient: 'from-orange-500 to-amber-500',
-      glow: 'rgba(249, 115, 22, 0.25)',
+      primary: 'text-[#D93830]',
+      border: 'border-[#B92B27]/40',
+      borderHover: 'hover:border-[#B92B27]/60',
+      bgBadge: 'bg-[#B92B27]/20',
+      textBadge: 'text-[#D93830]',
+      gradient: 'from-[#B92B27] via-[#D93830] to-[#F2B705]',
+      glow: 'rgba(185, 43, 39, 0.25)',
     },
     softwareStack: [
       { name: 'Premiere Pro', role: 'Rough Cuts & Story Assembly' },
@@ -112,13 +112,13 @@ const TRACK_DEFINITIONS: Record<SprintTrack, TrackMetadata> = {
     badge: 'Production Engineering Track',
     description: 'Build enterprise-grade web applications with strict TypeScript, PostgreSQL RLS, Zod APIs, and automated CI/CD pipelines.',
     color: {
-      primary: 'text-cyan-400',
-      border: 'border-cyan-500/40',
-      borderHover: 'hover:border-cyan-500/60',
-      bgBadge: 'bg-cyan-500/20',
-      textBadge: 'text-cyan-300',
-      gradient: 'from-cyan-500 via-sky-500 to-blue-600',
-      glow: 'rgba(6, 182, 212, 0.25)',
+      primary: 'text-[#2675EB]',
+      border: 'border-[#2675EB]/40',
+      borderHover: 'hover:border-[#2675EB]/60',
+      bgBadge: 'bg-[#2675EB]/20',
+      textBadge: 'text-[#2675EB]',
+      gradient: 'from-[#2675EB] to-[#1B5FCC]',
+      glow: 'rgba(38, 117, 235, 0.25)',
     },
     softwareStack: [
       { name: 'VS Code + Git', role: 'Strict Monorepo & Branch PRs' },
@@ -158,13 +158,13 @@ const TRACK_DEFINITIONS: Record<SprintTrack, TrackMetadata> = {
     badge: 'Cinema 3D & Mograph Track',
     description: 'Create fluid kinetic typography, liquid vector morphs, 3D camera tracking, and physically based material simulations.',
     color: {
-      primary: 'text-fuchsia-400',
-      border: 'border-fuchsia-500/40',
-      borderHover: 'hover:border-fuchsia-500/60',
-      bgBadge: 'bg-fuchsia-500/20',
-      textBadge: 'text-fuchsia-300',
-      gradient: 'from-fuchsia-500 via-purple-500 to-pink-500',
-      glow: 'rgba(217, 70, 239, 0.25)',
+      primary: 'text-[#F2B705]',
+      border: 'border-[#F2B705]/40',
+      borderHover: 'hover:border-[#F2B705]/60',
+      bgBadge: 'bg-[#F2B705]/20',
+      textBadge: 'text-[#F2B705]',
+      gradient: 'from-[#F2B705] via-[#D99B02] to-[#B92B27]',
+      glow: 'rgba(242, 183, 5, 0.25)',
     },
     softwareStack: [
       { name: 'Blender 4', role: '3D Geometry, PBR Materials & Cycles' },
@@ -750,10 +750,10 @@ export function InteractiveSprintCurriculum({
       <div
         className={`pointer-events-none absolute bottom-1/4 left-0 size-[500px] rounded-full blur-[140px] -z-10 transition-colors duration-700 ${
           selectedTrack === 'video'
-            ? 'bg-amber-500/10'
+            ? 'bg-[#B92B27]/10'
             : selectedTrack === 'coding'
-            ? 'bg-blue-600/10'
-            : 'bg-purple-600/10'
+            ? 'bg-[#2675EB]/10'
+            : 'bg-[#F2B705]/10'
         }`}
       />
 
@@ -889,9 +889,9 @@ export function InteractiveSprintCurriculum({
                     {phaseNum === 1 ? (
                       <Zap size={12} className={currentTrackMeta.color.primary} />
                     ) : phaseNum === 2 ? (
-                      <Flame size={12} className="text-amber-400" />
+                      <Flame size={12} className="text-[#F2B705]" />
                     ) : (
-                      <Trophy size={12} className="text-emerald-400" />
+                      <Trophy size={12} className="text-[#38B44A]" />
                     )}
                     <span>Phase 0{phaseNum}</span>
                   </div>
@@ -945,7 +945,7 @@ export function InteractiveSprintCurriculum({
               }}
               className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
                 roadmapFilter === 1
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                  ? 'bg-gradient-to-r from-[#B92B27] to-[#D93830] text-white shadow-md shadow-[#B92B27]/20'
                   : 'bg-[#090d16] border border-white/10 text-slate-400 hover:text-white hover:border-white/25'
               }`}
             >
@@ -960,7 +960,7 @@ export function InteractiveSprintCurriculum({
               }}
               className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
                 roadmapFilter === 2
-                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+                  ? 'bg-gradient-to-r from-[#F2B705] to-[#D99B02] text-slate-950 font-bold shadow-md shadow-[#F2B705]/20'
                   : 'bg-[#090d16] border border-white/10 text-slate-400 hover:text-white hover:border-white/25'
               }`}
             >
@@ -975,7 +975,7 @@ export function InteractiveSprintCurriculum({
               }}
               className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
                 roadmapFilter === 3
-                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                  ? 'bg-gradient-to-r from-[#38B44A] to-[#2E9A3E] text-white shadow-md shadow-[#38B44A]/20'
                   : 'bg-[#090d16] border border-white/10 text-slate-400 hover:text-white hover:border-white/25'
               }`}
             >
@@ -1011,9 +1011,9 @@ export function InteractiveSprintCurriculum({
                           {d.day === 1 ? (
                             <Zap size={12} className={currentTrackMeta.color.primary} />
                           ) : d.day === 6 ? (
-                            <Flame size={12} className="text-amber-400" />
+                            <Flame size={12} className="text-[#F2B705]" />
                           ) : (
-                            <Trophy size={12} className="text-emerald-400" />
+                            <Trophy size={12} className="text-[#38B44A]" />
                           )}
                           <span>
                             {currentTrackMeta.phases[d.phase].title}
@@ -1275,13 +1275,13 @@ export function InteractiveSprintCurriculum({
                   </div>
 
                   {/* WhatsApp Mentor SLA Callout */}
-                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 flex items-center gap-3">
-                    <div className="flex size-7 items-center justify-center rounded-full bg-[#25D366] text-white shrink-0">
+                  <div className="rounded-xl border border-[#38B44A]/20 bg-[#38B44A]/10 p-3.5 flex items-center gap-3">
+                    <div className="flex size-7 items-center justify-center rounded-full bg-[#38B44A] text-white shrink-0 shadow-sm">
                       <MessageCircle size={14} />
                     </div>
                     <div className="text-xs">
                       <p className="font-bold text-white leading-none">1-on-1 Mentor Support</p>
-                      <p className="text-[11px] text-emerald-400 mt-0.5">Instant WhatsApp blocker help with &lt;15m response SLA</p>
+                      <p className="text-[11px] text-[#38B44A] mt-0.5">Instant WhatsApp blocker help with &lt;15m response SLA</p>
                     </div>
                   </div>
 
