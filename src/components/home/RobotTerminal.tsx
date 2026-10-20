@@ -113,7 +113,7 @@ export const RobotTerminal: React.FC = () => {
       const width = container.clientWidth || 480;
       const height = container.clientHeight || 560;
 
-      const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 50);
+      const camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 50);
 
       renderer = new THREE.WebGLRenderer({
         canvas,
@@ -546,7 +546,8 @@ export const RobotTerminal: React.FC = () => {
             bodyPivot.add(obj);
           });
 
-          // Center overall robot model in view
+          // Center overall robot model in view and scale up for imposing hero presence
+          robotRoot.scale.setScalar(1.30);
           const totalBox = new THREE.Box3().setFromObject(robotRoot);
           const totalCenter = new THREE.Vector3();
           totalBox.getCenter(totalCenter);
@@ -555,9 +556,9 @@ export const RobotTerminal: React.FC = () => {
           robotRoot.position.y = -totalCenter.y;
           robotRoot.position.z = -totalCenter.z;
 
-          // Position camera at a dynamic 3/4 studio angle with closer framing for larger, bold character presence
-          camera.position.set(0.65, 0.03, 0.135);
-          camera.lookAt(0, 0.015, 0);
+          // Position camera closer at a dynamic 3/4 studio angle for a much larger, bolder character presence
+          camera.position.set(0.44, 0.012, 0.075);
+          camera.lookAt(0, -0.005, 0);
 
           setIsReady(true);
         },
@@ -826,16 +827,16 @@ export const RobotTerminal: React.FC = () => {
       data-cursor="ROBOT"
       onClick={handleClick}
       onMouseEnter={() => soundFx.playBlip(540, 0.03, 'sine', 0.03)}
-      className="relative w-[340px] sm:w-[420px] md:w-[480px] lg:w-[560px] xl:w-[640px] 2xl:w-[720px] h-[500px] sm:h-[580px] md:h-[640px] lg:h-[720px] xl:h-[780px] 2xl:h-[840px] max-h-[85vh] max-w-[48vw] flex items-center justify-center select-none pointer-events-auto cursor-pointer"
+      className="relative w-[420px] sm:w-[540px] md:w-[660px] lg:w-[800px] xl:w-[960px] 2xl:w-[1120px] h-[540px] sm:h-[660px] md:h-[760px] lg:h-[880px] xl:h-[980px] 2xl:h-[1100px] max-h-[96vh] max-w-[58vw] flex items-center justify-center select-none pointer-events-auto cursor-pointer"
     >
       {/* ================= VOLUMETRIC CRIMSON BACKGROUND NEBULA ================= */}
-      <div className="pointer-events-none absolute -inset-24 -z-10 overflow-hidden">
+      <div className="pointer-events-none absolute -inset-28 -z-10 overflow-hidden">
         {/* Deep ambient red smoke core */}
-        <div className="absolute top-1/4 right-0 w-[640px] h-[640px] rounded-full bg-gradient-to-br from-red-600/40 via-red-950/30 to-transparent blur-[130px]" />
+        <div className="absolute top-1/4 right-0 w-[860px] h-[860px] rounded-full bg-gradient-to-br from-red-600/40 via-red-950/30 to-transparent blur-[160px]" />
         {/* Soft upper crimson fog plume */}
-        <div className="absolute -top-16 right-1/4 w-[480px] h-[480px] rounded-full bg-red-700/25 blur-[150px]" />
+        <div className="absolute -top-16 right-1/4 w-[640px] h-[640px] rounded-full bg-red-700/25 blur-[180px]" />
         {/* Subtle orange accent glow */}
-        <div className="absolute bottom-8 right-8 w-[360px] h-[360px] rounded-full bg-orange-600/15 blur-[110px]" />
+        <div className="absolute bottom-8 right-8 w-[500px] h-[500px] rounded-full bg-orange-600/15 blur-[140px]" />
       </div>
 
       {/* Real Three.js WebGL Canvas */}
@@ -868,14 +869,14 @@ export const RobotTerminal: React.FC = () => {
               transform: `rotateX(${fallbackTransform.pitch}deg) rotateY(${fallbackTransform.yaw}deg) rotateZ(${fallbackTransform.roll}deg)`,
             }}
           >
-            <div className="relative w-[280px] sm:w-[320px] lg:w-[350px]">
+            <div className="relative w-[360px] sm:w-[440px] lg:w-[500px]">
               {/* Canopy */}
-              <div className="relative mx-auto w-[92%] h-[36px] rounded-t-2xl bg-gradient-to-b from-[#2a2c33] via-[#1c1d22] to-[#121316] border-t border-white/20 px-6 flex items-center justify-between">
+              <div className="relative mx-auto w-[92%] h-[44px] rounded-t-2xl bg-gradient-to-b from-[#2a2c33] via-[#1c1d22] to-[#121316] border-t border-white/20 px-6 flex items-center justify-between">
                 <span className="size-1.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
                 <div className="h-1.5 w-16 rounded-full bg-[#0a0a0c] border border-white/10" />
               </div>
               {/* Housing */}
-              <div className="relative w-full h-[240px] sm:h-[260px] rounded-2xl bg-[#141518] shadow-[0_25px_60px_rgba(0,0,0,0.95)] border border-white/10 p-2.5 flex items-center justify-center">
+              <div className="relative w-full h-[290px] sm:h-[330px] rounded-2xl bg-[#141518] shadow-[0_25px_60px_rgba(0,0,0,0.95)] border border-white/10 p-2.5 flex items-center justify-center">
                 {/* Silver cheek */}
                 <div className="absolute -left-3.5 top-4 bottom-4 w-5 bg-gradient-to-r from-[#5a5e69] via-[#3d414a] to-[#25272e] rounded-l-md border-l border-white/30" />
                 {/* Screen */}
@@ -1029,14 +1030,14 @@ export const RobotTerminal: React.FC = () => {
           </div>
           {/* Fallback Torso */}
           <div
-            className="relative z-10 w-[310px] sm:w-[370px] lg:w-[420px] h-[210px] sm:h-[240px] rounded-3xl bg-gradient-to-b from-[#18191e] via-[#111215] to-[#08080a] border border-white/10 p-5 flex flex-col justify-between"
+            className="relative z-10 w-[420px] sm:w-[500px] lg:w-[580px] h-[270px] sm:h-[320px] rounded-3xl bg-gradient-to-b from-[#18191e] via-[#111215] to-[#08080a] border border-white/10 p-6 flex flex-col justify-between"
             style={{
               transform: `rotateX(${fallbackTransform.torsoPitch}deg) rotateY(${fallbackTransform.torsoYaw}deg)`,
             }}
           >
             <div className="flex items-center justify-between">
               {/* Fan */}
-              <div className="relative size-20 rounded-full bg-[#08080a] border-2 border-[#2b2d36] p-1 flex items-center justify-center">
+              <div className="relative size-28 rounded-full bg-[#08080a] border-2 border-[#2b2d36] p-1 flex items-center justify-center">
                 <div className="size-full animate-spin duration-3000">
                   <svg viewBox="0 0 100 100" className="size-full">
                     <circle cx="50" cy="50" r="12" fill="#180b0b" stroke="#ef4444" strokeWidth="1" />

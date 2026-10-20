@@ -58,7 +58,7 @@ export function LazyRobotTerminal() {
   if (!shouldRender) {
     return (
       <div
-        className="w-[320px] h-[360px] flex items-center justify-center pointer-events-none"
+        className="w-[420px] sm:w-[540px] md:w-[660px] lg:w-[800px] xl:w-[960px] 2xl:w-[1120px] h-[540px] sm:h-[660px] md:h-[760px] lg:h-[880px] xl:h-[980px] 2xl:h-[1100px] max-h-[96vh] max-w-[58vw] flex items-center justify-center pointer-events-none"
         aria-hidden="true"
       />
     );
@@ -68,7 +68,7 @@ export function LazyRobotTerminal() {
     <Suspense
       fallback={
         <div
-          className="w-[320px] h-[360px] flex items-center justify-center pointer-events-none"
+          className="w-[420px] sm:w-[540px] md:w-[660px] lg:w-[800px] xl:w-[960px] 2xl:w-[1120px] h-[540px] sm:h-[660px] md:h-[760px] lg:h-[880px] xl:h-[980px] 2xl:h-[1100px] max-h-[96vh] max-w-[58vw] flex items-center justify-center pointer-events-none"
           aria-hidden="true"
         />
       }
