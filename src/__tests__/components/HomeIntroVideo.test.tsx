@@ -10,7 +10,7 @@ describe('HomeIntroVideo Component', () => {
     window.HTMLMediaElement.prototype.pause = vi.fn();
   });
 
-  it('renders intro video with correct target URL and controls', async () => {
+  it('renders pure full-screen intro video with target URL and no overlays', async () => {
     const handleComplete = vi.fn();
     await act(async () => {
       render(<HomeIntroVideo onComplete={handleComplete} />);
@@ -21,25 +21,8 @@ describe('HomeIntroVideo Component', () => {
     expect(video).not.toBeNull();
     expect(video?.getAttribute('src')).toBe('https://iunoware.com/videos/intro.mp4');
 
-    // Controls present
-    expect(screen.getByRole('button', { name: /Skip Intro/i })).toBeInTheDocument();
-  });
-
-  it('invokes onComplete when user clicks Skip Intro', () => {
-    vi.useFakeTimers();
-    const handleComplete = vi.fn();
-    render(<HomeIntroVideo onComplete={handleComplete} />);
-
-    const skipButton = screen.getByRole('button', { name: /Skip Intro/i });
-    fireEvent.click(skipButton);
-
-    // Fast-forward exit transition timeout
-    act(() => {
-      vi.advanceTimersByTime(700);
-    });
-
-    expect(handleComplete).toHaveBeenCalledTimes(1);
-    vi.useRealTimers();
+    // Confirms no overlay buttons (e.g. SKIP button removed)
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('invokes onComplete when Escape key is pressed', () => {

@@ -100,20 +100,6 @@ export const HomeIntroVideo: React.FC<HomeIntroVideoProps> = ({ onComplete }) =>
         onError={handleFinish}
         className="w-full h-full object-cover bg-black"
       />
-
-      {/* Minimal translucent Skip button */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleFinish();
-        }}
-        title="Skip Intro"
-        aria-label="Skip Intro"
-        className="absolute top-6 right-6 z-20 rounded-full border border-white/20 bg-black/40 hover:bg-black/80 px-4 py-1.5 text-xs font-mono font-medium tracking-widest text-white/80 hover:text-white backdrop-blur-md transition-all cursor-pointer opacity-70 hover:opacity-100"
-      >
-        SKIP
-      </button>
     </div>
   );
 };
