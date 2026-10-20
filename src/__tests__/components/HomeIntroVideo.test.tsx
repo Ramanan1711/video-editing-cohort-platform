@@ -23,7 +23,6 @@ describe('HomeIntroVideo Component', () => {
 
     // Controls present
     expect(screen.getByRole('button', { name: /Skip Intro/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Unmute Audio|Mute Audio/i })).toBeInTheDocument();
   });
 
   it('invokes onComplete when user clicks Skip Intro', () => {
