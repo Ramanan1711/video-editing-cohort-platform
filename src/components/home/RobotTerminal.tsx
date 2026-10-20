@@ -146,54 +146,60 @@ export const RobotTerminal: React.FC = () => {
       fillLight.position.set(2.0, 0.8, -1.8);
       scene.add(fillLight);
 
-      // 3. Dynamic CRT Canvas Texture for the Terminal Screen
+      // 3. Dynamic CRT Canvas Texture for the Terminal Screen (Exact 1.6:1 Aspect Ratio matching screen visor)
       const screenCanvas = document.createElement('canvas');
-      screenCanvas.width = 512;
-      screenCanvas.height = 512;
+      screenCanvas.width = 640;
+      screenCanvas.height = 400;
       const sCtx = screenCanvas.getContext('2d');
 
       screenTexture = new THREE.CanvasTexture(screenCanvas);
       screenTexture.colorSpace = THREE.SRGBColorSpace;
       screenTexture.minFilter = THREE.LinearFilter;
       screenTexture.magFilter = THREE.LinearFilter;
+      screenTexture.flipY = true;
 
       const updateScreenCanvas = (timeSec: number) => {
         if (!sCtx) return;
 
         // Dark CRT glass background
-        sCtx.fillStyle = '#050203';
-        sCtx.fillRect(0, 0, 512, 512);
+        sCtx.fillStyle = '#060204';
+        sCtx.fillRect(0, 0, 640, 400);
 
         // CRT phosphor glow gradient
-        const radGlow = sCtx.createRadialGradient(256, 256, 30, 256, 256, 300);
-        radGlow.addColorStop(0, 'rgba(239, 68, 68, 0.16)');
-        radGlow.addColorStop(0.6, 'rgba(185, 28, 28, 0.05)');
+        const radGlow = sCtx.createRadialGradient(320, 200, 30, 320, 200, 360);
+        radGlow.addColorStop(0, 'rgba(239, 68, 68, 0.22)');
+        radGlow.addColorStop(0.55, 'rgba(185, 28, 28, 0.08)');
         radGlow.addColorStop(1, 'rgba(0, 0, 0, 0.98)');
         sCtx.fillStyle = radGlow;
-        sCtx.fillRect(0, 0, 512, 512);
+        sCtx.fillRect(0, 0, 640, 400);
 
-        // CRT Scanlines
-        sCtx.fillStyle = 'rgba(239, 68, 68, 0.035)';
-        for (let y = 0; y < 512; y += 4) {
-          sCtx.fillRect(0, y, 512, 2);
+        // 4px Phosphor CRT Scanlines
+        sCtx.fillStyle = 'rgba(239, 68, 68, 0.04)';
+        for (let y = 0; y < 400; y += 4) {
+          sCtx.fillRect(0, y, 640, 2);
         }
 
         const blink = Math.floor(timeSec * 2) % 2 === 0;
         const mins = Math.floor(uptimeSecondsRef.current / 60);
         const secs = uptimeSecondsRef.current % 60;
-        const uptimeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        const uptimeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         const mode = terminalModeRef.current;
 
-        // Header Background Plate
-        sCtx.fillStyle = 'rgba(220, 38, 38, 0.16)';
-        sCtx.fillRect(42, 52, 268, 32);
-        sCtx.strokeStyle = 'rgba(239, 68, 68, 0.45)';
-        sCtx.lineWidth = 1;
-        sCtx.strokeRect(42, 52, 268, 32);
+        // Screen Header: Red semi-transparent frosted plate with 1px border
+        const plateX = 36;
+        const plateY = 24;
+        const plateW = 568;
+        const plateH = 44;
 
-        // Header Text
-        sCtx.font = 'bold 15px monospace';
+        sCtx.fillStyle = 'rgba(220, 38, 38, 0.18)';
+        sCtx.fillRect(plateX, plateY, plateW, plateH);
+        sCtx.strokeStyle = 'rgba(239, 68, 68, 0.55)';
+        sCtx.lineWidth = 1;
+        sCtx.strokeRect(plateX, plateY, plateW, plateH);
+
+        // Header Text & Mode Badge
         sCtx.textBaseline = 'middle';
+        sCtx.font = 'bold 20px monospace';
         sCtx.fillStyle = '#ff4444';
 
         const headerTitle =
@@ -203,16 +209,16 @@ export const RobotTerminal: React.FC = () => {
             ? '> STUDIO 4K'
             : '> DAILY BRIEF';
 
-        sCtx.fillText(headerTitle + (blink ? '_' : ' '), 50, 68);
+        sCtx.fillText(headerTitle + (blink ? '_' : ' '), plateX + 16, plateY + plateH / 2);
 
         sCtx.textAlign = 'right';
-        sCtx.font = 'bold 12px monospace';
+        sCtx.font = 'bold 16px monospace';
         sCtx.fillStyle = '#fca5a5';
         const modeBadge = mode === 'sprint' ? '[1/3]' : mode === 'pipeline' ? '[2/3]' : '[3/3]';
-        sCtx.fillText(modeBadge, 304, 68);
+        sCtx.fillText(modeBadge, plateX + plateW - 16, plateY + plateH / 2);
         sCtx.textAlign = 'left';
 
-        // Telemetry Data Rows (Fitted strictly inside CRT visor safe zone)
+        // Telemetry Data Rows
         interface TelemetryRow {
           label: string;
           value: string;
@@ -226,8 +232,8 @@ export const RobotTerminal: React.FC = () => {
             { label: 'COHORT', value: 'VIDEO EDIT' },
             { label: 'BATCH', value: '#15 COHORT' },
             { label: 'STAGE', value: 'DAY 07 / 15', valueColor: '#fbbf24' },
-            { label: 'BRIEFS', value: '15 SYNCED', valueColor: '#4ade80' },
-            { label: 'COOLING', value: `${rpmRef.current} RPM`, valueColor: '#ffedd5' },
+            { label: 'BRIEFS', value: '15 SYNCED', valueColor: '#38B44A' },
+            { label: 'COOLING', value: `${rpmRef.current} RPM`, valueColor: '#ffffff' },
             { label: 'UPTIME', value: uptimeStr, valueColor: '#38bdf8' },
           ];
         } else if (mode === 'pipeline') {
@@ -236,63 +242,67 @@ export const RobotTerminal: React.FC = () => {
             { label: 'CANVAS', value: '4K 60FPS' },
             { label: 'AUDIO', value: '48k / 24-BIT' },
             { label: 'COLOR', value: 'REC.709 LUT', valueColor: '#fbbf24' },
-            { label: 'ENGINE', value: 'M-PRO 82%', valueColor: '#4ade80' },
-            { label: 'COOLING', value: `${rpmRef.current} RPM`, valueColor: '#ffedd5' },
+            { label: 'ENGINE', value: 'M-PRO 82%', valueColor: '#38B44A' },
+            { label: 'COOLING', value: `${rpmRef.current} RPM`, valueColor: '#ffffff' },
           ];
         } else {
           rows = [
             { label: 'BRIEF', value: 'COMMERCIAL' },
             { label: 'ASSETS', value: '4K MULTI-CAM' },
             { label: 'DUE', value: '23:59 TODAY', valueColor: '#fbbf24' },
-            { label: 'MENTOR', value: '1-ON-1 ONLINE', valueColor: '#4ade80' },
+            { label: 'MENTOR', value: '1-ON-1 ONLINE', valueColor: '#38B44A' },
             { label: 'REWARD', value: '1,450 XP', valueColor: '#fbbf24' },
-            { label: 'COOLING', value: `${rpmRef.current} RPM`, valueColor: '#ffedd5' },
+            { label: 'COOLING', value: `${rpmRef.current} RPM`, valueColor: '#ffffff' },
           ];
         }
 
-        sCtx.textBaseline = 'top';
-        const startY = 96;
-        const rowHeight = 29;
+        const startY = 82;
+        const rowHeight = 44;
+        const leftX = 48;
+        const rightX = 592;
 
         rows.forEach((row, i) => {
-          const y = startY + i * rowHeight;
+          const rowY = startY + i * rowHeight + rowHeight / 2;
 
           // Label
-          sCtx.font = 'bold 13.5px monospace';
-          sCtx.fillStyle = 'rgba(248, 113, 113, 0.9)';
-          sCtx.fillText(row.label, 48, y + 2);
+          sCtx.textBaseline = 'middle';
+          sCtx.font = 'bold 17px monospace';
+          sCtx.fillStyle = 'rgba(248, 113, 113, 0.95)';
+          sCtx.fillText(row.label, leftX, rowY);
+
+          // Value
+          sCtx.textAlign = 'right';
+          sCtx.font = 'bold 17px monospace';
+          sCtx.fillStyle = row.valueColor || '#ffffff';
+          sCtx.fillText(row.value, rightX, rowY);
+          sCtx.textAlign = 'left';
 
           // Dot leaders connecting label and value
           const labelW = sCtx.measureText(row.label).width;
           const valW = sCtx.measureText(row.value).width;
-          const dotsStart = 48 + labelW + 6;
-          const dotsEnd = 304 - valW - 6;
+          const dotsStart = leftX + labelW + 10;
+          const dotsEnd = rightX - valW - 10;
           if (dotsEnd > dotsStart + 8) {
-            const dotCount = Math.floor((dotsEnd - dotsStart) / 7);
+            const dotCount = Math.floor((dotsEnd - dotsStart) / 8);
             sCtx.fillStyle = 'rgba(239, 68, 68, 0.35)';
-            sCtx.fillText('.'.repeat(Math.max(1, dotCount)), dotsStart, y + 2);
+            sCtx.fillText('.'.repeat(Math.max(1, dotCount)), dotsStart, rowY);
           }
-
-          // Value
-          sCtx.textAlign = 'right';
-          sCtx.fillStyle = row.valueColor || '#ffffff';
-          sCtx.fillText(row.value, 304, y + 2);
-          sCtx.textAlign = 'left';
         });
 
         // Screen footer divider
-        sCtx.fillStyle = 'rgba(239, 68, 68, 0.4)';
-        sCtx.fillRect(42, 280, 268, 1);
+        sCtx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+        sCtx.fillRect(plateX, 350, plateW, 1.5);
 
-        // Screen footer hint & OS label
-        sCtx.font = 'bold 11px monospace';
+        // Screen footer: Left: JUNCA OS v2.4, Right: Blinking CLICK TO CYCLE >
+        sCtx.textBaseline = 'middle';
+        sCtx.font = 'bold 14px monospace';
         sCtx.fillStyle = 'rgba(248, 113, 113, 0.85)';
-        sCtx.fillText('JUNCA OS v2.4', 46, 290);
+        sCtx.fillText('JUNCA OS v2.4', leftX, 372);
 
         sCtx.textAlign = 'right';
-        sCtx.font = 'bold 11.5px monospace';
+        sCtx.font = 'bold 14px monospace';
         sCtx.fillStyle = blink ? '#ff4444' : '#fb923c';
-        sCtx.fillText('CLICK TO CYCLE >', 304, 290);
+        sCtx.fillText('CLICK TO CYCLE >', rightX, 372);
         sCtx.textAlign = 'left';
 
         if (screenTexture) {
@@ -425,6 +435,35 @@ export const RobotTerminal: React.FC = () => {
         'Slice.008',
       ]);
 
+      const normalizeScreenUvs = (geom: THREE.BufferGeometry) => {
+        const uv = geom.attributes.uv;
+        if (!uv) return;
+        let minU = Infinity, maxU = -Infinity;
+        let minV = Infinity, maxV = -Infinity;
+        for (let i = 0; i < uv.count; i++) {
+          const u = uv.getX(i);
+          const v = uv.getY(i);
+          if (u < minU) minU = u;
+          if (u > maxU) maxU = u;
+          if (v < minV) minV = v;
+          if (v > maxV) maxV = v;
+        }
+        const rangeU = maxU - minU;
+        const rangeV = maxV - minV;
+        if (rangeU > 0.0001 && rangeV > 0.0001) {
+          const newUv = uv.clone();
+          for (let i = 0; i < newUv.count; i++) {
+            const u = newUv.getX(i);
+            const v = newUv.getY(i);
+            const normU = (u - minU) / rangeU;
+            const normV = 1.0 - (v - minV) / rangeV;
+            newUv.setXY(i, normU, normV);
+          }
+          geom.setAttribute('uv', newUv);
+          newUv.needsUpdate = true;
+        }
+      };
+
       gltfLoader.load(
         '/robot/junca_robot.glb',
         (gltf) => {
@@ -435,14 +474,27 @@ export const RobotTerminal: React.FC = () => {
             if ((obj as THREE.Mesh).isMesh) {
               const mesh = obj as THREE.Mesh;
               if (Array.isArray(mesh.material)) {
+                let hasScreen = false;
                 mesh.material = mesh.material.map((m) => {
+                  if (m?.name === 'Screen') {
+                    hasScreen = true;
+                    return materials.Screen;
+                  }
                   if (m?.name && materials[m.name]) return materials[m.name];
                   if (m?.name?.toLowerCase().includes('glass')) return materials.mat_glass;
                   return m;
                 });
+                if (hasScreen && mesh.geometry) {
+                  normalizeScreenUvs(mesh.geometry);
+                }
               } else {
                 const matName = mesh.material?.name;
-                if (matName && materials[matName]) {
+                if (matName === 'Screen') {
+                  mesh.material = materials.Screen;
+                  if (mesh.geometry) {
+                    normalizeScreenUvs(mesh.geometry);
+                  }
+                } else if (matName && materials[matName]) {
                   mesh.material = materials[matName];
                 } else if (mesh.name.toLowerCase().includes('glass')) {
                   mesh.material = materials.mat_glass;
@@ -823,56 +875,145 @@ export const RobotTerminal: React.FC = () => {
                 <div className="h-1.5 w-16 rounded-full bg-[#0a0a0c] border border-white/10" />
               </div>
               {/* Housing */}
-              <div className="relative w-full h-[190px] sm:h-[210px] rounded-2xl bg-[#141518] shadow-[0_25px_60px_rgba(0,0,0,0.95)] border border-white/10 p-3.5 flex items-center justify-center">
+              <div className="relative w-full h-[240px] sm:h-[260px] rounded-2xl bg-[#141518] shadow-[0_25px_60px_rgba(0,0,0,0.95)] border border-white/10 p-2.5 flex items-center justify-center">
                 {/* Silver cheek */}
                 <div className="absolute -left-3.5 top-4 bottom-4 w-5 bg-gradient-to-r from-[#5a5e69] via-[#3d414a] to-[#25272e] rounded-l-md border-l border-white/30" />
                 {/* Screen */}
                 <div
-                  className="relative size-full rounded-xl bg-[#09090c] p-3 border-2 border-[#20222a] flex flex-col justify-between overflow-hidden"
+                  className="relative size-full rounded-xl bg-[#060204] p-2.5 border-2 border-[#20222a] flex flex-col justify-between overflow-hidden shadow-[inset_0_0_30px_rgba(239,68,68,0.22)]"
                   style={{ clipPath: 'polygon(2% 0%, 98% 0%, 95% 100%, 5% 100%)' }}
                 >
-                  <div className="relative size-full rounded-lg bg-[#070204] p-3 flex flex-col justify-between font-mono text-[11px] leading-relaxed text-red-400">
+                  {/* CRT Scanlines Overlay */}
+                  <div
+                    className="absolute inset-0 pointer-events-none opacity-40"
+                    style={{
+                      backgroundImage:
+                        'repeating-linear-gradient(0deg, rgba(239,68,68,0.06) 0px, rgba(239,68,68,0.06) 2px, transparent 2px, transparent 4px)',
+                    }}
+                  />
+                  <div className="relative z-10 size-full flex flex-col justify-between font-mono text-[11px] leading-relaxed">
                     <div>
-                      <div className="text-red-500 font-bold flex items-center justify-between border-b border-red-900/40 pb-1">
-                        <span>{terminalMode === 'sprint' ? '> SPRINT OS' : terminalMode === 'pipeline' ? '> STUDIO 4K' : '> DAILY BRIEF'}</span>
-                        <span className="text-[10px] text-red-300">[{terminalMode === 'sprint' ? '1/3' : terminalMode === 'pipeline' ? '2/3' : '3/3'}]</span>
+                      {/* Frosted Plate Screen Header */}
+                      <div className="bg-red-600/20 border border-red-500/50 px-2 py-1 rounded flex items-center justify-between text-red-500 font-bold text-[11px]">
+                        <span>
+                          {terminalMode === 'sprint' ? '> SPRINT OS' : terminalMode === 'pipeline' ? '> STUDIO 4K' : '> DAILY BRIEF'}
+                          <span className="animate-pulse">_</span>
+                        </span>
+                        <span className="text-[10px] text-red-300">
+                          [{terminalMode === 'sprint' ? '1/3' : terminalMode === 'pipeline' ? '2/3' : '3/3'}]
+                        </span>
                       </div>
-                      <div className="mt-1.5 space-y-0.5 text-[9.5px]">
+
+                      {/* Telemetry rows with dot leaders */}
+                      <div className="mt-2 space-y-1 text-[10px]">
                         {terminalMode === 'sprint' && (
                           <>
-                            <div className="flex justify-between"><span>COHORT</span><span className="text-white font-bold">VIDEO EDIT</span></div>
-                            <div className="flex justify-between"><span>BATCH</span><span className="text-white font-bold">#15 COHORT</span></div>
-                            <div className="flex justify-between"><span>STAGE</span><span className="text-amber-400 font-bold">DAY 07 / 15</span></div>
-                            <div className="flex justify-between"><span>BRIEFS</span><span className="text-emerald-400 font-bold">15 SYNCED</span></div>
-                            <div className="flex justify-between"><span>COOLING</span><span className="text-white font-bold">{rpm} RPM</span></div>
-                            <div className="flex justify-between"><span>UPTIME</span><span className="text-sky-400 font-bold">{uptimeDisplay}</span></div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">COHORT</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-white font-bold">VIDEO EDIT</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">BATCH</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-white font-bold">#15 COHORT</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">STAGE</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-amber-400 font-bold">DAY 07 / 15</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">BRIEFS</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-emerald-400 font-bold">15 SYNCED</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">COOLING</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-white font-bold">{rpm} RPM</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">UPTIME</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-sky-400 font-bold">{uptimeDisplay}</span>
+                            </div>
                           </>
                         )}
                         {terminalMode === 'pipeline' && (
                           <>
-                            <div className="flex justify-between"><span>CODEC</span><span className="text-white font-bold">PRORES 422</span></div>
-                            <div className="flex justify-between"><span>CANVAS</span><span className="text-white font-bold">4K 60FPS</span></div>
-                            <div className="flex justify-between"><span>AUDIO</span><span className="text-white font-bold">48k / 24-BIT</span></div>
-                            <div className="flex justify-between"><span>COLOR</span><span className="text-amber-400 font-bold">REC.709 LUT</span></div>
-                            <div className="flex justify-between"><span>ENGINE</span><span className="text-emerald-400 font-bold">M-PRO 82%</span></div>
-                            <div className="flex justify-between"><span>COOLING</span><span className="text-white font-bold">{rpm} RPM</span></div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">CODEC</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-white font-bold">PRORES 422</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">CANVAS</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-white font-bold">4K 60FPS</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">AUDIO</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-white font-bold">48k / 24-BIT</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">COLOR</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-amber-400 font-bold">REC.709 LUT</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">ENGINE</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-emerald-400 font-bold">M-PRO 82%</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">COOLING</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-white font-bold">{rpm} RPM</span>
+                            </div>
                           </>
                         )}
                         {terminalMode === 'brief' && (
                           <>
-                            <div className="flex justify-between"><span>BRIEF</span><span className="text-white font-bold">COMMERCIAL</span></div>
-                            <div className="flex justify-between"><span>ASSETS</span><span className="text-white font-bold">4K MULTI-CAM</span></div>
-                            <div className="flex justify-between"><span>DUE</span><span className="text-amber-400 font-bold">23:59 TODAY</span></div>
-                            <div className="flex justify-between"><span>MENTOR</span><span className="text-emerald-400 font-bold">1-ON-1 ONLINE</span></div>
-                            <div className="flex justify-between"><span>REWARD</span><span className="text-amber-400 font-bold">1,450 XP</span></div>
-                            <div className="flex justify-between"><span>COOLING</span><span className="text-white font-bold">{rpm} RPM</span></div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">BRIEF</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-white font-bold">COMMERCIAL</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">ASSETS</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-white font-bold">4K MULTI-CAM</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">DUE</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-amber-400 font-bold">23:59 TODAY</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">MENTOR</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-emerald-400 font-bold">1-ON-1 ONLINE</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">REWARD</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-amber-400 font-bold">1,450 XP</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-red-400 font-bold">COOLING</span>
+                              <span className="flex-1 border-b border-dotted border-red-500/30 mx-1.5 translate-y-[2px]" />
+                              <span className="text-white font-bold">{rpm} RPM</span>
+                            </div>
                           </>
                         )}
                       </div>
                     </div>
-                    <div className="flex justify-between border-t border-red-900/40 pt-1 text-[9px]">
-                      <span>JUNCA OS v2.4</span>
-                      <span className="text-red-300 font-bold">CLICK TO CYCLE &gt;</span>
+                    {/* Footer */}
+                    <div className="flex justify-between border-t border-red-500/40 pt-1.5 text-[9.5px]">
+                      <span className="text-red-400 font-bold">JUNCA OS v2.4</span>
+                      <span className="text-amber-400 font-bold animate-pulse">CLICK TO CYCLE &gt;</span>
                     </div>
                   </div>
                 </div>
