@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { SiteFooter } from '../components/SiteFooter';
 import { SiteHeader } from '../components/SiteHeader';
 import { useCohortsQuery } from '../hooks/queries/useCohortsQuery';
@@ -13,10 +13,39 @@ import { MentorshipSection } from '../components/home/sections/MentorshipSection
 import { TestimonialsSection } from '../components/home/sections/TestimonialsSection';
 import { PricingSection } from '../components/home/sections/PricingSection';
 import { HomepageAdvertisementModal } from '../components/home/HomepageAdvertisementModal';
+import { HomeIntroVideo } from '../components/home/HomeIntroVideo';
 
 export function Home() {
   useSmoothScroll();
   const { containerRef } = useGsapScrollTrigger();
+
+  // Test runner environment check (JSDOM does not support HTMLMediaElement playback)
+  const isTest = import.meta.env?.MODE === 'test';
+
+  // Show intro video on initial landing or when explicitly requested via ?intro=true
+  const [showIntro, setShowIntro] = useState(() => {
+    if (isTest || typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('intro') === 'true' || params.get('intro') === '1') return true;
+    if (params.get('skip_intro') === 'true' || params.get('skip_intro') === '1') return false;
+    return !sessionStorage.getItem('iunoware_home_intro_completed');
+  });
+
+  const handleIntroComplete = useCallback(() => {
+    setShowIntro(false);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('iunoware_home_intro_completed', 'true');
+    }
+  }, []);
+
+  // Listen for custom event to replay intro anytime
+  useEffect(() => {
+    const handleReplay = () => {
+      setShowIntro(true);
+    };
+    window.addEventListener('iunoware-replay-intro', handleReplay);
+    return () => window.removeEventListener('iunoware-replay-intro', handleReplay);
+  }, []);
 
   // Real database cohorts fetched dynamically via unified server-state query
   const { data: rawCohorts = [], isLoading: loadingCohorts, error: cohortsQueryError } = useCohortsQuery();
@@ -44,8 +73,11 @@ export function Home() {
       {/* Top GSAP Scroll Progress Indicator */}
       <div className="fixed top-0 left-0 right-0 h-[3.5px] bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-400 origin-left scale-x-0 z-[100] gsap-scroll-progress pointer-events-none shadow-[0_0_12px_rgba(249,115,22,0.9)]" />
 
-      {/* Dynamic Homepage Advertisement / Promotion (Popup, Banner or Floating Card) */}
-      <HomepageAdvertisementModal />
+      {/* Cinematic Intro Video Overlay */}
+      {showIntro && <HomeIntroVideo onComplete={handleIntroComplete} />}
+
+      {/* Dynamic Homepage Advertisement / Promotion (Popup, Banner or Floating Card) - only shown when intro is not active */}
+      {!showIntro && <HomepageAdvertisementModal />}
 
       <SiteHeader />
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Play } from 'lucide-react';
 import { soundFx } from '../../lib/soundFx';
 
 export const StudioBar: React.FC = () => {
@@ -50,14 +51,29 @@ export const StudioBar: React.FC = () => {
         <span className="font-semibold text-slate-200">{timeStr || '11:31:42 AM'}</span>
       </div>
 
-      {/* Right: Junca Turbine Sound Toggle */}
-      <button
-        type="button"
-        onClick={handleSoundToggle}
-        data-cursor={soundOn ? 'MUTE SOUND' : 'ENABLE SOUND'}
-        className="pointer-events-auto flex items-center gap-2.5 text-slate-300 hover:text-white transition-colors cursor-pointer group"
-        aria-label={soundOn ? 'Turn sound off' : 'Turn sound on'}
-      >
+      {/* Right: Intro Reel & Junca Turbine Sound Toggle */}
+      <div className="pointer-events-auto flex items-center gap-5">
+        <button
+          type="button"
+          onClick={() => {
+            soundFx.playSweep(260, 600, 0.1, 0.05);
+            window.dispatchEvent(new CustomEvent('iunoware-replay-intro'));
+          }}
+          data-cursor="REPLAY INTRO"
+          className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 transition-colors cursor-pointer"
+          title="Play cinematic intro video"
+        >
+          <Play size={11} fill="currentColor" />
+          <span>Intro Reel</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleSoundToggle}
+          data-cursor={soundOn ? 'MUTE SOUND' : 'ENABLE SOUND'}
+          className="flex items-center gap-2.5 text-slate-300 hover:text-white transition-colors cursor-pointer group"
+          aria-label={soundOn ? 'Turn sound off' : 'Turn sound on'}
+        >
         <svg
           viewBox="0 0 24 24"
           width="20"
@@ -84,5 +100,6 @@ export const StudioBar: React.FC = () => {
         </span>
       </button>
     </div>
-  );
+  </div>
+);
 };

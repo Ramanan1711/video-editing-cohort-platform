@@ -108,6 +108,18 @@ export function HeroSection({
                 <Play size={15} className="text-orange-400" fill="currentColor" />
                 <span>Inspect 15-Day Roadmap</span>
               </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  soundFx.playSweep(260, 600, 0.1, 0.05);
+                  window.dispatchEvent(new CustomEvent('iunoware-replay-intro'));
+                }}
+                data-cursor="PLAY INTRO"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-orange-500/10 border border-orange-500/25 px-5 py-3.5 text-xs font-mono font-bold text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/40 hover:text-orange-300 transition-all cursor-pointer backdrop-blur-xl"
+              >
+                <Play size={13} fill="currentColor" />
+                <span>Watch Intro</span>
+              </button>
             </div>
 
             {/* Substantiated Quality Metrics Banner */}
