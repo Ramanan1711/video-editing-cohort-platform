@@ -1,4 +1,3 @@
-import '../deno.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
 import { z } from 'https://deno.land/x/zod/mod.ts';
 
@@ -37,6 +36,7 @@ export const VerifyPaymentSchema = z
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://platform.iunoware.com',
   'https://staging.iunoware.com',
+  'https://video-editing-cohort-platform.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:4173',
@@ -51,7 +51,10 @@ export function isOriginAllowed(origin: string): boolean {
     .filter(Boolean);
   const allowlist = [...DEFAULT_ALLOWED_ORIGINS, ...configured];
   if (allowlist.includes(origin)) return true;
-  return /^https:\/\/([a-zA-Z0-9-]+\.)*iunoware\.com$/.test(origin);
+  return (
+    /^https:\/\/([a-zA-Z0-9-]+\.)*iunoware\.com$/.test(origin) ||
+    /^https:\/\/([a-zA-Z0-9-]+\.)*vercel\.app$/.test(origin)
+  );
 }
 
 export function getCorsHeaders(req: Request) {

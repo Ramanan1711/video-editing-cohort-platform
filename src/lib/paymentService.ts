@@ -319,9 +319,15 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
       );
     }
 
-    // Production safety lock: prohibit test keys in production unless explicitly permitted for staging
+    // Production safety lock: prohibit test keys in production unless on Vercel preview/staging or explicitly permitted
+    const isVercelOrStaging =
+      typeof window !== 'undefined' &&
+      (window.location.hostname.endsWith('vercel.app') ||
+        window.location.hostname.includes('staging'));
+
     if (
       import.meta.env.PROD &&
+      !isVercelOrStaging &&
       effectiveKey.startsWith('rzp_test_') &&
       import.meta.env.VITE_ALLOW_TEST_PAYMENTS_IN_PROD !== 'true'
     ) {
