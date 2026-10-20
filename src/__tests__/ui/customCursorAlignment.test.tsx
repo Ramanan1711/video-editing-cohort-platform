@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, act, fireEvent } from '@testing-library/react';
 import { CustomCursor } from '../../components/home/CustomCursor';
+import { soundFx } from '../../lib/soundFx';
 
 describe('4.3 Custom Cursor Top-Left Alignment & Pointer Calibration', () => {
   let rafCallbacks: Map<number, (time: number) => void> = new Map();
@@ -95,6 +96,37 @@ describe('4.3 Custom Cursor Top-Left Alignment & Pointer Calibration', () => {
     });
 
     expect(container.textContent).toContain('EXPLORE');
+  });
+
+  it('triggers soundFx.playBlip when hovering over interactive elements', () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({
+      matches: query.includes('fine'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    const playBlipSpy = vi.spyOn(soundFx, 'playBlip');
+
+    const { container } = render(
+      <div>
+        <CustomCursor />
+        <button type="button">Click Me</button>
+      </div>
+    );
+
+    const button = container.querySelector('button')!;
+
+    act(() => {
+      fireEvent.mouseMove(button, { clientX: 100, clientY: 100 });
+      flushRaf(100);
+    });
+
+    expect(playBlipSpy).toHaveBeenCalled();
   });
 
   it('remains disabled on touch devices or when prefers-reduced-motion is active', () => {

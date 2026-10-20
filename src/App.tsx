@@ -16,6 +16,7 @@ import { WorkspaceShell } from './components/WorkspaceShell';
 import { Unauthorized } from './pages/Unauthorized';
 import { LoaderCircle } from 'lucide-react';
 import { QueryClientProvider } from './lib/serverState';
+import { CustomCursor } from './components/home/CustomCursor';
 
 // Dynamic lazy imports for admin, mentor, and complex feature pages
 const AdminCourses = lazy(() => import('./pages/AdminCourses').then((m) => ({ default: m.AdminCourses })));
@@ -242,6 +243,7 @@ export function App() {
             <ToastProvider>
               <SidebarProvider>
                 <BrowserRouter>
+                  <CustomCursor />
                   <AnimatedRoutes />
                 </BrowserRouter>
               </SidebarProvider>

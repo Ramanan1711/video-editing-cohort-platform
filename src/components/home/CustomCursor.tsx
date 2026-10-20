@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
+import { soundFx } from '../../lib/soundFx';
 
 export const CustomCursor: React.FC = () => {
   const [enabled, setEnabled] = useState(false);
@@ -10,6 +11,8 @@ export const CustomCursor: React.FC = () => {
   const posRef = useRef({ x: -100, y: -100, targetX: -100, targetY: -100 });
   const cursorRef = useRef<HTMLDivElement>(null);
   const rafId = useRef<number | null>(null);
+  const lastInteractiveTargetRef = useRef<HTMLElement | null>(null);
+  const lastSoundTimeRef = useRef<number>(0);
 
   useEffect(() => {
     // Only enable on desktop pointer devices
@@ -28,23 +31,55 @@ export const CustomCursor: React.FC = () => {
       posRef.current.targetX = e.clientX;
       posRef.current.targetY = e.clientY;
 
-      // Check if hovering over element with data-cursor attribute
       const target = e.target as HTMLElement | null;
-      const cursorTarget = typeof target?.closest === 'function' ? target.closest<HTMLElement>('[data-cursor]') : null;
+      if (!target || typeof target.closest !== 'function') {
+        setCursorText(null);
+        setIsHoveringInteractive(false);
+        lastInteractiveTargetRef.current = null;
+        return;
+      }
+
+      // Check if hovering over element with explicit custom cursor label
+      const cursorTarget = target.closest<HTMLElement>('[data-cursor]');
+
+      // Check for any interactive element across the UI
+      const interactiveTarget =
+        cursorTarget ||
+        target.closest<HTMLElement>(
+          'a, button, input, select, textarea, [role="button"], [role="tab"], [role="menuitem"], .cursor-pointer, [tabindex="0"]'
+        );
 
       if (cursorTarget) {
         const text = cursorTarget.getAttribute('data-cursor');
         setCursorText(text || 'VIEW');
         setIsHoveringInteractive(true);
+      } else if (interactiveTarget) {
+        setCursorText(null);
+        setIsHoveringInteractive(true);
       } else {
         setCursorText(null);
         setIsHoveringInteractive(false);
+      }
+
+      // Audio feedback when transitioning into a new interactive target
+      if (interactiveTarget) {
+        if (interactiveTarget !== lastInteractiveTargetRef.current) {
+          lastInteractiveTargetRef.current = interactiveTarget;
+          const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          if (now - lastSoundTimeRef.current > 40) {
+            lastSoundTimeRef.current = now;
+            soundFx.playBlip(520, 0.02, 'sine', 0.015);
+          }
+        }
+      } else {
+        lastInteractiveTargetRef.current = null;
       }
     };
 
     const handleMouseLeave = () => {
       setIsHoveringInteractive(false);
       setCursorText(null);
+      lastInteractiveTargetRef.current = null;
     };
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
@@ -77,7 +112,7 @@ export const CustomCursor: React.FC = () => {
   return (
     <div
       ref={cursorRef}
-      className="pointer-events-none fixed top-0 left-0 z-50 will-change-transform select-none transition-opacity duration-300"
+      className="pointer-events-none fixed top-0 left-0 z-[9999] will-change-transform select-none transition-opacity duration-300"
       style={{
         opacity: hasMoved ? 1 : 0,
       }}

@@ -18,9 +18,12 @@ import {
   GraduationCap,
   Home,
   User,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import { useTheme } from '../../context/useTheme';
+import { soundFx } from '../../lib/soundFx';
 import { UserProfileDropdown } from '../UserProfileDropdown';
 import { NotificationCenter } from '../NotificationCenter';
 import { BRAND_LOGO_URL } from '../../constants/branding';
@@ -48,11 +51,23 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
 }) => {
   const { user, profile } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
+  const [sfxEnabled, setSfxEnabled] = useState(() => soundFx.isEnabled());
   const location = useLocation();
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   const [showAppLauncher, setShowAppLauncher] = useState(false);
   const launcherRef = useRef<HTMLDivElement>(null);
   useModalScrollLock(navDrawerOpen);
+
+  useEffect(() => {
+    return soundFx.subscribe((enabled) => {
+      setSfxEnabled(enabled);
+    });
+  }, []);
+
+  const handleToggleSfx = () => {
+    const next = soundFx.toggle();
+    setSfxEnabled(next);
+  };
 
   // Close App Launcher when clicking outside
   useEffect(() => {
@@ -311,6 +326,21 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
 
         {/* Right: Actions & User Avatar */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Sound Mode Toggle */}
+          <button
+            type="button"
+            onClick={handleToggleSfx}
+            title={sfxEnabled ? 'Mute sound effects' : 'Enable sound effects'}
+            aria-label={sfxEnabled ? 'Sound effects enabled. Click to mute.' : 'Sound effects muted. Click to enable.'}
+            className="rounded-xl p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition cursor-pointer"
+          >
+            {sfxEnabled ? (
+              <Volume2 size={18} className="text-orange-500" />
+            ) : (
+              <VolumeX size={18} className="text-slate-400" />
+            )}
+          </button>
+
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleTheme}

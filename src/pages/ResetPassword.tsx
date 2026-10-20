@@ -12,7 +12,6 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/FormField';
-import { CustomCursor } from '../components/home/CustomCursor';
 import { StudioBar } from '../components/home/StudioBar';
 import { TiltCard } from '../components/home/TiltCard';
 import { soundFx } from '../lib/soundFx';
@@ -241,9 +240,6 @@ export const ResetPassword: React.FC = () => {
 
   return (
     <div className="relative min-h-screen bg-[#030712] text-slate-100 font-sans selection:bg-orange-500 selection:text-white overflow-x-hidden film-grain flex flex-col justify-between">
-      {/* Custom Magnetic Cursor */}
-      <CustomCursor />
-
       {/* Atmospheric crimson & amber volumetric lighting */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_75%_55%_at_70%_35%,rgba(220,38,38,0.22),transparent_70%)]" />
       <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-red-600/10 blur-[140px]" />

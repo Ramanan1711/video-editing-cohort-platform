@@ -4,6 +4,7 @@
 class SoundFxService {
   private ctx: AudioContext | null = null;
   private enabled: boolean = false;
+  private lastBlipTime: number = 0;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -83,6 +84,9 @@ class SoundFxService {
   // Soft high-tech mechanical blip / click (ideal for hover and mode change)
   public playBlip(freq = 440, duration = 0.04, type: OscillatorType = 'sine', gainVal = 0.05) {
     if (!this.enabled) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (now - this.lastBlipTime < 25) return;
+    this.lastBlipTime = now;
     try {
       this.initContext();
       if (!this.ctx) return;

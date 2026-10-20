@@ -3,7 +3,6 @@ import { SiteFooter } from '../components/SiteFooter';
 import { SiteHeader } from '../components/SiteHeader';
 import { useCohortsQuery } from '../hooks/queries/useCohortsQuery';
 import { DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../lib/paymentService';
-import { CustomCursor } from '../components/home/CustomCursor';
 import { StudioBar } from '../components/home/StudioBar';
 import { useSmoothScroll } from '../lib/scroll/useSmoothScroll';
 import { useGsapScrollTrigger } from '../hooks/useGsapScrollTrigger';
@@ -47,9 +46,6 @@ export function Home() {
 
       {/* Dynamic Homepage Advertisement / Promotion (Popup, Banner or Floating Card) */}
       <HomepageAdvertisementModal />
-
-      {/* Junca Studio-inspired custom magnetic cursor follower */}
-      <CustomCursor />
 
       <SiteHeader />
 
