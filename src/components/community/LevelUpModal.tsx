@@ -536,7 +536,7 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
                 </div>
 
                 {/* Scrollable Leaderboard List */}
-                <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+                <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-none">
                   {loadingMembers && members.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-slate-400 gap-2">
                       <Loader2 size={24} className="animate-spin text-amber-500" />
