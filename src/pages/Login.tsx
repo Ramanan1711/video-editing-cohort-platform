@@ -3,6 +3,8 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   CheckCircle2,
+  Eye,
+  EyeOff,
   Mail,
   RefreshCw,
   Sparkles,
@@ -25,6 +27,7 @@ import { BRAND_LOGO_URL } from '../constants/branding';
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isNetworkError, setIsNetworkError] = useState(false);
@@ -352,15 +355,35 @@ export const Login: React.FC = () => {
                     Forgot password?
                   </Link>
                 </div>
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your password"
-                  className="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
-                />
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Your password"
+                    className="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 pr-11 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3.5">
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowPassword((prev) => !prev);
+                      }}
+                      className="text-slate-400 hover:text-white transition-colors p-1 focus:outline-none cursor-pointer"
+                      aria-label={showPassword ? 'Hide' : 'Show'}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <Button

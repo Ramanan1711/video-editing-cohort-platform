@@ -1,10 +1,11 @@
-import type { InputHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, ReactNode } from 'react';
 
 interface FormFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   hint?: string;
   labelClassName?: string;
   inputClassName?: string;
+  rightElement?: ReactNode;
 }
 
 export function FormField({
@@ -15,6 +16,7 @@ export function FormField({
   labelClassName,
   inputClassName,
   required,
+  rightElement,
   ...props
 }: FormFieldProps) {
   const mergedInputClass =
@@ -28,13 +30,20 @@ export function FormField({
         {label}
         {required && <span className="ml-1 text-red-500" aria-hidden="true">*</span>}
       </span>
-      <input
-        id={id}
-        aria-label={props['aria-label'] || label}
-        required={required}
-        className={`w-full rounded-xl px-4 py-3 text-sm outline-none transition ${mergedInputClass}`}
-        {...props}
-      />
+      <div className="relative">
+        <input
+          id={id}
+          aria-label={props['aria-label'] || label}
+          required={required}
+          className={`w-full rounded-xl px-4 py-3 text-sm outline-none transition ${rightElement ? 'pr-11' : ''} ${mergedInputClass}`}
+          {...props}
+        />
+        {rightElement && (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3.5">
+            {rightElement}
+          </div>
+        )}
+      </div>
       {hint && <span className="mt-1.5 block text-xs text-slate-400 dark:text-slate-500">{hint}</span>}
     </label>
   );

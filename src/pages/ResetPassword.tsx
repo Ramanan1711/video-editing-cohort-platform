@@ -4,6 +4,8 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  Eye,
+  EyeOff,
   KeyRound,
   Lock,
   RefreshCw,
@@ -20,6 +22,8 @@ import { BRAND_LOGO_URL } from '../constants/branding';
 export const ResetPassword: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -481,25 +485,61 @@ export const ResetPassword: React.FC = () => {
                   <FormField
                     id="new-password"
                     label="New password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="At least 6 characters"
                     labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
                     inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                    rightElement={
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowPassword((prev) => !prev);
+                        }}
+                        className="text-slate-400 hover:text-white transition-colors p-1 focus:outline-none cursor-pointer"
+                        aria-label={showPassword ? 'Hide' : 'Show'}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    }
                   />
 
                   <FormField
                     id="confirm-password"
                     label="Confirm new password"
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter your new password"
                     labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
                     inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                    rightElement={
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowConfirmPassword((prev) => !prev);
+                        }}
+                        className="text-slate-400 hover:text-white transition-colors p-1 focus:outline-none cursor-pointer"
+                        aria-label={showConfirmPassword ? 'Hide' : 'Show'}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    }
                   />
 
                   <Button

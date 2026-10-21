@@ -3,6 +3,8 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   CheckCircle2,
+  Eye,
+  EyeOff,
   Mail,
   RefreshCw,
   Sparkles,
@@ -29,6 +31,8 @@ export const Register: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isNetworkError, setIsNetworkError] = useState(false);
@@ -584,7 +588,7 @@ export const Register: React.FC = () => {
                 id="register-password"
                 aria-label="Password"
                 label="Password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 minLength={6}
                 required
                 value={password}
@@ -592,12 +596,30 @@ export const Register: React.FC = () => {
                 placeholder="At least 6 characters"
                 labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
                 inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                rightElement={
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowPassword((prev) => !prev);
+                    }}
+                    className="text-slate-400 hover:text-white transition-colors p-1 focus:outline-none cursor-pointer"
+                    aria-label={showPassword ? 'Hide' : 'Show'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                }
               />
               <FormField
                 id="register-confirm-password"
                 aria-label="Confirm Password"
                 label="Confirm Password"
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 minLength={6}
                 required
                 value={confirmPassword}
@@ -605,6 +627,24 @@ export const Register: React.FC = () => {
                 placeholder="Re-enter your password"
                 labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
                 inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                rightElement={
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowConfirmPassword((prev) => !prev);
+                    }}
+                    className="text-slate-400 hover:text-white transition-colors p-1 focus:outline-none cursor-pointer"
+                    aria-label={showConfirmPassword ? 'Hide' : 'Show'}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                }
               />
 
               <div className="rounded-2xl border border-white/10 bg-[#060913]/80 p-3.5 text-xs text-slate-400">
