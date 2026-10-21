@@ -1,9 +1,5 @@
-import { useState } from 'react';
 import {
-  Award,
-  CheckCircle2,
   Clock,
-  Code2,
   Download,
   FileText,
   Flame,
@@ -11,16 +7,11 @@ import {
   Play,
   Sparkles,
   Video,
-  Zap,
 } from 'lucide-react';
 import { TiltCard } from '../TiltCard';
 import { InteractiveSprintCurriculum } from '../InteractiveSprintCurriculum';
-import { soundFx } from '../../../lib/soundFx';
 
 export function CurriculumSection() {
-  const [selectedTrack, setSelectedTrack] = useState<'coding' | 'creative'>('creative');
-  const [activeSprintPhase, setActiveSprintPhase] = useState<'p1' | 'p2' | 'p3'>('p1');
-
   return (
     <>
       {/* ========================================================================= */}
@@ -121,267 +112,11 @@ export function CurriculumSection() {
       </section>
 
       {/* ========================================================================= */}
-      {/* SECTION 3: THE 2 SPECIALIZED PRODUCTION TRACKS */}
+      {/* SECTION 3: COMPLETE 15-DAY DAILY ARCHITECTURE ROADMAP */}
       {/* ========================================================================= */}
-      <section id="tracks" className="border-t border-white/10 bg-[#060911] py-20 lg:py-28 relative">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12 gsap-header-reveal">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F2B705]">
-              Specialized Disciplines
-            </p>
-            <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-white">
-              Choose Your 15-Day Production Track
-            </h2>
-            <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-              Both tracks share the same high-velocity 24-hour daily task structure and 1:1 WhatsApp mentorship.
-            </p>
-
-            {/* Track Selector Buttons */}
-            <div className="mt-8 inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-[#090d16] p-1.5 shadow-2xl">
-              <button
-                type="button"
-                data-cursor="TRACK: CREATIVE"
-                onClick={() => {
-                  setSelectedTrack('creative');
-                  soundFx.playSweep(260, 520, 0.08, 0.04);
-                }}
-                className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black transition cursor-pointer ${
-                  selectedTrack === 'creative'
-                    ? 'bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] text-white shadow-lg shadow-[#B92B27]/25'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Video size={16} />
-                <span>Creative Video &amp; Kinetic Motion</span>
-              </button>
-              <button
-                type="button"
-                data-cursor="TRACK: CODING"
-                onClick={() => {
-                  setSelectedTrack('coding');
-                  soundFx.playSweep(340, 680, 0.08, 0.04);
-                }}
-                className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black transition cursor-pointer ${
-                  selectedTrack === 'coding'
-                    ? 'bg-gradient-to-r from-[#2675EB] to-[#1B5FCC] text-white shadow-lg shadow-[#2675EB]/25'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Code2 size={16} />
-                <span>Coding &amp; Full Stack Software</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Track Content Showcase */}
-          {selectedTrack === 'creative' ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#B92B27]/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#B92B27]/15 border border-[#B92B27]/30 text-[#D93830]">
-                  <Play size={20} />
-                </div>
-                <h3 className="text-base font-black text-white">Kinetic Typography &amp; Motion</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Design modern animated captions, subtitle timing, bezier motion easing, and title cards that elevate brand storytelling.
-                </p>
-                <ul className="text-xs text-slate-300 space-y-2 pt-2 border-t border-white/10">
-                  <li className="flex items-center gap-2 text-slate-200">✓ After Effects Bezier Curves</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ Dynamic Kinetic Subtitle Timing</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ Custom Lower Thirds &amp; Overlays</li>
-                </ul>
-                <span className="inline-block text-[11px] font-bold text-[#D93830] pt-2 font-mono">Days 1–5 Deliverables →</span>
-              </TiltCard>
-
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#F2B705]/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#F2B705]/15 border border-[#F2B705]/30 text-[#F2B705]">
-                  <Sparkles size={20} />
-                </div>
-                <h3 className="text-base font-black text-white">DaVinci Resolve Color &amp; Audio</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Primary and secondary color correction, skin-tone isolation, LUT design, audio ducking, and multi-track whoosh sound design.
-                </p>
-                <ul className="text-xs text-slate-300 space-y-2 pt-2 border-t border-white/10">
-                  <li className="flex items-center gap-2 text-slate-200">✓ Node-Based Color Primaries</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ Sub-Mix Audio Mastering (-14 LUFS)</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ Risers, Impacts &amp; Atmosphere</li>
-                </ul>
-                <span className="inline-block text-[11px] font-bold text-[#F2B705] pt-2 font-mono">Days 6–10 Deliverables →</span>
-              </TiltCard>
-
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#38B44A]/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#38B44A]/15 border border-[#38B44A]/30 text-[#38B44A]">
-                  <CheckCircle2 size={20} />
-                </div>
-                <h3 className="text-base font-black text-white">Commercial Reel &amp; Final Cut</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Synthesize your work into a high-retention 60-second commercial cut for real portfolio defense with creative directors.
-                </p>
-                <ul className="text-xs text-slate-300 space-y-2 pt-2 border-t border-white/10">
-                  <li className="flex items-center gap-2 text-slate-200">✓ Fast Narrative Retention Pacing</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ Professional Client Handoff Specs</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ Verified Portfolio Defense</li>
-                </ul>
-                <span className="inline-block text-[11px] font-bold text-[#38B44A] pt-2 font-mono">Days 11–15 Capstone →</span>
-              </TiltCard>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#2675EB]/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#2675EB]/15 border border-[#2675EB]/30 text-[#2675EB]">
-                  <Code2 size={20} />
-                </div>
-                <h3 className="text-base font-black text-white">React 19 &amp; Modern TypeScript</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Build production-grade web interfaces with strict type safety, optimistic UI patterns, and modular Tailwind architectures.
-                </p>
-                <ul className="text-xs text-slate-300 space-y-2 pt-2 border-t border-white/10">
-                  <li className="flex items-center gap-2 text-slate-200">✓ Strict TS Types &amp; Generics</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ Optimistic UI &amp; State Reducers</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ Tailwind Component Systems</li>
-                </ul>
-                <span className="inline-block text-[11px] font-bold text-[#2675EB] pt-2 font-mono">Days 1–5 Deliverables →</span>
-              </TiltCard>
-
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#B92B27]/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#B92B27]/15 border border-[#B92B27]/30 text-[#D93830]">
-                  <Zap size={20} />
-                </div>
-                <h3 className="text-base font-black text-white">Supabase Backend &amp; Real-time APIs</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Design PostgreSQL relational schemas, write robust Row-Level Security policies, and integrate live WebSocket feeds.
-                </p>
-                <ul className="text-xs text-slate-300 space-y-2 pt-2 border-t border-white/10">
-                  <li className="flex items-center gap-2 text-slate-200">✓ PostgreSQL Relations &amp; Foreign Keys</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ Secure Row-Level Security Policies</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ Live WebSocket Subscriptions</li>
-                </ul>
-                <span className="inline-block text-[11px] font-bold text-[#D93830] pt-2 font-mono">Days 6–10 Deliverables →</span>
-              </TiltCard>
-
-              <TiltCard maxTilt={5} data-cursor="INSPECT MODULE" className="glass-obsidian p-6 border-white/10 hover:border-[#38B44A]/40 space-y-4 shadow-xl transition-all">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-[#38B44A]/15 border border-[#38B44A]/30 text-[#38B44A]">
-                  <Award size={20} />
-                </div>
-                <h3 className="text-base font-black text-white">Full-Stack SaaS Capstone on Vercel</h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Deploy a fully tested, production-grade web application with CI previews, unit test suites, and audited PR code.
-                </p>
-                <ul className="text-xs text-slate-300 space-y-2 pt-2 border-t border-white/10">
-                  <li className="flex items-center gap-2 text-slate-200">✓ Production Custom Domain on Vercel</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ Vitest &amp; Cypress End-to-End Suite</li>
-                  <li className="flex items-center gap-2 text-slate-200">✓ GitHub PR Review &amp; Code Defense</li>
-                </ul>
-                <span className="inline-block text-[11px] font-bold text-[#38B44A] pt-2 font-mono">Days 11–15 Capstone →</span>
-              </TiltCard>
-            </div>
-          )}
-
-          {/* 3-Phase Stepper Tabs for Sprints */}
-          <div className="mt-14 pt-12 border-t border-white/10">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div>
-                <h3 className="text-lg font-black text-white">The 3 Progressive Sprint Phases</h3>
-                <p className="text-xs text-slate-400">Step by step from foundational momentum to industry-grade capstone proof.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  data-cursor="PHASE 01"
-                  onClick={() => {
-                    setActiveSprintPhase('p1');
-                    soundFx.playBlip(320, 0.04, 'sine', 0.04);
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
-                    activeSprintPhase === 'p1' ? 'bg-gradient-to-r from-[#B92B27] to-[#D93830] text-white shadow-md shadow-[#B92B27]/25' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Phase 1 (Days 1–5)
-                </button>
-                <button
-                  type="button"
-                  data-cursor="PHASE 02"
-                  onClick={() => {
-                    setActiveSprintPhase('p2');
-                    soundFx.playBlip(420, 0.04, 'sine', 0.04);
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
-                    activeSprintPhase === 'p2' ? 'bg-gradient-to-r from-[#F2B705] to-[#D99B02] text-slate-950 shadow-md shadow-[#F2B705]/25 font-bold' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Phase 2 (Days 6–10)
-                </button>
-                <button
-                  type="button"
-                  data-cursor="PHASE 03"
-                  onClick={() => {
-                    setActiveSprintPhase('p3');
-                    soundFx.playBlip(560, 0.04, 'sine', 0.04);
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
-                    activeSprintPhase === 'p3' ? 'bg-gradient-to-r from-[#38B44A] to-[#2E9A3E] text-white shadow-md shadow-[#38B44A]/25' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Phase 3 (Days 11–15)
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              {activeSprintPhase === 'p1' ? (
-                <>
-                  <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-[#D93830] font-mono">Day 01–02: Workspace &amp; Mechanics</p>
-                    <p className="mt-1 text-slate-400">Clone repositories, configure shortcut mapping, and build muscle memory.</p>
-                  </div>
-                  <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-[#D93830] font-mono">Day 03–04: Reactive Motion &amp; State</p>
-                    <p className="mt-1 text-slate-400">Keyframe typography or connect backend data flows with optimistic updates.</p>
-                  </div>
-                  <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-[#D93830] font-mono">Day 05: Phase Checkpoint Audit</p>
-                    <p className="mt-1 text-slate-400">First formal mentor scoring (0–100) and written critique feedback.</p>
-                  </div>
-                </>
-              ) : activeSprintPhase === 'p2' ? (
-                <>
-                  <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-[#F2B705] font-mono">Day 06–07: Depth &amp; Subsystems</p>
-                    <p className="mt-1 text-slate-400">Complex sound design layers or multi-table PostgreSQL relational queries.</p>
-                  </div>
-                  <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-[#F2B705] font-mono">Day 08–09: Retention &amp; Mobile Web</p>
-                    <p className="mt-1 text-slate-400">Pacing drop-off prevention and high-performance mobile viewport responsiveness.</p>
-                  </div>
-                  <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-[#F2B705] font-mono">Day 10: Halfway Live Review</p>
-                    <p className="mt-1 text-slate-400">Live Zoom workshop with mentors tearing down student timelines &amp; code.</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-[#38B44A] font-mono">Day 11–13: The Commercial Capstone</p>
-                    <p className="mt-1 text-slate-400">48-hour deep sprint turning real client briefs into a showcase deliverable.</p>
-                  </div>
-                  <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-[#38B44A] font-mono">Day 14: Final Polish &amp; Loom Audit</p>
-                    <p className="mt-1 text-slate-400">Submit video walkthrough explaining architectural &amp; editorial choices.</p>
-                  </div>
-                  <div className="p-4 rounded-xl border border-white/10 bg-[#090d16]/80 text-slate-300 shadow-md">
-                    <p className="font-black text-[#38B44A] font-mono">Day 15: Graduation &amp; LOR</p>
-                    <p className="mt-1 text-slate-400">Receive verified digital certificate and mentor recommendation letter.</p>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* SECTION 4: COMPLETE 15-DAY DAILY ARCHITECTURE ROADMAP */}
-      {/* ========================================================================= */}
-      <InteractiveSprintCurriculum />
+      <div id="tracks">
+        <InteractiveSprintCurriculum />
+      </div>
 
       {/* ========================================================================= */}
       {/* SECTION 5: STARTER PACKS & ASSET VAULT INCLUDED */}
@@ -429,14 +164,14 @@ export function CurriculumSection() {
 
             <TiltCard maxTilt={6} className="glass-obsidian p-6 border-white/10 space-y-4 shadow-xl">
               <div className="flex size-10 items-center justify-center rounded-xl bg-[#2675EB]/15 border border-[#2675EB]/30 text-[#2675EB]">
-                <Code2 size={18} />
+                <Sparkles size={18} />
               </div>
-              <h3 className="text-base font-black text-white">Full-Stack Starter Repos</h3>
+              <h3 className="text-base font-black text-white">Motion Presets &amp; Project Files</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Pre-configured React 19 + Supabase starter templates with Tailwind CSS, TypeScript, Vitest test runners, and authentication pre-wired.
+                Pre-built Premiere Pro (.prproj), DaVinci Resolve (.drp), and After Effects (.aep) project templates with kinetic MOGRTs and transition curves.
               </p>
               <div className="text-[11px] font-bold text-[#2675EB] pt-2 border-t border-white/10 font-mono">
-                GitHub Template Repos
+                MOGRT &amp; DRFX Studio Templates
               </div>
             </TiltCard>
 

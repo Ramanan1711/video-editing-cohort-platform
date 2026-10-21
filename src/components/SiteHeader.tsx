@@ -45,9 +45,9 @@ export function SiteHeader() {
   };
 
   const links = [
-    { label: '15-Day Sprint', href: '#sprint' },
     { label: 'How It Works', href: '#how-it-works' },
-    { label: 'Tracks', href: '#tracks' },
+    { label: '15-Day Sprint', href: '#sprint' },
+    { label: 'Asset Vault', href: '#assets' },
     { label: 'WhatsApp Mentorship', href: '#mentorship' },
     { label: 'Pricing', href: '#pricing' },
     { label: 'FAQ', href: '#faq' },

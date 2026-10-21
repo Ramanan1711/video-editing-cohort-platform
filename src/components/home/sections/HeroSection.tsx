@@ -84,7 +84,7 @@ export function HeroSection({
 
             {/* Subtitle */}
             <p className="mt-6 max-w-2xl text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
-              An intensive 15-day sprint for aspiring developers and creative editors. Solve real production briefs daily, get 1-on-1 mentor guidance via WhatsApp, and graduate with a portfolio-grade project and accredited recommendation.
+              An intensive 15-day sprint for ambitious video editors and motion designers. Solve real production briefs daily, get 1-on-1 mentor guidance via WhatsApp, and graduate with a portfolio-grade project and accredited recommendation.
             </p>
 
             {/* CTA Buttons */}
@@ -424,7 +424,7 @@ export function HeroSection({
                 Next Sprint Cycle Opening Soon
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Both our <strong>Full-Stack Software</strong> and <strong>Creative Video Editing</strong> 15-day sprint tracks are open for candidate registration.
+                Our flagship <strong>15-Day Creative Video Editing and Motion Sprint</strong> cohorts are open for candidate registration.
               </p>
               <Button href="/register" size="sm" className="bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] text-white font-bold border-none">
                 Pre-Register for Next Batch

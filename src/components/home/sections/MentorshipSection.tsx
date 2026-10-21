@@ -5,7 +5,7 @@ import { soundFx } from '../../../lib/soundFx';
 import { BRAND_LOGO_URL } from '../../../constants/branding';
 
 export function MentorshipSection() {
-  const [activeChatScenario, setActiveChatScenario] = useState<'code' | 'video' | 'nudge'>('video');
+  const [activeChatScenario, setActiveChatScenario] = useState<'audio' | 'video' | 'nudge'>('video');
 
   return (
     <>
@@ -27,7 +27,7 @@ export function MentorshipSection() {
                 A Senior Mentor in Your Pocket via WhatsApp.
               </h2>
               <p className="mt-4 text-sm text-slate-400 leading-relaxed">
-                No impersonal forums or ticket systems that take days to answer. With Iunoware Academy, you communicate directly with an assigned lead engineer or senior video editor.
+                No impersonal forums or ticket systems that take days to answer. With Iunoware Academy, you communicate directly with an assigned senior video editor and creative director.
               </p>
 
               <div className="mt-8 space-y-4">
@@ -46,8 +46,8 @@ export function MentorshipSection() {
                     <Check size={13} />
                   </span>
                   <div>
-                    <p className="text-xs font-black text-white">Voice-Note Code &amp; Timeline Audits</p>
-                    <p className="text-xs text-slate-400">Mentors send 30-second voice notes pointing out exact timestamps and lines to refine.</p>
+                    <p className="text-xs font-black text-white">Voice-Note Timeline &amp; Color Audits</p>
+                    <p className="text-xs text-slate-400">Mentors send 30-second voice notes pointing out exact timestamps and cut points to refine.</p>
                   </div>
                 </div>
 
@@ -87,16 +87,16 @@ export function MentorshipSection() {
                     type="button"
                     data-cursor="TEST CHAT"
                     onClick={() => {
-                      setActiveChatScenario('code');
+                      setActiveChatScenario('audio');
                       soundFx.playBlip(520, 0.04, 'sine', 0.04);
                     }}
                     className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
-                      activeChatScenario === 'code'
+                      activeChatScenario === 'audio'
                         ? 'bg-gradient-to-r from-[#2675EB] to-[#1B5FCC] text-white shadow-lg shadow-[#2675EB]/25 ring-1 ring-[#2675EB]'
                         : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'
                     }`}
                   >
-                    Code Bug Triage
+                    Audio &amp; Mix Triage
                   </button>
                   <button
                     type="button"
@@ -153,18 +153,18 @@ export function MentorshipSection() {
                       &quot;Check your vector scope skin line. Drop node 2 hue-vs-hue slightly toward yellow (+4 degrees) and balance the offset wheel. You&apos;re super close!&quot;
                     </div>
                   </>
-                ) : activeChatScenario === 'code' ? (
+                ) : activeChatScenario === 'audio' ? (
                   <>
                     <div className="rounded-xl rounded-tl-none bg-white/[0.06] p-3.5 max-w-[85%] text-slate-200 border border-white/10 shadow-sm backdrop-blur-sm">
                       <p className="font-bold text-[10px] text-slate-400 mb-1">9:00 AM • Challenge Drop</p>
-                      ⚡ <strong>Day 04 is LIVE:</strong> Supabase PostgreSQL Row Level Security (RLS) tables. Ensure public reads are blocked.
+                      ⚡ <strong>Day 08 is LIVE:</strong> Multi-Track Sound Design &amp; Atmospheric Stems. Target -14 LUFS integrated delivery.
                     </div>
                     <div className="ml-auto rounded-xl rounded-tr-none bg-gradient-to-r from-[#2675EB] to-[#1B5FCC] text-white p-3.5 max-w-[85%] shadow-md shadow-[#2675EB]/20">
-                      Getting a 403 on my insert mutation even though the user is authenticated in the session.
+                      My dialogue is getting drowned out by the riser and sub-bass during the drop transition. How should I duck it?
                     </div>
                     <div className="rounded-xl rounded-tl-none bg-white/[0.06] p-3.5 max-w-[85%] text-slate-200 border border-white/10 shadow-sm backdrop-blur-sm">
                       <p className="font-bold text-[10px] text-[#38B44A] mb-1">9:14 AM • Mentor Reply</p>
-                      &quot;Check your WITH CHECK clause on the policy: ensure `auth.uid() = user_id`. If `user_id` is null on payload insert, Postgres drops the row!&quot;
+                      &quot;Add a sidechain compressor on the music bus keyed to the dialogue channel with a fast 5ms attack, and notch out 300Hz–2.5kHz with dynamic EQ!&quot;
                     </div>
                   </>
                 ) : (
@@ -210,7 +210,7 @@ export function MentorshipSection() {
               <span className="text-3xl font-black bg-gradient-to-r from-[#B92B27] to-[#D93830] bg-clip-text text-transparent">01</span>
               <h4 className="text-xs font-black text-white">Technical Execution</h4>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Does the code work without runtime bugs? Are video cuts placed on exact musical beats and retention cues?
+                Are video cuts paced to audio transients, retention hooks, and seamless visual flow without dropped frames?
               </p>
             </TiltCard>
 
@@ -218,7 +218,7 @@ export function MentorshipSection() {
               <span className="text-3xl font-black bg-gradient-to-r from-[#F2B705] to-[#D99B02] bg-clip-text text-transparent">02</span>
               <h4 className="text-xs font-black text-white">Cleanliness &amp; Polish</h4>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Zero lint errors, modular React components, and mastered audio submix without clipped waveforms.
+                Professional track organization, color-coded timeline stems, and mastered audio submix without clipped waveforms.
               </p>
             </TiltCard>
 
@@ -242,7 +242,7 @@ export function MentorshipSection() {
               <span className="text-3xl font-black bg-gradient-to-r from-[#B92B27] via-[#F2B705] to-[#38B44A] bg-clip-text text-transparent">05</span>
               <h4 className="text-xs font-black text-white">Documentation &amp; Loom</h4>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Clear GitHub PR description or short Loom video walk-through explaining technical tradeoffs.
+                Clear client delivery notes or short Loom video walk-through explaining edit pacing and sound choices.
               </p>
             </TiltCard>
           </div>

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Award, CheckCircle2, QrCode, Quote, Star, Trophy } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { TiltCard } from '../TiltCard';
@@ -11,8 +10,6 @@ export interface TestimonialsSectionProps {
 }
 
 export function TestimonialsSection({ publishedPrice, publishedCurrency }: TestimonialsSectionProps) {
-  const [activeTransformation, setActiveTransformation] = useState<'creative' | 'coding'>('creative');
-
   return (
     <>
       {/* ========================================================================= */}
@@ -92,8 +89,8 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
 
               <div className="space-y-3">
                 {[
-                  { rank: 1, name: 'Sample Intern A', track: 'Full Stack', xp: '2,940 XP', streak: '12d 🔥' },
-                  { rank: 2, name: 'Sample Intern B', track: 'Video Edit', xp: '2,890 XP', streak: '12d 🔥' },
+                  { rank: 1, name: 'Sample Intern A', track: 'Commercial Cut', xp: '2,940 XP', streak: '12d 🔥' },
+                  { rank: 2, name: 'Sample Intern B', track: 'Color Grading', xp: '2,890 XP', streak: '12d 🔥' },
                   { rank: 3, name: 'Your Candidate Profile', track: 'Current Candidate', xp: '2,850 XP', streak: '12d 🔥' },
                 ].map((user) => (
                   <div
@@ -136,7 +133,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
               Live Critique Rooms &amp; Stage Refactorings
             </h2>
             <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-              In addition to daily tasks, join live group critique sessions where mentors audit real student timelines and codebases on Zoom.
+              In addition to daily tasks, join live group critique sessions where mentors audit real student timelines and video projects on Zoom.
             </p>
           </div>
 
@@ -146,10 +143,10 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 Every Saturday 6:00 PM
               </span>
               <h3 className="text-base font-black text-white">
-                Live Project Teardowns &amp; Hot Seat
+                Live Timeline Teardowns &amp; Hot Seat
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Volunteers share their screens. Mentors pull apart the timeline cut or inspect the React component tree in real-time.
+                Volunteers share their screens. Mentors pull apart the edit, pacing, audio ducking, and transition cuts in real-time.
               </p>
               <div className="text-[11px] font-bold text-slate-400 border-t border-white/10 pt-3">
                 Full 4K recording uploaded within 2 hours.
@@ -161,10 +158,10 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 Mid-Sprint Day 10
               </span>
               <h3 className="text-base font-black text-white">
-                Architecture &amp; Sound Masterclass
+                Color Grading &amp; Sound Masterclass
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Deep-dive into advanced topics: multi-tenant database partitioning, psychoacoustic sound submixes, and color primary transforms.
+                Deep-dive into advanced topics: DaVinci Resolve node primaries, -14 LUFS broadcast mastering, and cinematic color space transforms.
               </p>
               <div className="text-[11px] font-bold text-slate-400 border-t border-white/10 pt-3">
                 Interactive Q&amp;A directly with guest directors.
@@ -176,56 +173,15 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 Sprint Day 15
               </span>
               <h3 className="text-base font-black text-white">
-                Capstone Demo Day &amp; Recruiter Pitch
+                Capstone Demo Day &amp; Showreel Pitch
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Graduates present their crowning 15-day capstones to our partner network of startup founders and agency creative directors.
+                Graduates present their crowning 15-day commercial reels to our partner network of agency creative leads and studio founders.
               </p>
               <div className="text-[11px] font-bold text-slate-400 border-t border-white/10 pt-3">
                 Direct portfolio showcase opportunities.
               </div>
             </TiltCard>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* SECTION 10: BATTLE-TESTED TECH STACK WALL */}
-      {/* ========================================================================= */}
-      <section className="border-t border-white/10 bg-[#070b16] py-16 relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8 text-center relative z-10">
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-            Industry Standard Tooling
-          </p>
-          <h3 className="mt-2 text-xl sm:text-2xl lg:text-3xl font-black text-white">
-            The Production Stack You Will Master
-          </h3>
-
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4 max-w-4xl mx-auto">
-            {[
-              'React 19',
-              'TypeScript',
-              'Next.js 15',
-              'Tailwind CSS',
-              'Supabase',
-              'PostgreSQL',
-              'Git & GitHub',
-              'Vercel CI/CD',
-              'Adobe Premiere Pro',
-              'DaVinci Resolve Studio',
-              'Adobe After Effects',
-              'Adobe Audition SFX',
-              'Figma UI',
-              'Loom Video',
-              'WhatsApp Business API',
-            ].map((tool) => (
-              <span
-                key={tool}
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black text-slate-200 shadow-2xs hover:border-[#B92B27]/60 hover:text-[#F2B705] hover:bg-[#B92B27]/10 hover:shadow-lg hover:shadow-[#B92B27]/10 transition cursor-default"
-              >
-                {tool}
-              </span>
-            ))}
           </div>
         </div>
       </section>
@@ -245,7 +201,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
               </h2>
             </div>
             <p className="text-sm text-slate-400 max-w-md leading-relaxed">
-              Inspected by senior engineers and creative directors. Real deliverables built by interns under 24-hour sprint briefs.
+              Inspected by senior video editors and creative directors. Real deliverables built by interns under 24-hour sprint briefs.
             </p>
           </div>
 
@@ -257,7 +213,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 tags: ['Motion Design', 'After Effects', 'Kinetic Typography'],
                 aspectRatio: '16/10',
               }}
-              kicker="01 / 04 · Creative Video Track"
+              kicker="01 / 04 · Kinetic Motion"
               title="Cinematic Pacing & Kinetic Title Sequence"
               description="Engineered for a commercial client with custom bezier easing curves, multi-track audio soundscapes, and viral retention pacing."
               cursorLabel="INSPECT CUT"
@@ -265,138 +221,43 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
 
             <FwCard
               figure={{
-                imgSrc: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1280&q=80',
-                alt: 'SaaS monitoring telemetry dashboard with real-time charts',
-                tags: ['React 19', 'Supabase RLS', 'TypeScript'],
+                imgSrc: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1280&q=80',
+                alt: 'Professional audio mixer and studio monitors for sound design',
+                tags: ['Sound Design', 'Adobe Audition', '-14 LUFS Audio'],
                 aspectRatio: '16/10',
               }}
-              kicker="02 / 04 · Full-Stack Coding Track"
-              title="Real-Time Analytics & Telemetry Engine"
-              description="Production web platform featuring optimistic UI state reducers, PostgreSQL Row-Level Security, and automated Vitest test coverage."
-              cursorLabel="VIEW CODE"
+              kicker="02 / 04 · Audio Engineering"
+              title="Dynamic Sound Design & Multi-Layer Atmospheric Mix"
+              description="Full cinema-grade audio mix with high-impact sub-bass risers, whoosh impacts, dialogue ducking, and master loudness calibration."
+              cursorLabel="LISTEN MIX"
             />
 
             <FwCard
               figure={{
                 imgSrc: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1280&q=80',
                 alt: 'DaVinci Resolve studio color grading interface and commercial video shot',
-                tags: ['DaVinci Resolve', 'Color Primaries', '-14 LUFS Mix'],
+                tags: ['DaVinci Resolve', 'Color Primaries', 'Skin Tone Scopes'],
                 aspectRatio: '16/10',
               }}
-              kicker="03 / 04 · Creative Video Track"
-              title="60s Commercial Capstone & Master Audio Mix"
-              description="Mastered to international broadcast loudness targets with skin-tone scopes, primary LUT grading, and 100% mentor rubric defense."
+              kicker="03 / 04 · Color Grading"
+              title="60s Commercial Capstone & Master Grade"
+              description="Mastered to international broadcast delivery targets with skin-tone vector scopes, primary LUT grading, and 100% mentor rubric defense."
               cursorLabel="VIEW REEL"
             />
 
             <FwCard
               figure={{
-                imgSrc: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1280&q=80',
-                alt: 'Cloud server infrastructure and cryptographic verification system',
-                tags: ['PostgreSQL', 'Webhooks', 'Vercel CI/CD'],
+                imgSrc: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&w=1280&q=80',
+                alt: 'Broadcast television camera and video editing studio monitors',
+                tags: ['Premiere Pro', 'Retention Edits', 'Multi-Cam Sync'],
                 aspectRatio: '16/10',
               }}
-              kicker="04 / 04 · Full-Stack Coding Track"
-              title="Cryptographic Certificate & Delivery Webhook Hub"
-              description="Automated graduation pipeline verifying SHA-256 signatures, dispatching WhatsApp alerts, and provisioning recruiter links."
-              cursorLabel="INSPECT API"
+              kicker="04 / 04 · Commercial Pacing"
+              title="Multi-Cam Commercial Cut with Narrative Hooks"
+              description="Fast-paced editorial cut with seamless J/L audio transitions, retention pattern interrupts, and full client handoff deliverables."
+              cursorLabel="INSPECT EDIT"
             />
           </ul>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* SECTION 11: BEFORE VS AFTER TRANSFORMATION SHOWCASE */}
-      {/* ========================================================================= */}
-      <section className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F2B705]">
-              Tangible Outcomes
-            </p>
-            <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
-              Your Proof-of-Work: Day 0 vs. Day 15
-            </h2>
-            <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-              See the concrete leap in quality, velocity, and professionalism our graduates achieve in just 15 days.
-            </p>
-
-            <div className="mt-6 inline-flex rounded-xl border border-white/10 bg-white/[0.04] p-1">
-              <button
-                type="button"
-                onClick={() => setActiveTransformation('creative')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-black cursor-pointer transition ${
-                  activeTransformation === 'creative'
-                    ? 'bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] text-white shadow-md shadow-[#B92B27]/20'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Video Editing Track
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTransformation('coding')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-black cursor-pointer transition ${
-                  activeTransformation === 'coding'
-                    ? 'bg-gradient-to-r from-[#2675EB] to-[#1B5FCC] text-white shadow-md shadow-[#2675EB]/20'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Full Stack Coding Track
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Day 0 */}
-            <TiltCard className="p-7 sm:p-9 border border-[#B92B27]/30 bg-gradient-to-b from-[#B92B27]/15 to-white/[0.02] rounded-2xl space-y-4">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-400">Day 00: Starting Point</span>
-                <span className="text-xs font-bold text-[#D93830]">Unstructured &amp; Unaudited</span>
-              </div>
-              {activeTransformation === 'creative' ? (
-                <ul className="space-y-3 text-xs text-slate-400">
-                  <li className="flex items-start gap-2">✕ Messy timeline with unorganized clip layers and random filenames.</li>
-                  <li className="flex items-start gap-2">✕ Jarring audio transitions and flat background music without risers.</li>
-                  <li className="flex items-start gap-2">✕ Generic default subtitle fonts that look amateur on mobile feeds.</li>
-                  <li className="flex items-start gap-2">✕ Rapid audience drop-off in the first 5 seconds.</li>
-                </ul>
-              ) : (
-                <ul className="space-y-3 text-xs text-slate-400">
-                  <li className="flex items-start gap-2">✕ Scattered tutorial code with zero unit tests or documentation.</li>
-                  <li className="flex items-start gap-2">✕ Unprotected API endpoints with exposed database keys.</li>
-                  <li className="flex items-start gap-2">✕ Heavy reliance on `any` types that cause silent runtime crashes.</li>
-                  <li className="flex items-start gap-2">✕ No live domain — only runs locally on `localhost:3000`.</li>
-                </ul>
-              )}
-            </TiltCard>
-
-            {/* Day 15 */}
-            <TiltCard
-              glareColor="rgba(56, 180, 74, 0.2)"
-              className="p-7 sm:p-9 border border-[#38B44A]/40 bg-gradient-to-b from-[#38B44A]/20 to-white/[0.02] rounded-2xl space-y-4 shadow-xl shadow-[#38B44A]/20"
-            >
-              <div className="flex items-center justify-between border-b border-[#38B44A]/20 pb-3">
-                <span className="text-xs font-black uppercase tracking-wider text-[#38B44A]">Day 15: Iunoware Academy Graduate</span>
-                <span className="text-xs font-bold text-[#38B44A]">Production-Grade Proof</span>
-              </div>
-              {activeTransformation === 'creative' ? (
-                <ul className="space-y-3 text-xs text-slate-300">
-                  <li className="flex items-start gap-2">✓ Strict folder scaffolding with colored track lanes and labeled J/L cuts.</li>
-                  <li className="flex items-start gap-2">✓ Mastered -14 LUFS sound mix with custom whoosh and riser accents.</li>
-                  <li className="flex items-start gap-2">✓ Custom bezier-curved kinetic typography that pops on vertical viewports.</li>
-                  <li className="flex items-start gap-2">✓ High watch-time retention rate on commercial portfolio edits.</li>
-                </ul>
-              ) : (
-                <ul className="space-y-3 text-xs text-slate-300">
-                  <li className="flex items-start gap-2">✓ Production SaaS deployed on custom domain with SSL and CI previews.</li>
-                  <li className="flex items-start gap-2">✓ PostgreSQL database protected with strict Row-Level Security policies.</li>
-                  <li className="flex items-start gap-2">✓ Strict TypeScript architecture with zero build warnings and clean hooks.</li>
-                  <li className="flex items-start gap-2">✓ Comprehensive Vitest test suite and verified GitHub pull requests.</li>
-                </ul>
-              )}
-            </TiltCard>
-          </div>
         </div>
       </section>
 
@@ -428,7 +289,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle2 size={16} className="text-[#38B44A] shrink-0 mt-0.5" />
-                  <span><strong>Mentor Letter of Recommendation:</strong> Detailed assessment of your problem-solving, work ethic, and timeline discipline.</span>
+                  <span><strong>Mentor Letter of Recommendation:</strong> Detailed assessment of your timeline speed, storytelling discipline, and technical execution.</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle2 size={16} className="text-[#38B44A] shrink-0 mt-0.5" />
@@ -471,7 +332,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                   <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
                     has successfully satisfied all 15 production deliverables, passed mentor audits, and graduated with distinction in
                   </p>
-                  <p className="text-sm font-black text-[#D93830]">Full Stack &amp; Creative Production Track</p>
+                  <p className="text-sm font-black text-[#D93830]">Commercial Video Editing &amp; Kinetic Motion Track</p>
                 </div>
 
                 <div className="flex items-center justify-between border-t border-white/10 pt-5 text-xs text-slate-400">
@@ -489,51 +350,6 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 </div>
               </TiltCard>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* SECTION 13: PROOF-OF-WORK OVER RESUMES */}
-      {/* ========================================================================= */}
-      <section className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8 text-center relative z-10">
-          <div className="gsap-header-reveal max-w-2xl mx-auto space-y-3">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F2B705]">
-              Career &amp; Client Standards
-            </p>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
-              Proof-of-Work Over Static Paper Resumes
-            </h2>
-            <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-              Modern software teams and production agencies value verifiable code repositories, live production deployments, and finished commercial reels over certificates of attendance.
-            </p>
-          </div>
-
-          <div className="gsap-cards-group mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto text-left">
-            <TiltCard className="p-6 border border-white/10 bg-white/[0.03] rounded-2xl space-y-2 hover:border-[#B92B27]/40 transition">
-              <span className="text-xs font-black text-[#D93830] uppercase">01 · Live Code &amp; Timelines</span>
-              <h4 className="text-sm font-black text-white">Inspectable GitHub &amp; Video Links</h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Recruiters and clients can directly review your PR commits, branch discipline, and video cuts on live domains.
-              </p>
-            </TiltCard>
-
-            <TiltCard className="p-6 border border-white/10 bg-white/[0.03] rounded-2xl space-y-2 hover:border-[#2675EB]/40 transition">
-              <span className="text-xs font-black text-[#2675EB] uppercase">02 · Rubric Transparency</span>
-              <h4 className="text-sm font-black text-white">Documented Mentor Audits</h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Every deliverable is scored across 5 industry criteria, confirming that senior practitioners verified the quality of your work.
-              </p>
-            </TiltCard>
-
-            <TiltCard className="p-6 border border-white/10 bg-white/[0.03] rounded-2xl space-y-2 hover:border-[#38B44A]/40 transition">
-              <span className="text-xs font-black text-[#38B44A] uppercase">03 · Public Talent Directory</span>
-              <h4 className="text-sm font-black text-white">Verifiable Certificate URL</h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                A public link that hiring partners can independently check to validate that all 15 sprint milestones were completed.
-              </p>
-            </TiltCard>
           </div>
         </div>
       </section>
@@ -561,7 +377,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                 &quot;I finally finished work I am proud to send to clients.&quot;
               </h2>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Verified stories from software developers and video editors who completed the 15-day sprint.
+                Verified stories from video editors who completed the 15-day sprint and landed paying client projects.
               </p>
             </div>
 
@@ -573,11 +389,11 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                   ))}
                 </div>
                 <p className="text-xs leading-relaxed text-slate-300">
-                  &quot;The 15-day structure is genius. You don&apos;t have time to procrastinate. The WhatsApp support helped me unblock a tricky Supabase auth bug in 10 minutes.&quot;
+                  &quot;The 15-day structure is genius. You don&apos;t have time to procrastinate. The WhatsApp support helped me unblock a tricky pacing cut in 10 minutes.&quot;
                 </p>
                 <div>
-                  <p className="text-xs font-black text-white">Verified Student Review</p>
-                  <p className="text-[10px] text-[#2675EB]">Full Stack Track · SaaS Auth Deliverable</p>
+                  <p className="text-xs font-black text-white">Pooja S.</p>
+                  <p className="text-[10px] text-[#2675EB]">Motion Design Track · Kinetic Subtitle Deliverable</p>
                 </div>
               </TiltCard>
 
@@ -591,7 +407,7 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
                   &quot;My cuts went from boring and amateur to having real commercial rhythm. The mentor critique room showed me mistakes I was making for 2 years.&quot;
                 </p>
                 <div>
-                  <p className="text-xs font-black text-white">Verified Student Review</p>
+                  <p className="text-xs font-black text-white">Rahul K.</p>
                   <p className="text-[10px] text-[#D93830]">Video Editing Track · 60s Commercial Cut</p>
                 </div>
               </TiltCard>

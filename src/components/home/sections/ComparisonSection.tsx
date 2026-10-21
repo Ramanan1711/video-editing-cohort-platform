@@ -44,7 +44,7 @@ export function ComparisonSection() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#B92B27]/20 text-[#D93830] mt-0.5 font-bold">✕</span>
-                <span><strong className="text-white">Toy Projects:</strong> Generic &quot;to-do apps&quot; or copy-paste clips that recruiters immediately ignore.</span>
+                <span><strong className="text-white">Toy Projects:</strong> Generic cookie-cutter templates or copy-paste clips that clients and directors ignore.</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#B92B27]/20 text-[#D93830] mt-0.5 font-bold">✕</span>
@@ -87,7 +87,7 @@ export function ComparisonSection() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#38B44A] text-white mt-0.5 font-bold shadow-xs">✓</span>
-                <span><strong className="text-white">Portfolio-Grade Deliverables:</strong> Real GitHub PRs, live demo deployments, and broadcast commercial cuts.</span>
+                <span><strong className="text-white">Portfolio-Grade Deliverables:</strong> Broadcast commercial cuts, 4K timeline masters, and color-graded reels.</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#38B44A] text-white mt-0.5 font-bold shadow-xs">✓</span>

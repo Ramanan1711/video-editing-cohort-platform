@@ -68,20 +68,20 @@ export function SiteFooter() {
           {/* Column 1: Sprint Tracks */}
           <div className="space-y-3">
             <p className="text-[11px] font-black uppercase tracking-wider text-white">
-              Sprint Tracks
+              Sprint Curriculum
             </p>
             <ul className="space-y-2 text-xs text-slate-400 font-medium">
               <li>
-                <a href="#tracks" className="hover:text-[#F2B705] transition">Coding &amp; Full Stack Track</a>
+                <a href="#sprint" className="hover:text-[#F2B705] transition">Commercial Video Editing</a>
               </li>
               <li>
-                <a href="#tracks" className="hover:text-[#F2B705] transition">Video Editing &amp; Kinetic Cuts</a>
+                <a href="#sprint" className="hover:text-[#F2B705] transition">Kinetic Typography &amp; Motion</a>
               </li>
               <li>
-                <a href="#sprint" className="hover:text-[#F2B705] transition">15-Day Daily Challenges</a>
+                <a href="#sprint" className="hover:text-[#F2B705] transition">Sound Design &amp; Color Grading</a>
               </li>
               <li>
-                <a href="#tracks" className="hover:text-[#F2B705] transition">Sound Design &amp; Retention</a>
+                <a href="#assets" className="hover:text-[#F2B705] transition">Production Asset Vault</a>
               </li>
             </ul>
           </div>
