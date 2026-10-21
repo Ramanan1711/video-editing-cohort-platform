@@ -20,12 +20,15 @@ import {
   resolveTargetCohortId,
 } from '../lib/cohortCheckoutPersistence';
 import { listCohorts, type Cohort } from '../lib/courseService';
+import { normalizeWhatsAppPhone } from '../lib/whatsappService';
 import { BRAND_LOGO_URL } from '../constants/branding';
 
 export const Register: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isNetworkError, setIsNetworkError] = useState(false);
@@ -76,6 +79,56 @@ export const Register: React.FC = () => {
 
     soundFx.playSweep(260, 600, 0.1, 0.05);
 
+    // Client-side validations
+    if (!fullName.trim()) {
+      setError('Please enter your full name.');
+      setLoading(false);
+      return;
+    }
+
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      setLoading(false);
+      return;
+    }
+
+    if (!phone.trim()) {
+      setError('Please enter your phone number.');
+      setLoading(false);
+      return;
+    }
+
+    const cleanDigits = phone.replace(/[^0-9]/g, '');
+    if (cleanDigits.length < 10) {
+      setError('Please enter a valid mobile number (at least 10 digits).');
+      setLoading(false);
+      return;
+    }
+
+    if (!password) {
+      setError('Please enter a password.');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      setLoading(false);
+      return;
+    }
+
+    if (!confirmPassword) {
+      setError('Please confirm your password.');
+      setLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match. Please verify your password.');
+      setLoading(false);
+      return;
+    }
+
     // Pre-flight client offline check
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setIsNetworkError(true);
@@ -83,6 +136,8 @@ export const Register: React.FC = () => {
       setLoading(false);
       return;
     }
+
+    const normalizedPhone = normalizeWhatsAppPhone(phone.trim());
 
     try {
       // Secure Production Flow: All public registrations are strictly assigned 'student' role.
@@ -100,6 +155,9 @@ export const Register: React.FC = () => {
         options: {
           data: {
             full_name: fullName.trim(),
+            phone: normalizedPhone,
+            phone_number: normalizedPhone,
+            whatsapp_number: normalizedPhone,
             role: 'student',
             ...(targetCohortId ? { preferred_cohort_id: targetCohortId } : {}),
           },
@@ -511,7 +569,20 @@ export const Register: React.FC = () => {
                 inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
               />
               <FormField
+                id="register-phone"
+                label="Phone number"
+                type="tel"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+                hint="Used for cohort WhatsApp group & critical schedule updates"
+                labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+              />
+              <FormField
                 id="register-password"
+                aria-label="Password"
                 label="Password"
                 type="password"
                 minLength={6}
@@ -519,6 +590,19 @@ export const Register: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
+                labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+              />
+              <FormField
+                id="register-confirm-password"
+                aria-label="Confirm Password"
+                label="Confirm Password"
+                type="password"
+                minLength={6}
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter your password"
                 labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
                 inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
               />

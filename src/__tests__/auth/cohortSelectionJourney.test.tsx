@@ -154,7 +154,9 @@ describe('Signup Journey & Cohort Selection Preservation Across Email Confirmati
       // Submit registration form
       fireEvent.change(screen.getByLabelText(/Full name/i), { target: { value: 'Alex Editor' } });
       fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: 'editor@example.com' } });
-      fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'pass123456' } });
+      fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '+91 98765 43210' } });
+      fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'pass123456' } });
+      fireEvent.change(screen.getByLabelText(/Confirm password/i), { target: { value: 'pass123456' } });
 
       fireEvent.click(screen.getByRole('button', { name: /Create my account/i }));
 
@@ -165,6 +167,9 @@ describe('Signup Journey & Cohort Selection Preservation Across Email Confirmati
           options: {
             data: {
               full_name: 'Alex Editor',
+              phone: '919876543210',
+              phone_number: '919876543210',
+              whatsapp_number: '919876543210',
               role: 'student',
               preferred_cohort_id: 'c-uuid-999',
             },
@@ -201,7 +206,9 @@ describe('Signup Journey & Cohort Selection Preservation Across Email Confirmati
 
       fireEvent.change(screen.getByLabelText(/Full name/i), { target: { value: 'Alex Editor' } });
       fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: 'editor@example.com' } });
-      fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'pass123456' } });
+      fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '+91 98765 43210' } });
+      fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'pass123456' } });
+      fireEvent.change(screen.getByLabelText(/Confirm password/i), { target: { value: 'pass123456' } });
       fireEvent.click(screen.getByRole('button', { name: /Create my account/i }));
 
       await waitFor(() => {
@@ -239,7 +246,9 @@ describe('Signup Journey & Cohort Selection Preservation Across Email Confirmati
 
       fireEvent.change(screen.getByLabelText(/Full name/i), { target: { value: 'Alex Editor' } });
       fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: 'editor@example.com' } });
-      fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'pass123456' } });
+      fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '+91 98765 43210' } });
+      fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'pass123456' } });
+      fireEvent.change(screen.getByLabelText(/Confirm password/i), { target: { value: 'pass123456' } });
       fireEvent.click(screen.getByRole('button', { name: /Create my account/i }));
 
       await waitFor(() => {

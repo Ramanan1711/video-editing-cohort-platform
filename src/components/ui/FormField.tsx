@@ -14,6 +14,7 @@ export function FormField({
   className,
   labelClassName,
   inputClassName,
+  required,
   ...props
 }: FormFieldProps) {
   const mergedInputClass =
@@ -25,9 +26,12 @@ export function FormField({
     <label className="block text-left" htmlFor={id}>
       <span className={labelClassName || 'mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300'}>
         {label}
+        {required && <span className="ml-1 text-red-500" aria-hidden="true">*</span>}
       </span>
       <input
         id={id}
+        aria-label={props['aria-label'] || label}
+        required={required}
         className={`w-full rounded-xl px-4 py-3 text-sm outline-none transition ${mergedInputClass}`}
         {...props}
       />

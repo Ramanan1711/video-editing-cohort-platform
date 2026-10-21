@@ -49,7 +49,9 @@ describe('Authentication Production Verification (Email Confirmation & Network F
 
       fireEvent.change(screen.getByLabelText(/Full name/i), { target: { value: 'Jane Student' } });
       fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: 'student@example.com' } });
-      fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'securepassword123' } });
+      fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '+91 98765 43210' } });
+      fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'securepassword123' } });
+      fireEvent.change(screen.getByLabelText(/Confirm password/i), { target: { value: 'securepassword123' } });
 
       fireEvent.click(screen.getByRole('button', { name: /Create my account/i }));
 
@@ -83,7 +85,9 @@ describe('Authentication Production Verification (Email Confirmation & Network F
 
       fireEvent.change(screen.getByLabelText(/Full name/i), { target: { value: 'Jane Student' } });
       fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: 'student@example.com' } });
-      fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'securepassword123' } });
+      fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '+91 98765 43210' } });
+      fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'securepassword123' } });
+      fireEvent.change(screen.getByLabelText(/Confirm password/i), { target: { value: 'securepassword123' } });
       fireEvent.click(screen.getByRole('button', { name: /Create my account/i }));
 
       await waitFor(() => {
@@ -120,7 +124,9 @@ describe('Authentication Production Verification (Email Confirmation & Network F
 
       fireEvent.change(screen.getByLabelText(/Full name/i), { target: { value: 'Auto Confirmed' } });
       fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: 'autoconfirmed@example.com' } });
-      fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'securepassword123' } });
+      fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '+91 98765 43210' } });
+      fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'securepassword123' } });
+      fireEvent.change(screen.getByLabelText(/Confirm password/i), { target: { value: 'securepassword123' } });
       fireEvent.click(screen.getByRole('button', { name: /Create my account/i }));
 
       await waitFor(() => {
@@ -141,7 +147,9 @@ describe('Authentication Production Verification (Email Confirmation & Network F
 
       fireEvent.change(screen.getByLabelText(/Full name/i), { target: { value: 'Offline User' } });
       fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: 'offline@example.com' } });
-      fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'securepassword123' } });
+      fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '+91 98765 43210' } });
+      fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'securepassword123' } });
+      fireEvent.change(screen.getByLabelText(/Confirm password/i), { target: { value: 'securepassword123' } });
       fireEvent.click(screen.getByRole('button', { name: /Create my account/i }));
 
       await waitFor(() => {
@@ -168,12 +176,50 @@ describe('Authentication Production Verification (Email Confirmation & Network F
 
       fireEvent.change(screen.getByLabelText(/Full name/i), { target: { value: 'Existing User' } });
       fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: 'existing@example.com' } });
-      fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'securepassword123' } });
+      fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '+91 98765 43210' } });
+      fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'securepassword123' } });
+      fireEvent.change(screen.getByLabelText(/Confirm password/i), { target: { value: 'securepassword123' } });
       fireEvent.click(screen.getByRole('button', { name: /Create my account/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Account Already Exists/i)).toBeInTheDocument();
       });
+    });
+
+    it('validates password and confirm password matching', async () => {
+      render(
+        <MemoryRouter>
+          <Register />
+        </MemoryRouter>
+      );
+
+      fireEvent.change(screen.getByLabelText(/Full name/i), { target: { value: 'Mismatch User' } });
+      fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: 'mismatch@example.com' } });
+      fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '9876543210' } });
+      fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'password123' } });
+      fireEvent.change(screen.getByLabelText(/Confirm password/i), { target: { value: 'differentpass' } });
+      fireEvent.click(screen.getByRole('button', { name: /Create my account/i }));
+
+      expect(screen.getByText(/Passwords do not match/i)).toBeInTheDocument();
+      expect(supabase.auth.signUp).not.toHaveBeenCalled();
+    });
+
+    it('validates mobile phone number format', async () => {
+      render(
+        <MemoryRouter>
+          <Register />
+        </MemoryRouter>
+      );
+
+      fireEvent.change(screen.getByLabelText(/Full name/i), { target: { value: 'Phone User' } });
+      fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: 'phone@example.com' } });
+      fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '123' } });
+      fireEvent.change(screen.getByLabelText(/^Password/i), { target: { value: 'password123' } });
+      fireEvent.change(screen.getByLabelText(/Confirm password/i), { target: { value: 'password123' } });
+      fireEvent.click(screen.getByRole('button', { name: /Create my account/i }));
+
+      expect(screen.getByText(/valid mobile number/i)).toBeInTheDocument();
+      expect(supabase.auth.signUp).not.toHaveBeenCalled();
     });
   });
 

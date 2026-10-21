@@ -18,6 +18,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
+      const userPhone =
+        (currentUser.user_metadata?.whatsapp_number as string | undefined) ||
+        (currentUser.user_metadata?.phone as string | undefined) ||
+        (currentUser.user_metadata?.phone_number as string | undefined) ||
+        null;
+
       if (!data) {
         // Self-healing recovery: If public.profiles row is missing, create it automatically.
         // SECURITY: Under no circumstances should client-controlled user_metadata be trusted
@@ -33,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: currentUser.id,
             email: currentUser.email ?? '',
             full_name: fallbackName,
+            whatsapp_number: userPhone,
             role: 'student',
             status: 'active',
           })
@@ -49,10 +56,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: currentUser.id,
           email: currentUser.email ?? '',
           full_name: fallbackName,
+          whatsapp_number: userPhone,
           role: 'student',
           status: 'active',
         });
         return;
+      }
+
+      // If profile exists but whatsapp_number is missing in DB and present in auth metadata, sync it
+      if (data && !data.whatsapp_number && userPhone) {
+        data.whatsapp_number = userPhone;
+        supabase
+          .from('profiles')
+          .update({ whatsapp_number: userPhone })
+          .eq('id', currentUser.id)
+          .then(() => {}, () => {});
       }
 
       setProfile(data);
@@ -61,6 +79,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Degraded fallback in case of transient network disruption:
       // SECURITY: Default strictly to 'student' role. NEVER escalate to 'mentor' or 'admin' from metadata.
       if (currentUser) {
+        const userPhone =
+          (currentUser.user_metadata?.whatsapp_number as string | undefined) ||
+          (currentUser.user_metadata?.phone as string | undefined) ||
+          (currentUser.user_metadata?.phone_number as string | undefined) ||
+          null;
         setProfile((prev) => {
           // If we already had a valid verified profile, retain it
           if (prev && prev.id === currentUser.id) return prev;
@@ -68,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: currentUser.id,
             email: currentUser.email ?? '',
             full_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Editor',
+            whatsapp_number: userPhone,
             role: 'student',
             status: 'active',
           };
