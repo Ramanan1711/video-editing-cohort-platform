@@ -56,45 +56,45 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-surface-subtle bg-surface-base/85 backdrop-blur-xl transition-colors">
       <div className="mx-auto flex max-w-7xl h-16 sm:h-18 items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-2 sm:gap-2.5 lg:gap-3 group">
+        {/* Brand Logo & Academy Badge (Shrink-proof & Overflow-safe) */}
+        <Link to="/" className="flex items-center gap-2.5 sm:gap-3 group shrink-0 select-none mr-4 2xl:mr-8">
           <img
             src={BRAND_LOGO_URL}
             alt="Iunoware Academy Logo"
-            className="h-8 sm:h-9 lg:h-10 w-auto object-contain drop-shadow-[0_2px_8px_rgba(185,43,39,0.28)] group-hover:scale-105 transition-transform"
+            className="h-8 sm:h-9 lg:h-10 w-auto object-contain drop-shadow-[0_2px_8px_rgba(185,43,39,0.28)] group-hover:scale-105 transition-transform shrink-0"
           />
-          <div className="flex items-center gap-1.5 leading-none font-sans">
-            <span className="text-2xl font-black tracking-tight text-white group-hover:text-[#F2B705] transition-colors">
+          <div className="flex items-center gap-1.5 sm:gap-2 leading-none font-sans shrink-0 whitespace-nowrap">
+            <span className="text-2xl font-black tracking-tight text-white group-hover:text-[#F2B705] transition-colors shrink-0">
               Iunoware
             </span>
-            <span className="inline-block rounded-full bg-[#B92B27]/15 border border-[#B92B27]/30 px-1.5 sm:px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#D93830]">
+            <span className="shrink-0 inline-flex items-center rounded-full bg-[#B92B27]/15 border border-[#B92B27]/30 px-1.5 sm:px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#D93830]">
               Academy
             </span>
           </div>
         </Link>
 
-        {/* Center Navigation Links (iPad Landscape & Desktop) */}
-        <nav className="hidden items-center gap-2 lg:gap-3 xl:gap-6 lg:flex">
+        {/* Center Navigation Links (Desktop View xl+ with Generous Breathing Room) */}
+        <nav className="hidden xl:flex items-center justify-center gap-4 2xl:gap-7 shrink-0 mx-auto">
           {links.map((link) => (
             <a
               key={link.href}
               href={link.href}
               onClick={(e) => handleAnchorClick(e, link.href)}
-              className="rounded-lg px-2 sm:px-2.5 py-1.5 text-xs font-bold text-slate-300 hover:text-[#F2B705] hover:bg-white/5 transition-colors"
+              className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-300 hover:text-[#F2B705] hover:bg-white/5 transition-colors whitespace-nowrap"
             >
               {link.label}
             </a>
           ))}
         </nav>
 
-        {/* Right Action Controls (Desktop / iPad Landscape) */}
-        <div className="hidden items-center gap-2 sm:gap-3 lg:flex">
+        {/* Right Action Controls (Desktop View xl+) */}
+        <div className="hidden xl:flex items-center gap-3 shrink-0 ml-4 2xl:ml-8">
           {/* Audio SFX Toggle */}
           <button
             type="button"
             onClick={handleToggleSfx}
             data-cursor={sfxEnabled ? 'MUTE SFX' : 'UNMUTE SFX'}
-            className="group flex items-center gap-1.5 rounded-full border border-surface-subtle bg-surface-card px-2.5 py-1 text-[11px] font-mono font-medium text-slate-300 hover:text-white hover:border-[#F2B705]/40 transition cursor-pointer shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]"
+            className="group flex items-center gap-1.5 rounded-full border border-surface-subtle bg-surface-card px-2.5 py-1 text-[11px] font-mono font-medium text-slate-300 hover:text-white hover:border-[#F2B705]/40 transition cursor-pointer shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] shrink-0"
             title={sfxEnabled ? 'Mute procedural audio effects' : 'Enable procedural audio effects'}
             aria-label={sfxEnabled ? 'Audio effects enabled. Click to mute.' : 'Audio effects muted. Click to enable.'}
           >
@@ -115,32 +115,33 @@ export function SiteHeader() {
 
           <Link
             to="/login"
-            className="px-3 sm:px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white transition"
+            className="px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white transition shrink-0 whitespace-nowrap"
           >
             Sign in
           </Link>
-          <Button href="/register" size="sm" className="shadow-lg shadow-[#B92B27]/25 bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] border-none text-white font-bold px-3.5 sm:px-4 py-2">
+          <Button href="/register" size="sm" className="shadow-lg shadow-[#B92B27]/25 bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] border-none text-white font-bold px-4 py-2 shrink-0 whitespace-nowrap">
             <span>Join Next Cohort</span>
             <ArrowRight size={13} />
           </Button>
         </div>
 
-        {/* Mobile & iPad Portrait Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 lg:hidden">
-          {/* Quick CTA button for iPad Portrait */}
+        {/* Mobile & iPad View Controls (< xl) */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 xl:hidden">
+          {/* Quick CTA button for iPad View (Hidden on narrow phones to avoid crowding) */}
           <Button
             href="/register"
             size="sm"
-            className="hidden sm:inline-flex shadow-md shadow-[#B92B27]/25 bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] border-none text-white font-bold px-3 py-1.5"
+            className="hidden sm:inline-flex shadow-md shadow-[#B92B27]/25 bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] border-none text-white font-bold px-3.5 py-1.5 shrink-0 whitespace-nowrap"
           >
-            <span>Join Cohort</span>
-            <ArrowRight size={12} />
+            <span>Join Next Cohort</span>
+            <ArrowRight size={13} />
           </Button>
 
+          {/* Audio SFX Toggle */}
           <button
             type="button"
             onClick={handleToggleSfx}
-            className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-surface-subtle bg-surface-card px-2 sm:px-2.5 py-1 text-[10px] font-mono font-medium text-slate-300 hover:text-white hover:border-[#F2B705]/40 transition cursor-pointer shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]"
+            className="flex items-center gap-1.5 rounded-full border border-surface-subtle bg-surface-card px-2.5 py-1 text-[10px] font-mono font-medium text-slate-300 hover:text-white hover:border-[#F2B705]/40 transition cursor-pointer shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] shrink-0"
             title={sfxEnabled ? 'Mute audio' : 'Enable audio'}
             aria-label={sfxEnabled ? 'Mute audio' : 'Enable audio'}
           >
@@ -159,9 +160,10 @@ export function SiteHeader() {
             )}
           </button>
 
+          {/* Hamburger Menu Toggle */}
           <button
             onClick={() => setOpen(!open)}
-            className="rounded-xl p-1.5 sm:p-2 text-slate-300 hover:bg-white/10 transition-colors"
+            className="rounded-xl p-2 text-slate-300 hover:bg-white/10 transition-colors shrink-0"
             aria-label="Toggle navigation"
           >
             {open ? <X size={20} /> : <Menu size={20} />}
@@ -169,9 +171,9 @@ export function SiteHeader() {
         </div>
       </div>
 
-      {/* Mobile & iPad Drawer */}
+      {/* Mobile & iPad Drawer (< xl) */}
       {open && (
-        <div className="mx-4 sm:mx-6 md:mx-auto md:max-w-2xl mb-4 rounded-2xl border border-surface-subtle bg-surface-card/95 p-4 sm:p-5 md:p-6 shadow-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] backdrop-blur-2xl lg:hidden animate-in fade-in slide-in-from-top-2">
+        <div className="mx-4 sm:mx-6 md:mx-auto md:max-w-xl mb-4 rounded-2xl border border-surface-subtle bg-surface-card/95 p-4 sm:p-5 shadow-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] backdrop-blur-2xl xl:hidden animate-in fade-in slide-in-from-top-2">
           <nav className="flex flex-col gap-1.5 sm:gap-2">
             {links.map((link) => (
               <a
