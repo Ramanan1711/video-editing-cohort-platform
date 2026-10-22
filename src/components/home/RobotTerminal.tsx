@@ -517,12 +517,25 @@ export const RobotTerminal: React.FC = () => {
           const bodyObjects: THREE.Object3D[] = [];
 
           gltf.scene.children.slice().forEach((child) => {
+            // Remove the tail-like card protruding from the back side
+            if (
+              child.name === 'Plate 2' ||
+              child.name.includes('Plate 2') ||
+              child.name === 'Cutter.006_Plate'
+            ) {
+              child.visible = false;
+              if (child.parent) {
+                child.parent.remove(child);
+              }
+              return;
+            }
+
             const box = new THREE.Box3().setFromObject(child);
             const center = new THREE.Vector3();
             box.getCenter(center);
             const isHead =
               headNodes.has(child.name) ||
-              child.name.includes('Plate') ||
+              child.name.startsWith('Cube_Plate') ||
               child.name.startsWith('Slice.00') ||
               center.y > 0.495;
 
