@@ -517,7 +517,16 @@ export const RobotTerminal: React.FC = () => {
           const bodyObjects: THREE.Object3D[] = [];
 
           gltf.scene.children.slice().forEach((child) => {
-            if (headNodes.has(child.name)) {
+            const box = new THREE.Box3().setFromObject(child);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            const isHead =
+              headNodes.has(child.name) ||
+              child.name.includes('Plate') ||
+              child.name.startsWith('Slice.00') ||
+              center.y > 0.495;
+
+            if (isHead && child.name !== 'Cou') {
               headObjects.push(child);
             } else {
               bodyObjects.push(child);
@@ -624,8 +633,8 @@ export const RobotTerminal: React.FC = () => {
         const delta = Math.min((time - lastTime) * 0.001, 0.05);
         lastTime = time;
 
-        // Mouse Lerp
-        const lerpFactor = 0.08;
+        // Mouse Lerp with fluid, responsive tracking
+        const lerpFactor = 0.10;
         mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * lerpFactor;
         mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * lerpFactor;
 
@@ -634,28 +643,28 @@ export const RobotTerminal: React.FC = () => {
         let targetRoll: number;
 
         if (mouseRef.current.active) {
-          // Front-facing mouse tracking centered on neck axis
-          targetYaw = mouseRef.current.x * 0.22;
-          targetPitch = -mouseRef.current.y * 0.14;
-          targetRoll = -mouseRef.current.x * 0.035;
+          // Expressive 360-degree omnidirectional cursor tracking for the display head
+          targetYaw = mouseRef.current.x * 0.82;
+          targetPitch = -mouseRef.current.y * 0.52;
+          targetRoll = -mouseRef.current.x * 0.15;
         } else {
           const elapsed = time * 0.001;
-          targetYaw = Math.sin(elapsed * 0.8) * 0.06;
-          targetPitch = Math.cos(elapsed * 1.2) * 0.03;
-          targetRoll = Math.sin(elapsed * 0.6) * 0.015;
+          targetYaw = Math.sin(elapsed * 0.8) * 0.16;
+          targetPitch = Math.cos(elapsed * 1.1) * 0.08;
+          targetRoll = Math.sin(elapsed * 0.6) * 0.04;
         }
 
-        currentHeadYaw += (targetYaw - currentHeadYaw) * 0.08;
-        currentHeadPitch += (targetPitch - currentHeadPitch) * 0.08;
-        currentHeadRoll += (targetRoll - currentHeadRoll) * 0.08;
+        currentHeadYaw += (targetYaw - currentHeadYaw) * 0.10;
+        currentHeadPitch += (targetPitch - currentHeadPitch) * 0.10;
+        currentHeadRoll += (targetRoll - currentHeadRoll) * 0.10;
 
-        // Torso stays grounded with subtle micro-reaction
-        currentBodyYaw += (targetYaw * 0.05 - currentBodyYaw) * 0.04;
-        currentBodyPitch += (targetPitch * 0.03 - currentBodyPitch) * 0.04;
+        // Torso stays grounded with subtle, organic micro-reaction
+        currentBodyYaw += (targetYaw * 0.12 - currentBodyYaw) * 0.06;
+        currentBodyPitch += (targetPitch * 0.08 - currentBodyPitch) * 0.06;
 
-        // In front-facing view, Z is pitch (nod up/down), Y is yaw (turn left/right), X is roll
-        headPivot.rotation.set(currentHeadRoll, currentHeadYaw, currentHeadPitch, 'ZYX');
-        bodyPivot.rotation.set(0, currentBodyYaw, currentBodyPitch, 'ZYX');
+        // Euler rotation order 'YZX': Yaw (left/right around neck Y), Pitch (nod up/down around Z), Roll (tilt around X)
+        headPivot.rotation.set(currentHeadRoll, currentHeadYaw, currentHeadPitch, 'YZX');
+        bodyPivot.rotation.set(0, currentBodyYaw, currentBodyPitch, 'YZX');
 
         // Spin fan blades smoothly
         if (fanBladesMesh) {
@@ -754,13 +763,13 @@ export const RobotTerminal: React.FC = () => {
       currY += (targetY - currY) * 0.08;
 
       setFallbackTransform({
-        yaw: currX * 14 + 10,
-        pitch: -currY * 9,
-        roll: -currX * 2.0,
-        glareX: -currX * 14,
-        glareY: -currY * 14,
-        torsoYaw: currX * 2.5 + 4,
-        torsoPitch: -currY * 1.5,
+        yaw: currX * 38 + 6,
+        pitch: -currY * 26,
+        roll: -currX * 6,
+        glareX: -currX * 20,
+        glareY: -currY * 20,
+        torsoYaw: currX * 5 + 2,
+        torsoPitch: -currY * 3,
       });
 
       animId = requestAnimationFrame(animateFallback);
