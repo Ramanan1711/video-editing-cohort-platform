@@ -1,191 +1,16 @@
-import { Award, CheckCircle2, QrCode, Quote, Star, Trophy } from 'lucide-react';
+import { Award, CheckCircle2, QrCode, Quote, Star } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { TiltCard } from '../TiltCard';
 import { FwCard } from '../FwCard';
-import { FreelanceEarningsCalculator } from '../FreelanceEarningsCalculator';
 
 export interface TestimonialsSectionProps {
-  publishedPrice: number;
-  publishedCurrency: string;
+  publishedPrice?: number;
+  publishedCurrency?: string;
 }
 
-export function TestimonialsSection({ publishedPrice, publishedCurrency }: TestimonialsSectionProps) {
+export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
   return (
     <>
-      {/* ========================================================================= */}
-      {/* SECTION 8: GAMIFICATION, STREAKS & LEVEL UP SYSTEM */}
-      {/* ========================================================================= */}
-      <section className="border-t border-white/10 bg-[#070b16] py-20 lg:py-28 relative overflow-hidden">
-        {/* Ambient Lighting Orb */}
-        <div className="gsap-parallax-slow absolute top-1/2 -left-40 size-96 rounded-full bg-[#B92B27]/10 blur-3xl pointer-events-none" />
-
-        <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="gsap-header-reveal space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#F2B705]/10 border border-[#F2B705]/20 px-3 py-1 text-xs font-black text-[#F2B705]">
-                <Trophy size={14} />
-                <span>The Psychology of Finishing</span>
-              </div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
-                Gamified Daily Sprints That Make Quitting Impossible.
-              </h2>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                We engineered Iunoware Academy around positive momentum. Daily streaks, XP points, and cohort leaderboards keep your focus high until Day 15.
-              </p>
-
-              <div className="space-y-4 text-xs sm:text-sm text-slate-300">
-                <div className="flex items-start gap-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] text-white font-bold shadow-md shadow-[#B92B27]/20">
-                    🔥
-                  </span>
-                  <div>
-                    <strong className="text-white">The 15-Day Flame Streak:</strong>
-                    <p className="text-xs text-slate-400 mt-0.5">Submit every day to protect your unbroken streak. Earn the coveted 15/15 Finisher Badge.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-[#2675EB] text-white font-bold shadow-md shadow-[#2675EB]/20">
-                    ⚡
-                  </span>
-                  <div>
-                    <strong className="text-white">Early Bird XP Multiplier:</strong>
-                    <p className="text-xs text-slate-400 mt-0.5">Submitting before 8:00 PM grants a 1.5x XP bonus, placing your work higher on the mentor review queue.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-[#38B44A] text-white font-bold shadow-md shadow-[#38B44A]/20">
-                    🛡️
-                  </span>
-                  <div>
-                    <strong className="text-white">Emergency Streak Freeze:</strong>
-                    <p className="text-xs text-slate-400 mt-0.5">Life happens. Every student gets 1 emergency streak shield to safeguard their record during emergencies.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Gamification Dashboard Mock with 3D Depth Tilt */}
-            <TiltCard
-              maxTilt={6}
-              glareColor="rgba(185, 43, 39, 0.15)"
-              className="rounded-3xl border border-white/10 bg-[#030712]/95 backdrop-blur-xl p-6 sm:p-8 space-y-6 shadow-2xl shadow-black/40"
-            >
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#B92B27] via-[#D93830] to-[#F2B705] text-white font-black text-sm shadow-md shadow-[#B92B27]/20">
-                    15
-                  </div>
-                  <div>
-                    <p className="text-xs font-black text-white">Cohort Sprint Leaderboard</p>
-                    <p className="text-[10px] text-slate-400">Live points rankings</p>
-                  </div>
-                </div>
-                <span className="rounded-full bg-[#38B44A]/10 border border-[#38B44A]/20 px-2.5 py-0.5 text-[10px] font-black text-[#38B44A]">
-                  Active Sprint Participant
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                {[
-                  { rank: 1, name: 'Sample Intern A', track: 'Commercial Cut', xp: '2,940 XP', streak: '12d 🔥' },
-                  { rank: 2, name: 'Sample Intern B', track: 'Color Grading', xp: '2,890 XP', streak: '12d 🔥' },
-                  { rank: 3, name: 'Your Candidate Profile', track: 'Current Candidate', xp: '2,850 XP', streak: '12d 🔥' },
-                ].map((user) => (
-                  <div
-                    key={user.rank}
-                    className={`flex items-center justify-between p-3.5 rounded-xl border text-xs transition ${
-                      user.rank === 3
-                        ? 'border-[#F2B705]/60 bg-gradient-to-r from-[#F2B705]/15 to-transparent text-white shadow-md shadow-[#F2B705]/10'
-                        : 'border-white/10 bg-white/[0.03] text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="font-black text-slate-400 w-4">#{user.rank}</span>
-                      <div>
-                        <p className="font-black text-white">{user.name}</p>
-                        <p className="text-[10px] text-slate-400">{user.track}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-black text-[#F2B705]">{user.xp}</p>
-                      <p className="text-[10px] text-slate-400">{user.streak}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TiltCard>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* SECTION 9: LIVE WORKSHOPS & CRITIQUE ROOMS */}
-      {/* ========================================================================= */}
-      <section id="workshops" className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F2B705]">
-              Live Interactive Masterclasses
-            </p>
-            <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
-              Live Critique Rooms &amp; Stage Refactorings
-            </h2>
-            <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-              In addition to daily tasks, join live group critique sessions where mentors audit real student timelines and video projects on Zoom.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-4 hover:border-[#2675EB]/40 transition">
-              <span className="rounded-md bg-[#2675EB]/10 border border-[#2675EB]/20 px-2 py-0.5 text-[10px] font-black uppercase text-[#2675EB]">
-                Every Saturday 6:00 PM
-              </span>
-              <h3 className="text-base font-black text-white">
-                Live Timeline Teardowns &amp; Hot Seat
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Volunteers share their screens. Mentors pull apart the edit, pacing, audio ducking, and transition cuts in real-time.
-              </p>
-              <div className="text-[11px] font-bold text-slate-400 border-t border-white/10 pt-3">
-                Full 4K recording uploaded within 2 hours.
-              </div>
-            </TiltCard>
-
-            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-4 hover:border-[#B92B27]/40 transition">
-              <span className="rounded-md bg-[#B92B27]/10 border border-[#B92B27]/20 px-2 py-0.5 text-[10px] font-black uppercase text-[#D93830]">
-                Mid-Sprint Day 10
-              </span>
-              <h3 className="text-base font-black text-white">
-                Color Grading &amp; Sound Masterclass
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Deep-dive into advanced topics: DaVinci Resolve node primaries, -14 LUFS broadcast mastering, and cinematic color space transforms.
-              </p>
-              <div className="text-[11px] font-bold text-slate-400 border-t border-white/10 pt-3">
-                Interactive Q&amp;A directly with guest directors.
-              </div>
-            </TiltCard>
-
-            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-4 hover:border-[#38B44A]/40 transition">
-              <span className="rounded-md bg-[#38B44A]/10 border border-[#38B44A]/20 px-2 py-0.5 text-[10px] font-black uppercase text-[#38B44A]">
-                Sprint Day 15
-              </span>
-              <h3 className="text-base font-black text-white">
-                Capstone Demo Day &amp; Showreel Pitch
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Graduates present their crowning 15-day commercial reels to our partner network of agency creative leads and studio founders.
-              </p>
-              <div className="text-[11px] font-bold text-slate-400 border-t border-white/10 pt-3">
-                Direct portfolio showcase opportunities.
-              </div>
-            </TiltCard>
-          </div>
-        </div>
-      </section>
-
       {/* ========================================================================= */}
       {/* SECTION: SELECTED PRODUCTION DELIVERABLES (JUNCA .FW SHOWCASE) */}
       {/* ========================================================================= */}
@@ -353,14 +178,6 @@ export function TestimonialsSection({ publishedPrice, publishedCurrency }: Testi
           </div>
         </div>
       </section>
-
-      {/* ========================================================================= */}
-      {/* SECTION 14: INTERACTIVE FREELANCE ROI CALCULATOR */}
-      {/* ========================================================================= */}
-      <FreelanceEarningsCalculator
-        publishedPrice={publishedPrice}
-        publishedCurrency={publishedCurrency}
-      />
 
       {/* ========================================================================= */}
       {/* SECTION 15: WALL OF LOVE / VERIFIED STUDENT STORIES */}

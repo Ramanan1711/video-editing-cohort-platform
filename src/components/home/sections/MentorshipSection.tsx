@@ -60,6 +60,26 @@ export function MentorshipSection() {
                     <p className="text-xs text-slate-400">Our system detects if you’re falling behind and sends a friendly nudge to keep your streak alive.</p>
                   </div>
                 </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#38B44A]/20 text-[#38B44A] border border-[#38B44A]/30 mt-0.5 shadow-xs shadow-[#38B44A]/20">
+                    <Check size={13} />
+                  </span>
+                  <div>
+                    <p className="text-xs font-black text-white">5-Pillar Commercial Rubric Audits</p>
+                    <p className="text-xs text-slate-400">Scored against technical execution, timeline polish, audio mastery, and commercial client readiness.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#38B44A]/20 text-[#38B44A] border border-[#38B44A]/30 mt-0.5 shadow-xs shadow-[#38B44A]/20">
+                    <Check size={13} />
+                  </span>
+                  <div>
+                    <p className="text-xs font-black text-white">&lt;24h Guaranteed Feedback SLA</p>
+                    <p className="text-xs text-slate-400">Receive written rubric breakdowns and voice note critiques within 24 hours so you never lose momentum.</p>
+                  </div>
+                </div>
               </div>
 
               {/* Scenario Toggle */}
@@ -183,67 +203,6 @@ export function MentorshipSection() {
                   </>
                 )}
               </div>
-            </TiltCard>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* SECTION 7: PROOF-OF-WORK EVALUATION RUBRIC */}
-      {/* ========================================================================= */}
-      <section id="rubric" className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
-          <div className="gsap-header-reveal text-center max-w-2xl mx-auto mb-16">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F2B705]">
-              Rigorous Evaluation Standards
-            </p>
-            <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
-              How Your Work is Monitored &amp; Scored
-            </h2>
-            <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-              We don&apos;t do pass/fail quizzes. Every submission is evaluated against our 5-pillar industry rubric by human mentors.
-            </p>
-          </div>
-
-          <div className="gsap-cards-group grid grid-cols-1 md:grid-cols-5 gap-4">
-            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-3 hover:border-[#B92B27]/40 transition">
-              <span className="text-3xl font-black bg-gradient-to-r from-[#B92B27] to-[#D93830] bg-clip-text text-transparent">01</span>
-              <h4 className="text-xs font-black text-white">Technical Execution</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Are video cuts paced to audio transients, retention hooks, and seamless visual flow without dropped frames?
-              </p>
-            </TiltCard>
-
-            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-3 hover:border-[#F2B705]/40 transition">
-              <span className="text-3xl font-black bg-gradient-to-r from-[#F2B705] to-[#D99B02] bg-clip-text text-transparent">02</span>
-              <h4 className="text-xs font-black text-white">Cleanliness &amp; Polish</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Professional track organization, color-coded timeline stems, and mastered audio submix without clipped waveforms.
-              </p>
-            </TiltCard>
-
-            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-3 hover:border-[#38B44A]/40 transition">
-              <span className="text-3xl font-black bg-gradient-to-r from-[#38B44A] to-[#2E9A3E] bg-clip-text text-transparent">03</span>
-              <h4 className="text-xs font-black text-white">Timeliness Discipline</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Submitted before 11:59 PM deadline. Builds the muscle memory required in real client agencies.
-              </p>
-            </TiltCard>
-
-            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-3 hover:border-[#2675EB]/40 transition">
-              <span className="text-3xl font-black bg-gradient-to-r from-[#2675EB] to-[#1B5FCC] bg-clip-text text-transparent">04</span>
-              <h4 className="text-xs font-black text-white">Commercial Viability</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Would a paying client accept this deliverable? Does it solve the real business goal of the brief?
-              </p>
-            </TiltCard>
-
-            <TiltCard className="p-6 border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] rounded-2xl space-y-3 hover:border-[#B92B27]/40 transition">
-              <span className="text-3xl font-black bg-gradient-to-r from-[#B92B27] via-[#F2B705] to-[#38B44A] bg-clip-text text-transparent">05</span>
-              <h4 className="text-xs font-black text-white">Documentation &amp; Loom</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Clear client delivery notes or short Loom video walk-through explaining edit pacing and sound choices.
-              </p>
             </TiltCard>
           </div>
         </div>

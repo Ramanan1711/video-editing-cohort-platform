@@ -1,10 +1,6 @@
 import {
-  ArrowDown,
   ArrowRight,
   CheckCircle2,
-  Clock,
-  Flame,
-  MessageCircle,
   Play,
   Sparkles,
   Star,
@@ -142,206 +138,16 @@ export function HeroSection({
         </div>
       </section>
 
-      {/* Live Interactive Platform Mockup Section */}
-      <section className="relative py-12 px-5 lg:px-8 bg-[#040813] border-b border-white/10">
-        <div className="mx-auto max-w-7xl">
-          {/* Live Interactive Platform Mockup with 3D Depth-Tilt & Specular Lighting */}
-          <div className="mt-14 relative perspective-1200">
-            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-[#B92B27] via-[#F2B705] to-[#2675EB] opacity-25 blur-2xl pointer-events-none" />
-            <TiltCard
-              maxTilt={4}
-              scale={1.01}
-              perspective={1200}
-              glareOpacity={0.2}
-              glareColor="rgba(242, 183, 5, 0.25)"
-              className="relative rounded-3xl border border-surface-subtle bg-surface-card/90 backdrop-blur-2xl shadow-2xl shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] overflow-hidden"
-            >
-              {/* Mock Browser Header */}
-              <div className="flex items-center justify-between border-b border-white/10 bg-[#060911]/80 px-5 py-3.5">
-                <div className="flex items-center gap-2">
-                  <span className="size-3 rounded-full bg-[#B92B27]" />
-                  <span className="size-3 rounded-full bg-[#F2B705]" />
-                  <span className="size-3 rounded-full bg-[#38B44A]" />
-                  <span className="ml-2 font-mono text-[11px] font-bold text-slate-400">
-                    procuthub.com/student/dashboard?tab=internship_sprint
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1.5 rounded-full bg-[#38B44A]/15 border border-[#38B44A]/30 px-2.5 py-0.5 text-[10px] font-black text-[#38B44A]">
-                    <span className="size-1.5 rounded-full bg-[#38B44A] animate-pulse" />
-                    Live Mentor Active
-                  </span>
-                </div>
-              </div>
-
-              {/* Mock Dashboard Body */}
-              <div className="p-6 sm:p-8 space-y-6">
-                {/* Top Stats Banner */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-md">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sprint Progress</p>
-                    <p className="text-base font-black text-white font-mono">Day 04 / 15</p>
-                  </div>
-                  <div className="rounded-xl border border-[#F2B705]/20 bg-[#F2B705]/5 p-3.5 backdrop-blur-md">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Daily Streak</p>
-                    <p className="text-base font-black text-[#F2B705] font-mono">4 Days Active 🔥</p>
-                  </div>
-                  <div className="rounded-xl border border-[#38B44A]/20 bg-[#38B44A]/5 p-3.5 backdrop-blur-md">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tasks Verified</p>
-                    <p className="text-base font-black text-[#38B44A] font-mono">3 Approved</p>
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-md">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rubric Score</p>
-                    <p className="text-base font-black text-white font-mono">96 / 100</p>
-                  </div>
-                </div>
-
-                {/* 15-Day Visual Mini Heatmap */}
-                <div className="rounded-xl border border-white/10 bg-[#040711]/60 p-4">
-                  <div className="flex items-center justify-between text-xs font-bold mb-3">
-                    <span className="flex items-center gap-1.5 text-slate-200">
-                      <Flame size={14} className="text-[#F2B705]" />
-                      15-Day Sprint Heatmap
-                    </span>
-                    <span className="text-[11px] text-slate-400">Day 4 Milestone · On Schedule</span>
-                  </div>
-                  <div className="grid grid-cols-15 gap-1.5 sm:gap-2">
-                    {Array.from({ length: 15 }, (_, i) => i + 1).map((day) => {
-                      const isDone = day <= 3;
-                      const isCurrent = day === 4;
-                      return (
-                        <div
-                          key={day}
-                          className={`flex flex-col items-center gap-1 py-1.5 rounded-lg border text-center transition ${
-                            isDone
-                              ? 'bg-[#38B44A] border-[#2E9A3E] text-white shadow-2xs'
-                              : isCurrent
-                              ? 'bg-[#B92B27] border-[#D93830] text-white animate-pulse'
-                              : 'bg-white/5 border-white/10 text-slate-400'
-                          }`}
-                        >
-                          <span className="text-[9px] font-black">{day}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Active Task + WhatsApp Preview */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <div className="lg:col-span-2 rounded-xl border border-[#B92B27]/40 bg-[#B92B27]/10 p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="rounded-md bg-gradient-to-r from-[#B92B27] to-[#D93830] text-white px-2 py-0.5 text-[10px] font-black uppercase">
-                        Today's Production Task
-                      </span>
-                      <span className="text-xs font-bold text-[#F2B705] flex items-center gap-1">
-                        <Clock size={12} /> Deadline: 11:59 PM Tonight
-                      </span>
-                    </div>
-                    <h3 className="text-sm font-black text-white">
-                      Day 04: Component State &amp; Retention Speed Ramping
-                    </h3>
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      Implement fast timeline micro-transitions and publish your deliverable link for live mentor critique room review.
-                    </p>
-                    <div className="flex items-center gap-2 pt-2 border-t border-[#B92B27]/20">
-                      <span className="text-[11px] font-bold text-slate-300">
-                        Deliverable: Public GitHub PR or Video Cut Link
-                      </span>
-                      <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-black text-[#F2B705]">
-                        Submit Task <ArrowRight size={11} />
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* WhatsApp Co-pilot Snippet */}
-                  <div className="rounded-xl border border-[#38B44A]/30 bg-[#38B44A]/10 p-5 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="flex size-7 items-center justify-center rounded-full bg-[#38B44A] text-white">
-                          <MessageCircle size={14} />
-                        </div>
-                        <div>
-                          <p className="text-xs font-black text-white leading-none">
-                            Mentor WhatsApp
-                          </p>
-                          <p className="text-[10px] text-[#38B44A] mt-0.5">
-                            Avg. reply under 15 mins
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-xs text-slate-300 italic bg-[#030712]/80 p-3 rounded-lg border border-white/10">
-                        &quot;Great job on Day 3's typography! For Day 4, pay special attention to retention at the 7-second mark.&quot;
-                      </p>
-                    </div>
-                    <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-[#38B44A]">
-                      <span>1-Click Mentor Chat Enabled</span>
-                      <CheckCircle2 size={12} />
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </TiltCard>
-          </div>
-
-          {/* Scroll Down Hook */}
-          <div className="mt-14 flex flex-col items-center">
-            <a
-              href="#active-cohorts"
-              className="group flex flex-col items-center gap-2 text-xs font-bold text-slate-400 hover:text-[#F2B705] transition"
-            >
-              <span>Scroll down to inspect live cohorts and curriculum</span>
-              <span className="flex size-8 items-center justify-center rounded-full border border-white/10 bg-[#090d16] text-slate-300 shadow-lg group-hover:border-[#B92B27] group-hover:text-[#F2B705] group-hover:translate-y-1 transition-all">
-                <ArrowDown size={14} />
-              </span>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* VERIFIED OPERATIONAL STANDARDS TICKER */}
-      {/* ========================================================================= */}
-      <section className="border-y border-white/10 bg-[#060911]/90 py-4 overflow-hidden backdrop-blur-md">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8">
-          <div className="flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-slate-300">
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="flex size-2 rounded-full bg-[#38B44A] animate-pulse" />
-              <span className="font-black text-white uppercase tracking-wider text-[11px]">
-                Verified Platform Operations
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-6 overflow-x-auto text-[11px] scrollbar-none">
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="font-bold text-[#D93830]">Daily Intake:</span>
-                <span>Automated GitHub PR &amp; Video URL Submissions</span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="font-bold text-[#38B44A]">Review SLA:</span>
-                <span>&lt;24h Written &amp; Audio Rubric Grading</span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="font-bold text-[#2675EB]">Mentorship:</span>
-                <span>Dedicated WhatsApp 1-on-1 Blocker Triage</span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="font-bold text-[#F2B705]">Certification:</span>
-                <span>Tamper-Proof Cryptographic Verification Hash</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ========================================================================= */}
       {/* REAL DATABASE COHORTS SECTION WITH 3D DEPTH-TILT OBSIDIAN CARDS */}
       {/* ========================================================================= */}
-      <section id="active-cohorts" className="py-20 lg:py-28 bg-[#030712] relative">
+      <section id="active-cohorts" className="py-20 lg:py-28 bg-[#030712] relative border-t border-white/10">
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-14 gsap-header-reveal">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F2B705]">
-              Live Cohort Registry
-            </p>
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#38B44A]/10 border border-[#38B44A]/25 px-3.5 py-1 text-xs font-black text-[#38B44A] mb-3">
+              <span className="size-2 rounded-full bg-[#38B44A] animate-pulse" />
+              <span>Verified Platform Operations · Live Cohort Registry</span>
+            </div>
             <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-white">
               Available Production Cohorts
             </h2>
