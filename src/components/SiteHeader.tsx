@@ -127,16 +127,6 @@ export function SiteHeader() {
 
         {/* Mobile & iPad View Controls (< xl) */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 xl:hidden">
-          {/* Quick CTA button for iPad View (Hidden on narrow phones to avoid crowding) */}
-          <Button
-            href="/register"
-            size="sm"
-            className="hidden sm:inline-flex shadow-md shadow-[#B92B27]/25 bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] border-none text-white font-bold px-3.5 py-1.5 shrink-0 whitespace-nowrap"
-          >
-            <span>Join Next Cohort</span>
-            <ArrowRight size={13} />
-          </Button>
-
           {/* Audio SFX Toggle */}
           <button
             type="button"
