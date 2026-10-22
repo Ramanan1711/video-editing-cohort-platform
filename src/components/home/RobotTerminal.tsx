@@ -869,7 +869,7 @@ export const RobotTerminal: React.FC = () => {
       data-cursor="ROBOT"
       onClick={handleClick}
       onMouseEnter={() => soundFx.playBlip(540, 0.03, 'sine', 0.03)}
-      className="relative w-[280px] min-[380px]:w-[320px] sm:w-[420px] md:w-[540px] lg:w-[680px] xl:w-[820px] 2xl:w-[960px] h-[320px] min-[380px]:h-[360px] sm:h-[480px] md:h-[600px] lg:h-[760px] xl:h-[900px] 2xl:h-[1020px] max-h-[96vh] max-w-[92vw] lg:max-w-[55vw] flex items-center justify-center select-none pointer-events-auto cursor-pointer"
+      className="relative w-[280px] min-[380px]:w-[320px] sm:w-[400px] md:w-[460px] lg:w-[480px] xl:w-[760px] 2xl:w-[940px] h-[320px] min-[380px]:h-[360px] sm:h-[460px] md:h-[530px] lg:h-[560px] xl:h-[860px] 2xl:h-[1020px] max-h-[96vh] max-w-[92vw] lg:max-w-[48vw] xl:max-w-[52vw] flex items-center justify-center select-none pointer-events-auto cursor-pointer"
     >
       {/* ================= VOLUMETRIC CRIMSON BACKGROUND NEBULA ================= */}
       {/* Fully responsive, concentric atmospheric aura that scales 1:1 with the robot across all screen sizes */}

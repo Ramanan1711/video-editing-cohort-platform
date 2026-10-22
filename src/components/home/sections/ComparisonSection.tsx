@@ -25,7 +25,7 @@ export function ComparisonSection() {
             perspective={1000}
             glareOpacity={0.15}
             glareColor="rgba(185, 43, 39, 0.25)"
-            className="glass-obsidian rounded-3xl border border-[#B92B27]/30 bg-[#B92B27]/10 p-7 sm:p-9 space-y-6 shadow-xl"
+            className="glass-obsidian rounded-3xl border border-[#B92B27]/30 bg-[#B92B27]/10 p-6 sm:p-7 lg:p-9 space-y-6 shadow-xl"
           >
             <div className="flex items-center justify-between border-b border-[#B92B27]/20 pb-4">
               <div>
@@ -68,7 +68,7 @@ export function ComparisonSection() {
             perspective={1000}
             glareOpacity={0.25}
             glareColor="rgba(56, 180, 74, 0.25)"
-            className="glass-obsidian rounded-3xl border border-[#38B44A]/40 bg-gradient-to-br from-[#38B44A]/15 via-[#090d16] to-[#2675EB]/15 p-7 sm:p-9 space-y-6 shadow-2xl"
+            className="glass-obsidian rounded-3xl border border-[#38B44A]/40 bg-gradient-to-br from-[#38B44A]/15 via-[#090d16] to-[#2675EB]/15 p-6 sm:p-7 lg:p-9 space-y-6 shadow-2xl"
           >
             <div className="flex items-center justify-between border-b border-[#38B44A]/20 pb-4">
               <div>

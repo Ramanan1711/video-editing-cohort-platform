@@ -6,9 +6,9 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-white/10 bg-[#030712] text-slate-400 transition-colors">
       <div className="mx-auto max-w-7xl px-5 py-14 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-10">
           {/* Brand Info */}
-          <div className="md:col-span-2 space-y-4">
+          <div className="sm:col-span-2 md:col-span-3 lg:col-span-2 space-y-4">
             <Link to="/" className="flex items-center gap-3">
               <img
                 src={BRAND_LOGO_URL}

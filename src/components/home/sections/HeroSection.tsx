@@ -52,7 +52,7 @@ export function HeroSection({
 
         {/* Exact Requested Hero Content Markup */}
         <div className="container hero__content mx-auto max-w-7xl px-5 lg:px-8 relative z-20 w-full" data-astro-cid-lcdefpme="">
-          <div className="flex flex-col items-start text-left max-w-3xl">
+          <div className="flex flex-col items-start text-left max-w-3xl lg:max-w-[54%] xl:max-w-2xl 2xl:max-w-3xl">
             {/* Verified Status Pill */}
             <div
               data-cursor="COHORT TELEMETRY"
@@ -76,7 +76,7 @@ export function HeroSection({
             {/* 3D Retro-Futuristic Robot Terminal Character with Visor CRT & Fan */}
             {/* Mobile & Tablet (< lg): Centered in-flow hero visual */}
             {/* Desktop (>= lg): Absolute docked on the right side */}
-            <div className="w-full lg:w-auto my-4 sm:my-6 lg:my-0 flex items-center justify-center lg:absolute lg:-right-4 xl:right-4 2xl:right-8 lg:top-[56%] lg:-translate-y-1/2 z-10 pointer-events-none max-h-[96vh]">
+            <div className="w-full lg:w-auto my-4 sm:my-6 lg:my-0 flex items-center justify-center lg:absolute lg:-right-6 xl:right-2 2xl:right-8 lg:top-[56%] lg:-translate-y-1/2 z-10 pointer-events-none max-h-[96vh]">
               <LazyRobotTerminal />
             </div>
 

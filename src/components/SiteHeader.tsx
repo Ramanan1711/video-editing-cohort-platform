@@ -74,7 +74,7 @@ export function SiteHeader() {
         </Link>
 
         {/* Center Navigation Links */}
-        <nav className="hidden items-center gap-7 lg:flex">
+        <nav className="hidden items-center gap-4 xl:gap-7 lg:flex">
           {links.map((link) => (
             <a
               key={link.href}
