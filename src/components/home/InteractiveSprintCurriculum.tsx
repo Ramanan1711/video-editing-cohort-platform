@@ -1191,7 +1191,7 @@ export function InteractiveSprintCurriculum({
             </p>
           </div>
 
-          <div className="roadmap-track relative pl-6 sm:pl-8 md:pl-0 space-y-6 md:space-y-10">
+          <div className="roadmap-track relative pl-1 sm:pl-2 md:pl-0 space-y-6 md:space-y-10">
             {/* Glowing Animated Laser Node traversing the spine */}
             <div className="roadmap-laser-node" />
 
@@ -1205,7 +1205,7 @@ export function InteractiveSprintCurriculum({
                 <div key={`${selectedTrack}-${d.day}`} className="relative group">
                   {/* Phase Milestone Marker */}
                   {isPhaseStart && (
-                    <div className="pt-4 pb-2 md:pb-4 flex justify-center -ml-6 sm:-ml-8 md:ml-0 first:pt-0">
+                    <div className="pt-4 pb-2 md:pb-4 flex justify-center -ml-2 sm:-ml-4 md:ml-0 first:pt-0">
                       <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-[#060a16] px-4 py-1.5 text-xs font-black uppercase tracking-wider text-slate-200 font-mono shadow-xl backdrop-blur-xl z-20">
                         {d.day === 1 ? (
                           <Zap size={13} className={currentTrackMeta.color.primary} />
@@ -1219,14 +1219,14 @@ export function InteractiveSprintCurriculum({
                     </div>
                   )}
 
-                  {/* Alternating Row: Left on Odd, Right on Even (on md screens and above) */}
+                  {/* Responsive Row: Left Node + Card on Mobile; Alternating Zig-Zag on Tablet/Desktop */}
                   <div
-                    className={`flex flex-col md:flex-row items-center gap-4 sm:gap-6 ${
+                    className={`flex flex-row items-start md:items-center gap-3 sm:gap-4 md:gap-6 ${
                       isEven ? 'md:flex-row-reverse' : ''
                     }`}
                   >
                     {/* The Roadmap Card */}
-                    <div className="w-full md:w-[calc(50%-2.75rem)]">
+                    <div className="order-2 md:order-none flex-1 min-w-0 md:w-[calc(50%-2.75rem)] md:flex-initial">
                       <div
                         onMouseEnter={() => soundFx.playBlip(300 + d.day * 18, 0.03, 'sine', 0.03)}
                         onClick={() => {
@@ -1246,7 +1246,7 @@ export function InteractiveSprintCurriculum({
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-black uppercase font-mono tracking-wider ${
                                 isSelected
-                                  ? `bg-gradient-to-r ${currentTrackMeta.color.gradient} text-white shadow-sm`
+                                    ? `bg-gradient-to-r ${currentTrackMeta.color.gradient} text-white shadow-sm`
                                   : 'bg-white/10 text-slate-200'
                               }`}
                             >
@@ -1300,7 +1300,7 @@ export function InteractiveSprintCurriculum({
                     </div>
 
                     {/* Central Connected Spine Node Button */}
-                    <div className="relative z-10 shrink-0 self-start md:self-center">
+                    <div className="order-1 md:order-none relative z-10 shrink-0 self-start md:self-center">
                       <button
                         type="button"
                         onMouseEnter={() => soundFx.playBlip(300 + d.day * 18, 0.03, 'sine', 0.03)}

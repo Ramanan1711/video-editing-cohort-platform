@@ -50,11 +50,6 @@ export function HeroSection({
         {/* Interactive 3D / Gradient WebGL Canvas Hero Simulator */}
         <HeroCanvasSimulator />
 
-        {/* 3D Retro-Futuristic Robot Terminal Character with Visor CRT & Fan */}
-        <div className="absolute -right-6 sm:-right-4 md:-right-2 lg:right-2 xl:right-6 top-[54%] lg:top-[56%] -translate-y-1/2 z-10 hidden md:flex items-center justify-center pointer-events-none max-h-[96vh]">
-          <LazyRobotTerminal />
-        </div>
-
         {/* Exact Requested Hero Content Markup */}
         <div className="container hero__content mx-auto max-w-7xl px-5 lg:px-8 relative z-20 w-full" data-astro-cid-lcdefpme="">
           <div className="flex flex-col items-start text-left max-w-3xl">
@@ -78,8 +73,15 @@ export function HeroSection({
               Start Shipping Production.
             </h1>
 
+            {/* 3D Retro-Futuristic Robot Terminal Character with Visor CRT & Fan */}
+            {/* Mobile & Tablet (< lg): Centered in-flow hero visual */}
+            {/* Desktop (>= lg): Absolute docked on the right side */}
+            <div className="w-full lg:w-auto my-4 sm:my-6 lg:my-0 flex items-center justify-center lg:absolute lg:-right-4 xl:right-4 2xl:right-8 lg:top-[56%] lg:-translate-y-1/2 z-10 pointer-events-none max-h-[96vh]">
+              <LazyRobotTerminal />
+            </div>
+
             {/* Subtitle */}
-            <p className="mt-6 max-w-2xl text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+            <p className="mt-2 lg:mt-6 max-w-2xl text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
               An intensive 15-day sprint for ambitious video editors and motion designers. Solve real production briefs daily, get 1-on-1 mentor guidance via WhatsApp, and graduate with a portfolio-grade project and accredited recommendation.
             </p>
 

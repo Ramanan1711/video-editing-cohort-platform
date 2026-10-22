@@ -22,31 +22,16 @@ export function LazyRobotTerminal() {
       if ('requestIdleCallback' in window) {
         const handle = (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback(
           () => setShouldRender(true),
-          { timeout: 1500 }
+          { timeout: 1200 }
         );
         cleanupIdle = () => {
           (window as unknown as { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(handle);
         };
       } else {
-        const timer = setTimeout(() => setShouldRender(true), 400);
+        const timer = setTimeout(() => setShouldRender(true), 300);
         cleanupIdle = () => clearTimeout(timer);
       }
     };
-
-    // Check media query - do not download 3D assets on mobile screens
-    const mediaQuery = window.matchMedia('(min-width: 768px)');
-    if (!mediaQuery.matches) {
-      const handler = (e: MediaQueryListEvent) => {
-        if (e.matches) {
-          triggerIdleLoad();
-        }
-      };
-      mediaQuery.addEventListener('change', handler);
-      return () => {
-        mediaQuery.removeEventListener('change', handler);
-        cleanupIdle?.();
-      };
-    }
 
     triggerIdleLoad();
 
@@ -55,24 +40,17 @@ export function LazyRobotTerminal() {
     };
   }, []);
 
+  const placeholderClass =
+    'w-[280px] min-[380px]:w-[320px] sm:w-[420px] md:w-[540px] lg:w-[680px] xl:w-[820px] 2xl:w-[960px] h-[320px] min-[380px]:h-[360px] sm:h-[480px] md:h-[600px] lg:h-[760px] xl:h-[900px] 2xl:h-[1020px] max-h-[96vh] max-w-[92vw] lg:max-w-[55vw] flex items-center justify-center pointer-events-none';
+
   if (!shouldRender) {
     return (
-      <div
-        className="w-[420px] sm:w-[540px] md:w-[660px] lg:w-[800px] xl:w-[960px] 2xl:w-[1120px] h-[540px] sm:h-[660px] md:h-[760px] lg:h-[880px] xl:h-[980px] 2xl:h-[1100px] max-h-[96vh] max-w-[58vw] flex items-center justify-center pointer-events-none"
-        aria-hidden="true"
-      />
+      <div className={placeholderClass} aria-hidden="true" />
     );
   }
 
   return (
-    <Suspense
-      fallback={
-        <div
-          className="w-[420px] sm:w-[540px] md:w-[660px] lg:w-[800px] xl:w-[960px] 2xl:w-[1120px] h-[540px] sm:h-[660px] md:h-[760px] lg:h-[880px] xl:h-[980px] 2xl:h-[1100px] max-h-[96vh] max-w-[58vw] flex items-center justify-center pointer-events-none"
-          aria-hidden="true"
-        />
-      }
-    >
+    <Suspense fallback={<div className={placeholderClass} aria-hidden="true" />}>
       <RobotTerminal />
     </Suspense>
   );
