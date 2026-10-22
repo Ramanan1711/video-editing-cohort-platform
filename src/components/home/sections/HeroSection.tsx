@@ -40,9 +40,9 @@ export function HeroSection({
       {/* ========================================================================= */}
       {/* HERO SECTION WITH 3D ROBOT TERMINAL & JUNCA STUDIO TYPOGRAPHY */}
       {/* ========================================================================= */}
-      <section className="hero relative overflow-hidden bg-[#080808] border-b border-white/10 min-h-[92vh] lg:min-h-screen flex items-end pb-16 lg:pb-28">
-        {/* Atmospheric company brand 4-quadrant volumetric gradients - centers behind robot on mobile/tablet, right-anchored on desktop */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(185,43,39,0.18),transparent_70%)] lg:bg-[radial-gradient(ellipse_75%_55%_at_70%_40%,rgba(185,43,39,0.25),transparent_70%)] gsap-parallax-slow" />
+      <section className="hero relative overflow-hidden bg-[#080808] border-b border-white/10 min-h-[85vh] lg:min-h-screen flex items-center pt-24 sm:pt-28 md:pt-32 pb-16 lg:pb-24">
+        {/* Atmospheric company brand 4-quadrant volumetric gradients - centers behind robot on mobile, right-anchored on tablet & desktop */}
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(185,43,39,0.18),transparent_70%)] md:bg-[radial-gradient(ellipse_75%_55%_at_70%_40%,rgba(185,43,39,0.25),transparent_70%)] gsap-parallax-slow" />
         <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-[#B92B27]/12 blur-[140px] gsap-parallax-slow" />
         <div className="pointer-events-none absolute top-20 right-1/4 -z-10 size-[450px] rounded-full bg-[#2675EB]/10 blur-[130px]" />
         <div className="pointer-events-none absolute bottom-12 left-1/3 -z-10 size-[400px] rounded-full bg-[#F2B705]/8 blur-[120px]" />
@@ -51,12 +51,12 @@ export function HeroSection({
         <HeroCanvasSimulator />
 
         {/* Exact Requested Hero Content Markup */}
-        <div className="container hero__content mx-auto max-w-7xl px-5 lg:px-8 relative z-20 w-full" data-astro-cid-lcdefpme="">
-          <div className="flex flex-col items-start text-left max-w-3xl lg:max-w-[54%] xl:max-w-2xl 2xl:max-w-3xl">
+        <div className="container hero__content mx-auto max-w-7xl px-5 sm:px-6 md:px-8 relative z-20 w-full" data-astro-cid-lcdefpme="">
+          <div className="flex flex-col items-start text-left max-w-3xl md:max-w-[54%] lg:max-w-[54%] xl:max-w-2xl 2xl:max-w-3xl">
             {/* Verified Status Pill */}
             <div
               data-cursor="COHORT TELEMETRY"
-              className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-[#F2B705]/30 bg-[#090d16]/80 px-4 py-1.5 shadow-lg shadow-[#B92B27]/10 backdrop-blur-xl gsap-metric-reveal"
+              className="mb-6 sm:mb-8 inline-flex items-center gap-2.5 rounded-full border border-[#F2B705]/30 bg-[#090d16]/80 px-4 py-1.5 shadow-lg shadow-[#B92B27]/10 backdrop-blur-xl gsap-metric-reveal"
             >
               <span className="flex size-2 rounded-full bg-[#38B44A] animate-ping" />
               <span className="text-[11px] font-black uppercase tracking-wider text-[#F2B705] font-mono">
@@ -74,14 +74,14 @@ export function HeroSection({
             </h1>
 
             {/* 3D Retro-Futuristic Robot Terminal Character with Visor CRT & Fan */}
-            {/* Mobile & Tablet (< lg): Centered in-flow hero visual */}
-            {/* Desktop (>= lg): Absolute docked on the right side */}
-            <div className="w-full lg:w-auto my-4 sm:my-6 lg:my-0 flex items-center justify-center lg:absolute lg:-right-6 xl:right-2 2xl:right-8 lg:top-[56%] lg:-translate-y-1/2 z-10 pointer-events-none max-h-[96vh]">
+            {/* Mobile (< md): Centered in-flow hero visual */}
+            {/* iPad & Desktop (>= md): Absolute docked on the right side */}
+            <div className="w-full md:w-auto my-4 sm:my-6 md:my-0 flex items-center justify-center md:absolute md:-right-6 lg:-right-4 xl:right-2 2xl:right-8 md:top-[50%] lg:top-[56%] md:-translate-y-1/2 z-10 pointer-events-none max-h-[96vh]">
               <LazyRobotTerminal />
             </div>
 
             {/* Subtitle */}
-            <p className="mt-2 lg:mt-6 max-w-2xl text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+            <p className="mt-2 md:mt-6 max-w-2xl text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
               An intensive 15-day sprint for ambitious video editors and motion designers. Solve real production briefs daily, get 1-on-1 mentor guidance via WhatsApp, and graduate with a portfolio-grade project and accredited recommendation.
             </p>
 

@@ -41,7 +41,7 @@ export function LazyRobotTerminal() {
   }, []);
 
   const placeholderClass =
-    'w-[280px] min-[380px]:w-[320px] sm:w-[400px] md:w-[460px] lg:w-[480px] xl:w-[760px] 2xl:w-[940px] h-[320px] min-[380px]:h-[360px] sm:h-[460px] md:h-[530px] lg:h-[560px] xl:h-[860px] 2xl:h-[1020px] max-h-[96vh] max-w-[92vw] lg:max-w-[48vw] xl:max-w-[52vw] flex items-center justify-center pointer-events-none';
+    'w-[280px] min-[380px]:w-[320px] sm:w-[400px] md:w-[420px] lg:w-[480px] xl:w-[760px] 2xl:w-[940px] h-[320px] min-[380px]:h-[360px] sm:h-[460px] md:h-[490px] lg:h-[560px] xl:h-[860px] 2xl:h-[1020px] max-h-[96vh] max-w-[92vw] md:max-w-[48vw] lg:max-w-[48vw] xl:max-w-[52vw] flex items-center justify-center pointer-events-none';
 
   if (!shouldRender) {
     return (
