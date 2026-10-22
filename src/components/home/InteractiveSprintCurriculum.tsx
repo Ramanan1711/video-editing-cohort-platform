@@ -989,70 +989,244 @@ export function InteractiveSprintCurriculum({
           </div>
         </div>
 
-        {/* Split Screen Layout: Vertical Connected Roadmap + Sticky Live Inspector */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
-          {/* Left Column: Vertical Connected Transform Roadmap Track */}
-          <div className="lg:col-span-7">
-            <div className="roadmap-track pl-6 sm:pl-8 space-y-4">
-              {/* Glowing Animated Laser Node traversing the spine */}
-              <div className="roadmap-laser-node" />
+        {/* ========================================================================= */}
+        {/* ACTIVE DAY COMMAND DECK & DEEP-DIVE SPOTLIGHT */}
+        {/* ========================================================================= */}
+        <div id="day-inspector" className="mb-14 max-w-4xl mx-auto">
+          <div className="space-y-4">
+            {/* Stepper Navigation Controls */}
+            <div className="flex items-center justify-between bg-[#060913] border border-white/10 rounded-2xl px-4 sm:px-5 py-2.5 backdrop-blur-xl shadow-xl">
+              <button
+                type="button"
+                aria-label="Previous day brief"
+                data-testid="inspector-prev-day"
+                disabled={!prevDay}
+                onMouseEnter={() => {
+                  if (prevDay) soundFx.playBlip(360, 0.02, 'sine', 0.02);
+                }}
+                onClick={() => {
+                  if (prevDay) {
+                    setSelectedDayDetail(prevDay);
+                    soundFx.playBlip(320 + prevDay * 22, 0.035, 'sine', 0.035);
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                  prevDay
+                    ? 'bg-white/5 hover:bg-white/10 text-slate-200 hover:text-white cursor-pointer'
+                    : 'opacity-30 cursor-not-allowed text-slate-500'
+                }`}
+              >
+                <ChevronLeft size={14} />
+                <span>Day {(activeDay.day - 1).toString().padStart(2, '0')}</span>
+              </button>
 
-              {filteredDays.map((d) => {
-                const isSelected = activeDay.day === d.day;
-                const isPhaseStart =
-                  roadmapFilter === 'all' && (d.day === 1 || d.day === 6 || d.day === 11);
+              <div className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span
+                  data-testid="inspector-day-indicator"
+                  className={`text-xs sm:text-sm font-black font-mono tracking-wider ${currentTrackMeta.color.primary}`}
+                >
+                  {`DAY ${activeDay.day.toString().padStart(2, '0')} / 15`}
+                </span>
+                <span className="hidden sm:inline text-xs text-slate-400 font-mono">
+                  • Active Milestone Focus
+                </span>
+              </div>
 
-                return (
-                  <div key={`${selectedTrack}-${d.day}`} className="relative group">
-                    {/* Phase Milestone Marker */}
-                    {isPhaseStart && (
-                      <div className="pt-4 pb-2 -ml-6 sm:-ml-8 first:pt-0">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#060a16] px-3.5 py-1 text-[11px] font-black uppercase tracking-wider text-slate-200 font-mono shadow-md backdrop-blur-xl">
-                          {d.day === 1 ? (
-                            <Zap size={12} className={currentTrackMeta.color.primary} />
-                          ) : d.day === 6 ? (
-                            <Flame size={12} className="text-[#F2B705]" />
-                          ) : (
-                            <Trophy size={12} className="text-[#38B44A]" />
-                          )}
-                          <span>
-                            {currentTrackMeta.phases[d.phase].title}
-                          </span>
-                        </div>
+              <button
+                type="button"
+                aria-label="Next day brief"
+                data-testid="inspector-next-day"
+                disabled={!nextDay}
+                onMouseEnter={() => {
+                  if (nextDay) soundFx.playBlip(480, 0.02, 'sine', 0.02);
+                }}
+                onClick={() => {
+                  if (nextDay) {
+                    setSelectedDayDetail(nextDay);
+                    soundFx.playBlip(320 + nextDay * 22, 0.035, 'sine', 0.035);
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                  nextDay
+                    ? 'bg-white/5 hover:bg-white/10 text-slate-200 hover:text-white cursor-pointer'
+                    : 'opacity-30 cursor-not-allowed text-slate-500'
+                }`}
+              >
+                <span>Day {(activeDay.day + 1).toString().padStart(2, '0')}</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+
+            {/* Detailed 3D Tilt Card */}
+            <TiltCard
+              maxTilt={4}
+              scale={1.01}
+              perspective={1200}
+              glareOpacity={0.18}
+              glareColor={currentTrackMeta.color.glow}
+              className={`p-6 sm:p-7 glass-obsidian ${currentTrackMeta.color.border} bg-[#090d16]/95 shadow-2xl rounded-3xl`}
+            >
+              {/* Card Header */}
+              <div className="space-y-2 pb-5 border-b border-white/10">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-md ${currentTrackMeta.color.bgBadge} border ${currentTrackMeta.color.border} px-2.5 py-0.5 text-xs font-black uppercase font-mono ${currentTrackMeta.color.textBadge}`}>
+                      Day {activeDay.day.toString().padStart(2, '0')} · Phase {activeDay.phase}
+                    </span>
+                    <span className="rounded-md bg-white/5 border border-white/10 px-2 py-0.5 text-[11px] font-bold text-slate-300 font-mono flex items-center gap-1">
+                      <Clock size={11} className={currentTrackMeta.color.primary} />
+                      <span>{activeDay.time} sprint</span>
+                    </span>
+                  </div>
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 font-mono">
+                    <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Active Brief
+                  </span>
+                </div>
+
+                <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
+                  {activeDay.title}
+                </h3>
+
+                <div className="flex items-center gap-2 text-xs text-slate-400 font-mono pt-1">
+                  <span className="text-slate-500">Software Stack:</span>
+                  <span className="text-white font-bold">{activeDay.tool}</span>
+                </div>
+              </div>
+
+              {/* Card Body */}
+              <div className="mt-5 space-y-5">
+                {/* The Brief & Narrative */}
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 font-mono mb-1.5">
+                    The Brief &amp; Narrative
+                  </h4>
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                    {activeDay.desc}
+                  </p>
+                  <div className="mt-2.5 flex items-center gap-2 text-xs font-bold text-slate-400">
+                    <Clock size={13} className={currentTrackMeta.color.primary} />
+                    <span>24-Hour Submission Window (Due 11:59 PM)</span>
+                  </div>
+                </div>
+
+                {/* Expected Deliverable */}
+                <div className="rounded-xl border border-white/10 bg-[#060911]/90 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className={`text-xs font-black uppercase tracking-wider font-mono ${currentTrackMeta.color.primary}`}>
+                      Expected Deliverable
+                    </h4>
+                    <CheckCircle2 size={14} className="text-emerald-400" />
+                  </div>
+                  <p className="text-xs sm:text-sm font-bold text-white leading-relaxed">
+                    {activeDay.deliverable}
+                  </p>
+                </div>
+
+                {/* Mentor Grading Rubric */}
+                <div className="rounded-xl border border-white/10 bg-[#060911]/60 p-4 space-y-1.5">
+                  <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 font-mono">
+                    Mentor Grading Rubric (0–100 Criteria)
+                  </h4>
+                  <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                    {activeDay.rubricPoints}
+                  </p>
+                </div>
+
+                {/* Phase Objective Context */}
+                <div className="rounded-xl border border-white/10 bg-[#060911]/40 p-3.5 space-y-1">
+                  <p className="text-[10px] font-black uppercase font-mono tracking-wider text-slate-400">
+                    Sprint Milestone Objective
+                  </p>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {currentTrackMeta.phases[activeDay.phase].objective}
+                  </p>
+                </div>
+
+                {/* WhatsApp Mentor SLA Callout */}
+                <div className="rounded-xl border border-[#38B44A]/20 bg-[#38B44A]/10 p-3.5 flex items-center gap-3">
+                  <div className="flex size-7 items-center justify-center rounded-full bg-[#38B44A] text-white shrink-0 shadow-sm">
+                    <MessageCircle size={14} />
+                  </div>
+                  <div className="text-xs">
+                    <p className="font-bold text-white leading-none">1-on-1 Mentor Support</p>
+                    <p className="text-[11px] text-[#38B44A] mt-0.5">Instant WhatsApp blocker help with &lt;15m response SLA</p>
+                  </div>
+                </div>
+
+                {/* CTA Button */}
+                <div className="pt-2">
+                  <Button
+                    href="/register"
+                    size="md"
+                    data-cursor={`ENROLL IN ${currentTrackMeta.name.toUpperCase()}`}
+                    onMouseEnter={() => soundFx.playBlip(560, 0.03, 'sine', 0.03)}
+                    onClick={() => soundFx.playSweep(300, 700, 0.12, 0.05)}
+                    className={`w-full bg-gradient-to-r ${currentTrackMeta.color.gradient} text-white font-black border-none shadow-xl justify-center py-3`}
+                  >
+                    <span>Enroll In 15-Day {currentTrackMeta.name.split('&')[0].trim()} Sprint</span>
+                    <ArrowRight size={15} />
+                  </Button>
+                </div>
+              </div>
+            </TiltCard>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* ALTERNATING ZIG-ZAG 15-DAY CONNECTED ROADMAP (Left / Right / Left / Right) */}
+        {/* ========================================================================= */}
+        <div className="relative">
+          {/* Centered Timeline Header */}
+          <div className="text-center mb-10">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F2B705] font-mono">
+              Chronological Architecture
+            </p>
+            <h3 className="mt-1 text-2xl sm:text-3xl font-black text-white">
+              The 15-Day Sprint Roadmap
+            </h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+              Follow the left-to-right alternating milestones. Click any day to inspect full narrative briefs and deliverables.
+            </p>
+          </div>
+
+          <div className="roadmap-track relative pl-6 sm:pl-8 md:pl-0 space-y-6 md:space-y-10">
+            {/* Glowing Animated Laser Node traversing the spine */}
+            <div className="roadmap-laser-node" />
+
+            {filteredDays.map((d, index) => {
+              const isSelected = activeDay.day === d.day;
+              const isEven = index % 2 === 1; // Alternating flag: false = Left, true = Right
+              const isPhaseStart =
+                roadmapFilter === 'all' && (d.day === 1 || d.day === 6 || d.day === 11);
+
+              return (
+                <div key={`${selectedTrack}-${d.day}`} className="relative group">
+                  {/* Phase Milestone Marker */}
+                  {isPhaseStart && (
+                    <div className="pt-4 pb-2 md:pb-4 flex justify-center -ml-6 sm:-ml-8 md:ml-0 first:pt-0">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-[#060a16] px-4 py-1.5 text-xs font-black uppercase tracking-wider text-slate-200 font-mono shadow-xl backdrop-blur-xl z-20">
+                        {d.day === 1 ? (
+                          <Zap size={13} className={currentTrackMeta.color.primary} />
+                        ) : d.day === 6 ? (
+                          <Flame size={13} className="text-[#F2B705]" />
+                        ) : (
+                          <Trophy size={13} className="text-[#38B44A]" />
+                        )}
+                        <span>{currentTrackMeta.phases[d.phase].title}</span>
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    <div className="flex items-start gap-3 sm:gap-5">
-                      {/* Connected Spine Node Button */}
-                      <div className="relative z-10 shrink-0">
-                        <button
-                          type="button"
-                          onMouseEnter={() => soundFx.playBlip(300 + d.day * 18, 0.03, 'sine', 0.03)}
-                          onClick={() => {
-                            setSelectedDayDetail(d.day);
-                            soundFx.playBlip(320 + d.day * 22, 0.035, 'sine', 0.035);
-                          }}
-                          data-cursor={`DAY ${d.day.toString().padStart(2, '0')}`}
-                          className={`size-8 sm:size-9 rounded-full flex items-center justify-center font-mono font-black text-xs transition-all duration-300 cursor-pointer ${
-                            isSelected
-                              ? `bg-gradient-to-br ${currentTrackMeta.color.gradient} text-white ring-4 ring-white/20 shadow-lg scale-110`
-                              : 'bg-[#090d16] border border-white/20 text-slate-300 hover:border-white/50 hover:text-white hover:scale-105'
-                          }`}
-                        >
-                          {d.day.toString().padStart(2, '0')}
-                        </button>
-                      </div>
-
-                      {/* Connected Horizontal Branch Line */}
-                      <div
-                        className={`absolute left-[15px] sm:left-[17px] top-[15px] sm:top-[17px] w-4 sm:w-6 h-0.5 pointer-events-none transition-colors duration-300 -z-0 ${
-                          isSelected
-                            ? `bg-gradient-to-r ${currentTrackMeta.color.gradient}`
-                            : 'bg-white/10 group-hover:bg-white/30'
-                        }`}
-                      />
-
-                      {/* Connected Roadmap Card with Smooth Transform */}
+                  {/* Alternating Row: Left on Odd, Right on Even (on md screens and above) */}
+                  <div
+                    className={`flex flex-col md:flex-row items-center gap-4 sm:gap-6 ${
+                      isEven ? 'md:flex-row-reverse' : ''
+                    }`}
+                  >
+                    {/* The Roadmap Card */}
+                    <div className="w-full md:w-[calc(50%-2.75rem)]">
                       <div
                         onMouseEnter={() => soundFx.playBlip(300 + d.day * 18, 0.03, 'sine', 0.03)}
                         onClick={() => {
@@ -1063,7 +1237,7 @@ export function InteractiveSprintCurriculum({
                         style={{ willChange: 'transform' }}
                         className={`w-full text-left p-4 sm:p-5 rounded-2xl border transition-all duration-300 cursor-pointer roadmap-card-transform ${
                           isSelected
-                            ? `${currentTrackMeta.color.border} bg-gradient-to-r from-white/[0.08] via-[#0b1122] to-[#080d1a] shadow-xl translate-x-1 sm:translate-x-2`
+                            ? `${currentTrackMeta.color.border} bg-gradient-to-r from-white/[0.08] via-[#0b1122] to-[#080d1a] shadow-2xl ring-1 ${currentTrackMeta.color.border} translate-x-1 sm:translate-x-2`
                             : 'bg-[#090d16]/85 border-white/10 hover:border-white/25 hover:bg-[#0c1222]/90 hover:translate-x-1'
                         }`}
                       >
@@ -1072,7 +1246,7 @@ export function InteractiveSprintCurriculum({
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-black uppercase font-mono tracking-wider ${
                                 isSelected
-                                  ? `bg-gradient-to-r ${currentTrackMeta.color.gradient} text-white`
+                                  ? `bg-gradient-to-r ${currentTrackMeta.color.gradient} text-white shadow-sm`
                                   : 'bg-white/10 text-slate-200'
                               }`}
                             >
@@ -1090,19 +1264,17 @@ export function InteractiveSprintCurriculum({
 
                           <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono text-slate-300">
                             <Code2 size={11} className={currentTrackMeta.color.primary} />
-                            <span className="truncate max-w-[180px]">{d.tool}</span>
+                            <span className="truncate max-w-[160px]">{d.tool}</span>
                           </div>
                         </div>
 
-                        <h3
+                        <h4
                           className={`text-base font-black tracking-tight leading-snug transition-colors ${
-                            isSelected
-                              ? 'text-white'
-                              : 'text-slate-100 group-hover:text-white'
+                            isSelected ? 'text-white' : 'text-slate-100 group-hover:text-white'
                           }`}
                         >
                           {d.title}
-                        </h3>
+                        </h4>
 
                         <p className="mt-1.5 text-xs text-slate-400 line-clamp-2 leading-relaxed">
                           {d.desc}
@@ -1126,182 +1298,59 @@ export function InteractiveSprintCurriculum({
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* Right Column: Sticky Selected Day Deep-Dive Inspector */}
-          <div className="lg:col-span-5 sticky top-24 self-start">
-            <div className="space-y-4">
-              {/* Stepper Navigation Controls */}
-              <div className="flex items-center justify-between bg-[#060913] border border-white/10 rounded-2xl px-4 py-2.5 backdrop-blur-xl shadow-lg">
-                <button
-                  type="button"
-                  aria-label="Previous day brief"
-                  data-testid="inspector-prev-day"
-                  disabled={!prevDay}
-                  onMouseEnter={() => {
-                    if (prevDay) soundFx.playBlip(360, 0.02, 'sine', 0.02);
-                  }}
-                  onClick={() => {
-                    if (prevDay) {
-                      setSelectedDayDetail(prevDay);
-                      soundFx.playBlip(320 + prevDay * 22, 0.035, 'sine', 0.035);
-                    }
-                  }}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                    prevDay
-                      ? 'bg-white/5 hover:bg-white/10 text-slate-200 hover:text-white cursor-pointer'
-                      : 'opacity-30 cursor-not-allowed text-slate-500'
-                  }`}
-                >
-                  <ChevronLeft size={14} />
-                  <span>Day {(activeDay.day - 1).toString().padStart(2, '0')}</span>
-                </button>
-
-                <span data-testid="inspector-day-indicator" className={`text-xs font-black font-mono tracking-wider ${currentTrackMeta.color.primary}`}>{`DAY ${activeDay.day.toString().padStart(2, '0')} / 15`}</span>
-
-                <button
-                  type="button"
-                  aria-label="Next day brief"
-                  data-testid="inspector-next-day"
-                  disabled={!nextDay}
-                  onMouseEnter={() => {
-                    if (nextDay) soundFx.playBlip(480, 0.02, 'sine', 0.02);
-                  }}
-                  onClick={() => {
-                    if (nextDay) {
-                      setSelectedDayDetail(nextDay);
-                      soundFx.playBlip(320 + nextDay * 22, 0.035, 'sine', 0.035);
-                    }
-                  }}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                    nextDay
-                      ? 'bg-white/5 hover:bg-white/10 text-slate-200 hover:text-white cursor-pointer'
-                      : 'opacity-30 cursor-not-allowed text-slate-500'
-                  }`}
-                >
-                  <span>Day {(activeDay.day + 1).toString().padStart(2, '0')}</span>
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-
-              {/* Detailed 3D Tilt Card */}
-              <TiltCard
-                maxTilt={4}
-                scale={1.01}
-                perspective={1200}
-                glareOpacity={0.18}
-                glareColor={currentTrackMeta.color.glow}
-                className={`p-6 sm:p-7 glass-obsidian ${currentTrackMeta.color.border} bg-[#090d16]/95 shadow-2xl rounded-3xl`}
-              >
-                {/* Card Header */}
-                <div className="space-y-2 pb-5 border-b border-white/10">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`rounded-md ${currentTrackMeta.color.bgBadge} border ${currentTrackMeta.color.border} px-2.5 py-0.5 text-xs font-black uppercase font-mono ${currentTrackMeta.color.textBadge}`}>
-                        Day {activeDay.day.toString().padStart(2, '0')} · Phase {activeDay.phase}
-                      </span>
-                      <span className="rounded-md bg-white/5 border border-white/10 px-2 py-0.5 text-[11px] font-bold text-slate-300 font-mono flex items-center gap-1">
-                        <Clock size={11} className={currentTrackMeta.color.primary} />
-                        <span>{activeDay.time} sprint</span>
-                      </span>
+                    {/* Central Connected Spine Node Button */}
+                    <div className="relative z-10 shrink-0 self-start md:self-center">
+                      <button
+                        type="button"
+                        onMouseEnter={() => soundFx.playBlip(300 + d.day * 18, 0.03, 'sine', 0.03)}
+                        onClick={() => {
+                          setSelectedDayDetail(d.day);
+                          soundFx.playBlip(320 + d.day * 22, 0.035, 'sine', 0.035);
+                        }}
+                        data-cursor={`DAY ${d.day.toString().padStart(2, '0')}`}
+                        className={`size-8 sm:size-9 md:size-10 rounded-full flex items-center justify-center font-mono font-black text-xs transition-all duration-300 cursor-pointer shadow-lg ${
+                          isSelected
+                            ? `bg-gradient-to-br ${currentTrackMeta.color.gradient} text-white ring-4 ring-white/30 scale-110 shadow-[0_0_20px_rgba(242,183,5,0.45)]`
+                            : 'bg-[#090d16] border border-white/20 text-slate-300 hover:border-white/50 hover:text-white hover:scale-105'
+                        }`}
+                      >
+                        {d.day.toString().padStart(2, '0')}
+                      </button>
                     </div>
-                    <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 font-mono">
-                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      Active Brief
-                    </span>
-                  </div>
 
-                  <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                    {activeDay.title}
-                  </h3>
-
-                  <div className="flex items-center gap-2 text-xs text-slate-400 font-mono pt-1">
-                    <span className="text-slate-500">Software Stack:</span>
-                    <span className="text-white font-bold">{activeDay.tool}</span>
+                    {/* Opposite Side: Creative Milestone Output Snapshot (Fills the alternate column!) */}
+                    <div className="hidden md:block w-[calc(50%-2.75rem)]">
+                      <div
+                        onClick={() => {
+                          setSelectedDayDetail(d.day);
+                          soundFx.playBlip(320 + d.day * 22, 0.035, 'sine', 0.035);
+                        }}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#0a1020]/90 border-white/25 shadow-lg'
+                            : 'bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1.5">
+                          <span className="flex items-center gap-1.5 font-bold text-slate-200">
+                            <Sparkles size={12} className={currentTrackMeta.color.primary} />
+                            Milestone #{d.day.toString().padStart(2, '0')} Output
+                          </span>
+                          <span className="text-[10px] text-emerald-400 font-bold">&lt;24h SLA</span>
+                        </div>
+                        <p className="text-xs font-semibold text-slate-200 line-clamp-1">
+                          {d.deliverable}
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-1 line-clamp-1">
+                          Rubric: {d.rubricPoints.split(',')[0]}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                {/* Card Body */}
-                <div className="mt-5 space-y-5">
-                  {/* The Brief & Narrative */}
-                  <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 font-mono mb-1.5">
-                      The Brief &amp; Narrative
-                    </h4>
-                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                      {activeDay.desc}
-                    </p>
-                    <div className="mt-2.5 flex items-center gap-2 text-xs font-bold text-slate-400">
-                      <Clock size={13} className={currentTrackMeta.color.primary} />
-                      <span>24-Hour Submission Window (Due 11:59 PM)</span>
-                    </div>
-                  </div>
-
-                  {/* Expected Deliverable */}
-                  <div className="rounded-xl border border-white/10 bg-[#060911]/90 p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className={`text-xs font-black uppercase tracking-wider font-mono ${currentTrackMeta.color.primary}`}>
-                        Expected Deliverable
-                      </h4>
-                      <CheckCircle2 size={14} className="text-emerald-400" />
-                    </div>
-                    <p className="text-xs font-bold text-white leading-relaxed">
-                      {activeDay.deliverable}
-                    </p>
-                  </div>
-
-                  {/* Mentor Grading Rubric */}
-                  <div className="rounded-xl border border-white/10 bg-[#060911]/60 p-4 space-y-1.5">
-                    <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 font-mono">
-                      Mentor Grading Rubric (0–100 Criteria)
-                    </h4>
-                    <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                      {activeDay.rubricPoints}
-                    </p>
-                  </div>
-
-                  {/* Phase Objective Context */}
-                  <div className="rounded-xl border border-white/10 bg-[#060911]/40 p-3.5 space-y-1">
-                    <p className="text-[10px] font-black uppercase font-mono tracking-wider text-slate-400">
-                      Sprint Milestone Objective
-                    </p>
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      {currentTrackMeta.phases[activeDay.phase].objective}
-                    </p>
-                  </div>
-
-                  {/* WhatsApp Mentor SLA Callout */}
-                  <div className="rounded-xl border border-[#38B44A]/20 bg-[#38B44A]/10 p-3.5 flex items-center gap-3">
-                    <div className="flex size-7 items-center justify-center rounded-full bg-[#38B44A] text-white shrink-0 shadow-sm">
-                      <MessageCircle size={14} />
-                    </div>
-                    <div className="text-xs">
-                      <p className="font-bold text-white leading-none">1-on-1 Mentor Support</p>
-                      <p className="text-[11px] text-[#38B44A] mt-0.5">Instant WhatsApp blocker help with &lt;15m response SLA</p>
-                    </div>
-                  </div>
-
-                  {/* CTA Button */}
-                  <div className="pt-2">
-                    <Button
-                      href="/register"
-                      size="md"
-                      data-cursor={`ENROLL IN ${currentTrackMeta.name.toUpperCase()}`}
-                      onMouseEnter={() => soundFx.playBlip(560, 0.03, 'sine', 0.03)}
-                      onClick={() => soundFx.playSweep(300, 700, 0.12, 0.05)}
-                      className={`w-full bg-gradient-to-r ${currentTrackMeta.color.gradient} text-white font-black border-none shadow-xl justify-center py-3`}
-                    >
-                      <span>Enroll In 15-Day {currentTrackMeta.name.split('&')[0].trim()} Sprint</span>
-                      <ArrowRight size={15} />
-                    </Button>
-                  </div>
-                </div>
-              </TiltCard>
-            </div>
+              );
+            })}
           </div>
         </div>
       </div>

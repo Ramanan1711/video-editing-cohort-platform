@@ -870,6 +870,13 @@ button, a { -webkit-tap-highlight-color: transparent; }
   }
 }
 
+@media (min-width: 768px) {
+  .roadmap-track::before {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
 .roadmap-laser-node {
   position: absolute;
   left: calc(1.125rem - 3px);
@@ -886,6 +893,12 @@ button, a { -webkit-tap-highlight-color: transparent; }
 @media (min-width: 640px) {
   .roadmap-laser-node {
     left: calc(1.25rem - 3px);
+  }
+}
+
+@media (min-width: 768px) {
+  .roadmap-laser-node {
+    left: calc(50% - 4px);
   }
 }
 
