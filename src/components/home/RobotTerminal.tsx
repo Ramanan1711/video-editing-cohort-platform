@@ -872,13 +872,14 @@ export const RobotTerminal: React.FC = () => {
       className="relative w-[280px] min-[380px]:w-[320px] sm:w-[420px] md:w-[540px] lg:w-[680px] xl:w-[820px] 2xl:w-[960px] h-[320px] min-[380px]:h-[360px] sm:h-[480px] md:h-[600px] lg:h-[760px] xl:h-[900px] 2xl:h-[1020px] max-h-[96vh] max-w-[92vw] lg:max-w-[55vw] flex items-center justify-center select-none pointer-events-auto cursor-pointer"
     >
       {/* ================= VOLUMETRIC CRIMSON BACKGROUND NEBULA ================= */}
-      <div className="pointer-events-none absolute -inset-28 -z-10 overflow-hidden">
-        {/* Deep ambient red smoke core */}
-        <div className="absolute top-1/4 right-0 w-[860px] h-[860px] rounded-full bg-gradient-to-br from-red-600/40 via-red-950/30 to-transparent blur-[160px]" />
+      {/* Fully responsive, concentric atmospheric aura that scales 1:1 with the robot across all screen sizes */}
+      <div className="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center">
+        {/* Deep ambient red smoke core - centered with smooth radial falloff */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] h-[95%] rounded-full bg-radial from-red-600/35 via-red-950/20 to-transparent blur-[50px] sm:blur-[85px] lg:blur-[120px] opacity-90" />
         {/* Soft upper crimson fog plume */}
-        <div className="absolute -top-16 right-1/4 w-[640px] h-[640px] rounded-full bg-red-700/25 blur-[180px]" />
-        {/* Subtle orange accent glow */}
-        <div className="absolute bottom-8 right-8 w-[500px] h-[500px] rounded-full bg-orange-600/15 blur-[140px]" />
+        <div className="absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full bg-radial from-red-700/25 via-red-900/10 to-transparent blur-[40px] sm:blur-[65px] lg:blur-[95px] opacity-80" />
+        {/* Subtle warm orange accent glow */}
+        <div className="absolute top-[58%] left-[52%] -translate-x-1/2 -translate-y-1/2 w-[60%] h-[60%] rounded-full bg-radial from-orange-600/15 via-red-600/5 to-transparent blur-[30px] sm:blur-[50px] lg:blur-[75px] opacity-70" />
       </div>
 
       {/* Real Three.js WebGL Canvas */}

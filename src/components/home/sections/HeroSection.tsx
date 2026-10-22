@@ -41,8 +41,8 @@ export function HeroSection({
       {/* HERO SECTION WITH 3D ROBOT TERMINAL & JUNCA STUDIO TYPOGRAPHY */}
       {/* ========================================================================= */}
       <section className="hero relative overflow-hidden bg-[#080808] border-b border-white/10 min-h-[92vh] lg:min-h-screen flex items-end pb-16 lg:pb-28">
-        {/* Atmospheric company brand 4-quadrant volumetric gradients */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_75%_55%_at_70%_40%,rgba(185,43,39,0.25),transparent_70%)] gsap-parallax-slow" />
+        {/* Atmospheric company brand 4-quadrant volumetric gradients - centers behind robot on mobile/tablet, right-anchored on desktop */}
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(185,43,39,0.18),transparent_70%)] lg:bg-[radial-gradient(ellipse_75%_55%_at_70%_40%,rgba(185,43,39,0.25),transparent_70%)] gsap-parallax-slow" />
         <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-[#B92B27]/12 blur-[140px] gsap-parallax-slow" />
         <div className="pointer-events-none absolute top-20 right-1/4 -z-10 size-[450px] rounded-full bg-[#2675EB]/10 blur-[130px]" />
         <div className="pointer-events-none absolute bottom-12 left-1/3 -z-10 size-[400px] rounded-full bg-[#F2B705]/8 blur-[120px]" />
