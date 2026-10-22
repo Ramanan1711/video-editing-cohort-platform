@@ -15,6 +15,41 @@ import { soundFx } from '../../lib/soundFx';
  * - Directional crimson studio lighting and EXR environment reflections
  * - Resilient CSS 3D fallback for headless/jsdom or environments without WebGL
  */
+/**
+ * Engaging cinematic sci-fi storytelling script for Tony (assistant robot).
+ * Streams word-by-word with retro terminal CRT phosphor beam glow.
+ */
+const TONY_STORY_LINES: string[] = [
+  "Nice to meet you!!!",
+  "Hi, I'm Tony, your assistant robot.",
+  "Welcome to Iunoware Academy!",
+  "Ready to create cinema-grade videos in 15 days?",
+  "Real production briefs dropped daily at 9:00 AM.",
+  "Senior mentors in your pocket via WhatsApp.",
+  "Click me to overclock my cooling fan!",
+  "Let's build your dream portfolio together!",
+];
+
+function wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  return lines;
+}
+
 export const RobotTerminal: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,6 +78,58 @@ export const RobotTerminal: React.FC = () => {
 
   const resumeRef = useRef<(() => void) | null>(null);
   const pauseRef = useRef<(() => void) | null>(null);
+
+  // Storytelling typewriter state
+  const [displayedText, setDisplayedText] = useState('Nice');
+  const displayedTextRef = useRef('Nice');
+  const clickReactionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cinematic word-by-word movie dialogue typewriter animation
+  useEffect(() => {
+    let lineIdx = 0;
+    let wordIdx = 1;
+    let timerId: ReturnType<typeof setTimeout>;
+
+    const tick = () => {
+      // If user recently clicked, wait for reaction to complete
+      if (clickReactionTimeoutRef.current) {
+        timerId = setTimeout(tick, 250);
+        return;
+      }
+
+      if (!isVisibleRef.current || document.hidden) {
+        timerId = setTimeout(tick, 400);
+        return;
+      }
+
+      const words = TONY_STORY_LINES[lineIdx].split(' ');
+      if (wordIdx <= words.length) {
+        const text = words.slice(0, wordIdx).join(' ');
+        displayedTextRef.current = text;
+        setDisplayedText(text);
+
+        if (wordIdx === words.length) {
+          // Entire line revealed, pause to let user read
+          wordIdx = 1;
+          lineIdx = (lineIdx + 1) % TONY_STORY_LINES.length;
+          timerId = setTimeout(tick, 2600);
+        } else {
+          wordIdx++;
+          // Movie-style word-by-word typing cadence
+          timerId = setTimeout(tick, 240);
+        }
+      }
+    };
+
+    timerId = setTimeout(tick, 240);
+
+    return () => {
+      clearTimeout(timerId);
+      if (clickReactionTimeoutRef.current) {
+        clearTimeout(clickReactionTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Suspend GPU / canvas work when offscreen
   useEffect(() => {
@@ -175,24 +262,37 @@ export const RobotTerminal: React.FC = () => {
           sCtx.fillRect(0, y, 640, 2);
         }
 
-        const blink = Math.floor(timeSec * 2) % 2 === 0;
+        const blink = Math.floor(timeSec * 2.5) % 2 === 0;
+        const currentText = displayedTextRef.current;
 
-        // Centered "Nice to meet you!!!" with authentic CRT Phosphor Glow
+        // Centered story text with authentic CRT Phosphor Beam Glow & multi-line wrapping
         sCtx.save();
         sCtx.textAlign = 'center';
         sCtx.textBaseline = 'middle';
-        sCtx.font = '900 36px monospace';
+        sCtx.font = '900 30px monospace';
 
-        // Outer CRT Phosphor Glow
-        sCtx.shadowColor = 'rgba(239, 68, 68, 0.9)';
-        sCtx.shadowBlur = 22;
-        sCtx.fillStyle = '#ff4444';
-        sCtx.fillText('Nice to meet you!!!' + (blink ? '_' : ' '), 320, 200);
+        const lines = wrapCanvasText(sCtx, currentText, 540);
+        const lineHeight = 44;
+        const totalHeight = lines.length * lineHeight;
+        const startY = 200 - totalHeight / 2 + lineHeight / 2;
 
-        // Core bright beam text for high-contrast visibility
-        sCtx.shadowBlur = 0;
-        sCtx.fillStyle = '#ffffff';
-        sCtx.fillText('Nice to meet you!!!' + (blink ? '_' : ' '), 320, 200);
+        lines.forEach((line, index) => {
+          const isLastLine = index === lines.length - 1;
+          const lineText = isLastLine ? line + (blink ? '_' : ' ') : line;
+          const y = startY + index * lineHeight;
+
+          // Outer CRT Phosphor Glow
+          sCtx.shadowColor = 'rgba(239, 68, 68, 0.95)';
+          sCtx.shadowBlur = 22;
+          sCtx.fillStyle = '#ff4444';
+          sCtx.fillText(lineText, 320, y);
+
+          // Core bright beam text for high-contrast visibility
+          sCtx.shadowBlur = 0;
+          sCtx.fillStyle = '#ffffff';
+          sCtx.fillText(lineText, 320, y);
+        });
+
         sCtx.restore();
 
         if (screenTexture) {
@@ -694,9 +794,19 @@ export const RobotTerminal: React.FC = () => {
     const boostRpm = 2840;
     rpmRef.current = boostRpm;
     setRpm(boostRpm);
-    setTimeout(() => {
+
+    const reaction = "Whoa! Turbo fan boosted to 2,840 RPM! 🚀";
+    displayedTextRef.current = reaction;
+    setDisplayedText(reaction);
+
+    if (clickReactionTimeoutRef.current) {
+      clearTimeout(clickReactionTimeoutRef.current);
+    }
+
+    clickReactionTimeoutRef.current = setTimeout(() => {
       fanSpeedRef.current = 1.0;
-    }, 1200);
+      clickReactionTimeoutRef.current = null;
+    }, 1800);
   };
 
   const uptimeMins = Math.floor(uptimeSeconds / 60);
@@ -778,9 +888,10 @@ export const RobotTerminal: React.FC = () => {
                   <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.22)_0%,rgba(185,28,28,0.06)_55%,transparent_85%)]" />
 
                   {/* Centered Friendly Terminal Message */}
-                  <div className="relative z-10 flex flex-col items-center justify-center font-mono text-center">
-                    <p className="text-lg sm:text-xl lg:text-2xl font-black tracking-wide text-white drop-shadow-[0_0_16px_rgba(239,68,68,0.95)]">
-                      Nice to meet you!!!<span className="text-red-500 animate-pulse inline-block ml-0.5">_</span>
+                  <div className="relative z-10 flex flex-col items-center justify-center font-mono text-center px-4">
+                    <p className="max-w-[90%] text-base sm:text-lg lg:text-xl font-black tracking-wide text-white drop-shadow-[0_0_16px_rgba(239,68,68,0.95)] leading-relaxed">
+                      {displayedText}
+                      <span className="text-red-500 animate-pulse inline-block ml-0.5">_</span>
                     </p>
                     <span className="sr-only">{uptimeDisplay} • {rpm} RPM</span>
                   </div>
