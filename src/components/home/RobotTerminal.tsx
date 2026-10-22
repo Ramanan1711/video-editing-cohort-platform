@@ -90,12 +90,6 @@ export const RobotTerminal: React.FC = () => {
     let timerId: ReturnType<typeof setTimeout>;
 
     const tick = () => {
-      // If user recently clicked, wait for reaction to complete
-      if (clickReactionTimeoutRef.current) {
-        timerId = setTimeout(tick, 250);
-        return;
-      }
-
       if (!isVisibleRef.current || document.hidden) {
         timerId = setTimeout(tick, 400);
         return;
@@ -815,10 +809,6 @@ export const RobotTerminal: React.FC = () => {
     const boostRpm = 2840;
     rpmRef.current = boostRpm;
     setRpm(boostRpm);
-
-    const reaction = "Whoa! Turbo fan boosted to 2,840 RPM! 🚀";
-    displayedTextRef.current = reaction;
-    setDisplayedText(reaction);
 
     if (clickReactionTimeoutRef.current) {
       clearTimeout(clickReactionTimeoutRef.current);
