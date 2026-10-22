@@ -20,14 +20,13 @@ import { soundFx } from '../../lib/soundFx';
  * Streams word-by-word with retro terminal CRT phosphor beam glow.
  */
 const TONY_STORY_LINES: string[] = [
-  "Nice to meet you!!!",
-  "Hi, I'm Tony, your assistant robot.",
   "Welcome to Iunoware Academy!",
-  "Ready to create cinema-grade videos in 15 days?",
-  "Real production briefs dropped daily at 9:00 AM.",
-  "Senior mentors in your pocket via WhatsApp.",
-  "Click me to overclock my cooling fan!",
-  "Let's build your dream portfolio together!",
+  "Hi, I'm Tony, your AI assistant robot.",
+  "Master video editing & creative production with intensive sprints.",
+  "Get 1-on-1 mentorship and <24h SLA feedback on your cuts.",
+  "Multi-cohort concurrent learning powered by Supabase & React 19.",
+  "Secure your industry career with verifiable digital credentials.",
+  "Let's build your dream portfolio together!"
 ];
 
 function wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -80,8 +79,8 @@ export const RobotTerminal: React.FC = () => {
   const pauseRef = useRef<(() => void) | null>(null);
 
   // Storytelling typewriter state
-  const [displayedText, setDisplayedText] = useState('Nice');
-  const displayedTextRef = useRef('Nice');
+  const [displayedText, setDisplayedText] = useState(TONY_STORY_LINES[0].split(' ')[0]);
+  const displayedTextRef = useRef(TONY_STORY_LINES[0].split(' ')[0]);
   const clickReactionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cinematic word-by-word movie dialogue typewriter animation
