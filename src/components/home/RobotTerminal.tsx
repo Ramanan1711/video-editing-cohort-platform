@@ -668,10 +668,10 @@ export const RobotTerminal: React.FC = () => {
         let targetRoll: number;
 
         if (mouseRef.current.active) {
-          // Expressive 360-degree omnidirectional cursor tracking for the display head
-          targetYaw = mouseRef.current.x * 0.82;
+          // Expressive omnidirectional cursor tracking - calibrated to avoid swinging into the text column
+          targetYaw = mouseRef.current.x < 0 ? mouseRef.current.x * 0.60 : mouseRef.current.x * 0.78;
           targetPitch = -mouseRef.current.y * 0.52;
-          targetRoll = -mouseRef.current.x * 0.15;
+          targetRoll = -mouseRef.current.x * 0.14;
         } else {
           const elapsed = time * 0.001;
           targetYaw = Math.sin(elapsed * 0.8) * 0.16;
@@ -806,12 +806,12 @@ export const RobotTerminal: React.FC = () => {
       currY += (targetY - currY) * 0.08;
 
       setFallbackTransform({
-        yaw: currX * 38 + 6,
+        yaw: currX < 0 ? currX * 24 + 4 : currX * 36 + 6,
         pitch: -currY * 26,
         roll: -currX * 6,
         glareX: -currX * 20,
         glareY: -currY * 20,
-        torsoYaw: currX * 5 + 2,
+        torsoYaw: currX < 0 ? currX * 3 + 1 : currX * 5 + 2,
         torsoPitch: -currY * 3,
       });
 
