@@ -55,7 +55,7 @@ export function HeroSection({
         <HeroCanvasSimulator />
 
         {/* 3D Retro-Futuristic Robot Terminal Character with Visor CRT & Fan */}
-        <div className="absolute -right-6 sm:-right-4 md:-right-2 lg:right-2 xl:right-6 top-1/2 -translate-y-1/2 z-10 hidden md:flex items-center justify-center pointer-events-none max-h-[98vh]">
+        <div className="absolute -right-6 sm:-right-4 md:-right-2 lg:right-2 xl:right-6 top-[54%] lg:top-[56%] -translate-y-1/2 z-10 hidden md:flex items-center justify-center pointer-events-none max-h-[96vh]">
           <LazyRobotTerminal />
         </div>
 

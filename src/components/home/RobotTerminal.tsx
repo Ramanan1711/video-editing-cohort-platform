@@ -551,7 +551,7 @@ export const RobotTerminal: React.FC = () => {
           totalBox.getCenter(totalCenter);
 
           robotRoot.position.x = -totalCenter.x;
-          robotRoot.position.y = -totalCenter.y;
+          robotRoot.position.y = -totalCenter.y - 0.014;
           robotRoot.position.z = -totalCenter.z;
 
           // Position camera closer at a dynamic 3/4 studio angle for a much larger, bolder character presence
