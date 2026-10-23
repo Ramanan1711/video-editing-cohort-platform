@@ -4,12 +4,14 @@ import {
   Check,
   CheckCircle2,
   Download,
+  GraduationCap,
   Search,
   Shield,
   ShieldCheck,
   UserCheck,
   UserCog,
   UserMinus,
+  Users,
   UserX,
 } from 'lucide-react';
 import { Button } from '../../ui/Button';
@@ -17,6 +19,8 @@ import { Card } from '../../ui/Card';
 import { Pagination } from '../../ui/Pagination';
 import { ROLE_LABELS, type AdminSubRole } from '../../../lib/adminPermissions';
 import type { UserProfile } from '../../../lib/adminService';
+
+export type UserRoleTab = 'student' | 'mentor' | 'admin' | 'all';
 
 export interface UsersTabProps {
   users: UserProfile[];
@@ -28,6 +32,7 @@ export interface UsersTabProps {
   onAdminSubRoleChange: (user: UserProfile, newAdminRole: AdminSubRole) => Promise<void>;
   onBulkUserStatus: (status: 'active' | 'suspended', selectedIds: string[]) => Promise<void>;
   onExportUsers: () => Promise<void>;
+  defaultRoleTab?: UserRoleTab;
 }
 
 function RoleBadge({ role }: { role: string }) {
@@ -62,9 +67,10 @@ export function UsersTab({
   onAdminSubRoleChange,
   onBulkUserStatus,
   onExportUsers,
+  defaultRoleTab = 'student',
 }: UsersTabProps) {
   const [userSearch, setUserSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'mentor' | 'admin'>('all');
+  const [roleFilter, setRoleFilter] = useState<UserRoleTab>(defaultRoleTab);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [userPage, setUserPage] = useState(1);
@@ -72,6 +78,63 @@ export function UsersTab({
   const [exportingUsersCsv, setExportingUsersCsv] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [bulkUpdatingUsers, setBulkUpdatingUsers] = useState(false);
+
+  const roleCounts = useMemo(() => {
+    let student = 0;
+    let mentor = 0;
+    let admin = 0;
+    for (const u of users) {
+      if (u.role === 'mentor') mentor++;
+      else if (u.role === 'admin') admin++;
+      else student++;
+    }
+    return {
+      student,
+      mentor,
+      admin,
+      all: users.length,
+    };
+  }, [users]);
+
+  const roleTabs = useMemo(
+    () => [
+      {
+        id: 'student' as const,
+        label: 'Students',
+        icon: GraduationCap,
+        count: roleCounts.student,
+        description: 'Active and enrolled students across cohort production tracks.',
+      },
+      {
+        id: 'mentor' as const,
+        label: 'Mentors',
+        icon: ShieldCheck,
+        count: roleCounts.mentor,
+        description: 'Assigned cohort mentors providing feedback, reviews, and grading.',
+      },
+      {
+        id: 'admin' as const,
+        label: 'Admins',
+        icon: Shield,
+        count: roleCounts.admin,
+        description: 'Platform administrators holding governance and system operations access.',
+      },
+      {
+        id: 'all' as const,
+        label: 'All Users',
+        icon: Users,
+        count: roleCounts.all,
+        description: 'Complete cross-role platform user directory.',
+      },
+    ],
+    [roleCounts]
+  );
+
+  const handleTabChange = (newRole: UserRoleTab) => {
+    setRoleFilter(newRole);
+    setUserPage(1);
+    setSelectedUserIds(new Set());
+  };
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
@@ -192,20 +255,6 @@ export function UsersTab({
           </div>
 
           <select
-            value={roleFilter}
-            onChange={(e) => {
-              setRoleFilter(e.target.value as typeof roleFilter);
-              setUserPage(1);
-            }}
-            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
-          >
-            <option value="all">All Roles</option>
-            <option value="student">Students</option>
-            <option value="mentor">Mentors</option>
-            <option value="admin">Admins</option>
-          </select>
-
-          <select
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value as typeof statusFilter);
@@ -218,6 +267,46 @@ export function UsersTab({
             <option value="suspended">Suspended Only</option>
           </select>
         </div>
+      </div>
+
+      {/* Role Navigation Sub-Tabs (Student, Mentor, Admin, All Users) */}
+      <div className="mt-5 flex flex-wrap items-center gap-2 border-b border-slate-200/80 dark:border-slate-800 pb-3.5">
+        {roleTabs.map((rt) => {
+          const Icon = rt.icon;
+          const isActive = roleFilter === rt.id;
+          return (
+            <button
+              key={rt.id}
+              type="button"
+              data-testid={`user-role-tab-${rt.id}`}
+              onClick={() => handleTabChange(rt.id)}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer select-none ${
+                isActive
+                  ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25 ring-2 ring-orange-500/30 font-black'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
+              }`}
+            >
+              <Icon size={14} className={isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'} />
+              <span>{rt.label}</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                  isActive
+                    ? 'bg-orange-600/90 text-white'
+                    : 'bg-slate-200/90 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                {rt.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <p>{roleTabs.find((rt) => rt.id === roleFilter)?.description}</p>
+        <span className="font-mono text-[11px] font-semibold">
+          Showing {filteredUsers.length} of {roleCounts[roleFilter]} {roleFilter === 'all' ? 'users' : roleFilter + 's'}
+        </span>
       </div>
 
       {/* Bulk User Actions Bar */}
@@ -408,7 +497,12 @@ export function UsersTab({
             );
           })
         ) : (
-          <p className="py-12 text-center text-xs text-slate-400">No matching users found.</p>
+          <div className="py-12 text-center text-xs text-slate-400 space-y-1">
+            <p className="font-bold">No {roleFilter === 'all' ? 'users' : roleFilter + 's'} found.</p>
+            {userSearch && (
+              <p className="text-[11px] text-slate-500">Try adjusting your search criteria or clear the search query.</p>
+            )}
+          </div>
         )}
       </div>
 
