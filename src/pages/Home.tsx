@@ -50,9 +50,18 @@ export function Home() {
   // Real database cohorts fetched dynamically via unified server-state query
   const { data: rawCohorts = [], isLoading: loadingCohorts, error: cohortsQueryError } = useCohortsQuery();
   const cohorts = useMemo(() => {
-    return (rawCohorts || []).filter(
-      (c) => c.status === 'published' || c.visibility === 'public'
-    );
+    return (rawCohorts || []).filter((c) => {
+      if (c.visibility === 'private' || c.status === 'archived' || c.status === 'draft') {
+        return false;
+      }
+      return (
+        c.status === 'published' ||
+        c.status === 'active' ||
+        c.status === 'upcoming' ||
+        c.visibility === 'public' ||
+        !c.status
+      );
+    });
   }, [rawCohorts]);
   const cohortError = cohortsQueryError?.message || null;
 

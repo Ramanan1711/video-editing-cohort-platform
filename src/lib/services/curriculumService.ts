@@ -128,14 +128,49 @@ export const courseSelectWithStatus = 'id, cohort_id, course_id, title, descript
 export const courseSelectLegacy = 'id, cohort_id, title, description, position, lessons(id, module_id, title, description, video_url, duration_minutes, position)';
 export const courseSelect = courseSelectWithStatus;
 
+function mapDbCohortRow(cohort: DbCohortRow): Cohort {
+  return {
+    id: cohort.id,
+    name: cohort.name || cohort.title,
+    title: cohort.title || cohort.name,
+    course_id: cohort.course_id ?? null,
+    description: cohort.description,
+    status: cohort.status ?? 'published',
+    capacity: cohort.capacity ?? 30,
+    visibility: cohort.visibility ?? 'public',
+    enrollment_start: cohort.enrollment_start ?? null,
+    enrollment_end: cohort.enrollment_end ?? null,
+    track_type: cohort.track_type ?? 'general',
+    duration_days: cohort.duration_days ?? 15,
+    price_inr: cohort.price_inr ?? DEFAULT_COHORT_FEE_INR,
+    currency: cohort.currency ?? DEFAULT_CURRENCY,
+    mentor_phone: cohort.mentor_phone ?? null,
+    whatsapp_group_url: cohort.whatsapp_group_url ?? null,
+  };
+}
+
 export async function listCohorts(): Promise<Cohort[]> {
   return queryCache.getOrFetch(
     'cohorts_list',
     async () => {
       const { data, error } = await supabase
         .from('cohorts')
-        .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency')
+        .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url')
         .order('title');
+
+      if (!error && data && data.length > 0) {
+        return (data as DbCohortRow[]).map(mapDbCohortRow);
+      }
+
+      // Resilience Fallback 1: Try public RPC (bypasses potential table-level RLS restrictions for anonymous visitors)
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_public_cohorts');
+        if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+          return (rpcData as DbCohortRow[]).map(mapDbCohortRow);
+        }
+      } catch {
+        // RPC might not exist on older schema versions
+      }
 
       if (error) {
         const { data: fallback, error: fallbackError } = await supabase
@@ -157,24 +192,7 @@ export async function listCohorts(): Promise<Cohort[]> {
         }));
       }
 
-      return ((data ?? []) as DbCohortRow[]).map((cohort) => ({
-        id: cohort.id,
-        name: cohort.title,
-        title: cohort.title,
-        course_id: cohort.course_id ?? null,
-        description: cohort.description,
-        status: cohort.status ?? 'published',
-        capacity: cohort.capacity ?? 30,
-        visibility: cohort.visibility ?? 'public',
-        enrollment_start: cohort.enrollment_start ?? null,
-        enrollment_end: cohort.enrollment_end ?? null,
-        track_type: cohort.track_type ?? 'general',
-        duration_days: cohort.duration_days ?? 15,
-        price_inr: cohort.price_inr ?? DEFAULT_COHORT_FEE_INR,
-        currency: cohort.currency ?? DEFAULT_CURRENCY,
-        mentor_phone: cohort.mentor_phone ?? null,
-        whatsapp_group_url: cohort.whatsapp_group_url ?? null,
-      }));
+      return ((data ?? []) as DbCohortRow[]).map(mapDbCohortRow);
     },
     300_000,
     ['cohorts']

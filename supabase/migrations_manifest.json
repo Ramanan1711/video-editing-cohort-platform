@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-14T10:39:36.097Z",
-  "migrationCount": 63,
+  "generatedAt": "2026-10-23T05:52:42.056Z",
+  "migrationCount": 66,
   "migrations": [
     {
       "order": 1,
@@ -885,12 +885,43 @@
     {
       "order": 63,
       "filename": "20261014000005_canonical_community_post_views_tracking.sql",
-      "sha256": "04f4148a3fedded3384b98bcbd497efd94c08480ed4a993a88fe1ed744781c4e",
-      "sizeBytes": 1368,
+      "sha256": "9b272cb7d47fdb6c112231e0c7427d8ed59bbfdd355468a20dc4bf1ca67b6821",
+      "sizeBytes": 1369,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
         "increment_community_post_views"
+      ]
+    },
+    {
+      "order": 64,
+      "filename": "20261014000006_sync_community_messages_author_id_and_sender_id.sql",
+      "sha256": "d86dac0c63dc956c883ae6193c54e424bcdf4f36ff01fb068f75ab7ec20a4d71",
+      "sizeBytes": 3013,
+      "hasSecurityDefinerWithoutSearchPath": true,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "fn_sync_community_messages_fields"
+      ]
+    },
+    {
+      "order": 65,
+      "filename": "20261015000001_add_cohort_whatsapp_group_and_mentor_phone.sql",
+      "sha256": "554deb5f3859db95828a7298d73a6bea6779db78023bced385c02a96cec66550",
+      "sizeBytes": 643,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": []
+    },
+    {
+      "order": 66,
+      "filename": "20261023000001_allow_public_read_cohorts_and_fix_rls.sql",
+      "sha256": "73330d1ca2c81975074b4041d9c8cbc6626282827ebc41d555538b7fa2218bcc",
+      "sizeBytes": 3197,
+      "hasSecurityDefinerWithoutSearchPath": true,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "get_public_cohorts"
       ]
     }
   ]
