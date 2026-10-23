@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ArrowRight, Volume2, VolumeX } from 'lucide-react';
+import { Menu, X, ArrowRight, Volume2, VolumeX, User } from 'lucide-react';
 import { Button } from './ui/Button';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 import { soundFx } from '../lib/soundFx';
 import { BRAND_LOGO_URL } from '../constants/branding';
+import { useAuth } from '../context/useAuth';
 
 export function SiteHeader() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [sfxEnabled, setSfxEnabled] = useState(() => soundFx.isEnabled());
   const location = useLocation();
@@ -113,12 +115,22 @@ export function SiteHeader() {
             )}
           </button>
 
-          <Link
-            to="/login"
-            className="px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white transition shrink-0 whitespace-nowrap"
-          >
-            Sign in
-          </Link>
+          {user ? (
+            <Link
+              to="/profile"
+              className="inline-flex items-center gap-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 px-3.5 py-1.5 text-xs font-bold text-orange-400 hover:text-orange-300 transition shrink-0 whitespace-nowrap shadow-xs"
+            >
+              <User size={13} />
+              <span>My Profile</span>
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white transition shrink-0 whitespace-nowrap"
+            >
+              Sign in
+            </Link>
+          )}
           <Button href="/register" size="sm" className="shadow-lg shadow-[#B92B27]/25 bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] border-none text-white font-bold px-4 py-2 shrink-0 whitespace-nowrap">
             <span>Join Next Cohort</span>
             <ArrowRight size={13} />
@@ -176,13 +188,24 @@ export function SiteHeader() {
               </a>
             ))}
             <div className="mt-3 pt-3 border-t border-surface-subtle flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
-              <Link
-                to="/login"
-                onClick={() => setOpen(false)}
-                className="rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold text-slate-300 hover:bg-white/10 hover:text-white text-center sm:text-left transition"
-              >
-                Sign in
-              </Link>
+              {user ? (
+                <Link
+                  to="/profile"
+                  onClick={() => setOpen(false)}
+                  className="rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold text-orange-400 hover:bg-white/10 text-center sm:text-left transition flex items-center justify-center sm:justify-start gap-2"
+                >
+                  <User size={14} />
+                  <span>My Profile</span>
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  onClick={() => setOpen(false)}
+                  className="rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold text-slate-300 hover:bg-white/10 hover:text-white text-center sm:text-left transition"
+                >
+                  Sign in
+                </Link>
+              )}
               <Button href="/register" withArrow className="w-full sm:w-auto justify-center bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] text-white font-bold border-none shadow-lg shadow-[#B92B27]/25 px-5 py-2.5">
                 Join Next Cohort
               </Button>

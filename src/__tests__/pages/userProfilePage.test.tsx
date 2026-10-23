@@ -226,5 +226,23 @@ describe('UserProfile Page Component (Dedicated Student Profile Area)', () => {
       expect(mockToast.success).toHaveBeenCalledWith('Profile details updated successfully.');
     });
   });
+
+  it('renders "Back to Public Website" button to navigate to home without logging out and shows active 7-day session indicator', async () => {
+    render(
+      <MemoryRouter>
+        <UserProfile />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Alex Morgan')).toBeInTheDocument();
+    });
+
+    const publicWebsiteLink = screen.getByRole('link', { name: /Back to Public Website/i });
+    expect(publicWebsiteLink).toBeInTheDocument();
+    expect(publicWebsiteLink).toHaveAttribute('href', '/');
+
+    expect(screen.getByText(/7-Day Session Active/i)).toBeInTheDocument();
+  });
 });
 

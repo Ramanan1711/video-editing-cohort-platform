@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
   BookOpen,
@@ -9,6 +9,7 @@ import {
   CreditCard,
   Edit3,
   ExternalLink,
+  Globe,
   GraduationCap,
   Mail,
   Phone,
@@ -29,6 +30,7 @@ import {
   type UserProfileOverview,
 } from '../lib/userProfileService';
 import { formatCurrencyINR } from '../lib/services/curriculumService';
+import { getSessionTelemetry } from '../lib/authSessionService';
 
 export function UserProfile() {
   const { user, profile, refreshProfile } = useAuth();
@@ -154,19 +156,50 @@ export function UserProfile() {
       />
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Navigation Breadcrumb & Back Link */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => navigate('/student/dashboard')}
-            className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-surface-subtle bg-white dark:bg-surface-card px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-xs hover:border-orange-500 hover:text-orange-600 transition"
-          >
-            <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
-            <span>Back to Dashboard</span>
-          </button>
+        {/* Navigation Breadcrumb & Back Links */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              to="/"
+              className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-surface-subtle bg-white dark:bg-surface-card px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-xs hover:border-[#B92B27] hover:text-[#B92B27] dark:hover:text-[#F2B705] transition"
+              title="Return to the public homepage without logging out"
+            >
+              <Globe size={14} className="text-[#B92B27] dark:text-[#F2B705] group-hover:scale-110 transition-transform" />
+              <span>Back to Public Website</span>
+            </Link>
 
-          <span className="text-xs font-mono uppercase tracking-wider text-slate-400">
-            Student Identity &amp; Records
-          </span>
+            <button
+              onClick={() => navigate('/student/dashboard')}
+              className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-surface-subtle bg-white dark:bg-surface-card px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-xs hover:border-orange-500 hover:text-orange-600 transition"
+            >
+              <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+              <span>Back to Dashboard</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {/* 7-Day Session Active Indicator */}
+            {(() => {
+              const telemetry = getSessionTelemetry();
+              return (
+                <span
+                  title={
+                    telemetry.establishedAt
+                      ? `Session established at ${new Date(telemetry.establishedAt).toLocaleTimeString()}. Auto-refreshed for 7 days.`
+                      : '7-day session active.'
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-mono font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                >
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>7-Day Session Active{telemetry.remainingDays > 0 ? ` (${telemetry.remainingDays}d)` : ''}</span>
+                </span>
+              );
+            })()}
+
+            <span className="hidden sm:inline text-xs font-mono uppercase tracking-wider text-slate-400">
+              Student Identity &amp; Records
+            </span>
+          </div>
         </div>
 
         {/* 1. HERO IDENTITY CARD */}
