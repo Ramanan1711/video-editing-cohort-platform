@@ -91,7 +91,7 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     expect(contentBadge).toHaveTextContent('Content Admin');
   });
 
-  it('allows Parent Super Admin to see "Promote to Mentor", "Promote to Admin", and "Promote to Child Super Admin" on students', () => {
+  it('does NOT show any promotion buttons (Promote to Mentor, Admin, or Child Super Admin) for students', () => {
     render(
       <UsersTab
         users={allUsers}
@@ -109,12 +109,38 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
       />
     );
 
-    expect(screen.getByTestId(`promote-mentor-${mockStudent.id}`)).toBeInTheDocument();
-    expect(screen.getByTestId(`promote-admin-${mockStudent.id}`)).toBeInTheDocument();
-    expect(screen.getByTestId(`promote-child-super-${mockStudent.id}`)).toBeInTheDocument();
+    expect(screen.queryByTestId(`promote-mentor-${mockStudent.id}`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`promote-admin-${mockStudent.id}`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`promote-child-super-${mockStudent.id}`)).not.toBeInTheDocument();
+    expect(screen.queryByText('Promote to Mentor')).not.toBeInTheDocument();
+    expect(screen.queryByText('Promote to Admin')).not.toBeInTheDocument();
+    expect(screen.queryByText('Promote to Child Super Admin')).not.toBeInTheDocument();
   });
 
-  it('triggers onRoleChange with "child_super_admin" when Parent Super Admin clicks "Promote to Child Super Admin"', async () => {
+  it('allows Parent Super Admin to see "Promote to Admin" and "Promote to Child Super Admin" on mentors', () => {
+    render(
+      <UsersTab
+        users={allUsers}
+        currentUserId={mockParentSuperAdmin.id}
+        currentUserEmail={mockParentSuperAdmin.email}
+        canManageRoles={true}
+        canManageStatus={true}
+        isSuperAdmin={true}
+        onRoleChange={vi.fn()}
+        onStatusChange={vi.fn()}
+        onAdminSubRoleChange={vi.fn()}
+        onBulkUserStatus={vi.fn()}
+        onExportUsers={vi.fn()}
+        defaultRoleTab="mentor"
+      />
+    );
+
+    expect(screen.getByTestId(`demote-student-${mockMentor.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`promote-admin-${mockMentor.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`promote-child-super-${mockMentor.id}`)).toBeInTheDocument();
+  });
+
+  it('triggers onRoleChange with "child_super_admin" when Parent Super Admin clicks "Promote to Child Super Admin" on a mentor', async () => {
     const handleRoleChange = vi.fn();
     render(
       <UsersTab
@@ -129,20 +155,20 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
         onAdminSubRoleChange={vi.fn()}
         onBulkUserStatus={vi.fn()}
         onExportUsers={vi.fn()}
-        defaultRoleTab="student"
+        defaultRoleTab="mentor"
       />
     );
 
-    const promoteChildBtn = screen.getByTestId(`promote-child-super-${mockStudent.id}`);
+    const promoteChildBtn = screen.getByTestId(`promote-child-super-${mockMentor.id}`);
     await act(async () => {
       fireEvent.click(promoteChildBtn);
     });
 
     expect(handleRoleChange).toHaveBeenCalledTimes(1);
-    expect(handleRoleChange).toHaveBeenCalledWith(mockStudent, 'child_super_admin');
+    expect(handleRoleChange).toHaveBeenCalledWith(mockMentor, 'child_super_admin');
   });
 
-  it('triggers onRoleChange with "admin" when Parent Super Admin clicks "Promote to Admin"', async () => {
+  it('triggers onRoleChange with "admin" when Parent Super Admin clicks "Promote to Admin" on a mentor', async () => {
     const handleRoleChange = vi.fn();
     render(
       <UsersTab
@@ -157,17 +183,17 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
         onAdminSubRoleChange={vi.fn()}
         onBulkUserStatus={vi.fn()}
         onExportUsers={vi.fn()}
-        defaultRoleTab="student"
+        defaultRoleTab="mentor"
       />
     );
 
-    const promoteBtn = screen.getByTestId(`promote-admin-${mockStudent.id}`);
+    const promoteBtn = screen.getByTestId(`promote-admin-${mockMentor.id}`);
     await act(async () => {
       fireEvent.click(promoteBtn);
     });
 
     expect(handleRoleChange).toHaveBeenCalledTimes(1);
-    expect(handleRoleChange).toHaveBeenCalledWith(mockStudent, 'admin');
+    expect(handleRoleChange).toHaveBeenCalledWith(mockMentor, 'admin');
   });
 
   it('does NOT allow Child Super Admin or Content Admin to see role promotion buttons', () => {
