@@ -2,6 +2,11 @@ import React, { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { AuthContext, type Profile } from './authContextValue';
+import {
+  enforceSevenDaySessionPolicy,
+  recordSessionEstablished,
+  clearSessionEstablished,
+} from '../lib/authSessionService';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -122,18 +127,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
+    // Get initial session and enforce 7-day retention policy
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const isValid = await enforceSevenDaySessionPolicy(session);
+      if (isValid && session?.user) {
+        setUser(session.user);
         fetchProfile(session.user);
       } else {
+        setUser(null);
+        setProfile(null);
         setLoading(false);
       }
     });
 
-    // Listen to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Listen to auth changes (automatic refresh, sign in, sign out)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN') {
+        recordSessionEstablished();
+      } else if (event === 'SIGNED_OUT') {
+        clearSessionEstablished();
+      }
+
+      if (session) {
+        const isValid = await enforceSevenDaySessionPolicy(session);
+        if (!isValid) {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+      }
+
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user);
@@ -147,6 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
+    clearSessionEstablished();
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);

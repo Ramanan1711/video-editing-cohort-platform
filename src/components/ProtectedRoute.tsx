@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { ShieldAlert, UserX, LogOut } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
+import { isSessionExpired } from '../lib/authSessionService';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -13,15 +14,19 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
   const location = useLocation();
   const lastCheckedRef = useRef<number>(0);
 
-  // Active session status verification on route transition (throttled to at most once every 15 seconds)
+  // Active session status and 7-day retention verification on route transition (throttled to at most once every 15 seconds)
   useEffect(() => {
     if (!user) return;
+    if (isSessionExpired()) {
+      void signOut();
+      return;
+    }
     const now = Date.now();
     if (now - lastCheckedRef.current > 15000) {
       lastCheckedRef.current = now;
       void refreshProfile();
     }
-  }, [location.pathname, user, refreshProfile]);
+  }, [location.pathname, user, refreshProfile, signOut]);
 
   if (loading) {
     return (

@@ -23,6 +23,7 @@ import {
 } from '../lib/cohortCheckoutPersistence';
 import { listCohorts, type Cohort } from '../lib/courseService';
 import { BRAND_LOGO_URL } from '../constants/branding';
+import { recordSessionEstablished } from '../lib/authSessionService';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -110,10 +111,12 @@ export const Login: React.FC = () => {
       }
 
       if (data?.user) {
-        // Role-aware redirect: send mentors to the review room, admins to admin console, students to dashboard
+        recordSessionEstablished();
+
+        // Role-aware redirect: send mentors to the review room, admins to admin console, students to /profile
         const redirectPath = targetCohortId
           ? `/student/dashboard?cohort=${encodeURIComponent(targetCohortId)}&checkout=true`
-          : '/student/dashboard';
+          : '/profile';
 
         try {
           const { data: profile } = await supabase
@@ -138,7 +141,7 @@ export const Login: React.FC = () => {
       } else {
         const redirectPath = targetCohortId
           ? `/student/dashboard?cohort=${encodeURIComponent(targetCohortId)}&checkout=true`
-          : '/student/dashboard';
+          : '/profile';
         navigate(redirectPath);
       }
     } catch (err: unknown) {
