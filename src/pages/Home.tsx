@@ -1,7 +1,9 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { SiteFooter } from '../components/SiteFooter';
 import { SiteHeader } from '../components/SiteHeader';
+import { useAuth } from '../context/useAuth';
 import { useCohortsQuery } from '../hooks/queries/useCohortsQuery';
+import { useUserEnrollmentsQuery } from '../hooks/queries/useUserEnrollmentsQuery';
 import { DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../lib/paymentService';
 import { StudioBar } from '../components/home/StudioBar';
 import { useSmoothScroll } from '../lib/scroll/useSmoothScroll';
@@ -47,9 +49,45 @@ export function Home() {
     return () => window.removeEventListener('iunoware-replay-intro', handleReplay);
   }, []);
 
+  const { user } = useAuth();
+
   // Real database cohorts fetched dynamically via unified server-state query
   const { data: rawCohorts = [], isLoading: loadingCohorts, error: cohortsQueryError } = useCohortsQuery();
-  const cohorts = useMemo(() => {
+
+  // Authoritative user enrollments fetched directly from database
+  const {
+    data: userEnrollments = [],
+    isLoading: loadingEnrollments,
+    error: enrollmentsError,
+  } = useUserEnrollmentsQuery(user?.id);
+
+  // Set of cohort IDs the user is currently enrolled in
+  const enrolledCohortIds = useMemo(() => {
+    // Fail-safe: On loading, error, or unauthenticated, never falsely mark cohorts as enrolled
+    if (!user || enrollmentsError || loadingEnrollments) {
+      return new Set<string>();
+    }
+    return new Set(
+      (userEnrollments || [])
+        .filter((e) => e.status !== 'dropped')
+        .map((e) => e.cohort_id)
+    );
+  }, [user, userEnrollments, enrollmentsError, loadingEnrollments]);
+
+  // Set of course IDs the user is currently enrolled in (derived from enrolled cohorts)
+  const enrolledCourseIds = useMemo(() => {
+    if (enrolledCohortIds.size === 0) return new Set<string>();
+    const courseIds = new Set<string>();
+    for (const c of rawCohorts) {
+      if (c.course_id && enrolledCohortIds.has(c.id)) {
+        courseIds.add(c.course_id);
+      }
+    }
+    return courseIds;
+  }, [enrolledCohortIds, rawCohorts]);
+
+  // Base published cohorts on the platform (excluding draft/archived/private)
+  const platformCohorts = useMemo(() => {
     return (rawCohorts || []).filter((c) => {
       if (c.visibility === 'private' || c.status === 'archived' || c.status === 'draft') {
         return false;
@@ -63,12 +101,42 @@ export function Home() {
       );
     });
   }, [rawCohorts]);
+
+  // Available cohorts for this specific user (hiding courses/cohorts the user already enrolled in)
+  const availableCohorts = useMemo(() => {
+    return platformCohorts.filter((cohort) => {
+      if (enrolledCohortIds.has(cohort.id)) {
+        return false;
+      }
+      if (cohort.course_id && enrolledCourseIds.has(cohort.course_id)) {
+        return false;
+      }
+      return true;
+    });
+  }, [platformCohorts, enrolledCohortIds, enrolledCourseIds]);
+
+  // Hide the Available Production Cohorts section when an enrolled user has already enrolled in all available courses
+  const hideActiveCohortsSection = useMemo(() => {
+    return Boolean(
+      user &&
+      !loadingEnrollments &&
+      !enrollmentsError &&
+      enrolledCohortIds.size > 0 &&
+      availableCohorts.length === 0
+    );
+  }, [user, loadingEnrollments, enrollmentsError, enrolledCohortIds.size, availableCohorts.length]);
+
   const cohortError = cohortsQueryError?.message || null;
 
   // Authoritative published cohort and price (synced with admin settings and database)
   const publishedCohort = useMemo(() => {
-    return cohorts.find((c) => c.status === 'published' || c.status === 'active') || cohorts[0] || null;
-  }, [cohorts]);
+    return (
+      availableCohorts.find((c) => c.status === 'published' || c.status === 'active') ||
+      availableCohorts[0] ||
+      platformCohorts[0] ||
+      null
+    );
+  }, [availableCohorts, platformCohorts]);
 
   const publishedPrice = publishedCohort?.price_inr ?? DEFAULT_COHORT_FEE_INR;
   const publishedCurrency = publishedCohort?.currency ?? DEFAULT_CURRENCY;
@@ -93,10 +161,11 @@ export function Home() {
       <main>
         <HeroSection
           loadingCohorts={loadingCohorts}
-          cohorts={cohorts}
+          cohorts={availableCohorts}
           cohortError={cohortError}
           publishedPrice={publishedPrice}
           publishedCurrency={publishedCurrency}
+          hideActiveCohortsSection={hideActiveCohortsSection}
         />
 
         <ComparisonSection />

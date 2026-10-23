@@ -199,6 +199,22 @@ export async function listCohorts(): Promise<Cohort[]> {
   );
 }
 
+export interface UserEnrollmentRecord {
+  cohort_id: string;
+  status: string;
+}
+
+export async function getUserEnrollments(userId: string): Promise<UserEnrollmentRecord[]> {
+  const { data, error } = await supabase
+    .from('enrollments')
+    .select('cohort_id, status')
+    .eq('user_id', userId)
+    .in('status', ['enrolled', 'active', 'completed', 'inactive']);
+
+  if (error) throw error;
+  return (data ?? []) as UserEnrollmentRecord[];
+}
+
 export async function listAvailableCohorts(userId: string): Promise<Cohort[]> {
   const { data: enrollments, error: enrollmentError } = await supabase
     .from('enrollments')
