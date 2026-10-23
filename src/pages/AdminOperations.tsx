@@ -10,6 +10,7 @@ import { AdminNotificationCenter } from '../components/AdminNotificationCenter';
 import { TopRightControls } from '../components/TopRightControls';
 import {
   hasAdminPermission,
+  isParentSuperAdmin,
   ROLE_LABELS,
   type AdminPermission,
   type AdminSubRole,
@@ -196,9 +197,7 @@ export function AdminOperations() {
   const [exportingAuditCsv, setExportingAuditCsv] = useState(false);
 
   // Permissions
-  const isSuperAdmin =
-    (profile?.role === 'admin' || profile?.role === 'super_admin') &&
-    (profile?.admin_role === 'super_admin' || !profile?.admin_role);
+  const isParentAdmin = isParentSuperAdmin(profile);
   const canManageRoles = hasAdminPermission(profile?.admin_role, 'manage_roles');
   const canManageStatus = hasAdminPermission(profile?.admin_role, 'manage_user_status');
   const canManageEnrollments = hasAdminPermission(profile?.admin_role, 'manage_enrollments');
@@ -536,20 +535,37 @@ export function AdminOperations() {
   }, [tab, toast, handleLoadErrorTelemetry]);
 
   // --- USER ACTIONS ---
-  const handleRoleChange = async (targetUser: UserProfile, newRole: 'student' | 'mentor' | 'admin') => {
+  const handleRoleChange = async (
+    targetUser: UserProfile,
+    newRole: 'student' | 'mentor' | 'admin' | 'child_super_admin'
+  ) => {
     if (targetUser.id === user?.id) {
       setError('You cannot modify your own administrative role.');
       return;
     }
-    if (newRole === 'admin' && !isSuperAdmin) {
-      setError('Unauthorized: Only Super Administrators can promote users to Admin.');
+    if (!isParentAdmin) {
+      setError('Unauthorized: Only Parent Super Admin can add or modify user roles.');
       return;
     }
     setError(null);
     try {
-      const updated = await updateUserRole(targetUser.id, newRole, user?.id);
-      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-      const msg = `Role for ${targetUser.full_name || targetUser.email} updated to ${newRole === 'admin' ? 'Admin' : newRole}.`;
+      if (newRole === 'child_super_admin') {
+        const updated = await updateUserRole(targetUser.id, 'admin', user?.id);
+        await updateAdminSubRole(targetUser.id, 'child_super_admin', user?.id);
+        setUsers((prev) =>
+          prev.map((u) => (u.id === targetUser.id ? { ...updated, role: 'admin', admin_role: 'child_super_admin' } : u))
+        );
+      } else {
+        const updated = await updateUserRole(targetUser.id, newRole, user?.id);
+        setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      }
+      const label =
+        newRole === 'child_super_admin'
+          ? 'Child Super Admin'
+          : newRole === 'admin'
+          ? 'Admin'
+          : newRole.charAt(0).toUpperCase() + newRole.slice(1);
+      const msg = `Role for ${targetUser.full_name || targetUser.email} updated to ${label}.`;
       setSuccess(msg);
       toast.success(msg);
       void getAdminStats().then(setStats);
@@ -1241,9 +1257,10 @@ export function AdminOperations() {
               <UsersTab
                 users={users}
                 currentUserId={user?.id}
+                currentUserEmail={user?.email}
                 canManageRoles={canManageRoles}
                 canManageStatus={canManageStatus}
-                isSuperAdmin={isSuperAdmin}
+                isSuperAdmin={isParentAdmin}
                 onRoleChange={handleRoleChange}
                 onStatusChange={handleStatusChange}
                 onAdminSubRoleChange={handleAdminSubRoleChange}

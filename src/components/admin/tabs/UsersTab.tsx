@@ -17,7 +17,12 @@ import {
 import { Button } from '../../ui/Button';
 import { Card } from '../../ui/Card';
 import { Pagination } from '../../ui/Pagination';
-import { ROLE_LABELS, type AdminSubRole } from '../../../lib/adminPermissions';
+import {
+  ROLE_LABELS,
+  isParentSuperAdmin,
+  isChildSuperAdmin,
+  type AdminSubRole,
+} from '../../../lib/adminPermissions';
 import type { UserProfile } from '../../../lib/adminService';
 
 export type UserRoleTab = 'student' | 'mentor' | 'admin' | 'all';
@@ -25,10 +30,14 @@ export type UserRoleTab = 'student' | 'mentor' | 'admin' | 'all';
 export interface UsersTabProps {
   users: UserProfile[];
   currentUserId?: string;
+  currentUserEmail?: string;
   canManageRoles: boolean;
   canManageStatus: boolean;
   isSuperAdmin?: boolean;
-  onRoleChange: (user: UserProfile, newRole: 'student' | 'mentor' | 'admin') => Promise<void>;
+  onRoleChange: (
+    user: UserProfile,
+    newRole: 'student' | 'mentor' | 'admin' | 'child_super_admin'
+  ) => Promise<void>;
   onStatusChange: (user: UserProfile, newStatus: 'active' | 'suspended') => Promise<void>;
   onAdminSubRoleChange: (user: UserProfile, newAdminRole: AdminSubRole) => Promise<void>;
   onBulkUserStatus: (status: 'active' | 'suspended', selectedIds: string[]) => Promise<void>;
@@ -40,20 +49,32 @@ function RoleBadge({
   role,
   adminRole,
   userId,
+  userEmail,
 }: {
   role: string;
   adminRole?: AdminSubRole | string;
   userId?: string;
+  userEmail?: string;
 }) {
-  const isSuperAdmin =
-    role === 'super_admin' || (role === 'admin' && (adminRole === 'super_admin' || !adminRole));
-  if (isSuperAdmin) {
+  const isParent = isParentSuperAdmin({ role, admin_role: adminRole, id: userId, email: userEmail });
+  if (isParent) {
     return (
       <span
         data-testid={userId ? `role-badge-${userId}` : 'role-badge'}
-        className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-2.5 py-0.5 text-[11px] font-black text-white shadow-xs"
+        className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-orange-600 px-2.5 py-0.5 text-[11px] font-black text-slate-950 shadow-xs"
       >
-        <Shield size={11} className="text-white fill-white" /> Super Admin
+        <Shield size={11} className="text-slate-950 fill-slate-950" /> Parent Super Admin
+      </span>
+    );
+  }
+  const isChild = isChildSuperAdmin({ admin_role: adminRole });
+  if (isChild) {
+    return (
+      <span
+        data-testid={userId ? `role-badge-${userId}` : 'role-badge'}
+        className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-2.5 py-0.5 text-[11px] font-bold text-white shadow-xs"
+      >
+        <ShieldCheck size={11} className="text-white fill-white" /> Child Super Admin
       </span>
     );
   }
@@ -90,6 +111,7 @@ function RoleBadge({
 export function UsersTab({
   users,
   currentUserId,
+  currentUserEmail,
   canManageRoles,
   canManageStatus,
   isSuperAdmin,
@@ -100,7 +122,10 @@ export function UsersTab({
   onExportUsers,
   defaultRoleTab = 'student',
 }: UsersTabProps) {
-  const isSuperAdminEffective = isSuperAdmin ?? canManageRoles;
+  const isParentAdminEffective =
+    isParentSuperAdmin({ email: currentUserEmail, id: currentUserId }) ||
+    isSuperAdmin ||
+    canManageRoles;
   const [userSearch, setUserSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRoleTab>(defaultRoleTab);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
@@ -228,7 +253,10 @@ export function UsersTab({
     }
   };
 
-  const handleRole = async (targetUser: UserProfile, newRole: 'student' | 'mentor' | 'admin') => {
+  const handleRole = async (
+    targetUser: UserProfile,
+    newRole: 'student' | 'mentor' | 'admin' | 'child_super_admin'
+  ) => {
     setUpdatingUserId(targetUser.id);
     try {
       await onRoleChange(targetUser, newRole);
@@ -448,63 +476,81 @@ export function UsersTab({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <RoleBadge role={item.role} adminRole={item.admin_role} userId={item.id} />
+                  <RoleBadge role={item.role} adminRole={item.admin_role} userId={item.id} userEmail={item.email} />
 
-                  {/* Promotion / Demotion Actions */}
-                  {canManageRoles && !isSelf && item.role === 'student' && (
-                    <div className="flex items-center gap-1.5">
+                  {/* Promotion / Demotion Actions - Parent Super Admin only */}
+                  {canManageRoles && isParentAdminEffective && !isSelf && item.role === 'student' && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <Button
                         variant="secondary"
                         size="sm"
                         loading={isUpdating}
                         onClick={() => void handleRole(item, 'mentor')}
                         className="text-xs font-bold"
+                        data-testid={`promote-mentor-${item.id}`}
                       >
                         <UserCheck size={13} className="text-purple-600" /> Promote to Mentor
                       </Button>
-                      {isSuperAdminEffective && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          data-testid={`promote-admin-${item.id}`}
-                          loading={isUpdating}
-                          onClick={() => void handleRole(item, 'admin')}
-                          className="text-xs font-bold text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-900/50 hover:bg-orange-50 dark:hover:bg-orange-950/30"
-                        >
-                          <Shield size={13} className="text-orange-500" /> Promote to Admin
-                        </Button>
-                      )}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        data-testid={`promote-admin-${item.id}`}
+                        loading={isUpdating}
+                        onClick={() => void handleRole(item, 'admin')}
+                        className="text-xs font-bold text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700"
+                      >
+                        <Shield size={13} className="text-slate-700 dark:text-slate-300" /> Promote to Admin
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        data-testid={`promote-child-super-${item.id}`}
+                        loading={isUpdating}
+                        onClick={() => void handleRole(item, 'child_super_admin')}
+                        className="text-xs font-bold text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                      >
+                        <ShieldCheck size={13} className="text-indigo-500" /> Promote to Child Super Admin
+                      </Button>
                     </div>
                   )}
 
-                  {canManageRoles && !isSelf && item.role === 'mentor' && (
-                    <div className="flex items-center gap-1.5">
+                  {canManageRoles && isParentAdminEffective && !isSelf && item.role === 'mentor' && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <Button
                         variant="secondary"
                         size="sm"
                         loading={isUpdating}
                         onClick={() => void handleRole(item, 'student')}
                         className="text-xs font-bold text-amber-700"
+                        data-testid={`demote-student-${item.id}`}
                       >
                         <UserMinus size={13} /> Demote to Student
                       </Button>
-                      {isSuperAdminEffective && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          data-testid={`promote-admin-${item.id}`}
-                          loading={isUpdating}
-                          onClick={() => void handleRole(item, 'admin')}
-                          className="text-xs font-bold text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-900/50 hover:bg-orange-50 dark:hover:bg-orange-950/30"
-                        >
-                          <Shield size={13} className="text-orange-500" /> Promote to Admin
-                        </Button>
-                      )}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        data-testid={`promote-admin-${item.id}`}
+                        loading={isUpdating}
+                        onClick={() => void handleRole(item, 'admin')}
+                        className="text-xs font-bold text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700"
+                      >
+                        <Shield size={13} className="text-slate-700 dark:text-slate-300" /> Promote to Admin
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        data-testid={`promote-child-super-${item.id}`}
+                        loading={isUpdating}
+                        onClick={() => void handleRole(item, 'child_super_admin')}
+                        className="text-xs font-bold text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                      >
+                        <ShieldCheck size={13} className="text-indigo-500" /> Promote to Child Super Admin
+                      </Button>
                     </div>
                   )}
 
                   {/* Suspend / Reactivate Actions */}
-                  {canManageStatus && !isSelf && (
+                  {canManageStatus && !isSelf && item.email !== 'ajayramanan17@gmail.com' && (
                     <Button
                       variant="secondary"
                       size="sm"
@@ -527,42 +573,55 @@ export function UsersTab({
                   )}
 
                   {(item.role === 'admin' || item.role === 'super_admin') && (
-                    <div className="flex items-center gap-2">
-                      {canManageRoles ? (
-                        <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-2 py-1">
-                          <UserCog size={13} className="text-slate-400" />
-                          <select
-                            value={item.admin_role || 'super_admin'}
-                            disabled={isSelf || isUpdating}
-                            onChange={(e) =>
-                              void handleAdminSubRole(item, e.target.value as AdminSubRole)
-                            }
-                            className="bg-transparent text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {canManageRoles && isParentAdminEffective && !isSelf && item.email !== 'ajayramanan17@gmail.com' ? (
+                        <>
+                          <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-2 py-1">
+                            <UserCog size={13} className="text-slate-400" />
+                            <select
+                              value={item.admin_role || 'content_admin'}
+                              disabled={isUpdating}
+                              onChange={(e) =>
+                                void handleAdminSubRole(item, e.target.value as AdminSubRole)
+                              }
+                              className="bg-transparent text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
+                              data-testid={`admin-subrole-select-${item.id}`}
+                            >
+                              <option value="child_super_admin">Child Super Admin</option>
+                              <option value="content_admin">Content Admin</option>
+                              <option value="operations_admin">Operations Admin</option>
+                              <option value="moderator">Community Moderator</option>
+                              <option value="parent_super_admin">Parent Super Admin</option>
+                            </select>
+                          </div>
+
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            loading={isUpdating}
+                            onClick={() => void handleRole(item, 'mentor')}
+                            className="text-xs font-bold text-purple-700"
+                            title="Demote to Mentor"
+                            data-testid={`demote-mentor-${item.id}`}
                           >
-                            <option value="super_admin">Super Admin</option>
-                            <option value="content_admin">Content Admin</option>
-                            <option value="operations_admin">Operations Admin</option>
-                            <option value="moderator">Moderator</option>
-                          </select>
-                        </div>
+                            <ShieldCheck size={13} /> Demote to Mentor
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            loading={isUpdating}
+                            onClick={() => void handleRole(item, 'student')}
+                            className="text-xs font-bold text-amber-700"
+                            title="Demote to Student"
+                            data-testid={`demote-student-${item.id}`}
+                          >
+                            <UserMinus size={13} /> Demote to Student
+                          </Button>
+                        </>
                       ) : (
                         <span className="rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-400">
                           {ROLE_LABELS[item.admin_role || 'super_admin']}
                         </span>
-                      )}
-
-                      {canManageRoles && isSuperAdminEffective && !isSelf && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          loading={isUpdating}
-                          onClick={() => void handleRole(item, 'mentor')}
-                          className="text-xs font-bold text-purple-700"
-                          title="Demote to Mentor"
-                          data-testid={`demote-mentor-${item.id}`}
-                        >
-                          <ShieldCheck size={13} /> Demote to Mentor
-                        </Button>
                       )}
                     </div>
                   )}

@@ -1278,7 +1278,7 @@ export async function updateUserRole(
 
 export async function updateAdminSubRole(
   userId: string,
-  adminRole: 'super_admin' | 'content_admin' | 'operations_admin' | 'moderator',
+  adminRole: AdminSubRole,
   actorId?: string
 ): Promise<UserProfile> {
   queryCache.invalidate('admin');

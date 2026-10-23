@@ -3,7 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { UsersTab } from '../../components/admin/tabs/UsersTab';
 import type { UserProfile } from '../../lib/adminService';
 
-describe('Super Admin Role & Promotion Privilege', () => {
+describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, Student', () => {
   const mockStudent: UserProfile = {
     id: 'student-1',
     email: 'student@iunoware.com',
@@ -32,23 +32,40 @@ describe('Super Admin Role & Promotion Privilege', () => {
     created_at: new Date().toISOString(),
   };
 
-  const mockSuperAdmin: UserProfile = {
-    id: 'admin-super',
-    email: 'super@iunoware.com',
-    full_name: 'Sovereign SuperAdmin',
+  const mockChildSuperAdmin: UserProfile = {
+    id: 'admin-child',
+    email: 'child@iunoware.com',
+    full_name: 'Charlie ChildSuper',
     role: 'admin',
-    admin_role: 'super_admin',
+    admin_role: 'child_super_admin',
     status: 'active',
     created_at: new Date().toISOString(),
   };
 
-  const allUsers = [mockStudent, mockMentor, mockContentAdmin, mockSuperAdmin];
+  const mockParentSuperAdmin: UserProfile = {
+    id: 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b',
+    email: 'ajayramanan17@gmail.com',
+    full_name: 'Ramanan',
+    role: 'admin',
+    admin_role: 'parent_super_admin',
+    status: 'active',
+    created_at: new Date().toISOString(),
+  };
 
-  it('renders distinguished "Super Admin" badge for super_admin users', () => {
+  const allUsers = [
+    mockStudent,
+    mockMentor,
+    mockContentAdmin,
+    mockChildSuperAdmin,
+    mockParentSuperAdmin,
+  ];
+
+  it('renders distinguished "Parent Super Admin" and "Child Super Admin" badges', () => {
     render(
       <UsersTab
         users={allUsers}
-        currentUserId={mockSuperAdmin.id}
+        currentUserId={mockParentSuperAdmin.id}
+        currentUserEmail={mockParentSuperAdmin.email}
         canManageRoles={true}
         canManageStatus={true}
         isSuperAdmin={true}
@@ -61,20 +78,25 @@ describe('Super Admin Role & Promotion Privilege', () => {
       />
     );
 
-    // Should find the "Super Admin" badge text
-    const superBadge = screen.getByTestId(`role-badge-${mockSuperAdmin.id}`);
-    expect(superBadge).toHaveTextContent('Super Admin');
+    // Parent Super Admin badge
+    const parentBadge = screen.getByTestId(`role-badge-${mockParentSuperAdmin.id}`);
+    expect(parentBadge).toHaveTextContent('Parent Super Admin');
 
-    // And also Content Admin badge
+    // Child Super Admin badge
+    const childBadge = screen.getByTestId(`role-badge-${mockChildSuperAdmin.id}`);
+    expect(childBadge).toHaveTextContent('Child Super Admin');
+
+    // Standard Content Admin badge
     const contentBadge = screen.getByTestId(`role-badge-${mockContentAdmin.id}`);
     expect(contentBadge).toHaveTextContent('Content Admin');
   });
 
-  it('allows Super Admin to see "Promote to Admin" for students and mentors', () => {
+  it('allows Parent Super Admin to see "Promote to Mentor", "Promote to Admin", and "Promote to Child Super Admin" on students', () => {
     render(
       <UsersTab
         users={allUsers}
-        currentUserId={mockSuperAdmin.id}
+        currentUserId={mockParentSuperAdmin.id}
+        currentUserEmail={mockParentSuperAdmin.email}
         canManageRoles={true}
         canManageStatus={true}
         isSuperAdmin={true}
@@ -87,18 +109,46 @@ describe('Super Admin Role & Promotion Privilege', () => {
       />
     );
 
-    // Promote to Admin button should exist for student
-    const promoteBtn = screen.getByTestId(`promote-admin-${mockStudent.id}`);
-    expect(promoteBtn).toBeInTheDocument();
-    expect(promoteBtn).toHaveTextContent('Promote to Admin');
+    expect(screen.getByTestId(`promote-mentor-${mockStudent.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`promote-admin-${mockStudent.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`promote-child-super-${mockStudent.id}`)).toBeInTheDocument();
   });
 
-  it('triggers onRoleChange with "admin" when Super Admin clicks "Promote to Admin" on a student', async () => {
+  it('triggers onRoleChange with "child_super_admin" when Parent Super Admin clicks "Promote to Child Super Admin"', async () => {
     const handleRoleChange = vi.fn();
     render(
       <UsersTab
         users={allUsers}
-        currentUserId={mockSuperAdmin.id}
+        currentUserId={mockParentSuperAdmin.id}
+        currentUserEmail={mockParentSuperAdmin.email}
+        canManageRoles={true}
+        canManageStatus={true}
+        isSuperAdmin={true}
+        onRoleChange={handleRoleChange}
+        onStatusChange={vi.fn()}
+        onAdminSubRoleChange={vi.fn()}
+        onBulkUserStatus={vi.fn()}
+        onExportUsers={vi.fn()}
+        defaultRoleTab="student"
+      />
+    );
+
+    const promoteChildBtn = screen.getByTestId(`promote-child-super-${mockStudent.id}`);
+    await act(async () => {
+      fireEvent.click(promoteChildBtn);
+    });
+
+    expect(handleRoleChange).toHaveBeenCalledTimes(1);
+    expect(handleRoleChange).toHaveBeenCalledWith(mockStudent, 'child_super_admin');
+  });
+
+  it('triggers onRoleChange with "admin" when Parent Super Admin clicks "Promote to Admin"', async () => {
+    const handleRoleChange = vi.fn();
+    render(
+      <UsersTab
+        users={allUsers}
+        currentUserId={mockParentSuperAdmin.id}
+        currentUserEmail={mockParentSuperAdmin.email}
         canManageRoles={true}
         canManageStatus={true}
         isSuperAdmin={true}
@@ -120,41 +170,14 @@ describe('Super Admin Role & Promotion Privilege', () => {
     expect(handleRoleChange).toHaveBeenCalledWith(mockStudent, 'admin');
   });
 
-  it('triggers onRoleChange with "admin" when Super Admin clicks "Promote to Admin" on a mentor', async () => {
-    const handleRoleChange = vi.fn();
+  it('does NOT allow Child Super Admin or Content Admin to see role promotion buttons', () => {
     render(
       <UsersTab
         users={allUsers}
-        currentUserId={mockSuperAdmin.id}
-        canManageRoles={true}
-        canManageStatus={true}
-        isSuperAdmin={true}
-        onRoleChange={handleRoleChange}
-        onStatusChange={vi.fn()}
-        onAdminSubRoleChange={vi.fn()}
-        onBulkUserStatus={vi.fn()}
-        onExportUsers={vi.fn()}
-        defaultRoleTab="mentor"
-      />
-    );
-
-    const promoteBtn = screen.getByTestId(`promote-admin-${mockMentor.id}`);
-    expect(promoteBtn).toBeInTheDocument();
-    await act(async () => {
-      fireEvent.click(promoteBtn);
-    });
-
-    expect(handleRoleChange).toHaveBeenCalledTimes(1);
-    expect(handleRoleChange).toHaveBeenCalledWith(mockMentor, 'admin');
-  });
-
-  it('does NOT render "Promote to Admin" when isSuperAdmin is false (e.g. content_admin/moderator)', () => {
-    render(
-      <UsersTab
-        users={allUsers}
-        currentUserId={mockContentAdmin.id}
+        currentUserId={mockChildSuperAdmin.id}
+        currentUserEmail={mockChildSuperAdmin.email}
         canManageRoles={false}
-        canManageStatus={false}
+        canManageStatus={true}
         isSuperAdmin={false}
         onRoleChange={vi.fn()}
         onStatusChange={vi.fn()}
@@ -165,44 +188,17 @@ describe('Super Admin Role & Promotion Privilege', () => {
       />
     );
 
-    // No Promote to Admin button should be present
+    expect(screen.queryByTestId(`promote-mentor-${mockStudent.id}`)).not.toBeInTheDocument();
     expect(screen.queryByTestId(`promote-admin-${mockStudent.id}`)).not.toBeInTheDocument();
-    expect(screen.queryByText('Promote to Admin')).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`promote-child-super-${mockStudent.id}`)).not.toBeInTheDocument();
   });
 
-  it('allows Super Admin to demote other admins to mentor', async () => {
-    const handleRoleChange = vi.fn();
+  it('protects Ramanan (Parent Super Admin) from being demoted or modified in the UI', () => {
     render(
       <UsersTab
         users={allUsers}
-        currentUserId={mockSuperAdmin.id}
-        canManageRoles={true}
-        canManageStatus={true}
-        isSuperAdmin={true}
-        onRoleChange={handleRoleChange}
-        onStatusChange={vi.fn()}
-        onAdminSubRoleChange={vi.fn()}
-        onBulkUserStatus={vi.fn()}
-        onExportUsers={vi.fn()}
-        defaultRoleTab="admin"
-      />
-    );
-
-    // Content admin is not self, so demote button should be available
-    const demoteBtn = screen.getByTestId(`demote-mentor-${mockContentAdmin.id}`);
-    expect(demoteBtn).toBeInTheDocument();
-
-    await act(async () => {
-      fireEvent.click(demoteBtn);
-    });
-    expect(handleRoleChange).toHaveBeenCalledWith(mockContentAdmin, 'mentor');
-  });
-
-  it('never displays promotion or demotion buttons for the current user themselves', () => {
-    render(
-      <UsersTab
-        users={allUsers}
-        currentUserId={mockSuperAdmin.id}
+        currentUserId="some-other-id"
+        currentUserEmail="someone@iunoware.com"
         canManageRoles={true}
         canManageStatus={true}
         isSuperAdmin={true}
@@ -215,8 +211,9 @@ describe('Super Admin Role & Promotion Privilege', () => {
       />
     );
 
-    // Current user row has "You" badge and no demote button
-    expect(screen.queryByTestId(`demote-mentor-${mockSuperAdmin.id}`)).not.toBeInTheDocument();
-    expect(screen.queryByTestId(`promote-admin-${mockSuperAdmin.id}`)).not.toBeInTheDocument();
+    // Ramanan's row should NOT have demote buttons or subrole selector
+    expect(screen.queryByTestId(`demote-mentor-${mockParentSuperAdmin.id}`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`demote-student-${mockParentSuperAdmin.id}`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`admin-subrole-select-${mockParentSuperAdmin.id}`)).not.toBeInTheDocument();
   });
 });
