@@ -6,7 +6,7 @@ import { isSessionExpired } from '../lib/authSessionService';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: ('student' | 'mentor' | 'admin')[];
+  allowedRoles?: ('student' | 'mentor' | 'admin' | 'super_admin')[];
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
@@ -96,7 +96,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     );
   }
 
-  if (allowedRoles && (!profile || !allowedRoles.includes(profile.role))) {
+  const hasRoleAccess =
+    !allowedRoles ||
+    Boolean(
+      profile &&
+        (allowedRoles.includes(profile.role) ||
+          (profile.role === 'super_admin' && allowedRoles.includes('admin')))
+    );
+
+  if (!hasRoleAccess) {
     return <Navigate to="/unauthorized" replace />;
   }
 

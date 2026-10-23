@@ -1251,9 +1251,17 @@ export async function updateUserRole(
     throw rpcError;
   }
 
+  const updatePayload: Record<string, unknown> = {
+    role,
+    updated_at: new Date().toISOString(),
+  };
+  if (role !== 'admin') {
+    updatePayload.admin_role = null;
+  }
+
   const { data, error } = await supabase
     .from('profiles')
-    .update({ role, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq('id', userId)
     .select('id, full_name, email, role, admin_role, status, created_at')
     .single();

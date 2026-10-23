@@ -196,6 +196,9 @@ export function AdminOperations() {
   const [exportingAuditCsv, setExportingAuditCsv] = useState(false);
 
   // Permissions
+  const isSuperAdmin =
+    (profile?.role === 'admin' || profile?.role === 'super_admin') &&
+    (profile?.admin_role === 'super_admin' || !profile?.admin_role);
   const canManageRoles = hasAdminPermission(profile?.admin_role, 'manage_roles');
   const canManageStatus = hasAdminPermission(profile?.admin_role, 'manage_user_status');
   const canManageEnrollments = hasAdminPermission(profile?.admin_role, 'manage_enrollments');
@@ -533,16 +536,20 @@ export function AdminOperations() {
   }, [tab, toast, handleLoadErrorTelemetry]);
 
   // --- USER ACTIONS ---
-  const handleRoleChange = async (targetUser: UserProfile, newRole: 'student' | 'mentor') => {
+  const handleRoleChange = async (targetUser: UserProfile, newRole: 'student' | 'mentor' | 'admin') => {
     if (targetUser.id === user?.id) {
       setError('You cannot modify your own administrative role.');
+      return;
+    }
+    if (newRole === 'admin' && !isSuperAdmin) {
+      setError('Unauthorized: Only Super Administrators can promote users to Admin.');
       return;
     }
     setError(null);
     try {
       const updated = await updateUserRole(targetUser.id, newRole, user?.id);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-      const msg = `Role for ${targetUser.full_name || targetUser.email} updated to ${newRole}.`;
+      const msg = `Role for ${targetUser.full_name || targetUser.email} updated to ${newRole === 'admin' ? 'Admin' : newRole}.`;
       setSuccess(msg);
       toast.success(msg);
       void getAdminStats().then(setStats);
@@ -1236,6 +1243,7 @@ export function AdminOperations() {
                 currentUserId={user?.id}
                 canManageRoles={canManageRoles}
                 canManageStatus={canManageStatus}
+                isSuperAdmin={isSuperAdmin}
                 onRoleChange={handleRoleChange}
                 onStatusChange={handleStatusChange}
                 onAdminSubRoleChange={handleAdminSubRoleChange}

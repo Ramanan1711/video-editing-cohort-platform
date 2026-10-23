@@ -27,7 +27,8 @@ export interface UsersTabProps {
   currentUserId?: string;
   canManageRoles: boolean;
   canManageStatus: boolean;
-  onRoleChange: (user: UserProfile, newRole: 'student' | 'mentor') => Promise<void>;
+  isSuperAdmin?: boolean;
+  onRoleChange: (user: UserProfile, newRole: 'student' | 'mentor' | 'admin') => Promise<void>;
   onStatusChange: (user: UserProfile, newStatus: 'active' | 'suspended') => Promise<void>;
   onAdminSubRoleChange: (user: UserProfile, newAdminRole: AdminSubRole) => Promise<void>;
   onBulkUserStatus: (status: 'active' | 'suspended', selectedIds: string[]) => Promise<void>;
@@ -35,23 +36,52 @@ export interface UsersTabProps {
   defaultRoleTab?: UserRoleTab;
 }
 
-function RoleBadge({ role }: { role: string }) {
+function RoleBadge({
+  role,
+  adminRole,
+  userId,
+}: {
+  role: string;
+  adminRole?: AdminSubRole | string;
+  userId?: string;
+}) {
+  const isSuperAdmin =
+    role === 'super_admin' || (role === 'admin' && (adminRole === 'super_admin' || !adminRole));
+  if (isSuperAdmin) {
+    return (
+      <span
+        data-testid={userId ? `role-badge-${userId}` : 'role-badge'}
+        className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-2.5 py-0.5 text-[11px] font-black text-white shadow-xs"
+      >
+        <Shield size={11} className="text-white fill-white" /> Super Admin
+      </span>
+    );
+  }
   if (role === 'admin') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-slate-950 px-2.5 py-0.5 text-[11px] font-bold text-white">
-        <Shield size={11} className="text-orange-400" /> Admin
+      <span
+        data-testid={userId ? `role-badge-${userId}` : 'role-badge'}
+        className="inline-flex items-center gap-1 rounded-full bg-slate-950 px-2.5 py-0.5 text-[11px] font-bold text-white"
+      >
+        <Shield size={11} className="text-orange-400" /> {adminRole ? ROLE_LABELS[adminRole as AdminSubRole] || 'Admin' : 'Admin'}
       </span>
     );
   }
   if (role === 'mentor') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-[11px] font-bold text-purple-700">
+      <span
+        data-testid={userId ? `role-badge-${userId}` : 'role-badge'}
+        className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-[11px] font-bold text-purple-700"
+      >
         <ShieldCheck size={11} /> Mentor
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
+    <span
+      data-testid={userId ? `role-badge-${userId}` : 'role-badge'}
+      className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700"
+    >
       Student
     </span>
   );
@@ -62,6 +92,7 @@ export function UsersTab({
   currentUserId,
   canManageRoles,
   canManageStatus,
+  isSuperAdmin,
   onRoleChange,
   onStatusChange,
   onAdminSubRoleChange,
@@ -69,6 +100,7 @@ export function UsersTab({
   onExportUsers,
   defaultRoleTab = 'student',
 }: UsersTabProps) {
+  const isSuperAdminEffective = isSuperAdmin ?? canManageRoles;
   const [userSearch, setUserSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRoleTab>(defaultRoleTab);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
@@ -85,7 +117,7 @@ export function UsersTab({
     let admin = 0;
     for (const u of users) {
       if (u.role === 'mentor') mentor++;
-      else if (u.role === 'admin') admin++;
+      else if (u.role === 'admin' || u.role === 'super_admin') admin++;
       else student++;
     }
     return {
@@ -141,7 +173,10 @@ export function UsersTab({
       const matchesSearch =
         u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
         (u.full_name && u.full_name.toLowerCase().includes(userSearch.toLowerCase()));
-      const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+      const matchesRole =
+        roleFilter === 'all' ||
+        u.role === roleFilter ||
+        (roleFilter === 'admin' && (u.role === 'admin' || u.role === 'super_admin'));
       const matchesStatus =
         statusFilter === 'all' || (u.status || 'active') === statusFilter;
       return matchesSearch && matchesRole && matchesStatus;
@@ -193,7 +228,7 @@ export function UsersTab({
     }
   };
 
-  const handleRole = async (targetUser: UserProfile, newRole: 'student' | 'mentor') => {
+  const handleRole = async (targetUser: UserProfile, newRole: 'student' | 'mentor' | 'admin') => {
     setUpdatingUserId(targetUser.id);
     try {
       await onRoleChange(targetUser, newRole);
@@ -413,31 +448,59 @@ export function UsersTab({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <RoleBadge role={item.role} />
+                  <RoleBadge role={item.role} adminRole={item.admin_role} userId={item.id} />
 
                   {/* Promotion / Demotion Actions */}
                   {canManageRoles && !isSelf && item.role === 'student' && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      loading={isUpdating}
-                      onClick={() => void handleRole(item, 'mentor')}
-                      className="text-xs font-bold"
-                    >
-                      <UserCheck size={13} className="text-purple-600" /> Promote to Mentor
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        loading={isUpdating}
+                        onClick={() => void handleRole(item, 'mentor')}
+                        className="text-xs font-bold"
+                      >
+                        <UserCheck size={13} className="text-purple-600" /> Promote to Mentor
+                      </Button>
+                      {isSuperAdminEffective && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          data-testid={`promote-admin-${item.id}`}
+                          loading={isUpdating}
+                          onClick={() => void handleRole(item, 'admin')}
+                          className="text-xs font-bold text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-900/50 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                        >
+                          <Shield size={13} className="text-orange-500" /> Promote to Admin
+                        </Button>
+                      )}
+                    </div>
                   )}
 
                   {canManageRoles && !isSelf && item.role === 'mentor' && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      loading={isUpdating}
-                      onClick={() => void handleRole(item, 'student')}
-                      className="text-xs font-bold text-amber-700"
-                    >
-                      <UserMinus size={13} /> Demote to Student
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        loading={isUpdating}
+                        onClick={() => void handleRole(item, 'student')}
+                        className="text-xs font-bold text-amber-700"
+                      >
+                        <UserMinus size={13} /> Demote to Student
+                      </Button>
+                      {isSuperAdminEffective && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          data-testid={`promote-admin-${item.id}`}
+                          loading={isUpdating}
+                          onClick={() => void handleRole(item, 'admin')}
+                          className="text-xs font-bold text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-900/50 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                        >
+                          <Shield size={13} className="text-orange-500" /> Promote to Admin
+                        </Button>
+                      )}
+                    </div>
                   )}
 
                   {/* Suspend / Reactivate Actions */}
@@ -463,11 +526,8 @@ export function UsersTab({
                     </Button>
                   )}
 
-                  {item.role === 'admin' && (
+                  {(item.role === 'admin' || item.role === 'super_admin') && (
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <ShieldCheck size={14} className="text-emerald-500" /> Admin
-                      </span>
                       {canManageRoles ? (
                         <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-2 py-1">
                           <UserCog size={13} className="text-slate-400" />
@@ -489,6 +549,20 @@ export function UsersTab({
                         <span className="rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-400">
                           {ROLE_LABELS[item.admin_role || 'super_admin']}
                         </span>
+                      )}
+
+                      {canManageRoles && isSuperAdminEffective && !isSelf && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          loading={isUpdating}
+                          onClick={() => void handleRole(item, 'mentor')}
+                          className="text-xs font-bold text-purple-700"
+                          title="Demote to Mentor"
+                          data-testid={`demote-mentor-${item.id}`}
+                        >
+                          <ShieldCheck size={13} /> Demote to Mentor
+                        </Button>
                       )}
                     </div>
                   )}

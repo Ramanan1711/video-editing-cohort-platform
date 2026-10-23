@@ -7,7 +7,7 @@ export interface Profile {
   id: string;
   full_name: string;
   email: string;
-  role: 'student' | 'mentor' | 'admin';
+  role: 'student' | 'mentor' | 'admin' | 'super_admin';
   status?: 'active' | 'suspended' | 'inactive';
   admin_role?: AdminSubRole;
   whatsapp_number?: string | null;
