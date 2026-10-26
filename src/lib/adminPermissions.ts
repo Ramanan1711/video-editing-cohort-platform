@@ -1,8 +1,9 @@
 // src/lib/adminPermissions.ts
 // Granular Role-Based Access Control (RBAC) Matrix for Administration
+// Strictly two admin_roles: 'parent_super_admin' and 'child_super_admin' ('super_admin' alias for parent_super_admin).
+// Standard administrators have role = 'admin' with admin_role = null.
 
 export type AdminSubRole =
-  | 'admin'
   | 'parent_super_admin'
   | 'child_super_admin'
   | 'super_admin';
@@ -20,17 +21,18 @@ export type AdminPermission =
   | 'view_audit_logs' // view security audit trail & export CSV
   | 'view_insights'; // view executive insights and dropout risks
 
+export const STANDARD_ADMIN_PERMISSIONS: AdminPermission[] = [
+  'manage_cohorts',
+  'manage_curriculum',
+  'publish_content',
+  'manage_enrollments',
+  'broadcast_announcements',
+  'schedule_sessions',
+  'moderate_community',
+  'view_insights',
+];
+
 export const ROLE_PERMISSIONS: Record<AdminSubRole, AdminPermission[]> = {
-  admin: [
-    'manage_cohorts',
-    'manage_curriculum',
-    'publish_content',
-    'manage_enrollments',
-    'broadcast_announcements',
-    'schedule_sessions',
-    'moderate_community',
-    'view_insights',
-  ],
   parent_super_admin: [
     'manage_roles',
     'manage_user_status',
@@ -72,14 +74,12 @@ export const ROLE_PERMISSIONS: Record<AdminSubRole, AdminPermission[]> = {
 };
 
 export const ROLE_LABELS: Record<AdminSubRole, string> = {
-  admin: 'Admin',
   parent_super_admin: 'Parent Super Admin',
   child_super_admin: 'Child Super Admin',
   super_admin: 'Parent Super Admin',
 };
 
 export const ROLE_DESCRIPTIONS: Record<AdminSubRole, string> = {
-  admin: 'Standard platform administrator with cohort, curriculum, and operational access.',
   parent_super_admin: 'Root platform sovereignty: exclusive authority to appoint Mentors, Admins, and Child Super Admins.',
   super_admin: 'Root platform sovereignty: exclusive authority to appoint Mentors, Admins, and Child Super Admins.',
   child_super_admin: 'Executive platform administrator with all operational, content, and student management capabilities.',
@@ -87,15 +87,18 @@ export const ROLE_DESCRIPTIONS: Record<AdminSubRole, string> = {
 
 /**
  * Checks whether an admin user holds a specific administrative privilege.
- * Defaults to 'parent_super_admin' if admin_role is unspecified.
+ * If adminRole is null/undefined (standard admin), returns STANDARD_ADMIN_PERMISSIONS.
  */
 export function hasAdminPermission(
-  adminRole: AdminSubRole | undefined | null,
+  adminRole: AdminSubRole | string | undefined | null,
   permission: AdminPermission
 ): boolean {
-  const role: AdminSubRole = adminRole || 'parent_super_admin';
+  if (!adminRole) {
+    return STANDARD_ADMIN_PERMISSIONS.includes(permission);
+  }
+  const role = adminRole as AdminSubRole;
   const permissions = ROLE_PERMISSIONS[role];
-  return Boolean(permissions && permissions.includes(permission));
+  return Boolean(permissions ? permissions.includes(permission) : STANDARD_ADMIN_PERMISSIONS.includes(permission));
 }
 
 /**

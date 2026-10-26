@@ -45,24 +45,24 @@ describe('Admin Permissions & RBAC Matrix', () => {
     expect(hasAdminPermission(role, 'view_insights')).toBe(true);
   });
 
-  it('admin can manage cohorts, curriculum, and operations, but cannot manage roles or status', () => {
-    const role: AdminSubRole = 'admin';
-    expect(hasAdminPermission(role, 'manage_cohorts')).toBe(true);
-    expect(hasAdminPermission(role, 'manage_curriculum')).toBe(true);
-    expect(hasAdminPermission(role, 'publish_content')).toBe(true);
-    expect(hasAdminPermission(role, 'manage_enrollments')).toBe(true);
-    expect(hasAdminPermission(role, 'broadcast_announcements')).toBe(true);
-    expect(hasAdminPermission(role, 'schedule_sessions')).toBe(true);
-    expect(hasAdminPermission(role, 'moderate_community')).toBe(true);
-    expect(hasAdminPermission(role, 'view_insights')).toBe(true);
+  it('standard admin (admin_role = null) can manage cohorts, curriculum, and operations, but cannot manage roles or status', () => {
+    expect(hasAdminPermission(null, 'manage_cohorts')).toBe(true);
+    expect(hasAdminPermission(undefined, 'manage_cohorts')).toBe(true);
+    expect(hasAdminPermission(null, 'manage_curriculum')).toBe(true);
+    expect(hasAdminPermission(null, 'publish_content')).toBe(true);
+    expect(hasAdminPermission(null, 'manage_enrollments')).toBe(true);
+    expect(hasAdminPermission(null, 'broadcast_announcements')).toBe(true);
+    expect(hasAdminPermission(null, 'schedule_sessions')).toBe(true);
+    expect(hasAdminPermission(null, 'moderate_community')).toBe(true);
+    expect(hasAdminPermission(null, 'view_insights')).toBe(true);
 
-    expect(hasAdminPermission(role, 'manage_roles')).toBe(false);
-    expect(hasAdminPermission(role, 'manage_user_status')).toBe(false);
-    expect(hasAdminPermission(role, 'view_audit_logs')).toBe(false);
+    expect(hasAdminPermission(null, 'manage_roles')).toBe(false);
+    expect(hasAdminPermission(null, 'manage_user_status')).toBe(false);
+    expect(hasAdminPermission(null, 'view_audit_logs')).toBe(false);
   });
 
-  it('provides human-readable labels and descriptions for all administrative sub-roles', () => {
-    const subRoles: AdminSubRole[] = ['parent_super_admin', 'child_super_admin', 'super_admin', 'admin'];
+  it('provides human-readable labels and descriptions for administrative sub-roles', () => {
+    const subRoles: AdminSubRole[] = ['parent_super_admin', 'child_super_admin', 'super_admin'];
     subRoles.forEach((r) => {
       expect(ROLE_LABELS[r]).toBeDefined();
       expect(ROLE_DESCRIPTIONS[r]).toBeDefined();

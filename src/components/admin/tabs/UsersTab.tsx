@@ -38,7 +38,7 @@ export interface UsersTabProps {
     newRole: 'student' | 'mentor' | 'admin' | 'child_super_admin'
   ) => Promise<void>;
   onStatusChange: (user: UserProfile, newStatus: 'active' | 'suspended') => Promise<void>;
-  onAdminSubRoleChange: (user: UserProfile, newAdminRole: AdminSubRole) => Promise<void>;
+  onAdminSubRoleChange: (user: UserProfile, newAdminRole: AdminSubRole | null) => Promise<void>;
   onBulkUserStatus: (status: 'active' | 'suspended', selectedIds: string[]) => Promise<void>;
   onExportUsers: () => Promise<void>;
   defaultRoleTab?: UserRoleTab;
@@ -261,7 +261,7 @@ export function UsersTab({
     }
   };
 
-  const handleAdminSubRole = async (targetUser: UserProfile, newAdminRole: AdminSubRole) => {
+  const handleAdminSubRole = async (targetUser: UserProfile, newAdminRole: AdminSubRole | null) => {
     setUpdatingUserId(targetUser.id);
     try {
       await onAdminSubRoleChange(targetUser, newAdminRole);
@@ -506,9 +506,11 @@ export function UsersTab({
                           <select
                             value={item.admin_role === 'child_super_admin' ? 'child_super_admin' : 'admin'}
                             disabled={isUpdating}
-                            onChange={(e) =>
-                              void handleAdminSubRole(item, e.target.value as AdminSubRole)
-                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const targetAdminRole = val === 'child_super_admin' ? 'child_super_admin' : null;
+                              void handleAdminSubRole(item, targetAdminRole);
+                            }}
                             className="bg-transparent text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
                             data-testid={`admin-subrole-select-${item.id}`}
                           >

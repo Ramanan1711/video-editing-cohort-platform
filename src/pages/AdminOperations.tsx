@@ -577,14 +577,15 @@ export function AdminOperations() {
     }
   };
 
-  const handleAdminSubRoleChange = async (targetUser: UserProfile, newAdminRole: AdminSubRole) => {
+  const handleAdminSubRoleChange = async (targetUser: UserProfile, newAdminRole: AdminSubRole | null) => {
     setError(null);
     try {
       await updateAdminSubRole(targetUser.id, newAdminRole, user?.id);
       setUsers((prev) =>
-        prev.map((u) => (u.id === targetUser.id ? { ...u, admin_role: newAdminRole } : u))
+        prev.map((u) => (u.id === targetUser.id ? { ...u, admin_role: newAdminRole || undefined } : u))
       );
-      const msg = `Sub-role for ${targetUser.full_name || targetUser.email} set to ${newAdminRole.replace('_', ' ')}.`;
+      const roleLabel = newAdminRole ? ROLE_LABELS[newAdminRole] || 'Child Super Admin' : 'Admin';
+      const msg = `Role for ${targetUser.full_name || targetUser.email} set to ${roleLabel}.`;
       setSuccess(msg);
       toast.success(msg);
       void listAuditLogs({ limit: 100 }).then(setAuditLogs);
@@ -1119,7 +1120,7 @@ export function AdminOperations() {
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             <span className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-800 shadow-2xs whitespace-nowrap dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200">
               <ShieldCheck size={14} className="text-orange-500" />
-              <span>{ROLE_LABELS[profile?.admin_role || 'super_admin']}</span>
+              <span>{profile?.admin_role ? ROLE_LABELS[profile.admin_role as AdminSubRole] || 'Child Super Admin' : 'Admin'}</span>
             </span>
 
             <AdminNotificationCenter onNavigateTab={(t) => setTab(t as AdminTab)} />
@@ -1186,7 +1187,7 @@ export function AdminOperations() {
                     setTab(item.id);
                   } else {
                     setError(
-                      `Your sub-role (${ROLE_LABELS[profile?.admin_role || 'super_admin']}) does not hold the "${item.label}" administrative privilege.`
+                      `Your administrative role (${profile?.admin_role ? ROLE_LABELS[profile.admin_role as AdminSubRole] || 'Child Super Admin' : 'Admin'}) does not hold the "${item.label}" administrative privilege.`
                     );
                   }
                 }}

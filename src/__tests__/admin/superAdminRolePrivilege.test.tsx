@@ -27,7 +27,6 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     email: 'admin@iunoware.com',
     full_name: 'Alex Admin',
     role: 'admin',
-    admin_role: 'admin',
     status: 'active',
     created_at: new Date().toISOString(),
   };

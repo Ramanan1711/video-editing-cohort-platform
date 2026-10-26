@@ -1282,7 +1282,7 @@ export async function updateUserRole(
 
 export async function updateAdminSubRole(
   userId: string,
-  adminRole: AdminSubRole,
+  adminRole: AdminSubRole | null,
   actorId?: string
 ): Promise<UserProfile> {
   queryCache.invalidate('admin');
@@ -1307,7 +1307,7 @@ export async function updateAdminSubRole(
     .from('profiles')
     .update({ role: 'admin', admin_role: adminRole, updated_at: new Date().toISOString() })
     .eq('id', userId)
-    .select('id, full_name, email, role, admin_role, status, created_at')
+    .select('id, full_name, email, role, admin_role, status, created_at, whatsapp_number')
     .single();
   if (error) throw error;
 
@@ -1418,7 +1418,7 @@ export async function registerStaffUser(
     targetAdminRole = null;
   } else if (input.role === 'Admin') {
     targetRole = 'admin';
-    targetAdminRole = 'admin';
+    targetAdminRole = null;
   } else if (input.role === 'Child Super_Admin') {
     targetRole = 'admin';
     targetAdminRole = 'child_super_admin';
