@@ -173,8 +173,7 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     expect(handleAdminSubRoleChange).toHaveBeenCalledWith(mockContentAdmin, 'child_super_admin');
   });
 
-  it('allows Parent Super Admin to demote Admin to Mentor or Student', async () => {
-    const handleRoleChange = vi.fn();
+  it('does NOT show Demote to Mentor or Demote to Student buttons for Admins, and restricts dropdown options', () => {
     render(
       <UsersTab
         users={allUsers}
@@ -183,7 +182,7 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
         canManageRoles={true}
         canManageStatus={true}
         isSuperAdmin={true}
-        onRoleChange={handleRoleChange}
+        onRoleChange={vi.fn()}
         onStatusChange={vi.fn()}
         onAdminSubRoleChange={vi.fn()}
         onBulkUserStatus={vi.fn()}
@@ -192,15 +191,20 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
       />
     );
 
-    const demoteMentorBtn = screen.getByTestId(`demote-mentor-${mockContentAdmin.id}`);
-    expect(demoteMentorBtn).toBeInTheDocument();
+    // Verify Demote buttons are NOT rendered
+    expect(screen.queryByTestId(`demote-mentor-${mockContentAdmin.id}`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`demote-student-${mockContentAdmin.id}`)).not.toBeInTheDocument();
+    expect(screen.queryByText('Demote to Mentor')).not.toBeInTheDocument();
+    expect(screen.queryByText('Demote to Student')).not.toBeInTheDocument();
 
-    await act(async () => {
-      fireEvent.click(demoteMentorBtn);
-    });
-
-    expect(handleRoleChange).toHaveBeenCalledTimes(1);
-    expect(handleRoleChange).toHaveBeenCalledWith(mockContentAdmin, 'mentor');
+    // Verify options in the select dropdown
+    const subroleSelect = screen.getByTestId(`admin-subrole-select-${mockContentAdmin.id}`) as HTMLSelectElement;
+    const optionValues = Array.from(subroleSelect.options).map((o) => o.value);
+    expect(optionValues).toEqual(['admin', 'child_super_admin']);
+    expect(optionValues).not.toContain('content_admin');
+    expect(optionValues).not.toContain('operations_admin');
+    expect(optionValues).not.toContain('moderator');
+    expect(optionValues).not.toContain('parent_super_admin');
   });
 
   it('does NOT allow Child Super Admin or Content Admin to see role promotion buttons', () => {

@@ -2,6 +2,7 @@
 // Granular Role-Based Access Control (RBAC) Matrix for Administration
 
 export type AdminSubRole =
+  | 'admin'
   | 'parent_super_admin'
   | 'child_super_admin'
   | 'super_admin'
@@ -23,6 +24,16 @@ export type AdminPermission =
   | 'view_insights'; // view executive insights and dropout risks
 
 export const ROLE_PERMISSIONS: Record<AdminSubRole, AdminPermission[]> = {
+  admin: [
+    'manage_cohorts',
+    'manage_curriculum',
+    'publish_content',
+    'manage_enrollments',
+    'broadcast_announcements',
+    'schedule_sessions',
+    'moderate_community',
+    'view_insights',
+  ],
   parent_super_admin: [
     'manage_roles',
     'manage_user_status',
@@ -82,6 +93,7 @@ export const ROLE_PERMISSIONS: Record<AdminSubRole, AdminPermission[]> = {
 };
 
 export const ROLE_LABELS: Record<AdminSubRole, string> = {
+  admin: 'Admin',
   parent_super_admin: 'Parent Super Admin',
   child_super_admin: 'Child Super Admin',
   super_admin: 'Parent Super Admin',
@@ -91,6 +103,7 @@ export const ROLE_LABELS: Record<AdminSubRole, string> = {
 };
 
 export const ROLE_DESCRIPTIONS: Record<AdminSubRole, string> = {
+  admin: 'Standard platform administrator with cohort, curriculum, and operational access.',
   parent_super_admin: 'Root platform sovereignty: exclusive authority to appoint Mentors, Admins, and Child Super Admins.',
   child_super_admin: 'Executive platform administrator with all operational, content, and student management capabilities.',
   super_admin: 'Root platform sovereignty: exclusive authority to appoint Mentors, Admins, and Child Super Admins.',

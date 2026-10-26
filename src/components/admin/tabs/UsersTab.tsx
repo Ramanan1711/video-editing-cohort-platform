@@ -9,7 +9,6 @@ import {
   Shield,
   ShieldCheck,
   UserCog,
-  UserMinus,
   Users,
   UserX,
 } from 'lucide-react';
@@ -33,7 +32,7 @@ export interface UsersTabProps {
   canManageRoles: boolean;
   canManageStatus: boolean;
   isSuperAdmin?: boolean;
-  onRoleChange: (
+  onRoleChange?: (
     user: UserProfile,
     newRole: 'student' | 'mentor' | 'admin' | 'child_super_admin'
   ) => Promise<void>;
@@ -114,7 +113,7 @@ export function UsersTab({
   canManageRoles,
   canManageStatus,
   isSuperAdmin,
-  onRoleChange,
+  onRoleChange: _onRoleChange,
   onStatusChange,
   onAdminSubRoleChange,
   onBulkUserStatus,
@@ -249,18 +248,6 @@ export function UsersTab({
       setSelectedUserIds(new Set());
     } finally {
       setBulkUpdatingUsers(false);
-    }
-  };
-
-  const handleRole = async (
-    targetUser: UserProfile,
-    newRole: 'student' | 'mentor' | 'admin' | 'child_super_admin'
-  ) => {
-    setUpdatingUserId(targetUser.id);
-    try {
-      await onRoleChange(targetUser, newRole);
-    } finally {
-      setUpdatingUserId(null);
     }
   };
 
@@ -503,52 +490,24 @@ export function UsersTab({
                   {(item.role === 'admin' || item.role === 'super_admin') && (
                     <div className="flex items-center gap-2 flex-wrap">
                       {canManageRoles && isParentAdminEffective && !isSelf && item.email !== 'ajayramanan17@gmail.com' ? (
-                        <>
-                          <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-2 py-1">
-                            <UserCog size={13} className="text-slate-400" />
-                            <select
-                              value={item.admin_role || 'content_admin'}
-                              disabled={isUpdating}
-                              onChange={(e) =>
-                                void handleAdminSubRole(item, e.target.value as AdminSubRole)
-                              }
-                              className="bg-transparent text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
-                              data-testid={`admin-subrole-select-${item.id}`}
-                            >
-                              <option value="child_super_admin">Child Super Admin</option>
-                              <option value="content_admin">Content Admin</option>
-                              <option value="operations_admin">Operations Admin</option>
-                              <option value="moderator">Community Moderator</option>
-                              <option value="parent_super_admin">Parent Super Admin</option>
-                            </select>
-                          </div>
-
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            loading={isUpdating}
-                            onClick={() => void handleRole(item, 'mentor')}
-                            className="text-xs font-bold text-purple-700"
-                            title="Demote to Mentor"
-                            data-testid={`demote-mentor-${item.id}`}
+                        <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-2 py-1">
+                          <UserCog size={13} className="text-slate-400" />
+                          <select
+                            value={item.admin_role === 'child_super_admin' ? 'child_super_admin' : 'admin'}
+                            disabled={isUpdating}
+                            onChange={(e) =>
+                              void handleAdminSubRole(item, e.target.value as AdminSubRole)
+                            }
+                            className="bg-transparent text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
+                            data-testid={`admin-subrole-select-${item.id}`}
                           >
-                            <ShieldCheck size={13} /> Demote to Mentor
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            loading={isUpdating}
-                            onClick={() => void handleRole(item, 'student')}
-                            className="text-xs font-bold text-amber-700"
-                            title="Demote to Student"
-                            data-testid={`demote-student-${item.id}`}
-                          >
-                            <UserMinus size={13} /> Demote to Student
-                          </Button>
-                        </>
+                            <option value="admin">Admin</option>
+                            <option value="child_super_admin">Child Super Admin</option>
+                          </select>
+                        </div>
                       ) : (
                         <span className="rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-400">
-                          {ROLE_LABELS[item.admin_role || 'super_admin']}
+                          {item.admin_role === 'child_super_admin' ? 'Child Super Admin' : 'Admin'}
                         </span>
                       )}
                     </div>
