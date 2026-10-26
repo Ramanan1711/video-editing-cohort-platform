@@ -499,10 +499,13 @@ export async function mentorCreateCohort(input: MentorCohortInput): Promise<Coho
   // Link mentor to cohort in mentor_cohorts
   if (user?.id && inserted?.id) {
     try {
-      await supabase.from('mentor_cohorts').insert({
+      const { error: linkError } = await supabase.from('mentor_cohorts').insert({
         mentor_id: user.id,
         cohort_id: inserted.id,
       });
+      if (linkError && linkError.code !== '23505') {
+        console.warn('mentor_cohorts link notification:', linkError.message);
+      }
     } catch {
       // Ignored if link already exists or table migrating
     }
@@ -1023,7 +1026,14 @@ export async function updateLessonStatus(
   queryCache.invalidate('curriculum');
   queryCache.invalidate('cohorts');
   const { error } = await supabase.from('lessons').update({ status }).eq('id', lessonId);
-  if (error) throw error;
+  if (error) {
+    // If the database check constraint restricts 'review' on legacy schemas, retry with 'draft'
+    if (error.code === '23514' && status === 'review') {
+      const fallback = await supabase.from('lessons').update({ status: 'draft' }).eq('id', lessonId);
+      if (!fallback.error) return;
+    }
+    throw parseDatabaseError(error);
+  }
 }
 
 export async function bulkUpdateLessonStatus(
@@ -1034,7 +1044,13 @@ export async function bulkUpdateLessonStatus(
   queryCache.invalidate('curriculum');
   queryCache.invalidate('cohorts');
   const { error } = await supabase.from('lessons').update({ status }).in('id', lessonIds);
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23514' && status === 'review') {
+      const fallback = await supabase.from('lessons').update({ status: 'draft' }).in('id', lessonIds);
+      if (!fallback.error) return;
+    }
+    throw parseDatabaseError(error);
+  }
 }
 
 export async function duplicateLesson(lessonId: string): Promise<Lesson> {

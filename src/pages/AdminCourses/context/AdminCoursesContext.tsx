@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../context/useAuth';
 import { useToast } from '../../../context/useToast';
-import { supabase } from '../../../lib/supabaseClient';
 import { parseDatabaseError, type AppError } from '../../../lib/errorHandling';
 import { logAuditEvent } from '../../../lib/adminService';
 import { hasAdminPermission } from '../../../lib/adminPermissions';
@@ -594,16 +593,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         } else {
           const created = await createCohort(cohortPayload);
           setExpandedCohortId(created.id);
-          if (isMentor && user?.id) {
-            try {
-              await supabase.from('mentor_cohorts').insert({
-                cohort_id: created.id,
-                mentor_id: user.id,
-              });
-            } catch {
-              // Ignore duplicate
-            }
-          }
           void logAuditEvent({
             actor_id: user?.id,
             action: 'cohort.created',
