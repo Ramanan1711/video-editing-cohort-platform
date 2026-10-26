@@ -45,20 +45,19 @@ describe('Admin Permissions & RBAC Matrix', () => {
     expect(hasAdminPermission(role, 'view_insights')).toBe(true);
   });
 
-  it('standard admin (admin_role = null) can manage cohorts, curriculum, and operations, but cannot manage roles or status', () => {
-    expect(hasAdminPermission(null, 'manage_cohorts')).toBe(true);
-    expect(hasAdminPermission(undefined, 'manage_cohorts')).toBe(true);
-    expect(hasAdminPermission(null, 'manage_curriculum')).toBe(true);
-    expect(hasAdminPermission(null, 'publish_content')).toBe(true);
-    expect(hasAdminPermission(null, 'manage_enrollments')).toBe(true);
-    expect(hasAdminPermission(null, 'broadcast_announcements')).toBe(true);
-    expect(hasAdminPermission(null, 'schedule_sessions')).toBe(true);
-    expect(hasAdminPermission(null, 'moderate_community')).toBe(true);
-    expect(hasAdminPermission(null, 'view_insights')).toBe(true);
+  it('admin_role fallback resolves permissions for child_super_admin', () => {
+    expect(hasAdminPermission('child_super_admin', 'manage_cohorts')).toBe(true);
+    expect(hasAdminPermission('child_super_admin', 'manage_curriculum')).toBe(true);
+    expect(hasAdminPermission('child_super_admin', 'publish_content')).toBe(true);
+    expect(hasAdminPermission('child_super_admin', 'manage_enrollments')).toBe(true);
+    expect(hasAdminPermission('child_super_admin', 'broadcast_announcements')).toBe(true);
+    expect(hasAdminPermission('child_super_admin', 'schedule_sessions')).toBe(true);
+    expect(hasAdminPermission('child_super_admin', 'moderate_community')).toBe(true);
+    expect(hasAdminPermission('child_super_admin', 'view_insights')).toBe(true);
+    expect(hasAdminPermission('child_super_admin', 'view_audit_logs')).toBe(true);
+    expect(hasAdminPermission('child_super_admin', 'manage_user_status')).toBe(true);
 
-    expect(hasAdminPermission(null, 'manage_roles')).toBe(false);
-    expect(hasAdminPermission(null, 'manage_user_status')).toBe(false);
-    expect(hasAdminPermission(null, 'view_audit_logs')).toBe(false);
+    expect(hasAdminPermission('child_super_admin', 'manage_roles')).toBe(false);
   });
 
   it('provides human-readable labels and descriptions for administrative sub-roles', () => {

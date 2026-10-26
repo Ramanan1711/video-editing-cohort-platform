@@ -8,7 +8,6 @@ import {
   Search,
   Shield,
   ShieldCheck,
-  UserCog,
   UserPlus,
   Users,
   UserX,
@@ -17,7 +16,6 @@ import { Button } from '../../ui/Button';
 import { Card } from '../../ui/Card';
 import { Pagination } from '../../ui/Pagination';
 import {
-  ROLE_LABELS,
   isParentSuperAdmin,
   isChildSuperAdmin,
   type AdminSubRole,
@@ -66,24 +64,13 @@ function RoleBadge({
       </span>
     );
   }
-  const isChild = isChildSuperAdmin({ admin_role: adminRole });
-  if (isChild) {
+  if (role === 'admin' || isChildSuperAdmin({ admin_role: adminRole })) {
     return (
       <span
         data-testid={userId ? `role-badge-${userId}` : 'role-badge'}
         className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-2.5 py-0.5 text-[11px] font-bold text-white shadow-xs"
       >
         <ShieldCheck size={11} className="text-white fill-white" /> Child Super Admin
-      </span>
-    );
-  }
-  if (role === 'admin') {
-    return (
-      <span
-        data-testid={userId ? `role-badge-${userId}` : 'role-badge'}
-        className="inline-flex items-center gap-1 rounded-full bg-slate-950 px-2.5 py-0.5 text-[11px] font-bold text-white"
-      >
-        <Shield size={11} className="text-orange-400" /> {adminRole ? ROLE_LABELS[adminRole as AdminSubRole] || 'Admin' : 'Admin'}
       </span>
     );
   }
@@ -110,21 +97,17 @@ function RoleBadge({
 export function UsersTab({
   users,
   currentUserId,
-  currentUserEmail,
-  canManageRoles,
+  currentUserEmail: _currentUserEmail,
+  canManageRoles: _canManageRoles,
   canManageStatus,
   isSuperAdmin,
   onRoleChange: _onRoleChange,
   onStatusChange,
-  onAdminSubRoleChange,
+  onAdminSubRoleChange: _onAdminSubRoleChange,
   onBulkUserStatus,
   onExportUsers,
   defaultRoleTab = 'student',
 }: UsersTabProps) {
-  const isParentAdminEffective =
-    isParentSuperAdmin({ email: currentUserEmail, id: currentUserId }) ||
-    isSuperAdmin ||
-    canManageRoles;
   const [userSearch, setUserSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRoleTab>(defaultRoleTab);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
@@ -256,15 +239,6 @@ export function UsersTab({
     setUpdatingUserId(targetUser.id);
     try {
       await onStatusChange(targetUser, newStatus);
-    } finally {
-      setUpdatingUserId(null);
-    }
-  };
-
-  const handleAdminSubRole = async (targetUser: UserProfile, newAdminRole: AdminSubRole | null) => {
-    setUpdatingUserId(targetUser.id);
-    try {
-      await onAdminSubRoleChange(targetUser, newAdminRole);
     } finally {
       setUpdatingUserId(null);
     }
@@ -500,29 +474,12 @@ export function UsersTab({
 
                   {(item.role === 'admin' || item.role === 'super_admin') && (
                     <div className="flex items-center gap-2 flex-wrap">
-                      {canManageRoles && isParentAdminEffective && !isSelf && item.email !== 'ajayramanan17@gmail.com' ? (
-                        <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-2 py-1">
-                          <UserCog size={13} className="text-slate-400" />
-                          <select
-                            value={item.admin_role === 'child_super_admin' ? 'child_super_admin' : 'admin'}
-                            disabled={isUpdating}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              const targetAdminRole = val === 'child_super_admin' ? 'child_super_admin' : null;
-                              void handleAdminSubRole(item, targetAdminRole);
-                            }}
-                            className="bg-transparent text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
-                            data-testid={`admin-subrole-select-${item.id}`}
-                          >
-                            <option value="admin">Admin</option>
-                            <option value="child_super_admin">Child Super Admin</option>
-                          </select>
-                        </div>
-                      ) : (
-                        <span className="rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-400">
-                          {item.admin_role === 'child_super_admin' ? 'Child Super Admin' : 'Admin'}
-                        </span>
-                      )}
+                      <span
+                        data-testid={`admin-subrole-badge-${item.id}`}
+                        className="rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-400"
+                      >
+                        {isParentSuperAdmin(item) ? 'Parent Super Admin' : 'Child Super Admin'}
+                      </span>
                     </div>
                   )}
                 </div>

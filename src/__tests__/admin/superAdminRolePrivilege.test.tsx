@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { UsersTab } from '../../components/admin/tabs/UsersTab';
 import type { UserProfile } from '../../lib/adminService';
 
@@ -59,7 +59,7 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     mockParentSuperAdmin,
   ];
 
-  it('renders distinguished "Parent Super Admin", "Child Super Admin", and "Admin" badges', () => {
+  it('renders distinguished "Parent Super Admin" and "Child Super Admin" badges for administrators', () => {
     render(
       <UsersTab
         users={allUsers}
@@ -85,9 +85,9 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     const childBadge = screen.getByTestId(`role-badge-${mockChildSuperAdmin.id}`);
     expect(childBadge).toHaveTextContent('Child Super Admin');
 
-    // Standard Admin badge
+    // Any other admin is also Child Super Admin in 4-tier model
     const adminBadge = screen.getByTestId(`role-badge-${mockAdmin.id}`);
-    expect(adminBadge).toHaveTextContent('Admin');
+    expect(adminBadge).toHaveTextContent('Child Super Admin');
   });
 
   it('does NOT show any promotion buttons (Promote to Mentor, Admin, or Child Super Admin) for students', () => {
@@ -142,37 +142,7 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     expect(screen.queryByText('Promote to Child Super Admin')).not.toBeInTheDocument();
   });
 
-  it('allows Parent Super Admin to change Admin sub-role via selector in admin view', async () => {
-    const handleAdminSubRoleChange = vi.fn();
-    render(
-      <UsersTab
-        users={allUsers}
-        currentUserId={mockParentSuperAdmin.id}
-        currentUserEmail={mockParentSuperAdmin.email}
-        canManageRoles={true}
-        canManageStatus={true}
-        isSuperAdmin={true}
-        onRoleChange={vi.fn()}
-        onStatusChange={vi.fn()}
-        onAdminSubRoleChange={handleAdminSubRoleChange}
-        onBulkUserStatus={vi.fn()}
-        onExportUsers={vi.fn()}
-        defaultRoleTab="admin"
-      />
-    );
-
-    const subroleSelect = screen.getByTestId(`admin-subrole-select-${mockAdmin.id}`);
-    expect(subroleSelect).toBeInTheDocument();
-
-    await act(async () => {
-      fireEvent.change(subroleSelect, { target: { value: 'child_super_admin' } });
-    });
-
-    expect(handleAdminSubRoleChange).toHaveBeenCalledTimes(1);
-    expect(handleAdminSubRoleChange).toHaveBeenCalledWith(mockAdmin, 'child_super_admin');
-  });
-
-  it('does NOT show Demote to Mentor or Demote to Student buttons for Admins, and restricts dropdown options', () => {
+  it('does NOT show Demote to Mentor or Demote to Student buttons for Admins, and displays Child Super Admin badge', () => {
     render(
       <UsersTab
         users={allUsers}
@@ -196,14 +166,9 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     expect(screen.queryByText('Demote to Mentor')).not.toBeInTheDocument();
     expect(screen.queryByText('Demote to Student')).not.toBeInTheDocument();
 
-    // Verify options in the select dropdown
-    const subroleSelect = screen.getByTestId(`admin-subrole-select-${mockAdmin.id}`) as HTMLSelectElement;
-    const optionValues = Array.from(subroleSelect.options).map((o) => o.value);
-    expect(optionValues).toEqual(['admin', 'child_super_admin']);
-    expect(optionValues).not.toContain('content_admin');
-    expect(optionValues).not.toContain('operations_admin');
-    expect(optionValues).not.toContain('moderator');
-    expect(optionValues).not.toContain('parent_super_admin');
+    // Verify admin displays Child Super Admin sub-role badge in 4-tier model
+    const badge = screen.getByTestId(`admin-subrole-badge-${mockAdmin.id}`);
+    expect(badge).toHaveTextContent('Child Super Admin');
   });
 
   it('does NOT allow Child Super Admin or standard Admin to see role promotion buttons', () => {

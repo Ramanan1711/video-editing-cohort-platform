@@ -1,26 +1,14 @@
 -- ==============================================================================
 -- Migration: 20261026000001_strictly_two_admin_roles.sql
 -- Description:
--- 1. Normalizes admin_role: strictly two admin sub-roles exist:
---    'parent_super_admin' and 'child_super_admin' (with 'super_admin' alias).
--- 2. Purges admin_role = 'admin' (standard administrators have role = 'admin' and admin_role = null).
--- 3. Updates constraint and RPCs to enforce this strictly.
+-- Strictly 4-Tier Role Architecture:
+-- 1. student: role = 'student', admin_role = null
+-- 2. mentor: role = 'mentor', admin_role = null
+-- 3. Child Super_Admin: role = 'admin', admin_role = 'child_super_admin'
+-- 4. Parent Super_Admin: role = 'admin', admin_role = 'parent_super_admin'
 -- ==============================================================================
 
--- 1. Normalize any existing admin_role = 'admin' to NULL
-update public.profiles
-set admin_role = null, updated_at = now()
-where admin_role = 'admin';
-
--- 2. Restrict profiles_admin_role_check constraint to strictly ('parent_super_admin', 'child_super_admin', 'super_admin') or null
-alter table public.profiles
-  drop constraint if exists profiles_admin_role_check;
-
-alter table public.profiles
-  add constraint profiles_admin_role_check
-  check (admin_role is null or admin_role in ('parent_super_admin', 'child_super_admin', 'super_admin'));
-
--- 3. Ensure Ramanan is canonical Parent Super Admin
+-- 1. Ensure Ramanan is canonical Parent Super Admin
 update public.profiles
 set 
   role = 'admin',
@@ -29,7 +17,28 @@ set
   updated_at = now()
 where email = 'ajayramanan17@gmail.com' or id = 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b';
 
--- 4. Update public.has_admin_permission helper
+-- 2. Normalize all other administrators to Child Super Admin
+update public.profiles
+set admin_role = 'child_super_admin', updated_at = now()
+where role = 'admin' and email != 'ajayramanan17@gmail.com' and id != 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b';
+
+-- 3. Ensure students and mentors have admin_role = null
+update public.profiles
+set admin_role = null, updated_at = now()
+where role in ('student', 'mentor');
+
+-- 4. Restrict profiles_admin_role_check constraint to strictly 4-tier architecture
+alter table public.profiles
+  drop constraint if exists profiles_admin_role_check;
+
+alter table public.profiles
+  add constraint profiles_admin_role_check
+  check (
+    (role = 'admin' and admin_role in ('parent_super_admin', 'child_super_admin', 'super_admin'))
+    or (role in ('student', 'mentor') and admin_role is null)
+  );
+
+-- 5. Update public.has_admin_permission helper
 create or replace function public.has_admin_permission(p_permission text)
 returns boolean
 language plpgsql
@@ -70,25 +79,11 @@ begin
     return true;
   end if;
 
-  -- Standard Admin (admin_role is null) holds standard operational permissions
-  if v_admin_role is null and p_permission in (
-    'manage_cohorts',
-    'manage_curriculum',
-    'publish_content',
-    'manage_enrollments',
-    'broadcast_announcements',
-    'schedule_sessions',
-    'moderate_community',
-    'view_insights'
-  ) then
-    return true;
-  end if;
-
   return false;
 end;
 $$;
 
--- 5. Update public.admin_update_user_role RPC
+-- 6. Update public.admin_update_user_role RPC
 create or replace function public.admin_update_user_role(
   p_user_id uuid,
   p_new_role text,
@@ -103,6 +98,7 @@ declare
   v_caller_profile record;
   v_target_profile record;
   v_updated record;
+  v_resolved_admin_role text;
 begin
   -- 1. Caller verification: Only Parent Super Admin can modify roles
   select id, email, role, admin_role, status
@@ -122,10 +118,16 @@ begin
       using errcode = '22000';
   end if;
 
-  -- 3. Validate target admin subrole: strictly two admin_roles ('parent_super_admin', 'child_super_admin', 'super_admin') or null
-  if p_new_admin_role is not null and p_new_admin_role not in ('parent_super_admin', 'child_super_admin', 'super_admin') then
-    raise exception 'Invalid admin_role: % is not allowed. Only parent_super_admin and child_super_admin are permitted.', p_new_admin_role
-      using errcode = '22000';
+  -- 3. Resolve admin_role according to 4-tier model:
+  -- If role = 'admin', admin_role must be 'child_super_admin' (or 'parent_super_admin' for Ramanan)
+  -- If role in ('student', 'mentor'), admin_role must be null
+  if p_new_role = 'admin' then
+    v_resolved_admin_role := coalesce(p_new_admin_role, 'child_super_admin');
+    if v_resolved_admin_role not in ('parent_super_admin', 'child_super_admin', 'super_admin') then
+      v_resolved_admin_role := 'child_super_admin';
+    end if;
+  else
+    v_resolved_admin_role := null;
   end if;
 
   -- 4. Target verification
@@ -140,7 +142,7 @@ begin
   end if;
 
   -- 5. Protection: Prevent demoting Parent Super Admin (Ramanan)
-  if v_target_profile.email = 'ajayramanan17@gmail.com' and (p_new_role != 'admin' or coalesce(p_new_admin_role, 'parent_super_admin') not in ('parent_super_admin', 'super_admin')) then
+  if v_target_profile.email = 'ajayramanan17@gmail.com' and (p_new_role != 'admin' or v_resolved_admin_role not in ('parent_super_admin', 'super_admin')) then
     raise exception 'Cannot demote or revoke the root Parent Super Admin.'
       using errcode = 'P0001';
   end if;
@@ -149,7 +151,7 @@ begin
   update public.profiles
   set
     role = p_new_role,
-    admin_role = case when p_new_role = 'admin' then p_new_admin_role else null end,
+    admin_role = v_resolved_admin_role,
     updated_at = now()
   where id = p_user_id
   returning id, full_name, email, role, admin_role, status, updated_at
@@ -164,7 +166,7 @@ begin
       'previous_role', v_target_profile.role,
       'previous_admin_role', v_target_profile.admin_role,
       'new_role', p_new_role,
-      'new_admin_role', case when p_new_role = 'admin' then p_new_admin_role else null end,
+      'new_admin_role', v_resolved_admin_role,
       'user_email', v_target_profile.email,
       'updated_by', v_caller_profile.email
     )

@@ -134,7 +134,6 @@ describe('Parent Super Admin Registration Portal', () => {
 
     // Verify role choices
     expect(screen.getByTestId('role-btn-mentor')).toBeInTheDocument();
-    expect(screen.getByTestId('role-btn-admin')).toBeInTheDocument();
     expect(screen.getByTestId('role-btn-child-super-admin')).toBeInTheDocument();
 
     // Verify initial staff roster loaded
@@ -199,7 +198,7 @@ describe('Parent Super Admin Registration Portal', () => {
     expect(adminService.registerStaffUser).not.toHaveBeenCalled();
   });
 
-  it('successfully registers an Admin and updates the staff roster', async () => {
+  it('successfully registers a Mentor and updates the staff roster', async () => {
     vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
       user: { id: parentSuperAdminProfile.id, email: parentSuperAdminProfile.email } as any,
       profile: parentSuperAdminProfile as any,
@@ -208,17 +207,17 @@ describe('Parent Super Admin Registration Portal', () => {
       refreshProfile: vi.fn(),
     });
 
-    const newAdmin = {
-      id: 'new-admin-99',
-      full_name: 'Samantha Executive',
-      email: 'samantha.exec@iunoware.com',
-      role: 'admin',
+    const newMentor = {
+      id: 'new-mentor-99',
+      full_name: 'Samantha Mentor',
+      email: 'samantha.mentor@iunoware.com',
+      role: 'mentor',
       status: 'active' as const,
       created_at: new Date().toISOString(),
       whatsapp_number: '919876500000',
     };
 
-    vi.spyOn(adminService, 'registerStaffUser').mockResolvedValue(newAdmin);
+    vi.spyOn(adminService, 'registerStaffUser').mockResolvedValue(newMentor);
 
     render(
       <MemoryRouter initialEntries={['/admin/super-admin']}>
@@ -227,14 +226,14 @@ describe('Parent Super Admin Registration Portal', () => {
     );
 
     // Fill form
-    fireEvent.change(screen.getByLabelText(/Full name\*/i), { target: { value: 'Samantha Executive' } });
-    fireEvent.change(screen.getByLabelText(/Email address\*/i), { target: { value: 'samantha.exec@iunoware.com' } });
+    fireEvent.change(screen.getByLabelText(/Full name\*/i), { target: { value: 'Samantha Mentor' } });
+    fireEvent.change(screen.getByLabelText(/Email address\*/i), { target: { value: 'samantha.mentor@iunoware.com' } });
     fireEvent.change(screen.getByLabelText(/Phone number\*/i), { target: { value: '9876500000' } });
     fireEvent.change(screen.getByLabelText(/^Password\*/i), { target: { value: 'SuperSecure123!' } });
     fireEvent.change(screen.getByLabelText(/Confirm Password\*/i), { target: { value: 'SuperSecure123!' } });
 
-    // Select Role = Admin
-    fireEvent.click(screen.getByTestId('role-btn-admin'));
+    // Select Role = Mentor
+    fireEvent.click(screen.getByTestId('role-btn-mentor'));
 
     // Submit
     fireEvent.click(screen.getByTestId('submit-register-staff'));
@@ -242,18 +241,18 @@ describe('Parent Super Admin Registration Portal', () => {
     await waitFor(() => {
       expect(adminService.registerStaffUser).toHaveBeenCalledWith(
         {
-          fullName: 'Samantha Executive',
-          email: 'samantha.exec@iunoware.com',
+          fullName: 'Samantha Mentor',
+          email: 'samantha.mentor@iunoware.com',
           phone: '9876500000',
           password: 'SuperSecure123!',
-          role: 'Admin',
+          role: 'Mentor',
         },
         {
           id: parentSuperAdminProfile.id,
           email: parentSuperAdminProfile.email,
         }
       );
-      expect(screen.getByTestId('register-staff-success')).toHaveTextContent(/Successfully registered Samantha Executive as Admin/i);
+      expect(screen.getByTestId('register-staff-success')).toHaveTextContent(/Successfully registered Samantha Mentor as Mentor/i);
     });
   });
 
@@ -339,9 +338,10 @@ describe('Parent Super Admin Registration Portal', () => {
     expect(screen.queryByText('Mark Admin')).not.toBeInTheDocument();
 
     // Filter to Child Super only
-    fireEvent.click(screen.getByRole('button', { name: /Child Super \(1\)/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Child Super Admins \(2\)/i }));
 
     expect(screen.getByText('Child Admin User')).toBeInTheDocument();
+    expect(screen.getByText('Mark Admin')).toBeInTheDocument();
     expect(screen.queryByText('Jane Mentor')).not.toBeInTheDocument();
   });
 });

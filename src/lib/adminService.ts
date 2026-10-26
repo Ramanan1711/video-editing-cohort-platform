@@ -1387,18 +1387,23 @@ export async function bulkUpdateUserStatus(
   return { updatedCount, errors };
 }
 
-export type StaffRoleSelection = 'Mentor' | 'Admin' | 'Child Super_Admin';
+export type StaffRoleSelection = 'Mentor' | 'Child Super_Admin';
 
 export interface RegisterStaffInput {
   fullName: string;
   email: string;
   phone: string;
   password: string;
-  role: StaffRoleSelection;
+  role: StaffRoleSelection | 'Admin';
 }
 
 /**
- * Registers leadership and instructional staff (Mentor, Admin, Child Super Admin).
+ * Registers leadership and instructional staff (Mentor, Child Super Admin).
+ * Strictly 4-Tier Model:
+ * 1. student: role = 'student', admin_role = null
+ * 2. mentor: role = 'mentor', admin_role = null
+ * 3. Child Super_Admin: role = 'admin', admin_role = 'child_super_admin'
+ * 4. Parent Super_Admin: role = 'admin', admin_role = 'parent_super_admin'
  * Uses an ephemeral Supabase client so the active Parent Super Admin session is NEVER disturbed.
  */
 export async function registerStaffUser(
@@ -1410,19 +1415,9 @@ export async function registerStaffUser(
   const phone = input.phone.trim();
   const normalizedPhone = normalizeWhatsAppPhone(phone);
 
-  let targetRole: 'mentor' | 'admin' = 'mentor';
-  let targetAdminRole: AdminSubRole | null = null;
-
-  if (input.role === 'Mentor') {
-    targetRole = 'mentor';
-    targetAdminRole = null;
-  } else if (input.role === 'Admin') {
-    targetRole = 'admin';
-    targetAdminRole = null;
-  } else if (input.role === 'Child Super_Admin') {
-    targetRole = 'admin';
-    targetAdminRole = 'child_super_admin';
-  }
+  const isMentor = input.role === 'Mentor';
+  const targetRole: 'mentor' | 'admin' = isMentor ? 'mentor' : 'admin';
+  const targetAdminRole: AdminSubRole | null = isMentor ? null : 'child_super_admin';
 
   // Check if profile exists already
   const { data: existingProfile } = await supabase

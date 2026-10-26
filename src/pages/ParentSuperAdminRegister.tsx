@@ -61,7 +61,7 @@ export function ParentSuperAdminRegister() {
   const [staffUsers, setStaffUsers] = useState<UserProfile[]>([]);
   const [rosterLoading, setRosterLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'mentor' | 'admin' | 'child_super_admin'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'mentor' | 'child_super_admin'>('all');
 
   const fetchStaffRoster = async () => {
     setRosterLoading(true);
@@ -175,12 +175,7 @@ export function ParentSuperAdminRegister() {
         email: profile?.email || '',
       });
 
-      const roleDisplay =
-        role === 'Child Super_Admin'
-          ? 'Child Super Admin'
-          : role === 'Admin'
-          ? 'Admin'
-          : 'Mentor';
+      const roleDisplay = role === 'Child Super_Admin' ? 'Child Super Admin' : 'Mentor';
 
       const successMsg = `Successfully registered ${result.full_name || trimmedEmail} as ${roleDisplay}.`;
       setFormSuccess(successMsg);
@@ -206,9 +201,7 @@ export function ParentSuperAdminRegister() {
         ? true
         : activeFilter === 'mentor'
         ? u.role === 'mentor'
-        : activeFilter === 'child_super_admin'
-        ? u.admin_role === 'child_super_admin'
-        : u.role === 'admin' && u.admin_role !== 'child_super_admin';
+        : u.admin_role === 'child_super_admin' || (u.role === 'admin' && !isParentSuperAdmin(u));
 
     const matchesSearch =
       !searchQuery.trim() ||
@@ -219,8 +212,7 @@ export function ParentSuperAdminRegister() {
   });
 
   const mentorCount = staffUsers.filter((u) => u.role === 'mentor').length;
-  const adminCount = staffUsers.filter((u) => u.role === 'admin' && u.admin_role !== 'child_super_admin').length;
-  const childAdminCount = staffUsers.filter((u) => u.admin_role === 'child_super_admin').length;
+  const childAdminCount = staffUsers.filter((u) => u.admin_role === 'child_super_admin' || (u.role === 'admin' && !isParentSuperAdmin(u))).length;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 pb-20">
@@ -270,8 +262,7 @@ export function ParentSuperAdminRegister() {
                 </h2>
                 <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
                   As the platform&apos;s sovereign Parent Super Admin, only you hold the credentials to provision and onboard
-                  new <span className="font-bold text-slate-800 dark:text-slate-200">Mentors</span>,{' '}
-                  <span className="font-bold text-slate-800 dark:text-slate-200">Admins</span>, and{' '}
+                  new <span className="font-bold text-slate-800 dark:text-slate-200">Mentors</span> and{' '}
                   <span className="font-bold text-slate-800 dark:text-slate-200">Child Super Admins</span>.
                   Registered accounts will be instantly activated with their authorized permission sets.
                 </p>
@@ -489,47 +480,33 @@ export function ParentSuperAdminRegister() {
                   >
                     Role*
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
                       data-testid="role-btn-mentor"
                       onClick={() => setRole('Mentor')}
-                      className={`flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition-all ${
+                      className={`flex flex-col items-center justify-center rounded-xl border p-3 text-center transition-all ${
                         role === 'Mentor'
                           ? 'border-emerald-500 bg-emerald-50/80 text-emerald-900 shadow-xs dark:bg-emerald-950/40 dark:text-emerald-200'
                           : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400'
                       }`}
                     >
-                      <GraduationCap size={18} className={role === 'Mentor' ? 'text-emerald-600' : ''} />
-                      <span className="mt-1 text-[11px] font-bold">Mentor</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      data-testid="role-btn-admin"
-                      onClick={() => setRole('Admin')}
-                      className={`flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition-all ${
-                        role === 'Admin'
-                          ? 'border-blue-500 bg-blue-50/80 text-blue-900 shadow-xs dark:bg-blue-950/40 dark:text-blue-200'
-                          : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400'
-                      }`}
-                    >
-                      <Shield size={18} className={role === 'Admin' ? 'text-blue-600' : ''} />
-                      <span className="mt-1 text-[11px] font-bold">Admin</span>
+                      <GraduationCap size={20} className={role === 'Mentor' ? 'text-emerald-600' : ''} />
+                      <span className="mt-1.5 text-xs font-bold">Mentor</span>
                     </button>
 
                     <button
                       type="button"
                       data-testid="role-btn-child-super-admin"
                       onClick={() => setRole('Child Super_Admin')}
-                      className={`flex flex-col items-center justify-center rounded-xl border p-2.5 text-center transition-all ${
+                      className={`flex flex-col items-center justify-center rounded-xl border p-3 text-center transition-all ${
                         role === 'Child Super_Admin'
                           ? 'border-purple-500 bg-purple-50/80 text-purple-900 shadow-xs dark:bg-purple-950/40 dark:text-purple-200'
                           : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400'
                       }`}
                     >
-                      <ShieldCheck size={18} className={role === 'Child Super_Admin' ? 'text-purple-600' : ''} />
-                      <span className="mt-1 text-[11px] font-bold">Child Super_Admin</span>
+                      <ShieldCheck size={20} className={role === 'Child Super_Admin' ? 'text-purple-600' : ''} />
+                      <span className="mt-1.5 text-xs font-bold">Child Super_Admin</span>
                     </button>
                   </div>
 
@@ -540,14 +517,9 @@ export function ParentSuperAdminRegister() {
                         <span className="font-bold text-emerald-600">Mentor:</span> Assigned to cohorts. Can review student submissions, provide video critiques, award scores, and guide learners.
                       </p>
                     )}
-                    {role === 'Admin' && (
-                      <p>
-                        <span className="font-bold text-blue-600">Admin:</span> Manages cohorts, curriculum, assignments, live sessions, announcements, and community moderation.
-                      </p>
-                    )}
                     {role === 'Child Super_Admin' && (
                       <p>
-                        <span className="font-bold text-purple-600">Child Super Admin:</span> Executive platform administrator with full operational, observability, and audit access, except modifying staff roles.
+                        <span className="font-bold text-purple-600">Child Super Admin:</span> Executive platform administrator with full operational, curriculum, and student management access (excluding modifying staff roles).
                       </p>
                     )}
                   </div>
@@ -641,17 +613,6 @@ export function ParentSuperAdminRegister() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveFilter('admin')}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${
-                      activeFilter === 'admin'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-blue-50 text-blue-800 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300'
-                    }`}
-                  >
-                    Admins ({adminCount})
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setActiveFilter('child_super_admin')}
                     className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${
                       activeFilter === 'child_super_admin'
@@ -659,7 +620,7 @@ export function ParentSuperAdminRegister() {
                         : 'bg-purple-50 text-purple-800 hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300'
                     }`}
                   >
-                    Child Super ({childAdminCount})
+                    Child Super Admins ({childAdminCount})
                   </button>
                 </div>
 
@@ -735,13 +696,9 @@ export function ParentSuperAdminRegister() {
                                 <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-orange-600 px-2 py-0.5 text-[10px] font-black text-slate-950 shadow-xs">
                                   <Shield size={10} className="fill-slate-950" /> Parent Super Admin
                                 </span>
-                              ) : isChild ? (
+                              ) : isChild || staff.role === 'admin' ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
                                   <ShieldCheck size={10} className="fill-white" /> Child Super Admin
-                                </span>
-                              ) : staff.role === 'admin' ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 px-2 py-0.5 text-[10px] font-bold">
-                                  <Shield size={10} /> Admin
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-bold">
