@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   AlertCircle,
   BarChart3,
+  BookOpen,
   Calendar,
   CheckCircle2,
   Clock,
@@ -665,6 +666,16 @@ export function MentorDashboard() {
                               Under Administrator Review
                             </span>
                           )}
+                        </div>
+
+                        {/* Author Curriculum & Modules Link */}
+                        <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
+                          <Link
+                            to={`/admin/courses?cohortId=${cohort.id}`}
+                            className="inline-flex items-center gap-1 font-bold text-orange-600 dark:text-orange-400 hover:underline"
+                          >
+                            <BookOpen size={12} /> Author Curriculum &amp; Modules →
+                          </Link>
                         </div>
                       </div>
                     );

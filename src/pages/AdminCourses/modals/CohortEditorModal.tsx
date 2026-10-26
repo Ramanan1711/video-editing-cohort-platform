@@ -14,6 +14,8 @@ export function CohortEditorModal() {
     handleSave,
     saving,
     uploadingStatus,
+    isAdmin,
+    isMentor,
   } = useAdminCourses();
 
   if (!editor || editor.type !== 'cohort') return null;
@@ -89,23 +91,52 @@ export function CohortEditorModal() {
               </span>
               <select
                 value={cohortEditor.status}
+                disabled={isMentor && !cohortEditor.id}
                 onChange={(e) =>
                   setEditor({
                     ...cohortEditor,
                     status: e.target.value as CohortEditorState['status'],
                   })
                 }
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-75 disabled:cursor-not-allowed"
               >
-                <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Draft</option>
-                <option value="reviewing" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Reviewing (In Review)</option>
-                <option value="approved" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Approved</option>
-                <option value="rejected" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Rejected</option>
-                <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Published</option>
-                <option value="upcoming" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Upcoming</option>
-                <option value="active" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Active</option>
-                <option value="completed" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Completed</option>
-                <option value="archived" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Archived</option>
+                {isMentor ? (
+                  !cohortEditor.id ? (
+                    <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                      Draft (Requires Admin Approval)
+                    </option>
+                  ) : cohortEditor.status === 'approved' ? (
+                    <>
+                      <option value="approved" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                        Approved
+                      </option>
+                      <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                        Published
+                      </option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                        Draft
+                      </option>
+                      <option value="reviewing" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                        Reviewing (In Review)
+                      </option>
+                    </>
+                  )
+                ) : (
+                  <>
+                    <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Draft</option>
+                    <option value="reviewing" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Reviewing (In Review)</option>
+                    <option value="approved" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Approved</option>
+                    <option value="rejected" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Rejected</option>
+                    <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Published</option>
+                    <option value="upcoming" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Upcoming</option>
+                    <option value="active" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Active</option>
+                    <option value="completed" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Completed</option>
+                    <option value="archived" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Archived</option>
+                  </>
+                )}
               </select>
             </label>
 
@@ -163,13 +194,30 @@ export function CohortEditorModal() {
             />
           </div>
 
-          <TextareaField
-            label="Review Feedback (for Mentor Proposals)"
-            value={cohortEditor.reviewFeedback || ''}
-            onChange={(val) => setEditor({ ...cohortEditor, reviewFeedback: val })}
-            placeholder="Feedback, revision notes, or approval comments for the creator mentor..."
-            rows={2}
-          />
+          {isAdmin ? (
+            <TextareaField
+              label="Review Feedback (for Mentor Proposals)"
+              value={cohortEditor.reviewFeedback || ''}
+              onChange={(val) => setEditor({ ...cohortEditor, reviewFeedback: val })}
+              placeholder="Feedback, revision notes, or approval comments for the creator mentor..."
+              rows={2}
+            />
+          ) : (
+            <div className="space-y-1.5 text-left">
+              <span className="block text-sm font-bold text-slate-700 dark:text-slate-300">
+                Administrator Review Feedback
+              </span>
+              {cohortEditor.reviewFeedback ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 p-3 text-xs text-amber-900 dark:text-amber-200">
+                  <p className="font-semibold">{cohortEditor.reviewFeedback}</p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/60 p-3 text-xs text-slate-500 dark:text-slate-400 italic">
+                  Feedback and notes from Parent Super Admin or Child Super Admin will appear here once reviewed.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Modal Actions */}

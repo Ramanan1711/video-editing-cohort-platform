@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  Clock,
   FileText,
   Filter,
   Flame,
@@ -75,6 +76,8 @@ function AdminCoursesView() {
     setUploadModalCohortId,
     filteredCohorts,
     totalLessons,
+    isAdmin,
+    isMentor,
     canManageCurriculum,
     canPublish,
     canManageCohorts,
@@ -89,15 +92,15 @@ function AdminCoursesView() {
     setBulkImportTargetCohort,
   } = useAdminCourses();
 
-  if (profile?.role !== 'admin') {
+  if (profile?.role !== 'admin' && profile?.role !== 'mentor') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f6f7f9] dark:bg-slate-950 p-8 text-center">
         <Card className="max-w-md p-8 dark:bg-slate-900 dark:border-slate-800">
           <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400">
             <Lock size={22} />
           </div>
-          <h2 className="mt-4 text-xl font-black text-slate-950 dark:text-white">Admin access required</h2>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">You need administrator privileges to author and manage courses.</p>
+          <h2 className="mt-4 text-xl font-black text-slate-950 dark:text-white">Access required</h2>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">You need mentor or administrator privileges to author and manage courses.</p>
         </Card>
       </div>
     );
@@ -109,26 +112,45 @@ function AdminCoursesView() {
       <header className="border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div className="mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 px-5 py-5 lg:px-8">
           <div className="pl-12 sm:pl-14 lg:pl-0">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-500">Admin studio</p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">Course Authoring</h1>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-500">
+              {isMentor ? 'Mentor studio' : 'Admin studio'}
+            </p>
+            <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+              {isMentor ? 'Course & Curriculum Authoring' : 'Course Authoring'}
+            </h1>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Manage Cohorts, Modules, Lessons, Assignments, Deadlines &amp; Lesson Resources.
+              {isMentor
+                ? 'Design cohorts, build modules & lessons, upload resources, and configure student sprint tracks.'
+                : 'Manage Cohorts, Modules, Lessons, Assignments, Deadlines & Lesson Resources.'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 shadow-2xs dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200">
-              <ShieldCheck size={14} className="text-orange-500" />
-              <span>
-                {profile?.admin_role
-                  ? ROLE_LABELS[profile.admin_role as AdminSubRole] || 'Child Super Admin'
-                  : isParentSuperAdmin(profile)
-                    ? 'Parent Super Admin'
-                    : 'Child Super Admin'}
+            {isMentor ? (
+              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-800 shadow-2xs dark:border-orange-800 dark:bg-orange-950/60 dark:text-orange-300">
+                <Sparkles size={14} className="text-orange-500" />
+                <span>Course Author / Mentor</span>
               </span>
-            </span>
-            <Button href="/admin/operations" variant="secondary" className="hidden sm:inline-flex">
-              Control Room
-            </Button>
+            ) : (
+              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 shadow-2xs dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                <ShieldCheck size={14} className="text-orange-500" />
+                <span>
+                  {profile?.admin_role
+                    ? ROLE_LABELS[profile.admin_role as AdminSubRole] || 'Child Super Admin'
+                    : isParentSuperAdmin(profile)
+                      ? 'Parent Super Admin'
+                      : 'Child Super Admin'}
+                </span>
+              </span>
+            )}
+            {isAdmin ? (
+              <Button href="/admin/operations" variant="secondary" className="hidden sm:inline-flex">
+                Control Room
+              </Button>
+            ) : (
+              <Button href="/mentor" variant="secondary" className="hidden sm:inline-flex">
+                Mentor Dashboard
+              </Button>
+            )}
             <Button href="/review/submissions" variant="secondary" className="hidden sm:inline-flex">
               Review Queue
             </Button>
@@ -155,6 +177,27 @@ function AdminCoursesView() {
       </header>
 
       <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
+        {/* Mentor studio banner */}
+        {isMentor && (
+          <div className="mb-6 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 p-4 dark:border-orange-900/50 dark:from-orange-950/40 dark:via-amber-950/30 dark:to-orange-950/20">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <Sparkles className="size-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-bold text-orange-950 dark:text-orange-200">
+                    Mentor Course Authoring &amp; Curriculum Studio
+                  </h4>
+                  <p className="text-xs text-orange-900/80 dark:text-orange-300 mt-0.5 max-w-3xl leading-relaxed">
+                    As a mentor, you can create new cohorts and author complete curriculums (modules, lessons, challenges, and sprint tracks). Cohorts start in <span className="font-bold">Draft</span> status. Once reviewed and approved by Parent Super Admin (<span className="font-semibold underline">ajayramanan17@gmail.com</span>) or Child Super Admin (<span className="font-semibold underline">ajayramanan4444@gmail.com</span>), you can publish them. Published live cohorts are locked from direct modification without administrative permission.
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" onClick={() => openCohortEditor()} className="shrink-0 self-start sm:self-center bg-orange-600 hover:bg-orange-700 text-white">
+                <Plus size={14} /> New Cohort
+              </Button>
+            </div>
+          </div>
+        )}
         {/* Top Stats */}
         <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           <StatCard label="Master Courses" value={courses.length} icon={<FileText size={18} className="text-indigo-500" />} />
@@ -311,7 +354,7 @@ function AdminCoursesView() {
 
                     <div className="flex shrink-0 items-center gap-2 flex-wrap">
                       {/* Cohort Quick Lifecycle Transitions & Review Controls */}
-                      {canPublish && (cohort.status === 'draft' || !cohort.status) && (
+                      {isAdmin && canPublish && (cohort.status === 'draft' || !cohort.status) && (
                         <>
                           <button
                             onClick={(e) => {
@@ -335,7 +378,7 @@ function AdminCoursesView() {
                           </button>
                         </>
                       )}
-                      {canPublish && (cohort.status === 'review' || cohort.status === 'reviewing') && (
+                      {isAdmin && canPublish && (cohort.status === 'review' || cohort.status === 'reviewing') && (
                         <>
                           <button
                             onClick={(e) => {
@@ -362,7 +405,7 @@ function AdminCoursesView() {
                           </button>
                         </>
                       )}
-                      {canPublish && cohort.status === 'approved' && (
+                      {isAdmin && canPublish && cohort.status === 'approved' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -374,7 +417,7 @@ function AdminCoursesView() {
                           <CheckCircle2 size={12} /> Publish Cohort
                         </button>
                       )}
-                      {canPublish && cohort.status === 'rejected' && (
+                      {isAdmin && canPublish && cohort.status === 'rejected' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -386,7 +429,7 @@ function AdminCoursesView() {
                           <CheckCircle2 size={12} /> Approve
                         </button>
                       )}
-                      {canPublish && cohort.status === 'published' && (
+                      {isAdmin && canPublish && cohort.status === 'published' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -398,7 +441,7 @@ function AdminCoursesView() {
                           <Archive size={12} /> Archive
                         </button>
                       )}
-                      {canPublish && cohort.status === 'archived' && (
+                      {isAdmin && canPublish && cohort.status === 'archived' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -411,29 +454,112 @@ function AdminCoursesView() {
                         </button>
                       )}
 
+                      {/* Mentor-Specific Quick Lifecycle Actions */}
+                      {isMentor && (cohort.status === 'draft' || !cohort.status) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleUpdateCohortStatus(cohort.id, 'reviewing', cohort.name);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition"
+                          title="Submit proposal for administrator review"
+                        >
+                          <Send size={12} /> Submit for Review
+                        </button>
+                      )}
+                      {isMentor && (cohort.status === 'review' || cohort.status === 'reviewing') && (
+                        <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300">
+                          <Clock size={12} /> In Review
+                        </span>
+                      )}
+                      {isMentor && cohort.status === 'approved' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleUpdateCohortStatus(cohort.id, 'published', cohort.name);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-emerald-700 shadow-2xs transition"
+                          title="Publish approved cohort"
+                        >
+                          <CheckCircle2 size={12} /> Publish Cohort
+                        </button>
+                      )}
+                      {isMentor && cohort.status === 'rejected' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleUpdateCohortStatus(cohort.id, 'draft', cohort.name);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 dark:border-rose-800/60 dark:bg-rose-950/40 px-2.5 py-1 text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition"
+                          title="Revise rejected proposal"
+                        >
+                          <RotateCcw size={12} /> Revise Draft
+                        </button>
+                      )}
+                      {isMentor && cohort.status === 'published' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toast.error('This cohort is Live & Published. Uploads, curriculum edits, or structural modifications require permission from Parent Super Admin (ajayramanan17@gmail.com) or Child Super Admin (ajayramanan4444@gmail.com).');
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-100 transition"
+                          title="Published cohort is locked from editing without Super Admin permission"
+                        >
+                          <Lock size={12} /> Live (Admin Permission Required)
+                        </button>
+                      )}
+
                       {canManageCurriculum && (
-                        <Button variant="secondary" size="sm" onClick={() => openModuleEditor(cohort.id)}>
-                          <Plus size={15} /> Add Module
-                        </Button>
+                        isMentor && cohort.status === 'published' ? (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
+                            }}
+                            className="opacity-60 cursor-not-allowed border-dashed"
+                            title="Published cohort is locked from editing without Super Admin permission"
+                          >
+                            <Lock size={13} className="mr-1" /> Add Module
+                          </Button>
+                        ) : (
+                          <Button variant="secondary" size="sm" onClick={() => openModuleEditor(cohort.id)}>
+                            <Plus size={15} /> Add Module
+                          </Button>
+                        )
                       )}
                       {canManageCohorts && (
                         <>
-                          <button
-                            onClick={() => openCohortEditor(cohort)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white transition"
-                            title="Edit Cohort"
-                            aria-label="Edit Cohort"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            onClick={() => void handleDelete('cohort', cohort.id, cohort.name)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
-                            title="Delete Cohort"
-                            aria-label="Delete Cohort"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {isMentor && cohort.status === 'published' ? (
+                            <button
+                              onClick={() => toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.')}
+                              className="rounded-lg p-2 text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                              title="Editing published cohort requires admin permission"
+                              aria-label="Edit Cohort Locked"
+                            >
+                              <Lock size={16} />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openCohortEditor(cohort)}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white transition"
+                              title="Edit Cohort"
+                              aria-label="Edit Cohort"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button
+                              onClick={() => void handleDelete('cohort', cohort.id, cohort.name)}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
+                              title="Delete Cohort"
+                              aria-label="Delete Cohort"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </>
                       )}
                     </div>

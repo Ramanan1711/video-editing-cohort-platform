@@ -57,6 +57,8 @@ export interface AdminCoursesContextType {
   setBulkImportTargetCohort: (target: { id: string; title: string } | null) => void;
   filteredCohorts: Cohort[];
   totalLessons: number;
+  isAdmin: boolean;
+  isMentor: boolean;
   assignmentsByLesson: Map<string, Assignment[]>;
   resourcesByLesson: Map<string, LessonResource[]>;
   canManageCurriculum: boolean;
