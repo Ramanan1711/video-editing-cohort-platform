@@ -22,12 +22,12 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     created_at: new Date().toISOString(),
   };
 
-  const mockContentAdmin: UserProfile = {
-    id: 'admin-content',
-    email: 'content@iunoware.com',
-    full_name: 'Casey Content',
+  const mockAdmin: UserProfile = {
+    id: 'admin-regular',
+    email: 'admin@iunoware.com',
+    full_name: 'Alex Admin',
     role: 'admin',
-    admin_role: 'content_admin',
+    admin_role: 'admin',
     status: 'active',
     created_at: new Date().toISOString(),
   };
@@ -55,12 +55,12 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
   const allUsers = [
     mockStudent,
     mockMentor,
-    mockContentAdmin,
+    mockAdmin,
     mockChildSuperAdmin,
     mockParentSuperAdmin,
   ];
 
-  it('renders distinguished "Parent Super Admin" and "Child Super Admin" badges', () => {
+  it('renders distinguished "Parent Super Admin", "Child Super Admin", and "Admin" badges', () => {
     render(
       <UsersTab
         users={allUsers}
@@ -86,9 +86,9 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     const childBadge = screen.getByTestId(`role-badge-${mockChildSuperAdmin.id}`);
     expect(childBadge).toHaveTextContent('Child Super Admin');
 
-    // Standard Content Admin badge
-    const contentBadge = screen.getByTestId(`role-badge-${mockContentAdmin.id}`);
-    expect(contentBadge).toHaveTextContent('Content Admin');
+    // Standard Admin badge
+    const adminBadge = screen.getByTestId(`role-badge-${mockAdmin.id}`);
+    expect(adminBadge).toHaveTextContent('Admin');
   });
 
   it('does NOT show any promotion buttons (Promote to Mentor, Admin, or Child Super Admin) for students', () => {
@@ -162,7 +162,7 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
       />
     );
 
-    const subroleSelect = screen.getByTestId(`admin-subrole-select-${mockContentAdmin.id}`);
+    const subroleSelect = screen.getByTestId(`admin-subrole-select-${mockAdmin.id}`);
     expect(subroleSelect).toBeInTheDocument();
 
     await act(async () => {
@@ -170,7 +170,7 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     });
 
     expect(handleAdminSubRoleChange).toHaveBeenCalledTimes(1);
-    expect(handleAdminSubRoleChange).toHaveBeenCalledWith(mockContentAdmin, 'child_super_admin');
+    expect(handleAdminSubRoleChange).toHaveBeenCalledWith(mockAdmin, 'child_super_admin');
   });
 
   it('does NOT show Demote to Mentor or Demote to Student buttons for Admins, and restricts dropdown options', () => {
@@ -192,13 +192,13 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     );
 
     // Verify Demote buttons are NOT rendered
-    expect(screen.queryByTestId(`demote-mentor-${mockContentAdmin.id}`)).not.toBeInTheDocument();
-    expect(screen.queryByTestId(`demote-student-${mockContentAdmin.id}`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`demote-mentor-${mockAdmin.id}`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`demote-student-${mockAdmin.id}`)).not.toBeInTheDocument();
     expect(screen.queryByText('Demote to Mentor')).not.toBeInTheDocument();
     expect(screen.queryByText('Demote to Student')).not.toBeInTheDocument();
 
     // Verify options in the select dropdown
-    const subroleSelect = screen.getByTestId(`admin-subrole-select-${mockContentAdmin.id}`) as HTMLSelectElement;
+    const subroleSelect = screen.getByTestId(`admin-subrole-select-${mockAdmin.id}`) as HTMLSelectElement;
     const optionValues = Array.from(subroleSelect.options).map((o) => o.value);
     expect(optionValues).toEqual(['admin', 'child_super_admin']);
     expect(optionValues).not.toContain('content_admin');
@@ -207,7 +207,7 @@ describe('Role Hierarchy: Parent Super Admin, Child Super Admin, Admin, Mentor, 
     expect(optionValues).not.toContain('parent_super_admin');
   });
 
-  it('does NOT allow Child Super Admin or Content Admin to see role promotion buttons', () => {
+  it('does NOT allow Child Super Admin or standard Admin to see role promotion buttons', () => {
     render(
       <UsersTab
         users={allUsers}

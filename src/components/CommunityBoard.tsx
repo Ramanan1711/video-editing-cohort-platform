@@ -530,7 +530,7 @@ export function CommunityBoard({
 
             {reportSubmitted ? (
               <div className="py-6 text-center text-xs font-bold text-emerald-600">
-                ✓ Report submitted. Platform moderators will review this item.
+                ✓ Report submitted. Platform administrators will review this item.
               </div>
             ) : (
               <>

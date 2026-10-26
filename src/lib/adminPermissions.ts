@@ -5,10 +5,7 @@ export type AdminSubRole =
   | 'admin'
   | 'parent_super_admin'
   | 'child_super_admin'
-  | 'super_admin'
-  | 'content_admin'
-  | 'operations_admin'
-  | 'moderator';
+  | 'super_admin';
 
 export type AdminPermission =
   | 'manage_roles' // promote/demote users, change admin sub-roles (Parent Super Admin only)
@@ -72,24 +69,6 @@ export const ROLE_PERMISSIONS: Record<AdminSubRole, AdminPermission[]> = {
     'view_audit_logs',
     'view_insights',
   ],
-  content_admin: [
-    'manage_cohorts',
-    'manage_curriculum',
-    'publish_content',
-    'view_insights',
-  ],
-  operations_admin: [
-    'manage_cohorts',
-    'manage_enrollments',
-    'broadcast_announcements',
-    'schedule_sessions',
-    'view_insights',
-  ],
-  moderator: [
-    'moderate_community',
-    'broadcast_announcements',
-    'view_insights',
-  ],
 };
 
 export const ROLE_LABELS: Record<AdminSubRole, string> = {
@@ -97,19 +76,13 @@ export const ROLE_LABELS: Record<AdminSubRole, string> = {
   parent_super_admin: 'Parent Super Admin',
   child_super_admin: 'Child Super Admin',
   super_admin: 'Parent Super Admin',
-  content_admin: 'Content Admin',
-  operations_admin: 'Operations Admin',
-  moderator: 'Community Moderator',
 };
 
 export const ROLE_DESCRIPTIONS: Record<AdminSubRole, string> = {
   admin: 'Standard platform administrator with cohort, curriculum, and operational access.',
   parent_super_admin: 'Root platform sovereignty: exclusive authority to appoint Mentors, Admins, and Child Super Admins.',
-  child_super_admin: 'Executive platform administrator with all operational, content, and student management capabilities.',
   super_admin: 'Root platform sovereignty: exclusive authority to appoint Mentors, Admins, and Child Super Admins.',
-  content_admin: 'Curriculum authoring studio, lesson asset pipeline, and content lifecycle transitions.',
-  operations_admin: 'Cohort rosters, enterprise bulk student imports, dispatches, and live sessions.',
-  moderator: 'Community board moderation, post reviews, and student announcements.',
+  child_super_admin: 'Executive platform administrator with all operational, content, and student management capabilities.',
 };
 
 /**
