@@ -159,9 +159,9 @@ describe('Mentor Course Authoring Studio & Permission Gates', () => {
     expect(screen.queryByRole('button', { name: /Delete Cohort/i })).not.toBeInTheDocument();
   });
 
-  it('locks modifications on published cohorts and displays permission requirement banner', async () => {
+  it('allows mentors to edit and add curriculum on published cohorts without locking banners', async () => {
     render(
-      <MemoryRouter initialEntries={['/admin/courses?cohortId=cohort-published-1']}>
+      <MemoryRouter initialEntries={['/mentor/courses?cohortId=cohort-published-1']}>
         <AdminCourses />
       </MemoryRouter>
     );
@@ -170,11 +170,12 @@ describe('Mentor Course Authoring Studio & Permission Gates', () => {
       expect(screen.getByText('Cybersecurity Masterclass')).toBeInTheDocument();
     });
 
-    // Displays Locked / Admin Permission Required badge
-    expect(screen.getAllByTitle(/Published cohort is locked from editing without Super Admin permission/i).length).toBeGreaterThan(0);
+    // Does NOT display locking badges or lockout banners
+    expect(screen.queryByTitle(/Published cohort is locked from editing without Super Admin permission/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Published & Live Cohort — Editing Locked/i)).not.toBeInTheDocument();
 
-    // Shows Published & Live Cohort banner in curriculum tab
-    expect(screen.getByText(/Published & Live Cohort — Editing Locked/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/ajayramanan17@gmail.com/i).length).toBeGreaterThan(0);
+    // Mentor can edit published cohort and add modules
+    expect(screen.getAllByRole('button', { name: /Edit Cohort/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Add Module/i }).length).toBeGreaterThan(0);
   });
 });

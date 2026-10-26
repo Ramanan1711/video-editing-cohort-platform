@@ -2,7 +2,6 @@ import {
   ExternalLink,
   Flame,
   Layers,
-  Lock,
   Pencil,
   Plus,
   Sparkles,
@@ -21,10 +20,7 @@ export function SprintTrackStudio({ cohort }: { cohort: Cohort }) {
     openChallengeEditor,
     handleDeleteChallenge,
     setBulkImportTargetCohort,
-    isMentor,
   } = useAdminCourses();
-
-  const isMentorLocked = isMentor && cohort.status === 'published';
 
   if (loadingChallengesCohortId === cohort.id && !challengesByCohort[cohort.id]) {
     return (
@@ -40,17 +36,6 @@ export function SprintTrackStudio({ cohort }: { cohort: Cohort }) {
   if (challenges.length > 0) {
     return (
       <div className="space-y-4">
-        {isMentorLocked && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 p-4 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-3">
-            <Lock size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-sm block mb-0.5">Published Cohort (Live) — Sprint Drills Locked</span>
-              <p className="leading-relaxed">
-                Modifications to daily tasks and starter assets on published cohorts require permission from Parent Super Admin (<span className="font-semibold underline">ajayramanan17@gmail.com</span>) or Child Super Admin (<span className="font-semibold underline">ajayramanan4444@gmail.com</span>).
-              </p>
-            </div>
-          </div>
-        )}
         <div className="space-y-3">
           {challenges.map((challenge) => (
           <div
@@ -113,28 +98,20 @@ export function SprintTrackStudio({ cohort }: { cohort: Cohort }) {
 
             {canManageCurriculum && (
               <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
-                {isMentorLocked ? (
-                  <span title="Modifications locked on published cohort" className="text-slate-300 dark:text-slate-600 p-1.5">
-                    <Lock size={15} />
-                  </span>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => openChallengeEditor(cohort.id, challenge)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition"
-                      title="Edit Challenge"
-                    >
-                      <Pencil size={15} />
-                    </button>
-                    <button
-                      onClick={() => void handleDeleteChallenge(cohort.id, challenge.id, challenge.title)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition"
-                      title="Delete Challenge"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={() => openChallengeEditor(cohort.id, challenge)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition"
+                  title="Edit Challenge"
+                >
+                  <Pencil size={15} />
+                </button>
+                <button
+                  onClick={() => void handleDeleteChallenge(cohort.id, challenge.id, challenge.title)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition"
+                  title="Delete Challenge"
+                >
+                  <Trash2 size={15} />
+                </button>
               </div>
             )}
           </div>
@@ -146,17 +123,6 @@ export function SprintTrackStudio({ cohort }: { cohort: Cohort }) {
 
   return (
     <div className="space-y-4">
-      {isMentorLocked && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 p-4 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-3">
-          <Lock size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold text-sm block mb-0.5">Published Cohort (Live) — Sprint Track Locked</span>
-            <p className="leading-relaxed">
-              Adding daily drills or bulk importing sprint tracks for published cohorts requires permission from Parent Super Admin or Child Super Admin.
-            </p>
-          </div>
-        </div>
-      )}
       <div className="rounded-xl border border-dashed border-amber-300 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 p-8 text-center">
         <Flame className="mx-auto mb-2 text-amber-500" size={28} />
         <p className="text-sm font-bold text-slate-900 dark:text-white">No Daily Challenges Configured</p>
@@ -165,35 +131,22 @@ export function SprintTrackStudio({ cohort }: { cohort: Cohort }) {
         </p>
         {canManageCurriculum && (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            {isMentorLocked ? (
-              <Button
-                variant="primary"
-                size="sm"
-                disabled
-                className="opacity-60 cursor-not-allowed"
-              >
-                <Lock size={14} className="mr-1" /> Add Daily Challenge (Locked)
-              </Button>
-            ) : (
-              <>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => openChallengeEditor(cohort.id)}
-                >
-                  <Plus size={14} className="mr-1" /> Add Daily Challenge
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    setBulkImportTargetCohort({ id: cohort.id, title: cohort.name });
-                  }}
-                >
-                  <Layers size={14} className="mr-1" /> Bulk Import Sprint Track
-                </Button>
-              </>
-            )}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => openChallengeEditor(cohort.id)}
+            >
+              <Plus size={14} className="mr-1" /> Add Daily Challenge
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setBulkImportTargetCohort({ id: cohort.id, title: cohort.name });
+              }}
+            >
+              <Layers size={14} className="mr-1" /> Bulk Import Sprint Track
+            </Button>
           </div>
         )}
       </div>

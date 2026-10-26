@@ -1,7 +1,6 @@
 import {
   ExternalLink,
   Flame,
-  Lock,
   Paperclip,
   Sparkles,
   Trash2,
@@ -19,10 +18,7 @@ export function CourseChallengesTab({ cohort }: { cohort: Cohort }) {
     setUploadModalCohortId,
     setShowUploadChallengeModal,
     handleDeleteCourseChallenge,
-    isMentor,
   } = useAdminCourses();
-
-  const isMentorLocked = isMentor && cohort.status === 'published';
 
   if (loadingCourseChallengesCohortId === cohort.id && !courseChallengesByCohort[cohort.id]) {
     return (
@@ -38,17 +34,6 @@ export function CourseChallengesTab({ cohort }: { cohort: Cohort }) {
   if (challenges.length > 0) {
     return (
       <div className="space-y-4">
-        {isMentorLocked && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 p-4 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-3">
-            <Lock size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-sm block mb-0.5">Published Cohort — Challenge Uploads &amp; Edits Locked</span>
-              <p className="leading-relaxed">
-                Uploading new projects or deleting challenges for published cohorts requires permission from Parent Super Admin (<span className="font-semibold underline">ajayramanan17@gmail.com</span>) or Child Super Admin (<span className="font-semibold underline">ajayramanan4444@gmail.com</span>).
-              </p>
-            </div>
-          </div>
-        )}
         <div className="space-y-3">
           {challenges.map((ch) => (
             <div
@@ -119,20 +104,14 @@ export function CourseChallengesTab({ cohort }: { cohort: Cohort }) {
 
               {canManageCurriculum && (
                 <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
-                  {isMentorLocked ? (
-                    <span title="Modifications locked on published cohort" className="text-slate-300 dark:text-slate-600 p-1.5">
-                      <Lock size={15} />
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => void handleDeleteCourseChallenge(cohort.id, ch.id, ch.title)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition"
-                      title="Delete Course Challenge"
-                      aria-label="Delete Course Challenge"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => void handleDeleteCourseChallenge(cohort.id, ch.id, ch.title)}
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition"
+                    title="Delete Course Challenge"
+                    aria-label="Delete Course Challenge"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               )}
             </div>
@@ -144,17 +123,6 @@ export function CourseChallengesTab({ cohort }: { cohort: Cohort }) {
 
   return (
     <div className="space-y-4">
-      {isMentorLocked && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 p-4 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-3">
-          <Lock size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold text-sm block mb-0.5">Published Cohort (Live) — Challenge Uploads Locked</span>
-            <p className="leading-relaxed">
-              Uploading new challenges to published cohorts requires permission from Parent Super Admin or Child Super Admin.
-            </p>
-          </div>
-        </div>
-      )}
       <div className="rounded-xl border border-dashed border-amber-300 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 p-8 text-center">
         <Flame className="mx-auto mb-2 text-amber-500" size={28} />
         <p className="text-sm font-bold text-slate-900 dark:text-white">No Course Challenges Configured Yet</p>
@@ -163,28 +131,17 @@ export function CourseChallengesTab({ cohort }: { cohort: Cohort }) {
         </p>
         {canManageCurriculum && (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            {isMentorLocked ? (
-              <Button
-                variant="primary"
-                size="sm"
-                disabled
-                className="bg-amber-600/50 text-white border-none shadow-sm cursor-not-allowed opacity-60"
-              >
-                <Lock size={14} className="mr-1" /> Upload Challenge (Locked)
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => {
-                  setUploadModalCohortId(cohort.id);
-                  setShowUploadChallengeModal(true);
-                }}
-                className="bg-amber-600 hover:bg-amber-700 text-white border-none shadow-sm"
-              >
-                <Upload size={14} className="mr-1" /> Upload Challenge for {cohort.name}
-              </Button>
-            )}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setUploadModalCohortId(cohort.id);
+                setShowUploadChallengeModal(true);
+              }}
+              className="bg-amber-600 hover:bg-amber-700 text-white border-none shadow-sm"
+            >
+              <Upload size={14} className="mr-1" /> Upload Challenge for {cohort.name}
+            </Button>
           </div>
         )}
       </div>

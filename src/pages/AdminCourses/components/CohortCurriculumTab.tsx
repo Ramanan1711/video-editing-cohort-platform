@@ -9,7 +9,6 @@ import {
   Clock,
   Copy,
   ExternalLink,
-  Lock,
   Paperclip,
   Pencil,
   Plus,
@@ -43,10 +42,7 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
     handleBulkModulePublish,
     handleUpdateLessonStatus,
     handleDelete,
-    isMentor,
   } = useAdminCourses();
-
-  const isMentorLocked = isMentor && cohort.status === 'published';
 
   const cohortModules = modules
     .filter((m) => m.cohort_id === cohort.id)
@@ -55,42 +51,20 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
   if (!cohortModules.length) {
     return (
       <div className="space-y-4">
-        {isMentorLocked && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 p-4 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-3">
-            <Lock size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-sm block mb-0.5">Published &amp; Live Cohort — Editing Locked</span>
-              <p className="leading-relaxed">
-                This cohort is published. Adding modules, editing lessons, or uploading resources requires permission from Parent Super Admin (<span className="font-semibold underline">ajayramanan17@gmail.com</span>) or Child Super Admin (<span className="font-semibold underline">ajayramanan4444@gmail.com</span>).
-              </p>
-            </div>
-          </div>
-        )}
         <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 text-center">
           <BookOpen className="mx-auto mb-2 text-slate-300 dark:text-slate-600" size={24} />
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">No modules in this cohort yet.</p>
           <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
             Create the first module to start assembling the course curriculum.
           </p>
-          {isMentorLocked ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              className="mt-4 opacity-60 cursor-not-allowed border-dashed"
-              onClick={() => alert('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.')}
-            >
-              <Lock size={13} className="mr-1" /> Add First Module (Locked)
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              size="sm"
-              className="mt-4"
-              onClick={() => openModuleEditor(cohort.id)}
-            >
-              <Plus size={15} /> Add First Module
-            </Button>
-          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            className="mt-4"
+            onClick={() => openModuleEditor(cohort.id)}
+          >
+            <Plus size={15} /> Add First Module
+          </Button>
         </div>
       </div>
     );
@@ -98,17 +72,6 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
 
   return (
     <div className="space-y-5">
-      {isMentorLocked && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 p-4 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-3">
-          <Lock size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold text-sm block mb-0.5">Published &amp; Live Cohort — Editing Locked</span>
-            <p className="leading-relaxed">
-              This cohort is live and accepting student enrollments. Structural modifications, module additions, lesson edits, assignment changes, and video asset updates require administrative permission from Parent Super Admin (<span className="font-semibold underline">ajayramanan17@gmail.com</span>) or Child Super Admin (<span className="font-semibold underline">ajayramanan4444@gmail.com</span>).
-            </p>
-          </div>
-        </div>
-      )}
       {cohortModules.map((module, moduleIndex) => {
         const sortedLessons = [...module.lessons].sort((a, b) => a.position - b.position);
 
@@ -152,7 +115,7 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                 {/* Reorder Module Up / Down */}
                 <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5">
                   <button
-                    disabled={isMentorLocked || moduleIndex === 0}
+                    disabled={moduleIndex === 0}
                     onClick={() => void handleReorderModule(cohort.id, module, 'up')}
                     className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200 disabled:opacity-25"
                     title="Move module up"
@@ -160,7 +123,7 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                     <ArrowUp size={13} />
                   </button>
                   <button
-                    disabled={isMentorLocked || moduleIndex === cohortModules.length - 1}
+                    disabled={moduleIndex === cohortModules.length - 1}
                     onClick={() => void handleReorderModule(cohort.id, module, 'down')}
                     className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200 disabled:opacity-25"
                     title="Move module down"
@@ -171,22 +134,15 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
 
                 {/* Duplicate Module */}
                 <button
-                  disabled={isMentorLocked}
-                  onClick={() => {
-                    if (isMentorLocked) {
-                      alert('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-                      return;
-                    }
-                    void handleDuplicateModule(module.id, module.title);
-                  }}
-                  className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                  title={isMentorLocked ? 'Editing locked on published cohort' : 'Duplicate module and all lessons'}
+                  onClick={() => void handleDuplicateModule(module.id, module.title)}
+                  className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
+                  title="Duplicate module and all lessons"
                 >
                   <Copy size={13} />
                 </button>
 
                 {/* Bulk Publish / Review / Draft */}
-                {canPublish && !isMentorLocked && (
+                {canPublish && (
                   <div className="hidden sm:flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[10px] font-bold overflow-hidden shadow-2xs">
                     <button
                       onClick={() => void handleBulkModulePublish(module, 'published')}
@@ -216,54 +172,30 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
 
                 {canManageCurriculum && (
                   <>
-                    {isMentorLocked ? (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled
-                        className="h-8 text-xs font-bold ml-1 opacity-50 cursor-not-allowed"
-                        title="Modifications to published cohorts require admin permission"
-                      >
-                        <Lock size={12} className="mr-1" /> Add Lesson
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => openLessonEditor(module.id)}
-                        className="h-8 text-xs font-bold ml-1"
-                      >
-                        <Plus size={14} /> Add Lesson
-                      </Button>
-                    )}
-                    {isMentorLocked ? (
-                      <button
-                        disabled
-                        className="rounded-lg p-1.5 text-slate-300 dark:text-slate-600 cursor-not-allowed"
-                        title="Editing locked on published cohort"
-                      >
-                        <Lock size={14} />
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => openModuleEditor(cohort.id, module)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white transition"
-                          title="Edit Module"
-                          aria-label="Edit Module"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          onClick={() => void handleDelete('module', module.id, module.title)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
-                          title="Delete Module"
-                          aria-label="Delete Module"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </>
-                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => openLessonEditor(module.id)}
+                      className="h-8 text-xs font-bold ml-1"
+                    >
+                      <Plus size={14} /> Add Lesson
+                    </Button>
+                    <button
+                      onClick={() => openModuleEditor(cohort.id, module)}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white transition"
+                      title="Edit Module"
+                      aria-label="Edit Module"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      onClick={() => void handleDelete('module', module.id, module.title)}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
+                      title="Delete Module"
+                      aria-label="Delete Module"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </>
                 )}
               </div>
@@ -384,7 +316,7 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                           {canManageCurriculum && (
                             <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5">
                               <button
-                                disabled={isMentorLocked || lessonIndex === 0}
+                                disabled={lessonIndex === 0}
                                 onClick={() => void handleReorderLesson(module, lesson, 'up')}
                                 className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200 disabled:opacity-25"
                                 title="Move lesson up"
@@ -392,7 +324,7 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                                 <ArrowUp size={12} />
                               </button>
                               <button
-                                disabled={isMentorLocked || lessonIndex === sortedLessons.length - 1}
+                                disabled={lessonIndex === sortedLessons.length - 1}
                                 onClick={() => void handleReorderLesson(module, lesson, 'down')}
                                 className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200 disabled:opacity-25"
                                 title="Move lesson down"
@@ -405,16 +337,9 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                           {/* Duplicate Lesson */}
                           {canManageCurriculum && (
                             <button
-                              disabled={isMentorLocked}
-                              onClick={() => {
-                                if (isMentorLocked) {
-                                  alert('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-                                  return;
-                                }
-                                void handleDuplicateLesson(lesson.id, lesson.title);
-                              }}
-                              className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5 text-slate-400 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                              title={isMentorLocked ? 'Editing locked on published cohort' : 'Duplicate Lesson'}
+                              onClick={() => void handleDuplicateLesson(lesson.id, lesson.title)}
+                              className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5 text-slate-400 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200"
+                              title="Duplicate Lesson"
                             >
                               <Copy size={13} />
                             </button>
@@ -442,34 +367,24 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                           </button>
 
                           {canManageCurriculum && (
-                            isMentorLocked ? (
+                            <>
                               <button
-                                disabled
-                                className="rounded-lg p-1.5 text-slate-300 dark:text-slate-600 cursor-not-allowed"
-                                title="Editing locked on published cohort"
+                                onClick={() => openLessonEditor(module.id, lesson)}
+                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white transition"
+                                title="Edit Lesson"
+                                aria-label="Edit Lesson"
                               >
-                                <Lock size={14} />
+                                <Pencil size={15} />
                               </button>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => openLessonEditor(module.id, lesson)}
-                                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white transition"
-                                  title="Edit Lesson"
-                                  aria-label="Edit Lesson"
-                                >
-                                  <Pencil size={15} />
-                                </button>
-                                <button
-                                  onClick={() => void handleDelete('lesson', lesson.id, lesson.title)}
-                                  className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
-                                  title="Delete Lesson"
-                                  aria-label="Delete Lesson"
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              </>
-                            )
+                              <button
+                                onClick={() => void handleDelete('lesson', lesson.id, lesson.title)}
+                                className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
+                                title="Delete Lesson"
+                                aria-label="Delete Lesson"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -488,26 +403,14 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                                   </h4>
                                 </div>
                                 {canManageCurriculum && (
-                                  isMentorLocked ? (
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      disabled
-                                      className="h-7 px-2 text-[11px] opacity-50 cursor-not-allowed"
-                                      title="Editing locked on published cohort"
-                                    >
-                                      <Lock size={11} className="mr-1" /> Add Assignment
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={() => openAssignmentEditor(lesson.id, undefined, cohort.id)}
-                                      className="h-7 px-2 text-[11px]"
-                                    >
-                                      <Plus size={13} /> Add Assignment
-                                    </Button>
-                                  )
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => openAssignmentEditor(lesson.id, undefined, cohort.id)}
+                                    className="h-7 px-2 text-[11px]"
+                                  >
+                                    <Plus size={13} /> Add Assignment
+                                  </Button>
                                 )}
                               </div>
 
@@ -543,30 +446,26 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                                         </div>
                                       </div>
                                       {canManageCurriculum && (
-                                        isMentorLocked ? (
-                                          <Lock size={12} className="text-slate-300 dark:text-slate-600" />
-                                        ) : (
-                                          <div className="flex shrink-0 items-center gap-1">
-                                            <button
-                                              onClick={() => openAssignmentEditor(lesson.id, assignment, cohort.id)}
-                                              className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-800 dark:hover:bg-slate-700 dark:hover:text-white transition"
-                                              title="Edit Assignment"
-                                              aria-label="Edit Assignment"
-                                            >
-                                              <Pencil size={13} />
-                                            </button>
-                                            <button
-                                              onClick={() =>
-                                                void handleDelete('assignment', assignment.id, assignment.title)
-                                              }
-                                              className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
-                                              title="Delete Assignment"
-                                              aria-label="Delete Assignment"
-                                            >
-                                              <Trash2 size={13} />
-                                            </button>
-                                          </div>
-                                        )
+                                        <div className="flex shrink-0 items-center gap-1">
+                                          <button
+                                            onClick={() => openAssignmentEditor(lesson.id, assignment, cohort.id)}
+                                            className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-800 dark:hover:bg-slate-700 dark:hover:text-white transition"
+                                            title="Edit Assignment"
+                                            aria-label="Edit Assignment"
+                                          >
+                                            <Pencil size={13} />
+                                          </button>
+                                          <button
+                                            onClick={() =>
+                                              void handleDelete('assignment', assignment.id, assignment.title)
+                                            }
+                                            className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
+                                            title="Delete Assignment"
+                                            aria-label="Delete Assignment"
+                                          >
+                                            <Trash2 size={13} />
+                                          </button>
+                                        </div>
                                       )}
                                     </div>
                                   ))}
@@ -588,26 +487,14 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                                   </h4>
                                 </div>
                                 {canManageCurriculum && (
-                                  isMentorLocked ? (
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      disabled
-                                      className="h-7 px-2 text-[11px] opacity-50 cursor-not-allowed"
-                                      title="Editing locked on published cohort"
-                                    >
-                                      <Lock size={11} className="mr-1" /> Add Resource
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={() => openResourceEditor(lesson.id)}
-                                      className="h-7 px-2 text-[11px]"
-                                    >
-                                      <Plus size={13} /> Add Resource
-                                    </Button>
-                                  )
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => openResourceEditor(lesson.id)}
+                                    className="h-7 px-2 text-[11px]"
+                                  >
+                                    <Plus size={13} /> Add Resource
+                                  </Button>
                                 )}
                               </div>
 
@@ -656,30 +543,26 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                                         </div>
                                       </div>
                                       {canManageCurriculum && (
-                                        isMentorLocked ? (
-                                          <Lock size={12} className="text-slate-300 dark:text-slate-600" />
-                                        ) : (
-                                          <div className="flex shrink-0 items-center gap-1">
-                                            <button
-                                              onClick={() => openResourceEditor(lesson.id, res)}
-                                              className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-800 dark:hover:bg-slate-700 dark:hover:text-white transition"
-                                              title="Edit Resource"
-                                              aria-label="Edit Resource"
-                                            >
-                                              <Pencil size={13} />
-                                            </button>
-                                            <button
-                                              onClick={() =>
-                                                void handleDelete('resource', res.id, res.name)
-                                              }
-                                              className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
-                                              title="Delete Resource"
-                                              aria-label="Delete Resource"
-                                            >
-                                              <Trash2 size={13} />
-                                            </button>
-                                          </div>
-                                        )
+                                        <div className="flex shrink-0 items-center gap-1">
+                                          <button
+                                            onClick={() => openResourceEditor(lesson.id, res)}
+                                            className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-800 dark:hover:bg-slate-700 dark:hover:text-white transition"
+                                            title="Edit Resource"
+                                            aria-label="Edit Resource"
+                                          >
+                                            <Pencil size={13} />
+                                          </button>
+                                          <button
+                                            onClick={() =>
+                                              void handleDelete('resource', res.id, res.name)
+                                            }
+                                            className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
+                                            title="Delete Resource"
+                                            aria-label="Delete Resource"
+                                          >
+                                            <Trash2 size={13} />
+                                          </button>
+                                        </div>
                                       )}
                                     </div>
                                   ))}

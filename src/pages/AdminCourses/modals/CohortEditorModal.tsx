@@ -114,6 +114,15 @@ export function CohortEditorModal() {
                         Published
                       </option>
                     </>
+                  ) : cohortEditor.status === 'published' ? (
+                    <>
+                      <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                        Published
+                      </option>
+                      <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                        Draft
+                      </option>
+                    </>
                   ) : (
                     <>
                       <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">

@@ -507,60 +507,21 @@ function AdminCoursesView() {
                           <RotateCcw size={12} /> Revise Draft
                         </button>
                       )}
-                      {isMentor && cohort.status === 'published' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toast.error('This cohort is Live & Published. Uploads, curriculum edits, or structural modifications require permission from Parent Super Admin (ajayramanan17@gmail.com) or Child Super Admin (ajayramanan4444@gmail.com).');
-                          }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-100 transition"
-                          title="Published cohort is locked from editing without Super Admin permission"
-                        >
-                          <Lock size={12} /> Live (Admin Permission Required)
-                        </button>
-                      )}
-
                       {canManageCurriculum && (
-                        isMentor && cohort.status === 'published' ? (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-                            }}
-                            className="opacity-60 cursor-not-allowed border-dashed"
-                            title="Published cohort is locked from editing without Super Admin permission"
-                          >
-                            <Lock size={13} className="mr-1" /> Add Module
-                          </Button>
-                        ) : (
-                          <Button variant="secondary" size="sm" onClick={() => openModuleEditor(cohort.id)}>
-                            <Plus size={15} /> Add Module
-                          </Button>
-                        )
+                        <Button variant="secondary" size="sm" onClick={() => openModuleEditor(cohort.id)}>
+                          <Plus size={15} /> Add Module
+                        </Button>
                       )}
                       {canManageCohorts && (
                         <>
-                          {isMentor && cohort.status === 'published' ? (
-                            <button
-                              onClick={() => toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.')}
-                              className="rounded-lg p-2 text-slate-300 dark:text-slate-600 cursor-not-allowed"
-                              title="Editing published cohort requires admin permission"
-                              aria-label="Edit Cohort Locked"
-                            >
-                              <Lock size={16} />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => openCohortEditor(cohort)}
-                              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white transition"
-                              title="Edit Cohort"
-                              aria-label="Edit Cohort"
-                            >
-                              <Pencil size={16} />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => openCohortEditor(cohort)}
+                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white transition"
+                            title="Edit Cohort"
+                            aria-label="Edit Cohort"
+                          >
+                            <Pencil size={16} />
+                          </button>
                           {isAdmin && (
                             <button
                               onClick={() => void handleDelete('cohort', cohort.id, cohort.name)}

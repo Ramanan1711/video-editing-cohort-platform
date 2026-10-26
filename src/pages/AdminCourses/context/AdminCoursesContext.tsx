@@ -406,11 +406,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
   };
 
   const handleDeleteCourseChallenge = async (cohortId: string, challengeId: string, title: string) => {
-    const targetCohort = cohorts.find((c) => c.id === cohortId);
-    if (isMentor && targetCohort?.status === 'published') {
-      toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-      return;
-    }
     if (!window.confirm(`Are you sure you want to delete course challenge "${title}"?`)) return;
     try {
       await deleteCourseChallenge(challengeId);
@@ -477,11 +472,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
   };
 
   const handleDeleteChallenge = async (cohortId: string, challengeId: string, title: string) => {
-    const targetCohort = cohorts.find((c) => c.id === cohortId);
-    if (isMentor && targetCohort?.status === 'published') {
-      toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-      return;
-    }
     if (!window.confirm(`Are you sure you want to delete challenge "${title}"? This cannot be undone.`)) return;
     try {
       await deleteDailyChallenge(challengeId);
@@ -557,10 +547,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         if (isMentor) {
           if (editor.id) {
             const existingCohort = cohorts.find((c) => c.id === editor.id);
-            if (existingCohort?.status === 'published') {
-              throw new Error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-            }
-            if (editor.status === 'published' && existingCohort?.status !== 'approved') {
+            if (editor.status === 'published' && existingCohort?.status !== 'approved' && existingCohort?.status !== 'published') {
               throw new Error('Cohorts must be approved by an administrator before publishing.');
             }
           }
@@ -604,10 +591,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         }
       } else if (editor.type === 'module') {
         if (!editor.title.trim()) throw new Error('Module title is required.');
-        const targetCohort = cohorts.find((c) => c.id === editor.cohortId);
-        if (isMentor && targetCohort?.status === 'published') {
-          throw new Error('Modifications, uploads, and edits to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-        }
         if (editor.id) {
           await updateModule(editor.id, {
             title: editor.title.trim(),
@@ -643,11 +626,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         }
       } else if (editor.type === 'lesson') {
         if (!editor.title.trim()) throw new Error('Lesson title is required.');
-        const targetModule = modules.find((m) => m.id === editor.moduleId);
-        const targetCohort = cohorts.find((c) => c.id === targetModule?.cohort_id);
-        if (isMentor && targetCohort?.status === 'published') {
-          throw new Error('Modifications, uploads, and edits to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-        }
         let finalVideoUrl = editor.videoUrl.trim() || null;
 
         if (uploadFile) {
@@ -691,15 +669,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         }
       } else if (editor.type === 'assignment') {
         if (!editor.title.trim()) throw new Error('Assignment title is required.');
-        let cohortId = editor.cohortId;
-        if (!cohortId && editor.lessonId) {
-          const targetModule = modules.find((m) => m.lessons.some((l) => l.id === editor.lessonId));
-          cohortId = targetModule?.cohort_id ?? undefined;
-        }
-        const targetCohort = cohorts.find((c) => c.id === cohortId);
-        if (isMentor && targetCohort?.status === 'published') {
-          throw new Error('Modifications, uploads, and edits to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-        }
         const deadlineIso = editor.deadline ? new Date(editor.deadline).toISOString() : null;
         const textContent = editor.instructions.trim() || null;
 
@@ -738,15 +707,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
           setSuccess('Assignment created successfully.');
         }
       } else if (editor.type === 'resource') {
-        let cohortId: string | undefined;
-        if (editor.lessonId) {
-          const targetModule = modules.find((m) => m.lessons.some((l) => l.id === editor.lessonId));
-          cohortId = targetModule?.cohort_id ?? undefined;
-        }
-        const targetCohort = cohorts.find((c) => c.id === cohortId);
-        if (isMentor && targetCohort?.status === 'published') {
-          throw new Error('Modifications, uploads, and edits to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-        }
         let finalUrl = editor.url.trim();
         let resourceType = editor.resourceType;
         let fileSize = editor.fileSize;
@@ -805,10 +765,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         if (!editor.title.trim()) throw new Error('Challenge title is required.');
         if (!editor.cohortId) throw new Error('Cohort ID is required.');
         if (!editor.dayNumber || editor.dayNumber < 1) throw new Error('Day number must be at least 1.');
-        const targetCohort = cohorts.find((c) => c.id === editor.cohortId);
-        if (isMentor && targetCohort?.status === 'published') {
-          throw new Error('Modifications, uploads, and edits to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-        }
 
         let finalStarterUrl = editor.starterFilesUrl.trim() || null;
         if (editor.starterSourceMode === 'upload' && uploadFile) {
@@ -882,31 +838,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
       toast.error('Deleting cohorts is restricted to platform administrators.');
       return;
     }
-    if (isMentor) {
-      let targetCohortId: string | undefined;
-      if (type === 'module') {
-        targetCohortId = modules.find((m) => m.id === id)?.cohort_id || undefined;
-      } else if (type === 'lesson') {
-        const parentMod = modules.find((m) => m.lessons.some((l) => l.id === id));
-        targetCohortId = parentMod?.cohort_id || undefined;
-      } else if (type === 'assignment') {
-        const assign = assignments.find((a) => a.id === id);
-        targetCohortId = assign?.cohort_id || undefined;
-        if (!targetCohortId && assign?.lesson_id) {
-          targetCohortId = modules.find((m) => m.lessons.some((l) => l.id === assign.lesson_id))?.cohort_id || undefined;
-        }
-      } else if (type === 'resource') {
-        const res = resources.find((r) => r.id === id);
-        if (res?.lesson_id) {
-          targetCohortId = modules.find((m) => m.lessons.some((l) => l.id === res.lesson_id))?.cohort_id || undefined;
-        }
-      }
-      const targetCohort = cohorts.find((c) => c.id === targetCohortId);
-      if (targetCohort?.status === 'published') {
-        toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-        return;
-      }
-    }
 
     if (!window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
       return;
@@ -939,11 +870,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
   };
 
   const handleReorderModule = async (cohortId: string, currentMod: Module, direction: 'up' | 'down') => {
-    const targetCohort = cohorts.find((c) => c.id === cohortId);
-    if (isMentor && targetCohort?.status === 'published') {
-      toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-      return;
-    }
     const cohortModules = modules
       .filter((m) => m.cohort_id === cohortId)
       .sort((a, b) => a.position - b.position);
@@ -977,11 +903,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
   };
 
   const handleReorderLesson = async (currentModule: Module, currentLesson: Lesson, direction: 'up' | 'down') => {
-    const targetCohort = cohorts.find((c) => c.id === currentModule.cohort_id);
-    if (isMentor && targetCohort?.status === 'published') {
-      toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-      return;
-    }
     const sortedLessons = [...currentModule.lessons].sort((a, b) => a.position - b.position);
     const index = sortedLessons.findIndex((l) => l.id === currentLesson.id);
     if (index === -1) return;
@@ -1013,14 +934,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
   };
 
   const handleDuplicateLesson = async (lessonId: string, title: string) => {
-    if (isMentor) {
-      const parentMod = modules.find((m) => m.lessons.some((l) => l.id === lessonId));
-      const targetCohort = cohorts.find((c) => c.id === parentMod?.cohort_id);
-      if (targetCohort?.status === 'published') {
-        toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-        return;
-      }
-    }
     try {
       await duplicateLesson(lessonId);
       void logAuditEvent({
@@ -1042,14 +955,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
   };
 
   const handleDuplicateModule = async (moduleId: string, title: string) => {
-    if (isMentor) {
-      const targetMod = modules.find((m) => m.id === moduleId);
-      const targetCohort = cohorts.find((c) => c.id === targetMod?.cohort_id);
-      if (targetCohort?.status === 'published') {
-        toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-        return;
-      }
-    }
     try {
       await duplicateModule(moduleId);
       void logAuditEvent({
@@ -1075,14 +980,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
     newStatus: 'draft' | 'review' | 'published' | 'archived',
     lessonTitle?: string
   ) => {
-    if (isMentor) {
-      const parentMod = modules.find((m) => m.lessons.some((l) => l.id === lessonId));
-      const targetCohort = cohorts.find((c) => c.id === parentMod?.cohort_id);
-      if (targetCohort?.status === 'published') {
-        toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-        return;
-      }
-    }
     try {
       await updateLessonStatus(lessonId, newStatus);
       void logAuditEvent({
@@ -1143,11 +1040,6 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
     mod: Module,
     newStatus: 'draft' | 'review' | 'published' | 'archived'
   ) => {
-    const targetCohort = cohorts.find((c) => c.id === mod.cohort_id);
-    if (isMentor && targetCohort?.status === 'published') {
-      toast.error('Modifications to published cohorts require permission from Parent Super Admin or Child Super Admin.');
-      return;
-    }
     const ids = mod.lessons.map((l) => l.id);
     try {
       await Promise.all([
