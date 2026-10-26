@@ -8,8 +8,7 @@
 
 export type AdminSubRole =
   | 'parent_super_admin'
-  | 'child_super_admin'
-  | 'super_admin';
+  | 'child_super_admin';
 
 export type AdminPermission =
   | 'manage_roles' // promote/demote users, change admin sub-roles (Parent Super Admin only)
@@ -26,19 +25,6 @@ export type AdminPermission =
 
 export const ROLE_PERMISSIONS: Record<AdminSubRole, AdminPermission[]> = {
   parent_super_admin: [
-    'manage_roles',
-    'manage_user_status',
-    'manage_cohorts',
-    'manage_curriculum',
-    'publish_content',
-    'manage_enrollments',
-    'broadcast_announcements',
-    'schedule_sessions',
-    'moderate_community',
-    'view_audit_logs',
-    'view_insights',
-  ],
-  super_admin: [
     'manage_roles',
     'manage_user_status',
     'manage_cohorts',
@@ -68,12 +54,10 @@ export const ROLE_PERMISSIONS: Record<AdminSubRole, AdminPermission[]> = {
 export const ROLE_LABELS: Record<AdminSubRole, string> = {
   parent_super_admin: 'Parent Super Admin',
   child_super_admin: 'Child Super Admin',
-  super_admin: 'Parent Super Admin',
 };
 
 export const ROLE_DESCRIPTIONS: Record<AdminSubRole, string> = {
   parent_super_admin: 'Root platform sovereignty: exclusive authority to appoint Mentors and Child Super Admins.',
-  super_admin: 'Root platform sovereignty: exclusive authority to appoint Mentors and Child Super Admins.',
   child_super_admin: 'Executive platform administrator with all operational, content, and student management capabilities.',
 };
 
@@ -86,7 +70,7 @@ export function hasAdminPermission(
   permission: AdminPermission
 ): boolean {
   const role: AdminSubRole =
-    adminRole === 'parent_super_admin' || adminRole === 'super_admin'
+    adminRole === 'parent_super_admin'
       ? 'parent_super_admin'
       : 'child_super_admin';
   const permissions = ROLE_PERMISSIONS[role];
@@ -95,7 +79,7 @@ export function hasAdminPermission(
 
 /**
  * Checks whether a user is the root Parent Super Admin.
- * Recognized by admin_role = 'parent_super_admin' | 'super_admin' or email ajayramanan17@gmail.com
+ * Recognized by admin_role = 'parent_super_admin' or email ajayramanan17@gmail.com
  */
 export function isParentSuperAdmin(
   user?: { role?: string; admin_role?: string; email?: string; id?: string } | null
@@ -103,7 +87,6 @@ export function isParentSuperAdmin(
   if (!user) return false;
   return (
     user.admin_role === 'parent_super_admin' ||
-    user.admin_role === 'super_admin' ||
     user.email === 'ajayramanan17@gmail.com' ||
     user.id === 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b'
   );

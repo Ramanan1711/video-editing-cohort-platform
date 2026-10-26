@@ -73,8 +73,7 @@ export function ParentSuperAdminRegister() {
           u.role === 'mentor' ||
           u.role === 'admin' ||
           u.admin_role === 'child_super_admin' ||
-          u.admin_role === 'parent_super_admin' ||
-          u.admin_role === 'super_admin'
+          u.admin_role === 'parent_super_admin'
       );
       setStaffUsers(filtered);
     } catch (err) {

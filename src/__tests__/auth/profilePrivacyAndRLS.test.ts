@@ -167,7 +167,7 @@ describe('User Profiles Privacy & Contact Fields Protection', () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .update({ admin_role: 'super_admin' })
+        .update({ admin_role: 'parent_super_admin' })
         .eq('id', 'student-attacker-id')
         .select()
         .single();
@@ -177,24 +177,24 @@ describe('User Profiles Privacy & Contact Fields Protection', () => {
       expect(error?.message).toContain('row-level security');
     });
 
-    it('enforces SQL subrole check: non-super_admin cannot call admin_update_user_role', async () => {
+    it('enforces SQL subrole check: non-parent_super_admin cannot call admin_update_user_role', async () => {
       (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
         data: null,
         error: {
           code: '42501',
-          message: 'Unauthorized: Only Super Administrators can modify roles or admin sub-roles.',
+          message: 'Unauthorized: Only Parent Super Admin can add or modify roles.',
         },
       });
 
       const { data, error } = await supabase.rpc('admin_update_user_role', {
         p_user_id: 'some-user',
         p_new_role: 'admin',
-        p_new_admin_role: 'super_admin',
+        p_new_admin_role: 'child_super_admin',
       });
 
       expect(data).toBeNull();
       expect(error?.code).toBe('42501');
-      expect(error?.message).toContain('Only Super Administrators');
+      expect(error?.message).toContain('Only Parent Super Admin');
     });
 
     it('blocks self-registration insert from escalating role to admin or mentor', async () => {
@@ -219,7 +219,7 @@ describe('User Profiles Privacy & Contact Fields Protection', () => {
         .insert({
           id: 'new-user-id',
           role: 'admin',
-          admin_role: 'super_admin',
+          admin_role: 'child_super_admin',
         })
         .select()
         .single();

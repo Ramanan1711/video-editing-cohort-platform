@@ -34,7 +34,7 @@ alter table public.profiles
 alter table public.profiles
   add constraint profiles_admin_role_check
   check (
-    (role = 'admin' and admin_role in ('parent_super_admin', 'child_super_admin', 'super_admin'))
+    (role = 'admin' and admin_role in ('parent_super_admin', 'child_super_admin'))
     or (role in ('student', 'mentor') and admin_role is null)
   );
 
@@ -70,7 +70,7 @@ begin
   end if;
 
   -- Parent Super Admin holds sovereignty over ALL permissions (including manage_roles)
-  if v_admin_role in ('parent_super_admin', 'super_admin') then
+  if v_admin_role = 'parent_super_admin' then
     return true;
   end if;
 
@@ -107,7 +107,8 @@ begin
   where id = auth.uid();
 
   if not found or coalesce(v_caller_profile.status, 'active') != 'active' or 
-     coalesce(v_caller_profile.admin_role, 'parent_super_admin') not in ('parent_super_admin', 'super_admin') then
+     v_caller_profile.role != 'admin' or
+     v_caller_profile.admin_role != 'parent_super_admin' then
     raise exception 'Unauthorized: Only Parent Super Admin can add or modify roles.'
       using errcode = '42501';
   end if;
@@ -123,7 +124,7 @@ begin
   -- If role in ('student', 'mentor'), admin_role must be null
   if p_new_role = 'admin' then
     v_resolved_admin_role := coalesce(p_new_admin_role, 'child_super_admin');
-    if v_resolved_admin_role not in ('parent_super_admin', 'child_super_admin', 'super_admin') then
+    if v_resolved_admin_role not in ('parent_super_admin', 'child_super_admin') then
       v_resolved_admin_role := 'child_super_admin';
     end if;
   else
@@ -142,7 +143,7 @@ begin
   end if;
 
   -- 5. Protection: Prevent demoting Parent Super Admin (Ramanan)
-  if v_target_profile.email = 'ajayramanan17@gmail.com' and (p_new_role != 'admin' or v_resolved_admin_role not in ('parent_super_admin', 'super_admin')) then
+  if v_target_profile.email = 'ajayramanan17@gmail.com' and (p_new_role != 'admin' or v_resolved_admin_role != 'parent_super_admin') then
     raise exception 'Cannot demote or revoke the root Parent Super Admin.'
       using errcode = 'P0001';
   end if;

@@ -28,7 +28,7 @@ import { Card } from '../../components/ui/Card';
 import { CurriculumSkeleton } from '../../components/ui/Skeletons';
 import { StateFallback } from '../../components/ui/StateFallback';
 import { TopRightControls } from '../../components/TopRightControls';
-import { ROLE_LABELS } from '../../lib/adminPermissions';
+import { ROLE_LABELS, isParentSuperAdmin, type AdminSubRole } from '../../lib/adminPermissions';
 import { DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../../lib/paymentService';
 import { UploadChallengeModal } from '../../components/admin/UploadChallengeModal';
 import { useToast } from '../../context/useToast';
@@ -118,7 +118,13 @@ function AdminCoursesView() {
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 shadow-2xs dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200">
               <ShieldCheck size={14} className="text-orange-500" />
-              <span>{ROLE_LABELS[profile?.admin_role || 'super_admin']}</span>
+              <span>
+                {profile?.admin_role
+                  ? ROLE_LABELS[profile.admin_role as AdminSubRole] || 'Child Super Admin'
+                  : isParentSuperAdmin(profile)
+                    ? 'Parent Super Admin'
+                    : 'Child Super Admin'}
+              </span>
             </span>
             <Button href="/admin/operations" variant="secondary" className="hidden sm:inline-flex">
               Control Room

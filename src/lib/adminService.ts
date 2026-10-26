@@ -1239,7 +1239,7 @@ export async function updateUserRole(
   queryCache.invalidate('users');
   queryCache.invalidate('stats');
 
-  // 1. Attempt validated server-side RPC (protects last super_admin, enforces permissions & emits audit)
+  // 1. Attempt validated server-side RPC (protects Parent Super Admin, enforces permissions & emits audit)
   const { data: rpcData, error: rpcError } = await supabase.rpc('admin_update_user_role', {
     p_user_id: userId,
     p_new_role: role,

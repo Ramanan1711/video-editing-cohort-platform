@@ -85,7 +85,7 @@ describe('Canonical Hardened Audit Logging & Forensic Verification', () => {
           actor_id: 'admin-1',
           actor_name: 'Lead Admin',
           actor_email: 'admin@procut.internal',
-          actor_role: 'super_admin',
+          actor_role: 'admin',
           action: 'cohort.created',
           entity_type: 'cohort',
           entity_id: 'cohort-1',
@@ -111,7 +111,7 @@ describe('Canonical Hardened Audit Logging & Forensic Verification', () => {
       });
       expect(logs).toHaveLength(1);
       expect(logs[0].actor_name).toBe('Lead Admin');
-      expect(logs[0].actor_role).toBe('super_admin');
+      expect(logs[0].actor_role).toBe('admin');
       expect(logs[0].ip_address).toBe('192.168.1.1');
     });
 
@@ -171,7 +171,7 @@ describe('Canonical Hardened Audit Logging & Forensic Verification', () => {
           actor_id: 'admin-1',
           actor_name: 'Super Admin',
           actor_email: 'super@procut.internal',
-          actor_role: 'super_admin',
+          actor_role: 'admin',
           action: 'submission.evaluated',
           entity_type: 'submission',
           entity_id: 'sub-1',

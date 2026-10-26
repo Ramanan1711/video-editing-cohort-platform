@@ -25,7 +25,6 @@ describe('Admin Permissions & RBAC Matrix', () => {
   it('parent_super_admin holds all administrative privileges in the platform', () => {
     allPermissions.forEach((permission) => {
       expect(hasAdminPermission('parent_super_admin', permission)).toBe(true);
-      expect(hasAdminPermission('super_admin', permission)).toBe(true);
     });
   });
 
@@ -61,7 +60,7 @@ describe('Admin Permissions & RBAC Matrix', () => {
   });
 
   it('provides human-readable labels and descriptions for administrative sub-roles', () => {
-    const subRoles: AdminSubRole[] = ['parent_super_admin', 'child_super_admin', 'super_admin'];
+    const subRoles: AdminSubRole[] = ['parent_super_admin', 'child_super_admin'];
     subRoles.forEach((r) => {
       expect(ROLE_LABELS[r]).toBeDefined();
       expect(ROLE_DESCRIPTIONS[r]).toBeDefined();

@@ -124,7 +124,7 @@ export function UsersTab({
     let admin = 0;
     for (const u of users) {
       if (u.role === 'mentor') mentor++;
-      else if (u.role === 'admin' || u.role === 'super_admin') admin++;
+      else if (u.role === 'admin') admin++;
       else student++;
     }
     return {
@@ -183,7 +183,7 @@ export function UsersTab({
       const matchesRole =
         roleFilter === 'all' ||
         u.role === roleFilter ||
-        (roleFilter === 'admin' && (u.role === 'admin' || u.role === 'super_admin'));
+        (roleFilter === 'admin' && u.role === 'admin');
       const matchesStatus =
         statusFilter === 'all' || (u.status || 'active') === statusFilter;
       return matchesSearch && matchesRole && matchesStatus;
@@ -472,7 +472,7 @@ export function UsersTab({
                     </Button>
                   )}
 
-                  {(item.role === 'admin' || item.role === 'super_admin') && (
+                  {item.role === 'admin' && (
                     <div className="flex items-center gap-2 flex-wrap">
                       <span
                         data-testid={`admin-subrole-badge-${item.id}`}

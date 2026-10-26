@@ -34,7 +34,7 @@ describe('Admin Console - Users & Roles Tab Role Separation', () => {
       email: 'admin1@iunoware.com',
       full_name: 'Diana Admin',
       role: 'admin',
-      admin_role: 'super_admin',
+      admin_role: 'child_super_admin',
       status: 'active',
       created_at: new Date().toISOString(),
     },

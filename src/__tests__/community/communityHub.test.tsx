@@ -12,7 +12,7 @@ vi.mock('../../context/useAuth', () => ({
       id: 'test-user-1',
       full_name: 'Test Creator',
       role: 'admin',
-      admin_role: 'super_admin',
+      admin_role: 'parent_super_admin',
     },
     signOut: vi.fn(),
   }),

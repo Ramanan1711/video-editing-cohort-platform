@@ -95,7 +95,7 @@ describe('Live Database & Row Level Security (RLS) Policy Verification', () => {
           full_name: 'Attacker Impersonator',
           email: 'attacker@example.com',
           role: 'admin',
-          admin_role: 'super_admin',
+          admin_role: 'child_super_admin',
           status: 'active',
         });
 
