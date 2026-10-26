@@ -12,6 +12,7 @@ import {
   Plus,
   Radio,
   RotateCcw,
+  Send,
   Sparkles,
   UserCheck,
   Video,
@@ -22,9 +23,16 @@ import { Card } from '../components/ui/Card';
 import { DashboardSkeleton } from '../components/ui/Skeletons';
 import { StateFallback } from '../components/ui/StateFallback';
 import { TopRightControls } from '../components/TopRightControls';
+import { MentorCreateCohortModal } from '../components/mentor/MentorCreateCohortModal';
 import { useAuth } from '../context/useAuth';
 import { useToast } from '../context/useToast';
 import { parseDatabaseError, type AppError } from '../lib/errorHandling';
+import {
+  listMentorCohorts,
+  mentorPublishCohort,
+  updateCohort,
+  type Cohort,
+} from '../lib/services/curriculumService';
 import {
   createMentorOfficeHour,
   deleteMentorOfficeHour,
@@ -39,6 +47,9 @@ export function MentorDashboard() {
   const toast = useToast();
   const [stats, setStats] = useState<MentorDashboardStats | null>(null);
   const [officeHours, setOfficeHours] = useState<MentorOfficeHour[]>([]);
+  const [mentorCohorts, setMentorCohorts] = useState<Cohort[]>([]);
+  const [showCreateCohortModal, setShowCreateCohortModal] = useState(false);
+  const [updatingCohortId, setUpdatingCohortId] = useState<string | null>(null);
   const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);
@@ -64,11 +75,13 @@ export function MentorDashboard() {
     Promise.all([
       getMentorDashboardStats(user.id, profile?.role || 'mentor'),
       listMentorOfficeHours(user.id),
+      listMentorCohorts(user.id),
     ])
-      .then(([dashboardStats, hours]) => {
+      .then(([dashboardStats, hours, cohorts]) => {
         if (!active) return;
         setStats(dashboardStats);
         setOfficeHours(hours);
+        setMentorCohorts(cohorts);
         setError(null);
         setAppError(null);
       })
@@ -94,6 +107,55 @@ export function MentorDashboard() {
   const handleRetry = () => {
     setRetrying(true);
     setReloadTrigger((prev) => prev + 1);
+  };
+
+  const handleSubmitCohortForReview = async (cohortId: string) => {
+    try {
+      setUpdatingCohortId(cohortId);
+      await updateCohort(cohortId, { status: 'reviewing' });
+      toast.success('Cohort proposal submitted for administrator review!');
+      setMentorCohorts((prev) =>
+        prev.map((c) => (c.id === cohortId ? { ...c, status: 'reviewing' } : c))
+      );
+    } catch (err) {
+      const parsed = parseDatabaseError(err);
+      toast.error(parsed.message, 'Failed to submit proposal');
+    } finally {
+      setUpdatingCohortId(null);
+    }
+  };
+
+  const handlePublishCohort = async (cohortId: string) => {
+    try {
+      setUpdatingCohortId(cohortId);
+      const published = await mentorPublishCohort(cohortId);
+      toast.success(`Cohort "${published.name}" published successfully!`);
+      setMentorCohorts((prev) =>
+        prev.map((c) => (c.id === cohortId ? { ...c, status: 'published' } : c))
+      );
+      setReloadTrigger((prev) => prev + 1);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to publish cohort.';
+      toast.error(msg, 'Publishing Restricted');
+    } finally {
+      setUpdatingCohortId(null);
+    }
+  };
+
+  const handleResetToDraft = async (cohortId: string) => {
+    try {
+      setUpdatingCohortId(cohortId);
+      await updateCohort(cohortId, { status: 'draft' });
+      toast.info('Cohort proposal returned to Draft state for editing.');
+      setMentorCohorts((prev) =>
+        prev.map((c) => (c.id === cohortId ? { ...c, status: 'draft' } : c))
+      );
+    } catch (err) {
+      const parsed = parseDatabaseError(err);
+      toast.error(parsed.message, 'Failed to update proposal');
+    } finally {
+      setUpdatingCohortId(null);
+    }
   };
 
   const handleCreateOfficeHour = async (e: React.FormEvent) => {
@@ -238,6 +300,14 @@ export function MentorDashboard() {
                   ))}
                 </select>
               )}
+
+              <Button
+                size="sm"
+                className="h-9 whitespace-nowrap bg-orange-600 hover:bg-orange-700 text-white"
+                onClick={() => setShowCreateCohortModal(true)}
+              >
+                <Sparkles size={14} /> Propose New Cohort
+              </Button>
 
               <Button
                 variant="secondary"
@@ -425,6 +495,183 @@ export function MentorDashboard() {
                 </div>
               </Card>
             </div>
+
+            {/* Mentor Cohorts & Approval Workflow Section */}
+            <Card className="p-6 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">
+                    <Sparkles size={18} />
+                  </span>
+                  <div>
+                    <h2 className="text-base font-black text-slate-950 dark:text-white">
+                      My Cohort Proposals & Approvals
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Manage course offerings, track review status with Platform Administrators, and publish approved cohorts.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setShowCreateCohortModal(true)}
+                  className="bg-orange-600 hover:bg-orange-700 text-white shrink-0 self-start sm:self-center"
+                >
+                  <Plus size={14} /> Propose New Cohort
+                </Button>
+              </div>
+
+              {mentorCohorts.length === 0 ? (
+                <div className="mt-5 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center">
+                  <Sparkles className="mx-auto text-orange-400 mb-2" size={24} />
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No cohort proposals yet</p>
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500 max-w-md mx-auto">
+                    As a mentor, you can design and propose new cohorts. Proposals start in Draft status and can be published once approved by a Platform Administrator.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => setShowCreateCohortModal(true)}
+                    className="mt-4 bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    <Plus size={14} /> Propose First Cohort
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {mentorCohorts.map((cohort) => {
+                    const isDraft = cohort.status === 'draft';
+                    const isReviewing = cohort.status === 'reviewing' || cohort.status === 'review';
+                    const isApproved = cohort.status === 'approved';
+                    const isRejected = cohort.status === 'rejected';
+                    const isPublished = cohort.status === 'published';
+                    const isBusy = updatingCohortId === cohort.id;
+
+                    return (
+                      <div
+                        key={cohort.id}
+                        className="flex flex-col justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-4 transition hover:border-orange-200 dark:hover:border-slate-700 shadow-2xs"
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-bold text-sm text-slate-950 dark:text-white line-clamp-1">
+                              {cohort.name}
+                            </h3>
+                            {/* Status Badge */}
+                            <span
+                              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                                isPublished
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
+                                  : isApproved
+                                  ? 'bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800/60'
+                                  : isReviewing
+                                  ? 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
+                                  : isRejected
+                                  ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60'
+                                  : 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                              }`}
+                            >
+                              {isPublished
+                                ? '● Published'
+                                : isApproved
+                                ? '✓ Approved'
+                                : isReviewing
+                                ? '◐ In Review'
+                                : isRejected
+                                ? '✕ Rejected'
+                                : '○ Draft'}
+                            </span>
+                          </div>
+
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
+                            {cohort.description || 'No description provided.'}
+                          </p>
+
+                          <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                            <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5">
+                              {cohort.duration_days ?? 15} Days
+                            </span>
+                            <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 capitalize">
+                              {cohort.track_type ?? 'General'}
+                            </span>
+                            <span className="rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5">
+                              ₹{(cohort.price_inr ?? 4999).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+
+                          {/* Admin Review Feedback Box if Rejected */}
+                          {isRejected && cohort.review_feedback && (
+                            <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50/70 p-2.5 text-xs text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200">
+                              <p className="font-bold text-[11px]">Administrator Feedback:</p>
+                              <p className="mt-0.5 text-[11px] leading-relaxed">{cohort.review_feedback}</p>
+                            </div>
+                          )}
+
+                          {/* Informative description text based on status */}
+                          <p className="mt-3 text-[11px] text-slate-400 dark:text-slate-500 italic">
+                            {isDraft && 'Proposal is in draft. Submit for administrator review when ready.'}
+                            {isReviewing && 'Currently under review by Parent Super Admin / Child Super Admin.'}
+                            {isApproved && 'Approved by administrator! You can now publish this cohort.'}
+                            {isPublished && 'Cohort is live and accepting student enrollments.'}
+                            {isRejected && 'Revisions requested by administrator.'}
+                          </p>
+                        </div>
+
+                        {/* Lifecycle Action Buttons */}
+                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                          {isDraft && (
+                            <Button
+                              size="sm"
+                              loading={isBusy}
+                              onClick={() => handleSubmitCohortForReview(cohort.id)}
+                              className="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs h-8"
+                            >
+                              <Send size={12} /> Submit for Review
+                            </Button>
+                          )}
+
+                          {isApproved && (
+                            <Button
+                              size="sm"
+                              loading={isBusy}
+                              onClick={() => handlePublishCohort(cohort.id)}
+                              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+                            >
+                              <CheckCircle2 size={12} /> Publish Cohort
+                            </Button>
+                          )}
+
+                          {isRejected && (
+                            <Button
+                              size="sm"
+                              loading={isBusy}
+                              variant="secondary"
+                              onClick={() => handleResetToDraft(cohort.id)}
+                              className="w-full text-xs h-8"
+                            >
+                              <RotateCcw size={12} /> Revise Proposal
+                            </Button>
+                          )}
+
+                          {isPublished && (
+                            <Link to="/curriculum" className="w-full">
+                              <Button variant="secondary" size="sm" className="w-full text-xs h-8">
+                                View Curriculum →
+                              </Button>
+                            </Link>
+                          )}
+
+                          {isReviewing && (
+                            <span className="w-full text-center text-xs font-bold text-amber-600 dark:text-amber-400 py-1">
+                              Under Administrator Review
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
 
             {/* Assigned Cohort Performance & Health Summaries */}
             {stats.cohortSummaries && stats.cohortSummaries.length > 0 && (
@@ -1009,6 +1256,15 @@ export function MentorDashboard() {
           </Card>
         </div>
       )}
+
+      {/* Mentor Create Cohort Modal */}
+      <MentorCreateCohortModal
+        isOpen={showCreateCohortModal}
+        onClose={() => setShowCreateCohortModal(false)}
+        onCohortCreated={(newCohort) => {
+          setMentorCohorts((prev) => [newCohort, ...prev]);
+        }}
+      />
     </div>
   );
 }

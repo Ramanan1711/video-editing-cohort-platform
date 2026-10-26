@@ -34,8 +34,10 @@ import {
   updateModule,
   updateModuleStatus,
   uploadCourseAsset,
+  adminReviewCohort,
   type Assignment,
   type Cohort,
+  type CohortStatus,
   type Course,
   type Lesson,
   type LessonResource,
@@ -225,6 +227,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         visibility: cohort.visibility ?? 'public',
         enrollmentStart: cohort.enrollment_start ? cohort.enrollment_start.slice(0, 16) : '',
         enrollmentEnd: cohort.enrollment_end ? cohort.enrollment_end.slice(0, 16) : '',
+        reviewFeedback: cohort.review_feedback ?? '',
       });
     } else {
       setEditor({
@@ -238,6 +241,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         visibility: 'public',
         enrollmentStart: '',
         enrollmentEnd: '',
+        reviewFeedback: '',
       });
     }
   };
@@ -528,6 +532,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
           visibility: editor.visibility,
           enrollment_start: editor.enrollmentStart ? new Date(editor.enrollmentStart).toISOString() : null,
           enrollment_end: editor.enrollmentEnd ? new Date(editor.enrollmentEnd).toISOString() : null,
+          review_feedback: editor.reviewFeedback?.trim() || null,
         };
         if (editor.id) {
           await updateCohort(editor.id, cohortPayload);
@@ -955,17 +960,22 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
 
   const handleUpdateCohortStatus = async (
     cohortId: string,
-    newStatus: 'draft' | 'review' | 'published' | 'archived',
-    cohortName?: string
+    newStatus: CohortStatus,
+    cohortName?: string,
+    reviewFeedback?: string
   ) => {
     try {
-      await updateCohort(cohortId, { status: newStatus });
+      if (['reviewing', 'approved', 'rejected'].includes(newStatus)) {
+        await adminReviewCohort(cohortId, newStatus as 'reviewing' | 'approved' | 'rejected', reviewFeedback);
+      } else {
+        await updateCohort(cohortId, { status: newStatus });
+      }
       void logAuditEvent({
         actor_id: user?.id,
         action: 'cohort.status_changed',
         entity_type: 'cohort',
         entity_id: cohortId,
-        metadata: { name: cohortName, new_status: newStatus },
+        metadata: { name: cohortName, new_status: newStatus, reviewFeedback },
       });
       setSuccess(`Cohort status updated to "${newStatus}".`);
       await loadData();

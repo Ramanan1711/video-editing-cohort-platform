@@ -1,4 +1,5 @@
 import type { VisibilityRule, ResourceType } from '../../lib/courseService';
+import type { CohortStatus } from '../../lib/services/curriculumService';
 
 export type EditorModalType = 'cohort' | 'module' | 'lesson' | 'assignment' | 'resource' | 'challenge';
 
@@ -8,12 +9,13 @@ export interface CohortEditorState {
   courseId?: string;
   name: string;
   description: string;
-  status: 'draft' | 'review' | 'published' | 'archived' | 'upcoming' | 'active' | 'completed';
+  status: CohortStatus;
   capacity: string;
   priceInr: string;
   visibility: 'public' | 'private' | 'unlisted';
   enrollmentStart: string;
   enrollmentEnd: string;
+  reviewFeedback?: string;
 }
 
 export interface ModuleEditorState {

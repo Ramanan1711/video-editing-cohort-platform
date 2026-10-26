@@ -20,6 +20,18 @@ export interface Course {
   updated_at?: string;
 }
 
+export type CohortStatus =
+  | 'draft'
+  | 'reviewing'
+  | 'review'
+  | 'approved'
+  | 'rejected'
+  | 'published'
+  | 'archived'
+  | 'upcoming'
+  | 'active'
+  | 'completed';
+
 export function formatCurrencyINR(amount: number): string {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -35,7 +47,7 @@ export interface Cohort {
   course_id?: string | null;
   course?: Course | null;
   description: string | null;
-  status?: 'draft' | 'review' | 'published' | 'archived' | 'upcoming' | 'active' | 'completed';
+  status?: CohortStatus;
   capacity?: number;
   visibility?: 'public' | 'private' | 'unlisted';
   enrollment_start?: string | null;
@@ -46,6 +58,12 @@ export interface Cohort {
   currency?: string;
   mentor_phone?: string | null;
   whatsapp_group_url?: string | null;
+  created_by?: string | null;
+  review_feedback?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface DbCohortRow {
@@ -54,7 +72,7 @@ export interface DbCohortRow {
   name?: string;
   course_id?: string | null;
   description: string | null;
-  status?: Cohort['status'];
+  status?: CohortStatus;
   capacity?: number;
   visibility?: Cohort['visibility'];
   enrollment_start?: string | null;
@@ -65,6 +83,12 @@ export interface DbCohortRow {
   currency?: string;
   mentor_phone?: string | null;
   whatsapp_group_url?: string | null;
+  created_by?: string | null;
+  review_feedback?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Lesson {
@@ -114,7 +138,7 @@ export type CourseInput = Pick<Course, 'title'> &
   Partial<Pick<Course, 'description' | 'slug' | 'thumbnail_url' | 'status' | 'difficulty_level' | 'estimated_hours' | 'track_type'>>;
 
 export type CohortInput = Pick<Cohort, 'name' | 'description'> &
-  Partial<Pick<Cohort, 'status' | 'capacity' | 'visibility' | 'enrollment_start' | 'enrollment_end' | 'course_id' | 'track_type' | 'duration_days' | 'price_inr' | 'currency'>>;
+  Partial<Pick<Cohort, 'status' | 'capacity' | 'visibility' | 'enrollment_start' | 'enrollment_end' | 'course_id' | 'track_type' | 'duration_days' | 'price_inr' | 'currency' | 'created_by' | 'review_feedback' | 'reviewed_by' | 'reviewed_at'>>;
 
 export type ModuleInput = Pick<Module, 'title'> &
   Partial<Pick<Module, 'cohort_id' | 'course_id' | 'description' | 'position' | 'status'>>;
@@ -146,6 +170,12 @@ function mapDbCohortRow(cohort: DbCohortRow): Cohort {
     currency: cohort.currency ?? DEFAULT_CURRENCY,
     mentor_phone: cohort.mentor_phone ?? null,
     whatsapp_group_url: cohort.whatsapp_group_url ?? null,
+    created_by: cohort.created_by ?? null,
+    review_feedback: cohort.review_feedback ?? null,
+    reviewed_by: cohort.reviewed_by ?? null,
+    reviewed_at: cohort.reviewed_at ?? null,
+    created_at: cohort.created_at,
+    updated_at: cohort.updated_at,
   };
 }
 
@@ -155,7 +185,7 @@ export async function listCohorts(): Promise<Cohort[]> {
     async () => {
       const { data, error } = await supabase
         .from('cohorts')
-        .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url')
+        .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
         .order('title');
 
       if (!error && data && data.length > 0) {
@@ -350,30 +380,19 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
   if (input.duration_days !== undefined) payload.duration_days = input.duration_days;
   payload.price_inr = Math.max(1, Number(input.price_inr) || DEFAULT_COHORT_FEE_INR);
   if (input.currency !== undefined) payload.currency = input.currency;
+  if (input.created_by !== undefined) payload.created_by = input.created_by;
+  if (input.review_feedback !== undefined) payload.review_feedback = input.review_feedback;
+  if (input.reviewed_by !== undefined) payload.reviewed_by = input.reviewed_by;
+  if (input.reviewed_at !== undefined) payload.reviewed_at = input.reviewed_at;
 
-  let res = await supabase.from('cohorts').insert(payload).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency').single();
+  let res = await supabase.from('cohorts').insert(payload).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, created_by, review_feedback, reviewed_by, reviewed_at').single();
   if (res.error) {
     res = await supabase.from('cohorts').insert({ title: input.name, description: input.description, price_inr: payload.price_inr, currency: input.currency }).select('id, title, description').single();
   }
   if (res.error) throw res.error;
   const created = res.data as DbCohortRow;
 
-  return {
-    id: created.id,
-    name: created.title,
-    title: created.title,
-    course_id: created.course_id ?? null,
-    description: created.description,
-    status: created.status ?? 'published',
-    capacity: created.capacity ?? 30,
-    visibility: created.visibility ?? 'public',
-    enrollment_start: created.enrollment_start ?? null,
-    enrollment_end: created.enrollment_end ?? null,
-    track_type: created.track_type ?? 'general',
-    duration_days: created.duration_days ?? 15,
-    price_inr: created.price_inr ?? DEFAULT_COHORT_FEE_INR,
-    currency: created.currency ?? DEFAULT_CURRENCY,
-  };
+  return mapDbCohortRow(created);
 }
 
 export async function updateCohort(id: string, input: Partial<CohortInput>): Promise<Cohort> {
@@ -398,8 +417,12 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
     payload.price_inr = Math.max(1, Number(input.price_inr) || DEFAULT_COHORT_FEE_INR);
   }
   if (input.currency !== undefined) payload.currency = input.currency;
+  if (input.created_by !== undefined) payload.created_by = input.created_by;
+  if (input.review_feedback !== undefined) payload.review_feedback = input.review_feedback;
+  if (input.reviewed_by !== undefined) payload.reviewed_by = input.reviewed_by;
+  if (input.reviewed_at !== undefined) payload.reviewed_at = input.reviewed_at;
 
-  let res = await supabase.from('cohorts').update(payload).eq('id', id).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency').single();
+  let res = await supabase.from('cohorts').update(payload).eq('id', id).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, created_by, review_feedback, reviewed_by, reviewed_at').single();
   if (res.error) {
     const fallbackPayload: Record<string, unknown> = {};
     if (input.name !== undefined) fallbackPayload.title = input.name;
@@ -409,22 +432,233 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
   }
   if (res.error) throw res.error;
   const updated = res.data as DbCohortRow;
-  return {
-    id: updated.id,
-    name: updated.title,
-    title: updated.title,
-    course_id: updated.course_id ?? null,
-    description: updated.description,
-    status: updated.status ?? 'published',
-    capacity: updated.capacity ?? 30,
-    visibility: updated.visibility ?? 'public',
-    enrollment_start: updated.enrollment_start ?? null,
-    enrollment_end: updated.enrollment_end ?? null,
-    track_type: updated.track_type ?? 'general',
-    duration_days: updated.duration_days ?? 15,
-    price_inr: updated.price_inr ?? DEFAULT_COHORT_FEE_INR,
-    currency: updated.currency ?? DEFAULT_CURRENCY,
+  return mapDbCohortRow(updated);
+}
+
+// ----------------------------------------------------------------------------
+// Mentor Cohort Creation & Admin Review / Approval Flow
+// ----------------------------------------------------------------------------
+
+export interface MentorCohortInput {
+  name: string;
+  description?: string;
+  duration_days?: number;
+  price_inr?: number;
+  track_type?: 'coding' | 'non_coding' | 'general';
+}
+
+/**
+ * Mentors create a cohort in strict 'draft' state.
+ */
+export async function mentorCreateCohort(input: MentorCohortInput): Promise<Cohort> {
+  queryCache.invalidate('cohorts');
+  queryCache.invalidate('courses');
+  queryCache.invalidate('stats');
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // 1. Try RPC mentor_create_cohort first
+  try {
+    const { data, error } = await supabase.rpc('mentor_create_cohort', {
+      p_name: input.name,
+      p_description: input.description ?? null,
+      p_duration_days: input.duration_days ?? 15,
+      p_price_inr: input.price_inr ?? DEFAULT_COHORT_FEE_INR,
+      p_track_type: input.track_type ?? 'general',
+    });
+    if (!error && data) {
+      return mapDbCohortRow(data as DbCohortRow);
+    }
+  } catch {
+    // Fall back to direct insert if RPC not present in current client schema
+  }
+
+  // 2. Direct table insert fallback (status MUST be draft)
+  const payload: Record<string, unknown> = {
+    title: input.name,
+    name: input.name,
+    description: input.description ?? null,
+    duration_days: input.duration_days ?? 15,
+    price_inr: Math.max(1, Number(input.price_inr) || DEFAULT_COHORT_FEE_INR),
+    track_type: input.track_type ?? 'general',
+    status: 'draft',
+    visibility: 'public',
+    created_by: user?.id ?? null,
   };
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('cohorts')
+    .insert(payload)
+    .select('id, title, name, description, status, capacity, visibility, track_type, duration_days, price_inr, currency, created_by, review_feedback, reviewed_by, reviewed_at')
+    .single();
+
+  if (insertError) {
+    throw parseDatabaseError(insertError);
+  }
+
+  // Link mentor to cohort in mentor_cohorts
+  if (user?.id && inserted?.id) {
+    try {
+      await supabase.from('mentor_cohorts').insert({
+        mentor_id: user.id,
+        cohort_id: inserted.id,
+      });
+    } catch {
+      // Ignored if link already exists or table migrating
+    }
+  }
+
+  return mapDbCohortRow(inserted as DbCohortRow);
+}
+
+/**
+ * Admins (Parent Super Admin or Child Super Admin) review a cohort proposal.
+ * Decision can be 'reviewing', 'approved', or 'rejected'.
+ */
+export async function adminReviewCohort(
+  cohortId: string,
+  decision: 'reviewing' | 'approved' | 'rejected',
+  feedback?: string
+): Promise<Cohort> {
+  queryCache.invalidate('cohorts');
+  queryCache.invalidate('courses');
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // 1. Try RPC admin_review_cohort
+  try {
+    const { data, error } = await supabase.rpc('admin_review_cohort', {
+      p_cohort_id: cohortId,
+      p_decision: decision,
+      p_feedback: feedback ?? null,
+    });
+    if (!error && data) {
+      return mapDbCohortRow(data as DbCohortRow);
+    }
+  } catch {
+    // Fall back to table update
+  }
+
+  // 2. Fallback table update
+  const { data: updated, error: updateError } = await supabase
+    .from('cohorts')
+    .update({
+      status: decision,
+      review_feedback: feedback ?? null,
+      reviewed_by: user?.id ?? null,
+      reviewed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', cohortId)
+    .select('id, title, name, description, status, capacity, visibility, track_type, duration_days, price_inr, currency, created_by, review_feedback, reviewed_by, reviewed_at')
+    .single();
+
+  if (updateError) {
+    throw parseDatabaseError(updateError);
+  }
+
+  return mapDbCohortRow(updated as DbCohortRow);
+}
+
+/**
+ * Mentors publish an approved cohort.
+ * Cohort MUST have status === 'approved' before this is allowed.
+ */
+export async function mentorPublishCohort(cohortId: string): Promise<Cohort> {
+  queryCache.invalidate('cohorts');
+  queryCache.invalidate('courses');
+
+  // 1. Try RPC mentor_publish_cohort
+  try {
+    const { data, error } = await supabase.rpc('mentor_publish_cohort', {
+      p_cohort_id: cohortId,
+    });
+    if (!error && data) {
+      return mapDbCohortRow(data as DbCohortRow);
+    }
+    if (error) {
+      if (error.message?.includes('Cohort must be approved') || error.code === 'P0001' || error.code === '42501') {
+        throw new Error(error.message);
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('Cohort must be approved') || msg.includes('Unauthorized')) {
+      throw err;
+    }
+  }
+
+  // 2. Client-side guard before fallback update
+  const { data: existing, error: fetchErr } = await supabase
+    .from('cohorts')
+    .select('id, status, created_by')
+    .eq('id', cohortId)
+    .single();
+
+  if (fetchErr || !existing) {
+    throw new Error('Cohort not found.');
+  }
+
+  if (existing.status !== 'approved') {
+    throw new Error(`Cannot publish cohort: Cohort must be approved by an administrator before publishing (current status: ${existing.status}).`);
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from('cohorts')
+    .update({
+      status: 'published',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', cohortId)
+    .select('id, title, name, description, status, capacity, visibility, track_type, duration_days, price_inr, currency, created_by, review_feedback, reviewed_by, reviewed_at')
+    .single();
+
+  if (updateError) {
+    throw parseDatabaseError(updateError);
+  }
+
+  return mapDbCohortRow(updated as DbCohortRow);
+}
+
+/**
+ * Retrieves all cohorts created by or assigned to a mentor, ordered by latest.
+ */
+export async function listMentorCohorts(mentorId: string): Promise<Cohort[]> {
+  try {
+    // 1. Cohorts created by this mentor
+    const { data: createdCohorts } = await supabase
+      .from('cohorts')
+      .select('id, title, name, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
+      .eq('created_by', mentorId)
+      .order('created_at', { ascending: false });
+
+    // 2. Cohorts assigned to this mentor via mentor_cohorts
+    const { data: assignments } = await supabase
+      .from('mentor_cohorts')
+      .select('cohort_id')
+      .eq('mentor_id', mentorId);
+
+    const assignedIds = (assignments ?? []).map((a) => a.cohort_id).filter(Boolean);
+    let assignedCohorts: DbCohortRow[] = [];
+    if (assignedIds.length > 0) {
+      const { data: assignedData } = await supabase
+        .from('cohorts')
+        .select('id, title, name, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
+        .in('id', assignedIds);
+      if (assignedData) assignedCohorts = assignedData as DbCohortRow[];
+    }
+
+    const merged = new Map<string, DbCohortRow>();
+    (createdCohorts ?? []).forEach((c) => merged.set(c.id, c as DbCohortRow));
+    assignedCohorts.forEach((c) => {
+      if (!merged.has(c.id)) merged.set(c.id, c);
+    });
+
+    return Array.from(merged.values()).map(mapDbCohortRow);
+  } catch (err) {
+    console.warn('Failed to list mentor cohorts:', err);
+    return [];
+  }
 }
 
 // ============================================================================

@@ -263,8 +263,12 @@ function AdminCoursesView() {
                             className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
                               cohort.status === 'published'
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
-                                : cohort.status === 'review'
+                                : cohort.status === 'approved'
+                                ? 'bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800/60'
+                                : cohort.status === 'review' || cohort.status === 'reviewing'
                                 ? 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
+                                : cohort.status === 'rejected'
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60'
                                 : cohort.status === 'draft'
                                 ? 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
                                 : 'bg-slate-200 text-slate-600 border border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
@@ -272,8 +276,12 @@ function AdminCoursesView() {
                           >
                             {cohort.status === 'published'
                               ? '● Published'
-                              : cohort.status === 'review'
+                              : cohort.status === 'approved'
+                              ? '✓ Approved'
+                              : cohort.status === 'review' || cohort.status === 'reviewing'
                               ? '◐ In Review'
+                              : cohort.status === 'rejected'
+                              ? '✕ Rejected'
                               : cohort.status === 'draft'
                               ? '○ Draft'
                               : '✕ Archived'}
@@ -293,33 +301,89 @@ function AdminCoursesView() {
                         <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                           {cohort.description || 'No description set'}
                         </p>
+                        {cohort.review_feedback && (
+                          <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                            <span className="font-bold">Feedback:</span> {cohort.review_feedback}
+                          </p>
+                        )}
                       </div>
                     </button>
 
                     <div className="flex shrink-0 items-center gap-2 flex-wrap">
-                      {/* Cohort Quick Lifecycle Transitions */}
+                      {/* Cohort Quick Lifecycle Transitions & Review Controls */}
                       {canPublish && (cohort.status === 'draft' || !cohort.status) && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void handleUpdateCohortStatus(cohort.id, 'review', cohort.name);
-                          }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition"
-                          title="Submit cohort for content review"
-                        >
-                          <Send size={12} /> Submit Review
-                        </button>
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleUpdateCohortStatus(cohort.id, 'reviewing', cohort.name);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition"
+                            title="Set cohort in review status"
+                          >
+                            <Send size={12} /> Mark Reviewing
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleUpdateCohortStatus(cohort.id, 'approved', cohort.name);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-teal-700 shadow-2xs transition"
+                            title="Approve cohort proposal"
+                          >
+                            <CheckCircle2 size={12} /> Approve
+                          </button>
+                        </>
                       )}
-                      {canPublish && cohort.status === 'review' && (
+                      {canPublish && (cohort.status === 'review' || cohort.status === 'reviewing') && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleUpdateCohortStatus(cohort.id, 'approved', cohort.name);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-teal-700 shadow-2xs transition"
+                            title="Approve cohort proposal"
+                          >
+                            <CheckCircle2 size={12} /> Approve
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const feedback = window.prompt('Enter reason / feedback for rejection:');
+                              if (feedback !== null) {
+                                void handleUpdateCohortStatus(cohort.id, 'rejected', cohort.name, feedback);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 dark:border-rose-800/60 dark:bg-rose-950/40 px-2.5 py-1 text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition"
+                            title="Reject cohort proposal with feedback"
+                          >
+                            <X size={12} /> Reject
+                          </button>
+                        </>
+                      )}
+                      {canPublish && cohort.status === 'approved' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             void handleUpdateCohortStatus(cohort.id, 'published', cohort.name);
                           }}
                           className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-emerald-700 shadow-2xs transition"
-                          title="Approve and publish cohort"
+                          title="Publish cohort"
                         >
                           <CheckCircle2 size={12} /> Publish Cohort
+                        </button>
+                      )}
+                      {canPublish && cohort.status === 'rejected' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleUpdateCohortStatus(cohort.id, 'approved', cohort.name);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-teal-700 shadow-2xs transition"
+                          title="Approve cohort"
+                        >
+                          <CheckCircle2 size={12} /> Approve
                         </button>
                       )}
                       {canPublish && cohort.status === 'published' && (

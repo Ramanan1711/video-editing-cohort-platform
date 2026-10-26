@@ -4,6 +4,7 @@ import type { useAuth } from '../../../context/useAuth';
 import type {
   Assignment,
   Cohort,
+  CohortStatus,
   Course,
   Lesson,
   LessonResource,
@@ -82,7 +83,12 @@ export interface AdminCoursesContextType {
   handleDuplicateLesson: (lessonId: string, title: string) => Promise<void>;
   handleDuplicateModule: (moduleId: string, title: string) => Promise<void>;
   handleUpdateLessonStatus: (lessonId: string, newStatus: 'draft' | 'review' | 'published' | 'archived', lessonTitle?: string) => Promise<void>;
-  handleUpdateCohortStatus: (cohortId: string, newStatus: 'draft' | 'review' | 'published' | 'archived', cohortName?: string) => Promise<void>;
+  handleUpdateCohortStatus: (
+    cohortId: string,
+    newStatus: CohortStatus,
+    cohortName?: string,
+    reviewFeedback?: string
+  ) => Promise<void>;
   handleBulkModulePublish: (mod: Module, newStatus: 'draft' | 'review' | 'published' | 'archived') => Promise<void>;
   setError: (e: string | null) => void;
   setSuccess: (s: string | null) => void;
