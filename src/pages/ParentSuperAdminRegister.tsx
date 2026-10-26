@@ -35,6 +35,7 @@ import {
 } from '../lib/adminService';
 import { parseDatabaseError } from '../lib/errorHandling';
 import { TopRightControls } from '../components/TopRightControls';
+import { UpdatePasswordModal } from '../components/admin/UpdatePasswordModal';
 
 export function ParentSuperAdminRegister() {
   const { profile, loading: authLoading } = useAuth();
@@ -62,6 +63,7 @@ export function ParentSuperAdminRegister() {
   const [rosterLoading, setRosterLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'mentor' | 'child_super_admin'>('all');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const fetchStaffRoster = async () => {
     setRosterLoading(true);
@@ -268,10 +270,19 @@ export function ParentSuperAdminRegister() {
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <span className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-bold text-amber-800 dark:text-amber-300">
                 Authorized: {profile?.email || 'ajayramanan17@gmail.com'}
               </span>
+              <button
+                type="button"
+                onClick={() => setShowPasswordModal(true)}
+                data-testid="open-update-password-btn"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 shadow-2xs hover:bg-amber-500/10 dark:hover:bg-amber-500/10 transition-colors cursor-pointer"
+              >
+                <KeyRound size={13} className="text-orange-500" />
+                Update My Password
+              </button>
             </div>
           </div>
         </div>
@@ -743,6 +754,13 @@ export function ParentSuperAdminRegister() {
           </div>
         </div>
       </main>
+
+      <UpdatePasswordModal
+        open={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        userEmail={profile?.email || 'ajayramanan17@gmail.com'}
+        userId={profile?.id}
+      />
     </div>
   );
 }

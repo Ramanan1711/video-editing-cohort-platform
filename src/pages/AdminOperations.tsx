@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Lock, ShieldCheck, UserPlus, X } from 'lucide-react';
+import { KeyRound, Lock, ShieldCheck, UserPlus, X } from 'lucide-react';
 import { DashboardSkeleton } from '../components/ui/Skeletons';
 import { StateFallback } from '../components/ui/StateFallback';
 import { useAuth } from '../context/useAuth';
@@ -94,6 +94,7 @@ import { CommunityTab } from '../components/admin/tabs/CommunityTab';
 import { AuditLogsTab } from '../components/admin/tabs/AuditLogsTab';
 import { SystemHealthTab } from '../components/admin/tabs/SystemHealthTab';
 import { AdvertisementsTab } from '../components/admin/tabs/AdvertisementsTab';
+import { UpdatePasswordModal } from '../components/admin/UpdatePasswordModal';
 import {
   listAdvertisements,
   createAdvertisement,
@@ -190,6 +191,7 @@ export function AdminOperations() {
   // Controlled Modals & Selection from Overview
   const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
   const [showEnrollModal, setShowEnrollModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   // CSV Export Loading States
   const [exportingCsv, setExportingCsv] = useState(false);
@@ -1139,13 +1141,24 @@ export function AdminOperations() {
             </Link>
 
             {isParentAdmin && (
-              <Link
-                to="/admin/super-admin"
-                className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-xl bg-orange-600 px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-orange-500 whitespace-nowrap transition-colors"
-              >
-                <UserPlus size={14} />
-                Register Staff →
-              </Link>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(true)}
+                  data-testid="admin-operations-update-password-btn"
+                  className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <KeyRound size={14} className="text-orange-500" />
+                  Update Password
+                </button>
+                <Link
+                  to="/admin/super-admin"
+                  className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-xl bg-orange-600 px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-orange-500 whitespace-nowrap transition-colors"
+                >
+                  <UserPlus size={14} />
+                  Register Staff →
+                </Link>
+              </>
             )}
 
             <TopRightControls />
@@ -1398,6 +1411,13 @@ export function AdminOperations() {
           </>
         )}
       </main>
+
+      <UpdatePasswordModal
+        open={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        userEmail={profile?.email || 'ajayramanan17@gmail.com'}
+        userId={profile?.id}
+      />
     </div>
   );
 }

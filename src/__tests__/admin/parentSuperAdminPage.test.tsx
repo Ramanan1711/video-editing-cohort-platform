@@ -344,4 +344,27 @@ describe('Parent Super Admin Registration Portal', () => {
     expect(screen.getByText('Mark Admin')).toBeInTheDocument();
     expect(screen.queryByText('Jane Mentor')).not.toBeInTheDocument();
   });
+
+  it('allows Parent Super Admin to open the Update My Password modal', async () => {
+    vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+      user: { id: parentSuperAdminProfile.id, email: parentSuperAdminProfile.email } as any,
+      profile: parentSuperAdminProfile as any,
+      loading: false,
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/admin/super-admin']}>
+        <ParentSuperAdminRegister />
+      </MemoryRouter>
+    );
+
+    const updatePasswordBtn = screen.getByTestId('open-update-password-btn');
+    expect(updatePasswordBtn).toBeInTheDocument();
+
+    fireEvent.click(updatePasswordBtn);
+
+    expect(screen.getByTestId('update-password-modal')).toBeInTheDocument();
+  });
 });
