@@ -103,7 +103,7 @@ export function CohortEditorModal() {
                 {isMentor ? (
                   !cohortEditor.id ? (
                     <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                      Draft (Requires Admin Approval)
+                      Draft (Upload Curriculum First)
                     </option>
                   ) : cohortEditor.status === 'approved' ? (
                     <>

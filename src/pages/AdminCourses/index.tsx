@@ -188,7 +188,7 @@ function AdminCoursesView() {
                     Mentor Course Authoring &amp; Curriculum Studio
                   </h4>
                   <p className="text-xs text-orange-900/80 dark:text-orange-300 mt-0.5 max-w-3xl leading-relaxed">
-                    As a mentor, you can create new cohorts and author complete curriculums (modules, lessons, challenges, and sprint tracks). Cohorts start in <span className="font-bold">Draft</span> status. Once reviewed and approved by Parent Super Admin (<span className="font-semibold underline">ajayramanan17@gmail.com</span>) or Child Super Admin (<span className="font-semibold underline">ajayramanan4444@gmail.com</span>), you can publish them. Published live cohorts are locked from direct modification without administrative permission.
+                    You can freely create new cohorts and upload all curriculum content (modules, lessons, videos, assignments, and sprint tracks) in <span className="font-bold">Draft</span> without needing prior admin permission. Draft content stays hidden from students. Once you finish uploading your course materials, click <span className="font-bold">Submit for Review</span>. Parent Super Admin (<span className="font-semibold underline">ajayramanan17@gmail.com</span>) or Child Super Admin (<span className="font-semibold underline">ajayramanan4444@gmail.com</span>) will review the uploaded lessons and grant approval, after which you can publish the cohort live to students.
                   </p>
                 </div>
               </div>
