@@ -87,10 +87,10 @@ describe('Mentor Cohort Creation, Admin Review & Mentor Publishing Flow', () => 
         created_by: 'mentor-uid-101',
       };
 
-      vi.spyOn(supabase, 'rpc').mockResolvedValue({
+      (vi.spyOn(supabase, 'rpc') as any).mockResolvedValue({
         data: mockCreatedCohort,
         error: null,
-      } as any);
+      });
 
       const result = await mentorCreateCohort({
         name: 'Premiere Pro Cinematic Mastery',
@@ -111,7 +111,7 @@ describe('Mentor Cohort Creation, Admin Review & Mentor Publishing Flow', () => 
         error: null,
       });
 
-      vi.spyOn(supabase, 'rpc').mockImplementation(async (method, params: any) => {
+      (vi.spyOn(supabase, 'rpc') as any).mockImplementation(async (method: string, params: any) => {
         if (method === 'admin_review_cohort') {
           return {
             data: {
@@ -122,9 +122,9 @@ describe('Mentor Cohort Creation, Admin Review & Mentor Publishing Flow', () => 
               name: 'Test Cohort',
             },
             error: null,
-          } as any;
+          };
         }
-        return { data: null, error: null } as any;
+        return { data: null, error: null };
       });
 
       // 1. Mark In Review
@@ -142,9 +142,9 @@ describe('Mentor Cohort Creation, Admin Review & Mentor Publishing Flow', () => 
     });
 
     it('enforces that mentors CANNOT publish cohorts when status is draft, reviewing, or rejected', async () => {
-      vi.spyOn(supabase, 'rpc').mockResolvedValue({
+      (vi.spyOn(supabase, 'rpc') as any).mockResolvedValue({
         data: null,
-        error: { message: 'Cohort must be approved by an administrator before publishing (current status: draft).', code: 'P0001' } as any,
+        error: { message: 'Cohort must be approved by an administrator before publishing (current status: draft).', code: 'P0001' },
       });
 
       await expect(mentorPublishCohort('draft-cohort-id')).rejects.toThrow(
@@ -153,7 +153,7 @@ describe('Mentor Cohort Creation, Admin Review & Mentor Publishing Flow', () => 
     });
 
     it('allows mentors to publish ONLY when status is approved', async () => {
-      vi.spyOn(supabase, 'rpc').mockResolvedValue({
+      (vi.spyOn(supabase, 'rpc') as any).mockResolvedValue({
         data: {
           id: 'approved-cohort-id',
           name: 'Motion Design Bootcamp',
@@ -161,10 +161,37 @@ describe('Mentor Cohort Creation, Admin Review & Mentor Publishing Flow', () => 
           status: 'published',
         },
         error: null,
-      } as any);
+      });
 
       const published = await mentorPublishCohort('approved-cohort-id');
       expect(published.status).toBe('published');
+    });
+
+    it('lists cohorts created by or assigned to a mentor', async () => {
+      vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({
+              data: [
+                { id: 'cohort-1', title: 'Mentor Cohort 1', status: 'draft' },
+              ],
+              error: null,
+            }),
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          } as any;
+        }
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+        } as any;
+      });
+
+      const cohorts = await listMentorCohorts('mentor-uid-101');
+      expect(cohorts).toHaveLength(1);
+      expect(cohorts[0].id).toBe('cohort-1');
+      expect(cohorts[0].status).toBe('draft');
     });
   });
 
@@ -175,7 +202,7 @@ describe('Mentor Cohort Creation, Admin Review & Mentor Publishing Flow', () => 
         error: null,
       });
 
-      vi.spyOn(supabase, 'rpc').mockResolvedValue({
+      (vi.spyOn(supabase, 'rpc') as any).mockResolvedValue({
         data: {
           id: 'cohort-modal-created',
           name: 'Color Grading Masterclass',
@@ -187,7 +214,7 @@ describe('Mentor Cohort Creation, Admin Review & Mentor Publishing Flow', () => 
           track_type: 'non_coding',
         },
         error: null,
-      } as any);
+      });
 
       const onCohortCreated = vi.fn();
       const onClose = vi.fn();
