@@ -477,42 +477,6 @@ export function UsersTab({
                 <div className="flex flex-wrap items-center gap-2">
                   <RoleBadge role={item.role} adminRole={item.admin_role} userId={item.id} userEmail={item.email} />
 
-                  {/* Mentor Actions - Parent Super Admin only */}
-                  {canManageRoles && isParentAdminEffective && !isSelf && item.role === 'mentor' && (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        loading={isUpdating}
-                        onClick={() => void handleRole(item, 'student')}
-                        className="text-xs font-bold text-amber-700"
-                        data-testid={`demote-student-${item.id}`}
-                      >
-                        <UserMinus size={13} /> Demote to Student
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        data-testid={`promote-admin-${item.id}`}
-                        loading={isUpdating}
-                        onClick={() => void handleRole(item, 'admin')}
-                        className="text-xs font-bold text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700"
-                      >
-                        <Shield size={13} className="text-slate-700 dark:text-slate-300" /> Promote to Admin
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        data-testid={`promote-child-super-${item.id}`}
-                        loading={isUpdating}
-                        onClick={() => void handleRole(item, 'child_super_admin')}
-                        className="text-xs font-bold text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                      >
-                        <ShieldCheck size={13} className="text-indigo-500" /> Promote to Child Super Admin
-                      </Button>
-                    </div>
-                  )}
-
                   {/* Suspend / Reactivate Actions */}
                   {canManageStatus && !isSelf && item.email !== 'ajayramanan17@gmail.com' && (
                     <Button
