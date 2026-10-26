@@ -9,6 +9,7 @@ import {
   Shield,
   ShieldCheck,
   UserCog,
+  UserPlus,
   Users,
   UserX,
 } from 'lucide-react';
@@ -280,6 +281,16 @@ export function UsersTab({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {isSuperAdmin && (
+            <a
+              href="/admin/super-admin"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-orange-500 whitespace-nowrap transition-colors"
+            >
+              <UserPlus size={13} />
+              Register Staff
+            </a>
+          )}
+
           <Button
             variant="secondary"
             size="sm"

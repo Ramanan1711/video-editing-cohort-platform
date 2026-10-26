@@ -1,5 +1,7 @@
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 import { queryCache } from './queryCache';
+import { normalizeWhatsAppPhone } from './whatsappService';
 import type { AdminSubRole } from './adminPermissions';
 export type { AdminSubRole } from './adminPermissions';
 import type { EnrollmentStatus } from './courseService';
@@ -216,6 +218,8 @@ export interface UserProfile {
   admin_role?: AdminSubRole;
   status?: 'active' | 'suspended' | 'inactive';
   created_at?: string;
+  whatsapp_number?: string | null;
+  phone?: string | null;
 }
 
 export interface AdminEnrollment {
@@ -1178,7 +1182,7 @@ export async function getAdminExecutiveMetrics(
 export async function listUsers(): Promise<UserProfile[]> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role, admin_role, status, created_at')
+    .select('id, full_name, email, role, admin_role, status, created_at, whatsapp_number')
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as UserProfile[];
@@ -1194,7 +1198,7 @@ export async function listUsersPaged(
 
   let query = supabase
     .from('profiles')
-    .select('id, full_name, email, role, admin_role, status, created_at', { count: 'exact' });
+    .select('id, full_name, email, role, admin_role, status, created_at, whatsapp_number', { count: 'exact' });
 
   if (params.role && params.role !== 'all') {
     query = query.eq('role', params.role);
@@ -1381,6 +1385,191 @@ export async function bulkUpdateUserStatus(
   });
 
   return { updatedCount, errors };
+}
+
+export type StaffRoleSelection = 'Mentor' | 'Admin' | 'Child Super_Admin';
+
+export interface RegisterStaffInput {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  role: StaffRoleSelection;
+}
+
+/**
+ * Registers leadership and instructional staff (Mentor, Admin, Child Super Admin).
+ * Uses an ephemeral Supabase client so the active Parent Super Admin session is NEVER disturbed.
+ */
+export async function registerStaffUser(
+  input: RegisterStaffInput,
+  actor?: { id: string; email: string }
+): Promise<UserProfile> {
+  const email = input.email.trim().toLowerCase();
+  const fullName = input.fullName.trim();
+  const phone = input.phone.trim();
+  const normalizedPhone = normalizeWhatsAppPhone(phone);
+
+  let targetRole: 'mentor' | 'admin' = 'mentor';
+  let targetAdminRole: AdminSubRole | null = null;
+
+  if (input.role === 'Mentor') {
+    targetRole = 'mentor';
+    targetAdminRole = null;
+  } else if (input.role === 'Admin') {
+    targetRole = 'admin';
+    targetAdminRole = 'admin';
+  } else if (input.role === 'Child Super_Admin') {
+    targetRole = 'admin';
+    targetAdminRole = 'child_super_admin';
+  }
+
+  // Check if profile exists already
+  const { data: existingProfile } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, role, admin_role, status')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (existingProfile) {
+    // If the user already exists, update their role, name and phone
+    const { data: updated, error: updateErr } = await supabase
+      .from('profiles')
+      .update({
+        role: targetRole,
+        admin_role: targetAdminRole,
+        full_name: fullName || existingProfile.full_name,
+        whatsapp_number: normalizedPhone,
+        status: 'active',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existingProfile.id)
+      .select('id, full_name, email, role, admin_role, status, created_at, whatsapp_number')
+      .single();
+
+    if (updateErr) throw updateErr;
+
+    try {
+      await supabase.rpc('admin_update_user_role', {
+        p_user_id: existingProfile.id,
+        p_new_role: targetRole,
+        p_new_admin_role: targetAdminRole,
+      });
+    } catch {
+      // Graceful fallback
+    }
+
+    void logAuditEvent(actor?.id || null, 'staff.registered', 'user', existingProfile.id, {
+      email,
+      full_name: fullName,
+      role: targetRole,
+      admin_role: targetAdminRole,
+      is_existing_account: true,
+      registered_by: actor?.email,
+    });
+
+    queryCache.invalidate('admin');
+    queryCache.invalidate('users');
+    queryCache.invalidate('stats');
+
+    return updated as UserProfile;
+  }
+
+  // Ephemeral client signup to ensure the active administrator session is NOT altered or logged out
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+  const ephemeralClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+
+  const { data: authData, error: signUpError } = await ephemeralClient.auth.signUp({
+    email,
+    password: input.password,
+    options: {
+      data: {
+        full_name: fullName,
+        phone: normalizedPhone,
+        phone_number: normalizedPhone,
+        whatsapp_number: normalizedPhone,
+        role: targetRole,
+        ...(targetAdminRole ? { admin_role: targetAdminRole } : {}),
+      },
+    },
+  });
+
+  if (signUpError) {
+    throw signUpError;
+  }
+
+  const userId = authData.user?.id;
+  if (!userId) {
+    throw new Error('Registration failed: no user ID returned by authentication service.');
+  }
+
+  // Authoritative sync to public.profiles
+  const { data: profileData, error: profileErr } = await supabase
+    .from('profiles')
+    .upsert({
+      id: userId,
+      email,
+      full_name: fullName,
+      whatsapp_number: normalizedPhone,
+      role: targetRole,
+      admin_role: targetAdminRole,
+      status: 'active',
+      updated_at: new Date().toISOString(),
+    })
+    .select('id, full_name, email, role, admin_role, status, created_at, whatsapp_number')
+    .single();
+
+  if (profileErr) {
+    // If upsert hit RLS or conflict, fallback to update
+    const { data: fallbackData, error: fallbackErr } = await supabase
+      .from('profiles')
+      .update({
+        role: targetRole,
+        admin_role: targetAdminRole,
+        full_name: fullName,
+        whatsapp_number: normalizedPhone,
+        status: 'active',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select('id, full_name, email, role, admin_role, status, created_at, whatsapp_number')
+      .single();
+
+    if (fallbackErr) throw fallbackErr;
+    return fallbackData as UserProfile;
+  }
+
+  try {
+    await supabase.rpc('admin_update_user_role', {
+      p_user_id: userId,
+      p_new_role: targetRole,
+      p_new_admin_role: targetAdminRole,
+    });
+  } catch {
+    // Graceful fallback
+  }
+
+  void logAuditEvent(actor?.id || null, 'staff.registered', 'user', userId, {
+    email,
+    full_name: fullName,
+    role: targetRole,
+    admin_role: targetAdminRole,
+    registered_by: actor?.email,
+  });
+
+  queryCache.invalidate('admin');
+  queryCache.invalidate('users');
+  queryCache.invalidate('stats');
+
+  return profileData as UserProfile;
 }
 
 // ============================================================================

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Lock, ShieldCheck, X } from 'lucide-react';
+import { Lock, ShieldCheck, UserPlus, X } from 'lucide-react';
 import { DashboardSkeleton } from '../components/ui/Skeletons';
 import { StateFallback } from '../components/ui/StateFallback';
 import { useAuth } from '../context/useAuth';
@@ -1136,6 +1136,16 @@ export function AdminOperations() {
             >
               Review Room →
             </Link>
+
+            {isParentAdmin && (
+              <Link
+                to="/admin/super-admin"
+                className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-xl bg-orange-600 px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-orange-500 whitespace-nowrap transition-colors"
+              >
+                <UserPlus size={14} />
+                Register Staff →
+              </Link>
+            )}
 
             <TopRightControls />
           </div>

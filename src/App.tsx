@@ -29,6 +29,7 @@ const CommunityHub = lazy(() => import('./pages/CommunityHub').then((m) => ({ de
 const WorkshopsPage = lazy(() => import('./pages/WorkshopsPage').then((m) => ({ default: m.WorkshopsPage })));
 const VerifyCertificate = lazy(() => import('./pages/VerifyCertificate').then((m) => ({ default: m.VerifyCertificate })));
 const UserProfile = lazy(() => import('./pages/UserProfile').then((m) => ({ default: m.UserProfile })));
+const ParentSuperAdminRegister = lazy(() => import('./pages/ParentSuperAdminRegister').then((m) => ({ default: m.ParentSuperAdminRegister })));
 
 // Accessible fallback loader matching design system
 function PageLoadingFallback() {
@@ -207,6 +208,30 @@ function AnimatedRoutes() {
                           <WorkspaceShell>
                             <Suspense fallback={<PageLoadingFallback />}>
                               <AdminOperations />
+                            </Suspense>
+                          </WorkspaceShell>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/super-admin"
+                      element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                          <WorkspaceShell>
+                            <Suspense fallback={<PageLoadingFallback />}>
+                              <ParentSuperAdminRegister />
+                            </Suspense>
+                          </WorkspaceShell>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/parent-super-admin"
+                      element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                          <WorkspaceShell>
+                            <Suspense fallback={<PageLoadingFallback />}>
+                              <ParentSuperAdminRegister />
                             </Suspense>
                           </WorkspaceShell>
                         </ProtectedRoute>
