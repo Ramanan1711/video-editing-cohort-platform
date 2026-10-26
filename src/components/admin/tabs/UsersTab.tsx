@@ -9,7 +9,6 @@ import {
   Shield,
   ShieldCheck,
   UserPlus,
-  Users,
   UserX,
 } from 'lucide-react';
 import { Button } from '../../ui/Button';
@@ -144,29 +143,8 @@ export function UsersTab({
         count: roleCounts.student,
         description: 'Active and enrolled students across cohort production tracks.',
       },
-      {
-        id: 'mentor' as const,
-        label: 'Mentors',
-        icon: ShieldCheck,
-        count: roleCounts.mentor,
-        description: 'Assigned cohort mentors providing feedback, reviews, and grading.',
-      },
-      {
-        id: 'admin' as const,
-        label: 'Admins',
-        icon: Shield,
-        count: roleCounts.admin,
-        description: 'Platform administrators holding governance and system operations access.',
-      },
-      {
-        id: 'all' as const,
-        label: 'All Users',
-        icon: Users,
-        count: roleCounts.all,
-        description: 'Complete cross-role platform user directory.',
-      },
     ],
-    [roleCounts]
+    [roleCounts.student]
   );
 
   const handleTabChange = (newRole: UserRoleTab) => {
@@ -303,7 +281,7 @@ export function UsersTab({
         </div>
       </div>
 
-      {/* Role Navigation Sub-Tabs (Student, Mentor, Admin, All Users) */}
+      {/* Role Navigation Sub-Tabs (Students only) */}
       <div className="mt-5 flex flex-wrap items-center gap-2 border-b border-slate-200/80 dark:border-slate-800 pb-3.5">
         {roleTabs.map((rt) => {
           const Icon = rt.icon;

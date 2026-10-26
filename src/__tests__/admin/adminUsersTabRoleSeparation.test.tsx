@@ -52,90 +52,34 @@ describe('Admin Console - Users & Roles Tab Role Separation', () => {
     onExportUsers: vi.fn(),
   };
 
-  it('renders separate sub-tabs for Students, Mentors, and Admins with accurate counts', () => {
+  it('renders only the Students sub-tab with accurate student count', () => {
     render(<UsersTab {...defaultProps} />);
 
-    // Verify sub-tabs exist
+    // Verify Students sub-tab exists
     const studentTab = screen.getByTestId('user-role-tab-student');
-    const mentorTab = screen.getByTestId('user-role-tab-mentor');
-    const adminTab = screen.getByTestId('user-role-tab-admin');
-    const allTab = screen.getByTestId('user-role-tab-all');
-
     expect(studentTab).toBeInTheDocument();
-    expect(mentorTab).toBeInTheDocument();
-    expect(adminTab).toBeInTheDocument();
-    expect(allTab).toBeInTheDocument();
-
-    // Verify counts in tab badges
     expect(studentTab).toHaveTextContent('Students');
     expect(studentTab).toHaveTextContent('2');
 
-    expect(mentorTab).toHaveTextContent('Mentors');
-    expect(mentorTab).toHaveTextContent('1');
-
-    expect(adminTab).toHaveTextContent('Admins');
-    expect(adminTab).toHaveTextContent('1');
-
-    expect(allTab).toHaveTextContent('All Users');
-    expect(allTab).toHaveTextContent('4');
+    // Verify Mentor, Admin, and All Users sub-tabs are NOT present
+    expect(screen.queryByTestId('user-role-tab-mentor')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('user-role-tab-admin')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('user-role-tab-all')).not.toBeInTheDocument();
   });
 
-  it('defaults to displaying only Students on initial view', () => {
+  it('displays only Students in the User Directory view', () => {
     render(<UsersTab {...defaultProps} />);
 
     // Students must be visible
     expect(screen.getByText('Alice Student')).toBeInTheDocument();
     expect(screen.getByText('Bob Student')).toBeInTheDocument();
 
-    // Mentors and Admins must NOT be in the student view
+    // Mentors and Admins must NOT be in the students directory
     expect(screen.queryByText('Charlie Mentor')).not.toBeInTheDocument();
     expect(screen.queryByText('Diana Admin')).not.toBeInTheDocument();
   });
 
-  it('switches to displaying only Mentors when clicking the Mentors tab', () => {
-    render(<UsersTab {...defaultProps} />);
-
-    const mentorTab = screen.getByTestId('user-role-tab-mentor');
-    fireEvent.click(mentorTab);
-
-    // Mentor must be visible
-    expect(screen.getByText('Charlie Mentor')).toBeInTheDocument();
-
-    // Students and Admins must NOT be visible
-    expect(screen.queryByText('Alice Student')).not.toBeInTheDocument();
-    expect(screen.queryByText('Bob Student')).not.toBeInTheDocument();
-    expect(screen.queryByText('Diana Admin')).not.toBeInTheDocument();
-  });
-
-  it('switches to displaying only Admins when clicking the Admins tab', () => {
-    render(<UsersTab {...defaultProps} />);
-
-    const adminTab = screen.getByTestId('user-role-tab-admin');
-    fireEvent.click(adminTab);
-
-    // Admin must be visible
-    expect(screen.getByText('Diana Admin')).toBeInTheDocument();
-
-    // Students and Mentors must NOT be visible
-    expect(screen.queryByText('Alice Student')).not.toBeInTheDocument();
-    expect(screen.queryByText('Bob Student')).not.toBeInTheDocument();
-    expect(screen.queryByText('Charlie Mentor')).not.toBeInTheDocument();
-  });
-
-  it('displays all users when clicking the All Users tab', () => {
-    render(<UsersTab {...defaultProps} />);
-
-    const allTab = screen.getByTestId('user-role-tab-all');
-    fireEvent.click(allTab);
-
-    // All users must be visible
-    expect(screen.getByText('Alice Student')).toBeInTheDocument();
-    expect(screen.getByText('Bob Student')).toBeInTheDocument();
-    expect(screen.getByText('Charlie Mentor')).toBeInTheDocument();
-    expect(screen.getByText('Diana Admin')).toBeInTheDocument();
-  });
-
-  it('shows friendly empty state when a tab has no users matching search', () => {
+  it('shows friendly empty state when no students match search', () => {
     render(<UsersTab {...defaultProps} />);
 
     const searchInput = screen.getByPlaceholderText('Search by name or email...');
