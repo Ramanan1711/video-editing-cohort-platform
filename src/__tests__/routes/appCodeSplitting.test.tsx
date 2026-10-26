@@ -97,4 +97,13 @@ describe('App - Code Splitting & Dynamic Lazy Loading Architecture', () => {
       expect(screen.getByRole('heading', { level: 1, name: /course authoring/i })).toBeInTheDocument();
     });
   });
+
+  it('resolves /curriculum route cleanly without hitting 404', async () => {
+    window.history.pushState({}, '', '/curriculum');
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/That frame is missing/i)).not.toBeInTheDocument();
+    });
+  });
 });

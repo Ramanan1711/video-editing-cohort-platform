@@ -653,7 +653,7 @@ export function MentorDashboard() {
                           )}
 
                           {isPublished && (
-                            <Link to="/curriculum" className="w-full">
+                            <Link to={`/curriculum?cohortId=${cohort.id}`} className="w-full">
                               <Button variant="secondary" size="sm" className="w-full text-xs h-8">
                                 View Curriculum →
                               </Button>

@@ -82,6 +82,18 @@ function AnimatedRoutes() {
                       }
                     />
                     <Route
+                      path="/curriculum"
+                      element={
+                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+                          <WorkspaceShell>
+                            <Suspense fallback={<PageLoadingFallback />}>
+                              <StudentDashboard />
+                            </Suspense>
+                          </WorkspaceShell>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
                       path="/profile"
                       element={
                         <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
