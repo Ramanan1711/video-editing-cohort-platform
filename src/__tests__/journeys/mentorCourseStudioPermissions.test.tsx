@@ -79,11 +79,8 @@ describe('Mentor Course Authoring Studio & Permission Gates', () => {
     vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
       user: { id: 'mentor-111', email: 'mentor@example.com' } as any,
       profile: mockMentorProfile as any,
-      session: {} as any,
       loading: false,
-      login: vi.fn(),
-      signup: vi.fn(),
-      logout: vi.fn(),
+      signOut: vi.fn(),
       refreshProfile: vi.fn(),
     });
 
