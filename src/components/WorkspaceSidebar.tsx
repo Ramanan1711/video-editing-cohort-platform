@@ -41,7 +41,7 @@ export function WorkspaceSidebar() {
     : isMentor
     ? [
         { to: '/mentor', label: 'Mentor dashboard', icon: Sparkles, end: true },
-        { to: '/admin/courses', label: 'Course studio', icon: BookOpen, end: false },
+        { to: '/mentor/courses', label: 'Course studio', icon: BookOpen, end: false },
         { to: '/community', label: 'Community hub', icon: Users, end: false },
         { to: '/review/submissions', label: 'Review queue', icon: FileCheck2, end: false },
         { to: '/mentor/students', label: 'Student progress', icon: GraduationCap, end: false },

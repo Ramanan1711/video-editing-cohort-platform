@@ -1120,7 +1120,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         }
       }
 
-      if (['reviewing', 'approved', 'rejected'].includes(newStatus)) {
+      if (isAdmin && ['reviewing', 'approved', 'rejected'].includes(newStatus)) {
         await adminReviewCohort(cohortId, newStatus as 'reviewing' | 'approved' | 'rejected', reviewFeedback);
       } else {
         await updateCohort(cohortId, { status: newStatus });

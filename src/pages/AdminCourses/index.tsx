@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   Archive,
@@ -47,6 +49,8 @@ import { BulkSprintImportModal } from './modals/BulkSprintImportModal';
 
 function AdminCoursesView() {
   const toast = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     profile,
     cohorts,
@@ -91,6 +95,13 @@ function AdminCoursesView() {
     handleClearCohortChallenges,
     setBulkImportTargetCohort,
   } = useAdminCourses();
+
+  // Keep URL route cleanly scoped: mentors see /mentor/courses, admins see /admin/courses
+  useEffect(() => {
+    if (isMentor && location.pathname === '/admin/courses') {
+      navigate(`/mentor/courses${location.search}`, { replace: true });
+    }
+  }, [isMentor, location.pathname, location.search, navigate]);
 
   if (profile?.role !== 'admin' && profile?.role !== 'mentor') {
     return (

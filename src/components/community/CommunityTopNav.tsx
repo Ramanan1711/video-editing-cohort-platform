@@ -120,6 +120,11 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
           { to: '/admin/courses', label: 'Course Studio', desc: 'Curriculum manager', icon: BookOpen },
         ]
       : []),
+    ...(isMentor
+      ? [
+          { to: '/mentor/courses', label: 'Course Studio', desc: 'Curriculum authoring', icon: BookOpen },
+        ]
+      : []),
   ];
 
   const workspaceLinks = isAdmin
@@ -136,6 +141,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
     : isMentor
     ? [
         { to: '/mentor', label: 'Mentor dashboard', icon: Sparkles, end: true },
+        { to: '/mentor/courses', label: 'Course studio', icon: BookOpen, end: false },
         { to: '/community', label: 'Community hub', icon: Users, end: false },
         { to: '/review/submissions', label: 'Review queue', icon: FileCheck2, end: false },
         { to: '/mentor/students', label: 'Student progress', icon: GraduationCap, end: false },
