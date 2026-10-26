@@ -45,17 +45,20 @@ export async function getStudentCourseData(userId: string, cohortId?: string): P
   // Load metadata for all enrolled cohorts
   const { data: cohortsData, error: cohortsError } = await supabase
     .from('cohorts')
-    .select('id, title, description')
+    .select('id, title, description, status')
     .in('id', enrolledCohortIds)
     .order('title');
 
   if (cohortsError) throw cohortsError;
 
-  const enrolledCohorts: Cohort[] = (cohortsData ?? []).map((c) => ({
-    id: c.id,
-    name: c.title,
-    description: c.description,
-  }));
+  const enrolledCohorts: Cohort[] = (cohortsData ?? [])
+    .filter((c) => c.status !== 'rejected' && c.status !== 'archived' && c.status !== 'draft')
+    .map((c) => ({
+      id: c.id,
+      name: c.title,
+      description: c.description,
+      status: c.status,
+    }));
 
   // Target cohort: if a specific cohortId is requested, it MUST be an enrolled cohort.
   // Otherwise default to the first enrolled cohort.

@@ -255,11 +255,13 @@ export function useStudentDashboard(
 
         setFailedSections(partialErrors);
 
-        const enrolledCohortsList = courseRes.value.enrolledCohorts || [];
+        const enrolledCohortsList = (courseRes.value.enrolledCohorts || []).filter(
+          (c) => c.status !== 'rejected' && c.status !== 'archived' && c.status !== 'draft'
+        );
         const progressEntries: Record<string, StudentUnifiedProgress> = {};
 
         // Fetch dynamic internship sprint progress and unified composite progress for active cohort
-        if (courseRes.value.cohort) {
+        if (courseRes.value.cohort && courseRes.value.cohort.status !== 'rejected' && courseRes.value.cohort.status !== 'archived') {
           if (targetCohortId && courseRes.value.cohort.id === targetCohortId) {
             clearPendingCohortCheckout();
           }
@@ -378,12 +380,25 @@ export function useStudentDashboard(
       sourceCohorts = [course.cohort];
     }
 
+    // Strictly exclude rejected, draft, in-review, and archived cohorts from student view
+    const eligibleCohorts = sourceCohorts.filter((cohort) => {
+      const s = cohort.status;
+      if (s === 'rejected' || s === 'draft' || s === 'review' || s === 'reviewing' || s === 'archived') {
+        return false;
+      }
+      return true;
+    });
+
     const enrolledIdSet = new Set([
-      ...(course.enrolledCohorts || []).map((c) => c.id),
-      ...(course.cohort ? [course.cohort.id] : []),
+      ...(course.enrolledCohorts || [])
+        .filter((c) => c.status !== 'rejected' && c.status !== 'archived')
+        .map((c) => c.id),
+      ...(course.cohort && course.cohort.status !== 'rejected' && course.cohort.status !== 'archived'
+        ? [course.cohort.id]
+        : []),
     ]);
 
-    return sourceCohorts.map((cohort) => {
+    return eligibleCohorts.map((cohort) => {
       const isEnrolled = enrolledIdSet.has(cohort.id);
       const isCurrentActive = course.cohort?.id === cohort.id;
 

@@ -86,17 +86,23 @@ export function Home() {
     return courseIds;
   }, [enrolledCohortIds, rawCohorts]);
 
-  // Base published cohorts on the platform (excluding draft/archived/private)
+  // Base published cohorts on the platform (strictly published/active/upcoming; excluding draft/rejected/review/archived/private)
   const platformCohorts = useMemo(() => {
     return (rawCohorts || []).filter((c) => {
-      if (c.visibility === 'private' || c.status === 'archived' || c.status === 'draft') {
+      if (
+        c.visibility === 'private' ||
+        c.status === 'archived' ||
+        c.status === 'draft' ||
+        c.status === 'rejected' ||
+        c.status === 'review' ||
+        c.status === 'reviewing'
+      ) {
         return false;
       }
       return (
         c.status === 'published' ||
         c.status === 'active' ||
         c.status === 'upcoming' ||
-        c.visibility === 'public' ||
         !c.status
       );
     });

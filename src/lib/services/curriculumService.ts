@@ -254,7 +254,14 @@ export async function listAvailableCohorts(userId: string): Promise<Cohort[]> {
   if (enrollmentError) throw enrollmentError;
   const enrolledIds = (enrollments ?? []).map((enrollment) => enrollment.cohort_id);
   const cohorts = await listCohorts();
-  return cohorts.filter((cohort) => !enrolledIds.includes(cohort.id) && cohort.status !== 'archived');
+  return cohorts.filter((cohort) => 
+    !enrolledIds.includes(cohort.id) && 
+    cohort.status !== 'archived' &&
+    cohort.status !== 'rejected' &&
+    cohort.status !== 'draft' &&
+    cohort.status !== 'review' &&
+    cohort.status !== 'reviewing'
+  );
 }
 
 export async function listEnrolledCohorts(userId: string): Promise<Cohort[]> {
@@ -270,17 +277,19 @@ export async function listEnrolledCohorts(userId: string): Promise<Cohort[]> {
 
   const { data, error } = await supabase
     .from('cohorts')
-    .select('id, title, description')
+    .select('id, title, description, status')
     .in('id', cohortIds)
     .order('title');
 
   if (error) throw error;
-  return (data ?? []).map((c) => ({ id: c.id, name: c.title, description: c.description }));
+  return (data ?? [])
+    .filter((c) => c.status !== 'rejected' && c.status !== 'archived' && c.status !== 'draft')
+    .map((c) => ({ id: c.id, name: c.title, description: c.description, status: c.status }));
 }
 
 export async function listAllStudentCohorts(userId: string): Promise<(Cohort & { isEnrolled: boolean })[]> {
   const [{ data: allCohorts, error: cohortsError }, { data: enrollments, error: enrollmentsError }] = await Promise.all([
-    supabase.from('cohorts').select('id, title, description').order('title'),
+    supabase.from('cohorts').select('id, title, description, status').order('title'),
     supabase.from('enrollments').select('cohort_id').eq('user_id', userId).in('status', ['enrolled', 'active', 'completed', 'inactive']),
   ]);
 
@@ -288,12 +297,15 @@ export async function listAllStudentCohorts(userId: string): Promise<(Cohort & {
   if (enrollmentsError) throw enrollmentsError;
 
   const enrolledSet = new Set((enrollments ?? []).map((e) => e.cohort_id));
-  return (allCohorts ?? []).map((cohort) => ({
-    id: cohort.id,
-    name: cohort.title,
-    description: cohort.description,
-    isEnrolled: enrolledSet.has(cohort.id),
-  }));
+  return (allCohorts ?? [])
+    .filter((c) => c.status !== 'rejected' && c.status !== 'archived' && c.status !== 'draft' && c.status !== 'review' && c.status !== 'reviewing')
+    .map((c) => ({
+      id: c.id,
+      name: c.title,
+      description: c.description,
+      status: c.status,
+      isEnrolled: enrolledSet.has(c.id),
+    }));
 }
 
 export async function enrollInCohort(userId: string, cohortId: string): Promise<Enrollment> {
