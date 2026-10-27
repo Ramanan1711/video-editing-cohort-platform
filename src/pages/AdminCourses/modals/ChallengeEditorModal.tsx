@@ -1,4 +1,4 @@
-import { Upload, X } from 'lucide-react';
+import { Flame, Upload, X } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { useAdminCourses } from '../context/useAdminCourses';
 import { FormField, TextareaField } from '../components/SharedSubcomponents';
@@ -20,20 +20,25 @@ export function ChallengeEditorModal() {
   const challengeEditor = editor as ChallengeEditorState;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 sm:p-5 backdrop-blur-sm">
       <form
         onSubmit={handleSave}
-        className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl transition"
+        className="w-full max-w-2xl max-h-[88vh] flex flex-col rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl transition overflow-hidden"
       >
         {/* Modal Header */}
-        <div className="mb-5 flex items-start justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-wider text-orange-500">
-              {challengeEditor.id ? 'Edit' : 'Create'} Daily Challenge
-            </p>
-            <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
-              {challengeEditor.id ? 'Edit Daily Challenge' : 'New Daily Challenge'}
-            </h3>
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-4 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-orange-100 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400">
+              <Flame size={18} />
+            </div>
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">
+                {challengeEditor.id ? 'Edit' : 'Create'} Daily Challenge
+              </p>
+              <h3 className="text-lg font-black text-slate-950 dark:text-white leading-tight">
+                {challengeEditor.id ? 'Edit Daily Challenge' : 'New Daily Challenge'}
+              </h3>
+            </div>
           </div>
           <button
             type="button"
@@ -41,16 +46,16 @@ export function ChallengeEditorModal() {
               setEditor(null);
               setUploadFile(null);
             }}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition"
             aria-label="Close"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="space-y-4 text-left">
-          <div className="grid grid-cols-2 gap-4">
+        {/* Scrollable Modal Body */}
+        <div className="px-6 py-4 overflow-y-auto space-y-4 text-left flex-1 min-h-0">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <FormField
               label="Day Number (1 - 100)"
               type="number"
@@ -69,7 +74,7 @@ export function ChallengeEditorModal() {
                     trackType: e.target.value as 'general' | 'coding' | 'non_coding',
                   })
                 }
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-xs transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
               >
                 <option value="general" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">General (All Tracks)</option>
                 <option value="coding" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Coding / Technical</option>
@@ -86,7 +91,7 @@ export function ChallengeEditorModal() {
             required
           />
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <label className="block text-left">
               <span className="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-300">Submission Type</span>
               <select
@@ -102,7 +107,7 @@ export function ChallengeEditorModal() {
                       | 'file',
                   })
                 }
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-xs transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
               >
                 <option value="drive_link" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Google Drive Link</option>
                 <option value="loom_video" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Loom / Screen Recording</option>
@@ -127,7 +132,7 @@ export function ChallengeEditorModal() {
             value={challengeEditor.description}
             onChange={(val) => setEditor({ ...challengeEditor, description: val })}
             placeholder="Provide an engaging summary of the core objective and learning goals for today..."
-            rows={3}
+            rows={2}
           />
 
           <TextareaField
@@ -135,13 +140,15 @@ export function ChallengeEditorModal() {
             value={challengeEditor.instructions}
             onChange={(val) => setEditor({ ...challengeEditor, instructions: val })}
             placeholder="Step-by-step deliverable specifications, required codecs/resolutions, or PR formatting..."
-            rows={3}
+            rows={2}
           />
 
           {/* Starter Assets / Template */}
-          <div className="space-y-2">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 p-3.5 space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Starter Assets or Repo</span>
+              <span className="text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">
+                Starter Assets or Repo
+              </span>
               <div className="inline-flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 text-xs font-semibold">
                 <button
                   type="button"
@@ -180,9 +187,9 @@ export function ChallengeEditorModal() {
                 />
                 <label
                   htmlFor="challenge-starter-file"
-                  className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-950/40 p-4 text-center transition hover:border-orange-500 hover:bg-orange-50/20 dark:hover:border-orange-500 dark:hover:bg-orange-950/20"
+                  className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-center transition hover:border-orange-500 hover:bg-orange-50/20 dark:hover:border-orange-500 dark:hover:bg-orange-950/20"
                 >
-                  <Upload className="mb-1 text-slate-400" size={20} />
+                  <Upload className="mb-1 text-slate-400" size={18} />
                   {uploadFile ? (
                     <p className="text-xs font-bold text-orange-600 truncate max-w-full px-2">
                       {uploadFile.name} ({(uploadFile.size / (1024 * 1024)).toFixed(2)} MB)
@@ -230,22 +237,30 @@ export function ChallengeEditorModal() {
           </div>
         </div>
 
-        {/* Modal Actions */}
-        <div className="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              setEditor(null);
-              setUploadFile(null);
-            }}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" loading={saving}>
-            {uploadingStatus || (saving ? 'Saving...' : 'Save Changes')}
-          </Button>
+        {/* Fixed Modal Actions Footer */}
+        <div className="px-6 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 shrink-0 flex items-center justify-between">
+          <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:flex items-center gap-2">
+            <span className="inline-block size-2 rounded-full bg-orange-500" />
+            <span>
+              {challengeEditor.id ? `Editing Day ${challengeEditor.dayNumber} Challenge` : `New Day ${challengeEditor.dayNumber} Challenge`}
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5 ml-auto">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setEditor(null);
+                setUploadFile(null);
+              }}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" loading={saving} className="bg-orange-600 hover:bg-orange-700 text-white">
+              {uploadingStatus || (saving ? 'Saving...' : 'Save Changes')}
+            </Button>
+          </div>
         </div>
       </form>
     </div>
