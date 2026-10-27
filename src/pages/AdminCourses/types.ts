@@ -15,6 +15,9 @@ export interface CohortEditorState {
   visibility: 'public' | 'private' | 'unlisted';
   enrollmentStart: string;
   enrollmentEnd: string;
+  startDate: string;
+  endDate: string;
+  durationDays: string;
   reviewFeedback?: string;
 }
 

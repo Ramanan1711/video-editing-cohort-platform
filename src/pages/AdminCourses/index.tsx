@@ -343,6 +343,14 @@ function AdminCoursesView() {
                           <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-bold text-slate-600 dark:text-slate-300">
                             {cohortModules.length} {cohortModules.length === 1 ? 'module' : 'modules'}
                           </span>
+                          <span className="rounded-full bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 px-2.5 py-0.5 text-[11px] font-bold text-purple-700 dark:text-purple-300">
+                            ⏱ {cohort.duration_days ?? 15} Days
+                          </span>
+                          {cohort.start_date && (
+                            <span className="rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                              📅 Starts {new Date(cohort.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          )}
                           {cohort.capacity && (
                             <span className="rounded-full bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300">
                               Cap: {cohort.capacity} seats

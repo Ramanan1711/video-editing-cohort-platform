@@ -52,6 +52,8 @@ export interface Cohort {
   visibility?: 'public' | 'private' | 'unlisted';
   enrollment_start?: string | null;
   enrollment_end?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
   track_type?: 'coding' | 'non_coding' | 'general';
   duration_days?: number;
   price_inr?: number;
@@ -77,6 +79,8 @@ export interface DbCohortRow {
   visibility?: Cohort['visibility'];
   enrollment_start?: string | null;
   enrollment_end?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
   track_type?: Cohort['track_type'];
   duration_days?: number;
   price_inr?: number;
@@ -138,7 +142,7 @@ export type CourseInput = Pick<Course, 'title'> &
   Partial<Pick<Course, 'description' | 'slug' | 'thumbnail_url' | 'status' | 'difficulty_level' | 'estimated_hours' | 'track_type'>>;
 
 export type CohortInput = Pick<Cohort, 'name' | 'description'> &
-  Partial<Pick<Cohort, 'status' | 'capacity' | 'visibility' | 'enrollment_start' | 'enrollment_end' | 'course_id' | 'track_type' | 'duration_days' | 'price_inr' | 'currency' | 'created_by' | 'review_feedback' | 'reviewed_by' | 'reviewed_at'>>;
+  Partial<Pick<Cohort, 'status' | 'capacity' | 'visibility' | 'enrollment_start' | 'enrollment_end' | 'start_date' | 'end_date' | 'course_id' | 'track_type' | 'duration_days' | 'price_inr' | 'currency' | 'created_by' | 'review_feedback' | 'reviewed_by' | 'reviewed_at'>>;
 
 export type ModuleInput = Pick<Module, 'title'> &
   Partial<Pick<Module, 'cohort_id' | 'course_id' | 'description' | 'position' | 'status'>>;
@@ -164,6 +168,8 @@ function mapDbCohortRow(cohort: DbCohortRow): Cohort {
     visibility: cohort.visibility ?? 'public',
     enrollment_start: cohort.enrollment_start ?? null,
     enrollment_end: cohort.enrollment_end ?? null,
+    start_date: cohort.start_date ?? null,
+    end_date: cohort.end_date ?? null,
     track_type: cohort.track_type ?? 'general',
     duration_days: cohort.duration_days ?? 15,
     price_inr: cohort.price_inr ?? DEFAULT_COHORT_FEE_INR,
@@ -185,7 +191,7 @@ export async function listCohorts(): Promise<Cohort[]> {
     async () => {
       const { data, error } = await supabase
         .from('cohorts')
-        .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
+        .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, start_date, end_date, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
         .order('title');
 
       if (!error && data && data.length > 0) {
@@ -205,7 +211,7 @@ export async function listCohorts(): Promise<Cohort[]> {
       if (error) {
         const { data: fallback, error: fallbackError } = await supabase
           .from('cohorts')
-          .select('id, title, description, status, price_inr, currency, enrollment_start, enrollment_end')
+          .select('id, title, description, status, price_inr, currency, enrollment_start, enrollment_end, start_date, end_date')
           .order('title');
         if (fallbackError) throw fallbackError;
         return (fallback ?? []).map((c) => ({
@@ -217,6 +223,8 @@ export async function listCohorts(): Promise<Cohort[]> {
           visibility: 'public',
           enrollment_start: c.enrollment_start ?? null,
           enrollment_end: c.enrollment_end ?? null,
+          start_date: (c as { start_date?: string | null }).start_date ?? null,
+          end_date: (c as { end_date?: string | null }).end_date ?? null,
           price_inr: c.price_inr ?? DEFAULT_COHORT_FEE_INR,
           currency: c.currency ?? DEFAULT_CURRENCY,
         }));
@@ -277,7 +285,7 @@ export async function listEnrolledCohorts(userId: string): Promise<Cohort[]> {
 
   const { data, error } = await supabase
     .from('cohorts')
-    .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
+    .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, start_date, end_date, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
     .in('id', cohortIds)
     .order('title');
 
@@ -311,7 +319,7 @@ export async function listAllStudentCohorts(userId: string): Promise<(Cohort & {
     const [{ data: allCohorts, error: cohortsError }, { data: enrollments, error: enrollmentsError }] = await Promise.all([
       supabase
         .from('cohorts')
-        .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
+        .select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, start_date, end_date, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
         .order('title'),
       supabase
         .from('enrollments')
@@ -413,8 +421,13 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
   if (input.visibility !== undefined) payload.visibility = input.visibility;
   if (input.enrollment_start !== undefined) payload.enrollment_start = input.enrollment_start;
   if (input.enrollment_end !== undefined) payload.enrollment_end = input.enrollment_end;
+  if (input.start_date !== undefined) payload.start_date = input.start_date;
+  if (input.end_date !== undefined) payload.end_date = input.end_date;
   if (input.track_type !== undefined) payload.track_type = input.track_type;
-  if (input.duration_days !== undefined) payload.duration_days = input.duration_days;
+  if (input.duration_days !== undefined) {
+    payload.duration_days = input.duration_days;
+    payload.sprint_duration_days = input.duration_days;
+  }
   payload.price_inr = Math.max(1, Number(input.price_inr) || DEFAULT_COHORT_FEE_INR);
   if (input.currency !== undefined) payload.currency = input.currency;
   if (input.created_by !== undefined) payload.created_by = input.created_by;
@@ -422,7 +435,7 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
   if (input.reviewed_by !== undefined) payload.reviewed_by = input.reviewed_by;
   if (input.reviewed_at !== undefined) payload.reviewed_at = input.reviewed_at;
 
-  let res = await supabase.from('cohorts').insert(payload).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, created_by, review_feedback, reviewed_by, reviewed_at').single();
+  let res = await supabase.from('cohorts').insert(payload).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, start_date, end_date, track_type, duration_days, price_inr, currency, created_by, review_feedback, reviewed_by, reviewed_at').single();
   if (res.error) {
     res = await supabase.from('cohorts').insert({ title: input.name, description: input.description, price_inr: payload.price_inr, currency: input.currency }).select('id, title, description').single();
   }
@@ -448,8 +461,13 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
   if (input.visibility !== undefined) payload.visibility = input.visibility;
   if (input.enrollment_start !== undefined) payload.enrollment_start = input.enrollment_start;
   if (input.enrollment_end !== undefined) payload.enrollment_end = input.enrollment_end;
+  if (input.start_date !== undefined) payload.start_date = input.start_date;
+  if (input.end_date !== undefined) payload.end_date = input.end_date;
   if (input.track_type !== undefined) payload.track_type = input.track_type;
-  if (input.duration_days !== undefined) payload.duration_days = input.duration_days;
+  if (input.duration_days !== undefined) {
+    payload.duration_days = input.duration_days;
+    payload.sprint_duration_days = input.duration_days;
+  }
   if (input.price_inr !== undefined) {
     payload.price_inr = Math.max(1, Number(input.price_inr) || DEFAULT_COHORT_FEE_INR);
   }
@@ -459,7 +477,7 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
   if (input.reviewed_by !== undefined) payload.reviewed_by = input.reviewed_by;
   if (input.reviewed_at !== undefined) payload.reviewed_at = input.reviewed_at;
 
-  let res = await supabase.from('cohorts').update(payload).eq('id', id).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, created_by, review_feedback, reviewed_by, reviewed_at').single();
+  let res = await supabase.from('cohorts').update(payload).eq('id', id).select('id, title, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, start_date, end_date, track_type, duration_days, price_inr, currency, created_by, review_feedback, reviewed_by, reviewed_at').single();
   if (res.error) {
     const fallbackPayload: Record<string, unknown> = {};
     if (input.name !== undefined) fallbackPayload.title = input.name;
@@ -480,6 +498,8 @@ export interface MentorCohortInput {
   name: string;
   description?: string;
   duration_days?: number;
+  start_date?: string | null;
+  end_date?: string | null;
   price_inr?: number;
   track_type?: 'coding' | 'non_coding' | 'general';
 }
@@ -516,6 +536,9 @@ export async function mentorCreateCohort(input: MentorCohortInput): Promise<Coho
     name: input.name,
     description: input.description ?? null,
     duration_days: input.duration_days ?? 15,
+    sprint_duration_days: input.duration_days ?? 15,
+    start_date: input.start_date ?? null,
+    end_date: input.end_date ?? null,
     price_inr: Math.max(1, Number(input.price_inr) || DEFAULT_COHORT_FEE_INR),
     track_type: input.track_type ?? 'general',
     status: 'draft',
@@ -526,7 +549,7 @@ export async function mentorCreateCohort(input: MentorCohortInput): Promise<Coho
   const { data: inserted, error: insertError } = await supabase
     .from('cohorts')
     .insert(payload)
-    .select('id, title, name, description, status, capacity, visibility, track_type, duration_days, price_inr, currency, created_by, review_feedback, reviewed_by, reviewed_at')
+    .select('id, title, name, description, status, capacity, visibility, start_date, end_date, track_type, duration_days, price_inr, currency, created_by, review_feedback, reviewed_by, reviewed_at')
     .single();
 
   if (insertError) {
@@ -668,7 +691,7 @@ export async function listMentorCohorts(mentorId: string): Promise<Cohort[]> {
     // 1. Cohorts created by this mentor
     const { data: createdCohorts } = await supabase
       .from('cohorts')
-      .select('id, title, name, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
+      .select('id, title, name, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, start_date, end_date, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
       .eq('created_by', mentorId)
       .order('created_at', { ascending: false });
 
@@ -683,7 +706,7 @@ export async function listMentorCohorts(mentorId: string): Promise<Cohort[]> {
     if (assignedIds.length > 0) {
       const { data: assignedData } = await supabase
         .from('cohorts')
-        .select('id, title, name, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
+        .select('id, title, name, course_id, description, status, capacity, visibility, enrollment_start, enrollment_end, start_date, end_date, track_type, duration_days, price_inr, currency, mentor_phone, whatsapp_group_url, created_by, review_feedback, reviewed_by, reviewed_at, created_at, updated_at')
         .in('id', assignedIds);
       if (assignedData) assignedCohorts = assignedData as DbCohortRow[];
     }

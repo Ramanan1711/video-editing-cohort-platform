@@ -21,16 +21,59 @@ export function MentorCreateCohortModal({
   const [description, setDescription] = useState('');
   const [trackType, setTrackType] = useState<'general' | 'coding' | 'non_coding'>('general');
   const [durationDays, setDurationDays] = useState(15);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [priceInr, setPriceInr] = useState(DEFAULT_COHORT_FEE_INR);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
+  const handleStartDateChange = (val: string) => {
+    setStartDate(val);
+    if (val && durationDays > 0) {
+      const start = new Date(val);
+      if (!isNaN(start.getTime())) {
+        const end = new Date(start);
+        end.setDate(end.getDate() + Math.max(0, durationDays - 1));
+        setEndDate(end.toISOString().slice(0, 10));
+      }
+    }
+  };
+
+  const handleEndDateChange = (val: string) => {
+    setEndDate(val);
+    if (startDate && val) {
+      const start = new Date(startDate);
+      const end = new Date(val);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end >= start) {
+        const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        setDurationDays(Math.max(1, diffDays));
+      }
+    }
+  };
+
+  const handleDurationChange = (val: number) => {
+    const days = Math.max(1, val);
+    setDurationDays(days);
+    if (startDate && days > 0) {
+      const start = new Date(startDate);
+      if (!isNaN(start.getTime())) {
+        const end = new Date(start);
+        end.setDate(end.getDate() + Math.max(0, days - 1));
+        setEndDate(end.toISOString().slice(0, 10));
+      }
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setError('Cohort title is required.');
+      return;
+    }
+    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+      setError('Course end date cannot be earlier than course start date.');
       return;
     }
 
@@ -43,6 +86,8 @@ export function MentorCreateCohortModal({
         description: description.trim() || undefined,
         track_type: trackType,
         duration_days: durationDays,
+        start_date: startDate ? new Date(`${startDate}T00:00:00Z`).toISOString() : null,
+        end_date: endDate ? new Date(`${endDate}T23:59:59Z`).toISOString() : null,
         price_inr: priceInr,
       });
 
@@ -143,29 +188,60 @@ export function MentorCreateCohortModal({
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+              <label htmlFor="mentor-cohort-duration" className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
                 Duration (Days)
               </label>
               <input
+                id="mentor-cohort-duration"
                 type="number"
                 min="1"
                 max="365"
                 value={durationDays}
-                onChange={(e) => setDurationDays(Math.max(1, parseInt(e.target.value, 10) || 15))}
+                onChange={(e) => handleDurationChange(parseInt(e.target.value, 10) || 15)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900 shadow-2xs outline-none focus:border-orange-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+              <label htmlFor="mentor-cohort-fee" className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
                 Fee (INR ₹)
               </label>
               <input
+                id="mentor-cohort-fee"
                 type="number"
                 min="1"
                 value={priceInr}
                 onChange={(e) => setPriceInr(Math.max(1, parseInt(e.target.value, 10) || DEFAULT_COHORT_FEE_INR))}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900 shadow-2xs outline-none focus:border-orange-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+              />
+            </div>
+          </div>
+
+          {/* Schedule */}
+          <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+            <div>
+              <label htmlFor="mentor-cohort-start-date" className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+                Course Start Date
+              </label>
+              <input
+                id="mentor-cohort-start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => handleStartDateChange(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-900 shadow-2xs outline-none focus:border-orange-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="mentor-cohort-end-date" className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+                Course End Date
+              </label>
+              <input
+                id="mentor-cohort-end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => handleEndDateChange(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-900 shadow-2xs outline-none focus:border-orange-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
               />
             </div>
           </div>

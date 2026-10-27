@@ -244,6 +244,9 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         visibility: cohort.visibility ?? 'public',
         enrollmentStart: cohort.enrollment_start ? cohort.enrollment_start.slice(0, 16) : '',
         enrollmentEnd: cohort.enrollment_end ? cohort.enrollment_end.slice(0, 16) : '',
+        startDate: cohort.start_date ? cohort.start_date.slice(0, 10) : '',
+        endDate: cohort.end_date ? cohort.end_date.slice(0, 10) : '',
+        durationDays: cohort.duration_days != null ? String(cohort.duration_days) : '15',
         reviewFeedback: cohort.review_feedback ?? '',
       });
     } else {
@@ -258,6 +261,9 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         visibility: 'public',
         enrollmentStart: '',
         enrollmentEnd: '',
+        startDate: '',
+        endDate: '',
+        durationDays: '15',
         reviewFeedback: '',
       });
     }
@@ -542,6 +548,9 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         if (editor.priceInr !== undefined && editor.priceInr !== '' && Number(editor.priceInr) <= 0) {
           throw new Error('Cohort price must be greater than zero. Free enrollment is prohibited under the platform paid-only policy.');
         }
+        if (editor.startDate && editor.endDate && new Date(editor.endDate) < new Date(editor.startDate)) {
+          throw new Error('Course end date cannot be earlier than course start date.');
+        }
 
         // Mentor permission checks on cohort
         if (isMentor) {
@@ -564,6 +573,9 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
           visibility: editor.visibility,
           enrollment_start: editor.enrollmentStart ? new Date(editor.enrollmentStart).toISOString() : null,
           enrollment_end: editor.enrollmentEnd ? new Date(editor.enrollmentEnd).toISOString() : null,
+          start_date: editor.startDate ? new Date(`${editor.startDate}T00:00:00Z`).toISOString() : null,
+          end_date: editor.endDate ? new Date(`${editor.endDate}T23:59:59Z`).toISOString() : null,
+          duration_days: Math.max(1, Number(editor.durationDays) || 15),
           review_feedback: isAdmin ? (editor.reviewFeedback?.trim() || null) : undefined,
           created_by: isMentor ? user?.id : undefined,
         };

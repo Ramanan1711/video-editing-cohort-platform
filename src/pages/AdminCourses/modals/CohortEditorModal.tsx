@@ -22,6 +22,45 @@ export function CohortEditorModal() {
 
   const cohortEditor = editor as CohortEditorState;
 
+  const handleStartDateChange = (val: string) => {
+    const nextState = { ...cohortEditor, startDate: val };
+    if (val && cohortEditor.durationDays && Number(cohortEditor.durationDays) > 0) {
+      const start = new Date(val);
+      if (!isNaN(start.getTime())) {
+        const end = new Date(start);
+        end.setDate(end.getDate() + Math.max(0, Number(cohortEditor.durationDays) - 1));
+        nextState.endDate = end.toISOString().slice(0, 10);
+      }
+    }
+    setEditor(nextState);
+  };
+
+  const handleEndDateChange = (val: string) => {
+    const nextState = { ...cohortEditor, endDate: val };
+    if (cohortEditor.startDate && val) {
+      const start = new Date(cohortEditor.startDate);
+      const end = new Date(val);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end >= start) {
+        const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        nextState.durationDays = String(Math.max(1, diffDays));
+      }
+    }
+    setEditor(nextState);
+  };
+
+  const handleDurationChange = (val: string) => {
+    const nextState = { ...cohortEditor, durationDays: val };
+    if (cohortEditor.startDate && val && Number(val) > 0) {
+      const start = new Date(cohortEditor.startDate);
+      if (!isNaN(start.getTime())) {
+        const end = new Date(start);
+        end.setDate(end.getDate() + Math.max(0, Number(val) - 1));
+        nextState.endDate = end.toISOString().slice(0, 10);
+      }
+    }
+    setEditor(nextState);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm">
       <form
@@ -201,6 +240,41 @@ export function CohortEditorModal() {
               value={cohortEditor.enrollmentEnd}
               onChange={(val) => setEditor({ ...cohortEditor, enrollmentEnd: val })}
             />
+          </div>
+
+          {/* Course Duration & Schedule */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 p-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">
+                Course Duration & Schedule
+              </span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                Powers challenge pacing & calendar unlocking
+              </span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <FormField
+                label="Duration (Days)"
+                type="number"
+                min="1"
+                value={cohortEditor.durationDays}
+                onChange={handleDurationChange}
+                placeholder="15"
+                required
+              />
+              <FormField
+                label="Course Start Date"
+                type="date"
+                value={cohortEditor.startDate}
+                onChange={handleStartDateChange}
+              />
+              <FormField
+                label="Course End Date"
+                type="date"
+                value={cohortEditor.endDate}
+                onChange={handleEndDateChange}
+              />
+            </div>
           </div>
 
           {isAdmin ? (
