@@ -79,7 +79,7 @@ export const CommunityHub: React.FC = () => {
       />
 
       {/* 2. Workspace Body: Left Sidebar + Center Workspace */}
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden relative">
         {/* Left Community Sidebar (Desktop) */}
         <CommunitySidebar
           activeView={activeView}
@@ -93,7 +93,7 @@ export const CommunityHub: React.FC = () => {
         />
 
         {/* Center Main View Area: Feed vs Messages vs Level Up Tab */}
-        <main className="flex flex-1 overflow-hidden pb-16 md:pb-0 bg-white dark:bg-slate-950">
+        <main className="flex flex-1 min-w-0 overflow-hidden pb-16 md:pb-0 bg-white dark:bg-slate-950">
           {activeView === 'feed' ? (
             <CommunityFeed
               cohortId={cohortParam || undefined}

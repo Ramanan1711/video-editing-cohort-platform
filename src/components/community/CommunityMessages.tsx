@@ -339,10 +339,10 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
   );
 
   return (
-    <div className="flex flex-1 h-[calc(100vh-73px)] overflow-hidden bg-white dark:bg-slate-950">
+    <div className="flex flex-1 min-w-0 w-full h-full overflow-hidden bg-white dark:bg-slate-950">
       {/* Left Chat Sidebar (Channels & Direct Messages) */}
       <div
-        className={`w-full md:w-80 border-r border-slate-200/80 flex flex-col dark:border-slate-800 dark:bg-slate-900/50 ${
+        className={`w-full md:w-80 md:shrink-0 border-r border-slate-200/80 flex flex-col dark:border-slate-800 dark:bg-slate-900/50 ${
           mobileShowChat ? 'hidden md:flex' : 'flex'
         }`}
       >
@@ -507,13 +507,13 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
 
       {/* Right Chat Stream & Input Pane */}
       <div
-        className={`flex-1 flex-col h-full bg-slate-50/40 dark:bg-slate-950 ${
+        className={`flex-1 min-w-0 flex flex-col h-full bg-slate-50/40 dark:bg-slate-950 ${
           mobileShowChat ? 'flex' : 'hidden md:flex'
         }`}
       >
         {/* Chat Stream Header */}
-        <div className="h-16 border-b border-slate-200/80 px-3.5 sm:px-5 flex items-center justify-between bg-white dark:border-slate-800 dark:bg-slate-950 relative">
-          <div className="flex items-center gap-2.5 sm:gap-3 truncate">
+        <div className="h-16 border-b border-slate-200/80 px-3.5 sm:px-5 flex items-center justify-between bg-white dark:border-slate-800 dark:bg-slate-950 relative min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 truncate min-w-0">
             {/* Mobile Back Button to Channels */}
             <button
               onClick={() => setMobileShowChat(false)}
@@ -534,7 +534,7 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
                 activeChannel?.icon || <MessageCircle size={18} />
               )}
             </div>
-            <div className="truncate">
+            <div className="truncate min-w-0">
               <h2 className="text-sm font-black text-slate-950 dark:text-white truncate">
                 {title}
               </h2>
