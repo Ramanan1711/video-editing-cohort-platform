@@ -329,16 +329,16 @@ export const Register: React.FC = () => {
         <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-red-600/10 blur-[140px]" />
         <div className="pointer-events-none absolute bottom-12 right-1/4 -z-10 size-[450px] rounded-full bg-orange-500/10 blur-[130px]" />
 
-        <main className="flex-1 flex items-center justify-center px-5 py-12">
+        <main className="flex-1 flex items-center justify-center px-4 py-6 sm:py-8">
           <div className="w-full max-w-md">
-            <Link to="/" data-cursor="HOME" className="mx-auto mb-8 flex items-center justify-center gap-3.5 group w-fit">
+            <Link to="/" data-cursor="HOME" className="mx-auto mb-4 sm:mb-5 flex items-center justify-center gap-3.5 group w-fit">
               <img
                 src={BRAND_LOGO_URL}
                 alt="Iunoware Academy Logo"
-                className="h-12 w-auto object-contain drop-shadow-[0_4px_14px_rgba(249,115,22,0.35)] group-hover:scale-105 transition-transform"
+                className="h-10 w-auto object-contain drop-shadow-[0_4px_14px_rgba(249,115,22,0.35)] group-hover:scale-105 transition-transform"
               />
               <div className="flex items-center gap-2 leading-none font-sans">
-                <span className="text-3xl font-black tracking-tight text-white group-hover:text-orange-400 transition-colors">Iunoware</span>
+                <span className="text-2xl sm:text-3xl font-black tracking-tight text-white group-hover:text-orange-400 transition-colors">Iunoware</span>
                 <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-orange-400">
                   Academy
                 </span>
@@ -351,24 +351,24 @@ export const Register: React.FC = () => {
               perspective={1200}
               glareOpacity={0.16}
               glareColor="rgba(249, 115, 22, 0.25)"
-              className="relative rounded-3xl border border-white/10 bg-[#090d16]/90 p-7 sm:p-9 shadow-2xl backdrop-blur-2xl text-center space-y-5"
+              className="relative rounded-3xl border border-white/10 bg-[#090d16]/90 p-6 sm:p-7 shadow-2xl backdrop-blur-2xl text-center space-y-4"
             >
-              <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-orange-500/15 border border-orange-500/30 text-orange-400 shadow-lg shadow-orange-500/20">
-                <ShieldCheck size={28} />
+              <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-orange-500/15 border border-orange-500/30 text-orange-400 shadow-lg shadow-orange-500/20">
+                <ShieldCheck size={26} />
               </div>
 
-              <div className="space-y-2">
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              <div className="space-y-1.5">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
                   Confirm your email
                 </h1>
-                <p className="text-sm text-slate-300 leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                   Enter the 6-digit verification code sent to{' '}
                   <strong className="text-white font-mono break-all">{email}</strong>.
                 </p>
               </div>
 
               {/* 6-Digit OTP Interactive Input */}
-              <div className="py-2">
+              <div className="py-1">
                 <OtpInput
                   value={otpToken}
                   onChange={(val) => {
@@ -383,32 +383,32 @@ export const Register: React.FC = () => {
 
               {/* Status / Error Alerts */}
               {otpError && (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/15 p-3 text-xs text-red-300 flex items-center justify-center gap-1.5">
+                <div className="rounded-xl border border-red-500/30 bg-red-500/15 p-2.5 text-xs text-red-300 flex items-center justify-center gap-1.5">
                   <AlertCircle size={14} className="shrink-0" />
                   <span>{otpError}</span>
                 </div>
               )}
 
               {otpSuccess && (
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-3 text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5 animate-in fade-in zoom-in-95">
-                  <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-2.5 text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5 animate-in fade-in zoom-in-95">
+                  <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
                   <span>Email verified! Redirecting to your workspace...</span>
                 </div>
               )}
 
               {resendSuccess && !otpSuccess && (
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-3 text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5">
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-2.5 text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5">
                   <CheckCircle2 size={14} className="shrink-0" />
                   <span>Verification code resent! Please check your inbox.</span>
                 </div>
               )}
 
-              <div className="rounded-2xl border border-white/10 bg-[#060913]/90 p-4 text-xs text-slate-300 text-left space-y-2.5">
-                <p className="font-bold text-white flex items-center gap-1.5 font-mono">
-                  <CheckCircle2 size={14} className="text-emerald-400" />
+              <div className="rounded-xl border border-white/10 bg-[#060913]/90 p-3 text-xs text-slate-300 text-left space-y-2">
+                <p className="font-bold text-white flex items-center gap-1.5 font-mono text-[11px]">
+                  <CheckCircle2 size={13} className="text-emerald-400" />
                   Next Steps:
                 </p>
-                <ul className="list-disc list-inside space-y-1 text-slate-400">
+                <ul className="list-disc list-inside space-y-0.5 text-slate-400 text-[11px] leading-relaxed">
                   <li>Check your inbox (and spam folder) for the 6-digit OTP code.</li>
                   <li>Enter the 6-digit code above to activate your student workspace.</li>
                   {targetCohort ? (
@@ -421,14 +421,14 @@ export const Register: React.FC = () => {
                 </ul>
               </div>
 
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2.5 pt-1">
                 <Button
                   type="button"
                   onClick={() => handleVerifyOtp()}
                   disabled={otpLoading || otpToken.length !== 6 || otpSuccess}
                   loading={otpLoading}
                   onMouseEnter={() => soundFx.playBlip(480, 0.02, 'sine', 0.02)}
-                  className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3 hover:scale-[1.01] transition-all disabled:opacity-50"
+                  className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-2.5 hover:scale-[1.01] transition-all disabled:opacity-50"
                 >
                   <span>{otpLoading ? 'Verifying code...' : 'Verify & Continue'}</span>
                 </Button>
@@ -439,7 +439,7 @@ export const Register: React.FC = () => {
                   onClick={handleResendConfirmation}
                   disabled={resendLoading || resendCooldown > 0 || otpSuccess}
                   onMouseEnter={() => soundFx.playBlip(440, 0.02, 'sine', 0.02)}
-                  className="w-full justify-center bg-white/5 border border-white/15 text-white hover:bg-white/10 hover:border-orange-500/40 backdrop-blur-xl"
+                  className="w-full justify-center bg-white/5 border border-white/15 text-white hover:bg-white/10 hover:border-orange-500/40 backdrop-blur-xl py-2.5"
                 >
                   {resendLoading ? (
                     <span className="flex items-center gap-2">
@@ -453,7 +453,7 @@ export const Register: React.FC = () => {
                   )}
                 </Button>
 
-                <div className="flex items-center justify-between pt-2 text-xs text-slate-400">
+                <div className="flex items-center justify-between pt-1.5 text-xs text-slate-400">
                   <button
                     type="button"
                     onClick={() => {
@@ -493,16 +493,16 @@ export const Register: React.FC = () => {
         <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-red-600/10 blur-[140px]" />
         <div className="pointer-events-none absolute bottom-12 right-1/4 -z-10 size-[450px] rounded-full bg-orange-500/10 blur-[130px]" />
 
-        <main className="flex-1 flex items-center justify-center px-5 py-12">
+        <main className="flex-1 flex items-center justify-center px-4 py-6 sm:py-8">
           <div className="w-full max-w-md">
-            <Link to="/" data-cursor="HOME" className="mx-auto mb-8 flex items-center justify-center gap-3.5 group w-fit">
+            <Link to="/" data-cursor="HOME" className="mx-auto mb-4 sm:mb-5 flex items-center justify-center gap-3.5 group w-fit">
               <img
                 src={BRAND_LOGO_URL}
                 alt="Iunoware Academy Logo"
-                className="h-12 w-auto object-contain drop-shadow-[0_4px_14px_rgba(249,115,22,0.35)] group-hover:scale-105 transition-transform"
+                className="h-10 w-auto object-contain drop-shadow-[0_4px_14px_rgba(249,115,22,0.35)] group-hover:scale-105 transition-transform"
               />
               <div className="flex items-center gap-2 leading-none font-sans">
-                <span className="text-3xl font-black tracking-tight text-white group-hover:text-orange-400 transition-colors">Iunoware</span>
+                <span className="text-2xl sm:text-3xl font-black tracking-tight text-white group-hover:text-orange-400 transition-colors">Iunoware</span>
                 <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-orange-400">
                   Academy
                 </span>
@@ -515,26 +515,26 @@ export const Register: React.FC = () => {
               perspective={1200}
               glareOpacity={0.16}
               glareColor="rgba(249, 115, 22, 0.25)"
-              className="relative rounded-3xl border border-white/10 bg-[#090d16]/90 p-7 sm:p-9 shadow-2xl backdrop-blur-2xl text-center space-y-5"
+              className="relative rounded-3xl border border-white/10 bg-[#090d16]/90 p-6 sm:p-7 shadow-2xl backdrop-blur-2xl text-center space-y-4"
             >
-              <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 shadow-lg shadow-amber-500/20">
-                <AlertCircle size={26} />
+              <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 shadow-lg shadow-amber-500/20">
+                <AlertCircle size={24} />
               </div>
 
-              <div className="space-y-2">
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              <div className="space-y-1.5">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
                   Account Already Exists
                 </h1>
-                <p className="text-sm text-slate-300 leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                   An account with <strong className="text-white font-mono break-all">{email}</strong> is already registered on Iunoware Academy.
                 </p>
               </div>
 
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2.5 pt-1">
                 <Button
                   href={targetCohortId ? `/login?cohort=${encodeURIComponent(targetCohortId)}` : '/login'}
                   onMouseEnter={() => soundFx.playBlip(460, 0.02, 'sine', 0.02)}
-                  className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3"
+                  className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-2.5"
                 >
                   <span>Sign in with this account</span>
                 </Button>
@@ -542,7 +542,7 @@ export const Register: React.FC = () => {
                   href="/forgot-password"
                   variant="secondary"
                   onMouseEnter={() => soundFx.playBlip(420, 0.02, 'sine', 0.02)}
-                  className="w-full justify-center bg-white/5 border border-white/15 text-white hover:bg-white/10 hover:border-orange-500/40 backdrop-blur-xl"
+                  className="w-full justify-center bg-white/5 border border-white/15 text-white hover:bg-white/10 hover:border-orange-500/40 backdrop-blur-xl py-2.5"
                 >
                   <span>Reset password</span>
                 </Button>
@@ -550,7 +550,7 @@ export const Register: React.FC = () => {
                   type="button"
                   onClick={() => setExistingAccountNotice(false)}
                   onMouseEnter={() => soundFx.playBlip(380, 0.02, 'sine', 0.02)}
-                  className="text-xs font-bold text-slate-400 hover:text-white transition cursor-pointer pt-2 block mx-auto"
+                  className="text-xs font-bold text-slate-400 hover:text-white transition cursor-pointer pt-1 block mx-auto"
                 >
                   ← Use a different email address
                 </button>
@@ -574,18 +574,18 @@ export const Register: React.FC = () => {
       <div className="pointer-events-none absolute top-12 left-1/4 -z-10 size-[500px] rounded-full bg-red-600/10 blur-[140px]" />
       <div className="pointer-events-none absolute bottom-12 right-1/4 -z-10 size-[450px] rounded-full bg-orange-500/10 blur-[130px]" />
 
-      <main className="flex-1 flex items-center justify-center px-5 py-12">
-        <div className="w-full max-w-md">
+      <main className="flex-1 flex items-center justify-center px-4 py-5 sm:py-7">
+        <div className="w-full max-w-xl">
           {/* Logo Header */}
-          <Link to="/" data-cursor="HOME" className="mx-auto mb-8 flex items-center justify-center gap-3.5 group w-fit">
+          <Link to="/" data-cursor="HOME" className="mx-auto mb-3.5 sm:mb-4 flex items-center justify-center gap-3 group w-fit">
             <img
               src={BRAND_LOGO_URL}
               alt="Iunoware Academy Logo"
-              className="h-12 w-auto object-contain drop-shadow-[0_4px_14px_rgba(249,115,22,0.35)] group-hover:scale-105 transition-transform"
+              className="h-9 sm:h-10 w-auto object-contain drop-shadow-[0_4px_14px_rgba(249,115,22,0.35)] group-hover:scale-105 transition-transform"
             />
             <div className="flex items-center gap-2 leading-none font-sans">
-              <span className="text-3xl font-black tracking-tight text-white group-hover:text-orange-400 transition-colors">Iunoware</span>
-              <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-orange-400">
+              <span className="text-2xl sm:text-3xl font-black tracking-tight text-white group-hover:text-orange-400 transition-colors">Iunoware</span>
+              <span className="hidden sm:inline-block rounded-full bg-orange-500/15 border border-orange-500/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-orange-400">
                 Academy
               </span>
             </div>
@@ -598,43 +598,48 @@ export const Register: React.FC = () => {
             perspective={1200}
             glareOpacity={0.16}
             glareColor="rgba(249, 115, 22, 0.25)"
-            className="relative rounded-3xl border border-white/10 bg-[#090d16]/90 p-7 sm:p-9 shadow-2xl backdrop-blur-2xl"
+            className="relative rounded-3xl border border-white/10 bg-[#090d16]/90 p-5 sm:p-7 shadow-2xl backdrop-blur-2xl"
           >
-            {/* Telemetry Status Pill */}
-            <div
-              data-cursor="TELEMETRY"
-              className="mb-4 inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-[#060913]/90 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-orange-400 font-mono shadow-md backdrop-blur-xl"
-            >
-              <span className="flex size-2 rounded-full bg-orange-500 animate-ping" />
-              <span>Join Batch 15 Cohort Sprint</span>
-            </div>
+            {/* Header info row */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  Create your account.
+                </h1>
+                <p className="text-xs text-slate-400">
+                  Start your 15-day intensive production internship.
+                </p>
+              </div>
 
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Create your account.
-            </h1>
-            <p className="mt-2 text-sm leading-relaxed text-slate-400">
-              Start your 15-day intensive production internship.
-            </p>
+              {/* Telemetry Status Pill */}
+              <div
+                data-cursor="TELEMETRY"
+                className="self-start sm:self-auto inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-[#060913]/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-orange-400 font-mono shadow-md backdrop-blur-xl shrink-0"
+              >
+                <span className="flex size-2 rounded-full bg-orange-500 animate-ping" />
+                <span>Join Batch 15 Cohort Sprint</span>
+              </div>
+            </div>
 
             {/* Target Cohort Reservation Indicator */}
             {targetCohortId && (
-              <div className="mt-5 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-3.5 text-xs text-orange-200 flex items-center justify-between shadow-lg shadow-orange-500/10">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex size-7 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400">
-                    <Sparkles size={14} />
+              <div className="mt-2.5 rounded-xl border border-orange-500/30 bg-orange-500/10 p-2.5 text-xs text-orange-200 flex items-center justify-between shadow-lg shadow-orange-500/10">
+                <div className="flex items-center gap-2">
+                  <div className="flex size-6 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400 shrink-0">
+                    <Sparkles size={13} />
                   </div>
                   <div>
-                    <span className="font-bold text-white block">
+                    <span className="font-bold text-white block text-xs">
                       {targetCohort?.name ? `Joining ${targetCohort.name}` : 'Cohort Selected for Checkout'}
                     </span>
-                    <span className="text-[11px] text-orange-300/80">
+                    <span className="text-[10px] text-orange-300/80">
                       {targetCohort?.price_inr
                         ? `₹${targetCohort.price_inr.toLocaleString('en-IN')} ${targetCohort.currency || 'INR'} • Seat held during signup`
                         : 'Seat reserved for checkout after email verification'}
                     </span>
                   </div>
                 </div>
-                <span className="rounded-full bg-orange-500/20 px-2 py-0.5 text-[9px] font-mono text-orange-300 uppercase tracking-wider font-bold">
+                <span className="rounded-full bg-orange-500/20 px-2 py-0.5 text-[9px] font-mono text-orange-300 uppercase tracking-wider font-bold shrink-0">
                   Step 1 of 2
                 </span>
               </div>
@@ -642,14 +647,14 @@ export const Register: React.FC = () => {
 
             {/* Network Failure / General Error Banner */}
             {error && (
-              <div className={`mt-6 rounded-2xl border p-4 text-xs backdrop-blur-xl ${
+              <div className={`mt-3 rounded-xl border p-3 text-xs backdrop-blur-xl ${
                 isNetworkError
                   ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
                   : 'border-red-500/30 bg-red-500/10 text-red-200'
               }`}>
-                <div className="flex items-start gap-2.5">
-                  <AlertCircle size={16} className={`shrink-0 mt-0.5 ${isNetworkError ? 'text-amber-400' : 'text-red-400'}`} />
-                  <div className="space-y-2 flex-1">
+                <div className="flex items-start gap-2">
+                  <AlertCircle size={15} className={`shrink-0 mt-0.5 ${isNetworkError ? 'text-amber-400' : 'text-red-400'}`} />
+                  <div className="space-y-1.5 flex-1">
                     <p className="leading-relaxed">{error}</p>
                     {isNetworkError && (
                       <button
@@ -667,29 +672,34 @@ export const Register: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleRegister} className="mt-7 space-y-5">
-              <FormField
-                id="full-name"
-                label="Full name"
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Alex Editor"
-                labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
-                inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
-              />
-              <FormField
-                id="register-email"
-                label="Email address"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
-                inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
-              />
+            <form onSubmit={handleRegister} className="mt-3.5 space-y-3">
+              {/* Row 1: Full Name & Email */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FormField
+                  id="full-name"
+                  label="Full name"
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Alex Editor"
+                  labelClassName="mb-1.5 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                  inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                />
+                <FormField
+                  id="register-email"
+                  label="Email address"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  labelClassName="mb-1.5 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                  inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                />
+              </div>
+
+              {/* Row 2: Phone Number */}
               <FormField
                 id="register-phone"
                 label="Phone number"
@@ -699,73 +709,77 @@ export const Register: React.FC = () => {
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91 98765 43210"
                 hint="Used for cohort WhatsApp group & critical schedule updates"
-                labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
-                inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
-              />
-              <FormField
-                id="register-password"
-                aria-label="Password"
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                minLength={6}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
-                inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
-                rightElement={
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setShowPassword((prev) => !prev);
-                    }}
-                    className="text-slate-400 hover:text-white transition-colors p-1 focus:outline-none cursor-pointer"
-                    aria-label={showPassword ? 'Hide' : 'Show'}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                }
-              />
-              <FormField
-                id="register-confirm-password"
-                aria-label="Confirm Password"
-                label="Confirm Password"
-                type={showConfirmPassword ? 'text' : 'password'}
-                minLength={6}
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter your password"
-                labelClassName="mb-2 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
-                inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
-                rightElement={
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setShowConfirmPassword((prev) => !prev);
-                    }}
-                    className="text-slate-400 hover:text-white transition-colors p-1 focus:outline-none cursor-pointer"
-                    aria-label={showConfirmPassword ? 'Hide' : 'Show'}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                }
+                labelClassName="mb-1.5 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
               />
 
-              <div className="rounded-2xl border border-white/10 bg-[#060913]/80 p-3.5 text-xs text-slate-400">
+              {/* Row 3: Passwords */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FormField
+                  id="register-password"
+                  aria-label="Password"
+                  label="Password"
+                  type={showPassword ? 'text' : 'password'}
+                  minLength={6}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  labelClassName="mb-1.5 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                  inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                  rightElement={
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowPassword((prev) => !prev);
+                      }}
+                      className="text-slate-400 hover:text-white transition-colors p-1 focus:outline-none cursor-pointer"
+                      aria-label={showPassword ? 'Hide' : 'Show'}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  }
+                />
+                <FormField
+                  id="register-confirm-password"
+                  aria-label="Confirm Password"
+                  label="Confirm Password"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  minLength={6}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter your password"
+                  labelClassName="mb-1.5 block text-xs font-mono font-bold uppercase tracking-wider text-slate-300"
+                  inputClassName="w-full rounded-xl border border-white/10 bg-[#060913]/90 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-500/15"
+                  rightElement={
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowConfirmPassword((prev) => !prev);
+                      }}
+                      className="text-slate-400 hover:text-white transition-colors p-1 focus:outline-none cursor-pointer"
+                      aria-label={showConfirmPassword ? 'Hide' : 'Show'}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  }
+                />
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-[#060913]/80 px-3 py-2 text-[11px] text-slate-400">
                 <span className="font-semibold text-white">Cohort Role:</span> All candidate registrations join as students. Senior mentors are approved and assigned by administrators.
               </div>
 
@@ -775,14 +789,14 @@ export const Register: React.FC = () => {
                 loading={loading}
                 data-cursor="CREATE ACCOUNT"
                 onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
-                className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+                className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-2.5 sm:py-3 hover:scale-[1.01] transition-all"
               >
                 {loading ? 'Creating account...' : 'Create my account'}
               </Button>
             </form>
 
-            <div className="mt-7 pt-6 border-t border-white/10 text-center">
-              <p className="text-sm text-slate-400">
+            <div className="mt-4 pt-3 border-t border-white/10 text-center">
+              <p className="text-xs sm:text-sm text-slate-400">
                 Already enrolled?{' '}
                 <Link
                   to={targetCohortId ? `/login?cohort=${encodeURIComponent(targetCohortId)}` : '/login'}
@@ -795,7 +809,7 @@ export const Register: React.FC = () => {
               </p>
             </div>
 
-            <div className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-mono">
+            <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] sm:text-[11px] text-slate-500 font-mono">
               <ShieldCheck size={13} className="text-emerald-400" />
               <span>Verified Candidate Enrolment Pipeline</span>
             </div>
