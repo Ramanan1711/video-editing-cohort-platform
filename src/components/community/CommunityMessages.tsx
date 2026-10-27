@@ -26,6 +26,7 @@ import {
   getDirectMessageChannelId,
   fetchChatChannels,
   fetchDirectMessageUsers,
+  DIRECT_MESSAGES_ENABLED,
   DEFAULT_CHANNELS,
   DEFAULT_DIRECT_MESSAGES,
   type ChatMessage,
@@ -79,17 +80,17 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
       try {
         const [fetchedChannels, fetchedDms] = await Promise.all([
           fetchChatChannels(user?.id),
-          fetchDirectMessageUsers(user?.id),
+          DIRECT_MESSAGES_ENABLED ? fetchDirectMessageUsers(user?.id) : Promise.resolve([]),
         ]);
         if (active) {
           setChannels(fetchedChannels);
           setDirectMessages(fetchedDms);
 
-          // If initialChannelId is a direct message contact, switch to DMs tab
-          if (fetchedDms.some((d) => d.id === initialChannelId)) {
+          // If direct messaging is enabled and initialChannelId is a direct message contact, switch to DMs tab
+          if (DIRECT_MESSAGES_ENABLED && fetchedDms.some((d) => d.id === initialChannelId)) {
             setActiveTab('dms');
             setSelectedDmUserId(initialChannelId);
-          } else if (fetchedDms.length > 0) {
+          } else if (DIRECT_MESSAGES_ENABLED && fetchedDms.length > 0) {
             setSelectedDmUserId((prev) => {
               const hasCurrent = fetchedDms.some((d) => d.id === prev);
               return hasCurrent ? prev : fetchedDms[0].id;
@@ -119,7 +120,7 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
     };
   }, [user?.id, initialChannelId]);
 
-  const isDm = activeTab === 'dms';
+  const isDm = DIRECT_MESSAGES_ENABLED && activeTab === 'dms';
 
   // Load active direct message contact info strictly from enrolled courses contacts
   const currentDmTarget = React.useMemo(() => {
@@ -353,34 +354,43 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search chats or channels..."
+              placeholder={DIRECT_MESSAGES_ENABLED ? "Search chats or channels..." : "Search channels..."}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3.5 py-2 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-orange-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
             />
           </div>
 
-          {/* Sub Tabs: Channels vs DMs */}
-          <div className="mt-3 flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
-            <button
-              onClick={() => setActiveTab('channels')}
-              className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition ${
-                activeTab === 'channels'
-                  ? 'bg-white text-slate-950 shadow-2xs font-black dark:bg-slate-900 dark:text-white'
-                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
-              }`}
-            >
-              Channels
-            </button>
-            <button
-              onClick={() => setActiveTab('dms')}
-              className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition ${
-                activeTab === 'dms'
-                  ? 'bg-white text-slate-950 shadow-2xs font-black dark:bg-slate-900 dark:text-white'
-                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
-              }`}
-            >
-              Direct Messages
-            </button>
-          </div>
+          {/* Sub Tabs: Channels vs DMs (Channels-only when DMs disabled) */}
+          {DIRECT_MESSAGES_ENABLED ? (
+            <div className="mt-3 flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+              <button
+                onClick={() => setActiveTab('channels')}
+                className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition ${
+                  activeTab === 'channels'
+                    ? 'bg-white text-slate-950 shadow-2xs font-black dark:bg-slate-900 dark:text-white'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                }`}
+              >
+                Channels
+              </button>
+              <button
+                onClick={() => setActiveTab('dms')}
+                className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition ${
+                  activeTab === 'dms'
+                    ? 'bg-white text-slate-950 shadow-2xs font-black dark:bg-slate-900 dark:text-white'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                }`}
+              >
+                Direct Messages
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 flex items-center justify-between px-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+              <span>Channels</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                {filteredChannels.length} active
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Conversation List */}
@@ -591,7 +601,7 @@ export const CommunityMessages: React.FC<CommunityMessagesProps> = ({
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
                 {isDm
                   ? 'Direct messages are scoped to mentors and peers in your enrolled courses. Once you enroll in a course, you can message your classmates and mentors here.'
-                  : 'Channels and direct messages are scoped to your enrolled courses. Please enroll in a course to participate in chat discussions and peer messaging.'}
+                  : 'Channels are scoped to your enrolled courses. Please enroll in a course to participate in chat discussions.'}
               </p>
             </div>
           ) : messages.length === 0 ? (

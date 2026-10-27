@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   sendChatMessage,
   listChannelMessages,
@@ -9,6 +9,8 @@ import {
   getDirectMessageChannelId,
   listDirectMessages,
   subscribeToDirectMessages,
+  DIRECT_MESSAGES_ENABLED,
+  setDirectMessagesEnabled,
   DEFAULT_CHANNELS,
   DEFAULT_DIRECT_MESSAGES,
 } from '../../lib/communityMessageService';
@@ -56,6 +58,41 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
 
     it('exports DEFAULT_DIRECT_MESSAGES as empty array with no hardcoded contacts', () => {
       expect(DEFAULT_DIRECT_MESSAGES).toEqual([]);
+    });
+  });
+
+  describe('Direct Messages Disabled (Feature Flag)', () => {
+    it('has DIRECT_MESSAGES_ENABLED disabled by default', () => {
+      expect(DIRECT_MESSAGES_ENABLED).toBe(false);
+    });
+
+    it('returns empty array immediately when fetching direct message users while disabled', async () => {
+      const users = await fetchDirectMessageUsers('user-123');
+      expect(users).toEqual([]);
+      expect(supabase.from).not.toHaveBeenCalled();
+    });
+
+    it('returns empty array immediately when listing direct messages while disabled', async () => {
+      const messages = await listDirectMessages('user-1', 'user-2');
+      expect(messages).toEqual([]);
+      expect(supabase.from).not.toHaveBeenCalled();
+    });
+
+    it('returns noop cleanup and does not subscribe when direct messages are disabled', () => {
+      const unsubscribe = subscribeToDirectMessages('user-1', 'user-2', vi.fn());
+      expect(typeof unsubscribe).toBe('function');
+      expect(supabase.channel).not.toHaveBeenCalled();
+      unsubscribe();
+    });
+
+    it('throws an error if a direct message is attempted to be sent while disabled', async () => {
+      await expect(
+        sendChatMessage(
+          'dm-user-1-user-2',
+          { id: 'user-1', name: 'Alice', role: 'student' },
+          'Hello peer'
+        )
+      ).rejects.toThrow('Direct messaging is currently disabled on this platform.');
     });
   });
 
@@ -206,6 +243,14 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
   });
 
   describe('fetchDirectMessageUsers (Scoped to Enrolled Courses)', () => {
+    beforeEach(() => {
+      setDirectMessagesEnabled(true);
+    });
+
+    afterEach(() => {
+      setDirectMessagesEnabled(false);
+    });
+
     it('displays direct message contacts strictly belonging to the user enrolled courses', async () => {
       const mockPeerProfiles = [
         {
@@ -627,6 +672,14 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
   });
 
   describe('listDirectMessages', () => {
+    beforeEach(() => {
+      setDirectMessagesEnabled(true);
+    });
+
+    afterEach(() => {
+      setDirectMessagesEnabled(false);
+    });
+
     const userA = 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b';
     const userB = '591e5ba9-2d77-4f7f-ab8b-ed9f97ebda55';
     const canonicalDmId = 'dm-591e5ba9-2d77-4f7f-ab8b-ed9f97ebda55-e7d1e39f-d098-42d3-a0b0-6a1e93c3538b';
@@ -711,6 +764,14 @@ describe('communityMessageService (Authoritative Delivery & Fail-Closed Guards)'
   });
 
   describe('subscribeToDirectMessages', () => {
+    beforeEach(() => {
+      setDirectMessagesEnabled(true);
+    });
+
+    afterEach(() => {
+      setDirectMessagesEnabled(false);
+    });
+
     it('subscribes to canonical and legacy recipient filters and cleans up properly', () => {
       const mockChannel = {
         on: vi.fn().mockReturnThis(),

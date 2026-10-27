@@ -39,6 +39,16 @@ export interface DirectMessageUser {
 export const DEFAULT_CHANNELS: ChatChannel[] = [];
 export const DEFAULT_DIRECT_MESSAGES: DirectMessageUser[] = [];
 
+/**
+ * Feature flag for 1-on-1 Direct Messages in Community Chat.
+ * Direct messages are currently disabled on this platform.
+ */
+export let DIRECT_MESSAGES_ENABLED = false;
+
+export function setDirectMessagesEnabled(enabled: boolean): void {
+  DIRECT_MESSAGES_ENABLED = enabled;
+}
+
 // Purge deprecated unverified localStorage chat cache if present
 try {
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -211,6 +221,9 @@ export async function fetchChatChannels(userId?: string): Promise<ChatChannel[]>
  * Scopes contacts strictly to peer students and mentors affiliated with the user's enrolled cohorts.
  */
 export async function fetchDirectMessageUsers(currentUserId?: string): Promise<DirectMessageUser[]> {
+  if (!DIRECT_MESSAGES_ENABLED) {
+    return [];
+  }
   try {
     let candidateUserIds: string[] | null = null;
 
@@ -382,6 +395,9 @@ export function getDirectMessageChannelId(userIdA: string, userIdB: string): str
  * with legacy direct messages where channel_id was set to the recipient's user ID.
  */
 export async function listDirectMessages(userIdA: string, userIdB: string): Promise<ChatMessage[]> {
+  if (!DIRECT_MESSAGES_ENABLED) {
+    return [];
+  }
   const a = String(userIdA || '').trim();
   const b = String(userIdB || '').trim();
   if (!a || !b) return [];
@@ -490,6 +506,10 @@ export async function sendChatMessage(
   content: string,
   attachmentUrl?: string
 ): Promise<ChatMessage> {
+  if (!DIRECT_MESSAGES_ENABLED && channelId.startsWith('dm-')) {
+    throw new Error('Direct messaging is currently disabled on this platform.');
+  }
+
   const trimmed = content.trim();
   if (!trimmed && !attachmentUrl) {
     throw new Error('Message content cannot be empty.');
@@ -641,6 +661,9 @@ export function subscribeToDirectMessages(
   userIdB: string,
   onNewMessage: (msg: ChatMessage) => void
 ): () => void {
+  if (!DIRECT_MESSAGES_ENABLED) {
+    return () => {};
+  }
   const a = String(userIdA || '').trim();
   const b = String(userIdB || '').trim();
   if (!a || !b) return () => {};

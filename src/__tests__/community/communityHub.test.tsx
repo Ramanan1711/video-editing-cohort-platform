@@ -279,7 +279,7 @@ describe('CommunityHub & Components', () => {
     // Should show chat input composer
     expect(screen.getByPlaceholderText(/Message/i)).toBeInTheDocument();
     expect(screen.getByText('Channels')).toBeInTheDocument();
-    expect(screen.getByText('Direct Messages')).toBeInTheDocument();
+    expect(screen.queryByText('Direct Messages')).not.toBeInTheDocument();
   });
 
   it('opens and closes the Create Post modal when clicking Create', async () => {
