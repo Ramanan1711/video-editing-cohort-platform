@@ -278,31 +278,42 @@ export const Login: React.FC = () => {
                   </div>
                 </div>
 
-                {resendSuccess ? (
+                {resendSuccess && (
                   <div className="flex items-center gap-1.5 font-bold text-emerald-300 bg-emerald-500/20 p-2 rounded-xl border border-emerald-500/30">
                     <CheckCircle2 size={14} className="text-emerald-400" />
                     <span>Confirmation link sent to {email}. Check your inbox!</span>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleResendConfirmation}
-                    disabled={resendLoading || resendCooldown > 0}
-                    onMouseEnter={() => soundFx.playBlip(420, 0.02, 'sine', 0.02)}
-                    className="inline-flex items-center gap-1.5 font-bold text-orange-400 hover:text-orange-300 underline cursor-pointer disabled:opacity-50"
-                  >
-                    {resendLoading ? (
-                      <>
-                        <RefreshCw size={12} className="animate-spin" />
-                        Sending link...
-                      </>
-                    ) : resendCooldown > 0 ? (
-                      `Resend in ${resendCooldown}s`
-                    ) : (
-                      'Resend confirmation email →'
-                    )}
-                  </button>
                 )}
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-500/20">
+                  <Link
+                    to={`/register?verify=true&email=${encodeURIComponent(email.trim())}${targetCohortId ? `&cohort=${encodeURIComponent(targetCohortId)}` : ''}`}
+                    className="inline-flex items-center gap-1.5 font-bold text-orange-400 hover:text-orange-300 underline cursor-pointer"
+                  >
+                    Enter 6-digit OTP code →
+                  </Link>
+
+                  {!resendSuccess && (
+                    <button
+                      type="button"
+                      onClick={handleResendConfirmation}
+                      disabled={resendLoading || resendCooldown > 0}
+                      onMouseEnter={() => soundFx.playBlip(420, 0.02, 'sine', 0.02)}
+                      className="inline-flex items-center gap-1.5 font-medium text-slate-300 hover:text-white underline cursor-pointer disabled:opacity-50"
+                    >
+                      {resendLoading ? (
+                        <>
+                          <RefreshCw size={12} className="animate-spin" />
+                          Sending link...
+                        </>
+                      ) : resendCooldown > 0 ? (
+                        `Resend in ${resendCooldown}s`
+                      ) : (
+                        'Resend confirmation email →'
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 

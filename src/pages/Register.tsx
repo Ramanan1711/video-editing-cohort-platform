@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  Mail,
   RefreshCw,
   Sparkles,
   ArrowRight,
@@ -14,9 +13,11 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/FormField';
+import { OtpInput } from '../components/ui/OtpInput';
 import { StudioBar } from '../components/home/StudioBar';
 import { TiltCard } from '../components/home/TiltCard';
 import { soundFx } from '../lib/soundFx';
+import { recordSessionEstablished } from '../lib/authSessionService';
 import {
   setPendingCohortCheckout,
   resolveTargetCohortId,
@@ -37,8 +38,12 @@ export const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isNetworkError, setIsNetworkError] = useState(false);
 
-  // Email confirmation states
+  // Email confirmation & 6-digit OTP states
   const [confirmationRequired, setConfirmationRequired] = useState(false);
+  const [otpToken, setOtpToken] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [otpSuccess, setOtpSuccess] = useState(false);
   const [existingAccountNotice, setExistingAccountNotice] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
@@ -65,6 +70,16 @@ export const Register: React.FC = () => {
     }
   }, [targetCohortId]);
 
+
+  // Allow direct navigation to verification screen via ?verify=true&email=...
+  useEffect(() => {
+    const shouldVerify = searchParams.get('verify') === 'true';
+    const emailParam = searchParams.get('email');
+    if (shouldVerify && emailParam) {
+      setEmail(emailParam);
+      setConfirmationRequired(true);
+    }
+  }, [searchParams]);
 
   // Handle countdown for resend button
   useEffect(() => {
@@ -213,10 +228,65 @@ export const Register: React.FC = () => {
     }
   };
 
+  const handleVerifyOtp = async (codeOverride?: string) => {
+    const code = (codeOverride || otpToken).trim();
+    if (code.length !== 6) {
+      setOtpError('Please enter the full 6-digit verification code.');
+      return;
+    }
+
+    setOtpLoading(true);
+    setOtpError('');
+    soundFx.playSweep(260, 600, 0.1, 0.05);
+
+    try {
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: code,
+        type: 'signup',
+      });
+
+      if (verifyError) {
+        soundFx.playBlip(200, 0.08, 'sawtooth', 0.06);
+        const msg = verifyError.message.toLowerCase();
+        if (msg.includes('expired') || msg.includes('token has expired')) {
+          setOtpError('This verification code has expired. Please click "Resend verification email" below.');
+        } else if (msg.includes('invalid') || msg.includes('token')) {
+          setOtpError('Incorrect 6-digit code. Please check your email or request a fresh code.');
+        } else {
+          setOtpError(verifyError.message);
+        }
+        setOtpLoading(false);
+        return;
+      }
+
+      if (data?.session) {
+        recordSessionEstablished();
+      }
+
+      soundFx.playChime();
+      setOtpSuccess(true);
+
+      const redirectPath = targetCohortId
+        ? `/student/dashboard?cohort=${encodeURIComponent(targetCohortId)}&checkout=true`
+        : '/student/dashboard';
+
+      setTimeout(() => {
+        navigate(redirectPath);
+      }, 700);
+    } catch (err: unknown) {
+      soundFx.playBlip(200, 0.08, 'sawtooth', 0.06);
+      setOtpError(err instanceof Error ? err.message : 'Failed to verify code. Please try again.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
   const handleResendConfirmation = async () => {
     if (!email || resendLoading || resendCooldown > 0) return;
     setResendLoading(true);
-    setError('');
+    setOtpError('');
+    setResendSuccess(false);
 
     try {
       const redirectPath = targetCohortId
@@ -235,20 +305,21 @@ export const Register: React.FC = () => {
       });
 
       if (resendErr) {
-        setError(resendErr.message);
+        setOtpError(resendErr.message);
       } else {
         setResendSuccess(true);
         setResendCooldown(60);
+        soundFx.playBlip(520, 0.04, 'sine', 0.03);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to resend confirmation email.');
+      setOtpError(err instanceof Error ? err.message : 'Failed to resend confirmation email.');
     } finally {
       setResendLoading(false);
     }
   };
 
   // ---------------------------------------------------------------------------
-  // View 1: Email Confirmation Required Screen
+  // View 1: 6-Digit OTP Verification Screen
   // ---------------------------------------------------------------------------
   if (confirmationRequired) {
     return (
@@ -283,7 +354,7 @@ export const Register: React.FC = () => {
               className="relative rounded-3xl border border-white/10 bg-[#090d16]/90 p-7 sm:p-9 shadow-2xl backdrop-blur-2xl text-center space-y-5"
             >
               <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-orange-500/15 border border-orange-500/30 text-orange-400 shadow-lg shadow-orange-500/20">
-                <Mail size={26} />
+                <ShieldCheck size={28} />
               </div>
 
               <div className="space-y-2">
@@ -291,10 +362,46 @@ export const Register: React.FC = () => {
                   Confirm your email
                 </h1>
                 <p className="text-sm text-slate-300 leading-relaxed">
-                  We've dispatched a verification link to{' '}
+                  Enter the 6-digit verification code sent to{' '}
                   <strong className="text-white font-mono break-all">{email}</strong>.
                 </p>
               </div>
+
+              {/* 6-Digit OTP Interactive Input */}
+              <div className="py-2">
+                <OtpInput
+                  value={otpToken}
+                  onChange={(val) => {
+                    setOtpToken(val);
+                    if (otpError) setOtpError('');
+                  }}
+                  onComplete={(val) => handleVerifyOtp(val)}
+                  disabled={otpLoading || otpSuccess}
+                  error={Boolean(otpError)}
+                />
+              </div>
+
+              {/* Status / Error Alerts */}
+              {otpError && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/15 p-3 text-xs text-red-300 flex items-center justify-center gap-1.5">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{otpError}</span>
+                </div>
+              )}
+
+              {otpSuccess && (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-3 text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5 animate-in fade-in zoom-in-95">
+                  <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                  <span>Email verified! Redirecting to your workspace...</span>
+                </div>
+              )}
+
+              {resendSuccess && !otpSuccess && (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-3 text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5">
+                  <CheckCircle2 size={14} className="shrink-0" />
+                  <span>Verification link resent! Please check your inbox.</span>
+                </div>
+              )}
 
               <div className="rounded-2xl border border-white/10 bg-[#060913]/90 p-4 text-xs text-slate-300 text-left space-y-2.5">
                 <p className="font-bold text-white flex items-center gap-1.5 font-mono">
@@ -302,8 +409,8 @@ export const Register: React.FC = () => {
                   Next Steps:
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-slate-400">
-                  <li>Check your inbox (and junk / spam folder).</li>
-                  <li>Click the confirmation link to activate your student workspace.</li>
+                  <li>Check your inbox (and junk / spam folder) for the 6-digit OTP code.</li>
+                  <li>Enter the 6-digit code above, or click the verification link in the email.</li>
                   {targetCohort ? (
                     <li className="text-orange-300 font-semibold">
                       You will return directly to checkout for <strong>{targetCohort.name}</strong>.
@@ -314,32 +421,30 @@ export const Register: React.FC = () => {
                 </ul>
               </div>
 
-              {resendSuccess && (
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-3 text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5">
-                  <CheckCircle2 size={14} />
-                  <span>Verification link resent! Please check your inbox.</span>
-                </div>
-              )}
-
-              {error && (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/15 p-3 text-xs text-red-300">
-                  {error}
-                </div>
-              )}
-
               <div className="space-y-3 pt-2">
+                <Button
+                  type="button"
+                  onClick={() => handleVerifyOtp()}
+                  disabled={otpLoading || otpToken.length !== 6 || otpSuccess}
+                  loading={otpLoading}
+                  onMouseEnter={() => soundFx.playBlip(480, 0.02, 'sine', 0.02)}
+                  className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3 hover:scale-[1.01] transition-all disabled:opacity-50"
+                >
+                  <span>{otpLoading ? 'Verifying code...' : 'Verify & Continue'}</span>
+                </Button>
+
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={handleResendConfirmation}
-                  disabled={resendLoading || resendCooldown > 0}
+                  disabled={resendLoading || resendCooldown > 0 || otpSuccess}
                   onMouseEnter={() => soundFx.playBlip(440, 0.02, 'sine', 0.02)}
                   className="w-full justify-center bg-white/5 border border-white/15 text-white hover:bg-white/10 hover:border-orange-500/40 backdrop-blur-xl"
                 >
                   {resendLoading ? (
                     <span className="flex items-center gap-2">
                       <RefreshCw size={14} className="animate-spin" />
-                      Sending link...
+                      Sending code...
                     </span>
                   ) : resendCooldown > 0 ? (
                     <span>Resend in {resendCooldown}s</span>
@@ -348,13 +453,26 @@ export const Register: React.FC = () => {
                   )}
                 </Button>
 
-                <Button
-                  href={targetCohortId ? `/login?cohort=${encodeURIComponent(targetCohortId)}` : '/login'}
-                  onMouseEnter={() => soundFx.playBlip(480, 0.02, 'sine', 0.02)}
-                  className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3"
-                >
-                  <span>Proceed to Log In</span>
-                </Button>
+                <div className="flex items-center justify-between pt-2 text-xs text-slate-400">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmationRequired(false);
+                      setOtpError('');
+                      setOtpToken('');
+                    }}
+                    className="hover:text-orange-400 transition-colors underline cursor-pointer"
+                  >
+                    ← Change email address
+                  </button>
+
+                  <Link
+                    to={targetCohortId ? `/login?cohort=${encodeURIComponent(targetCohortId)}` : '/login'}
+                    className="hover:text-white transition-colors"
+                  >
+                    Proceed to Log In →
+                  </Link>
+                </div>
               </div>
             </TiltCard>
           </div>
