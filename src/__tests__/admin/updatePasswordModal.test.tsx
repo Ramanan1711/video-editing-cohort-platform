@@ -9,7 +9,22 @@ vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     auth: {
       updateUser: vi.fn(),
+      resetPasswordForEmail: vi.fn(),
+      verifyOtp: vi.fn(),
     },
+  },
+}));
+
+// Mock soundFx
+vi.mock('../../lib/soundFx', () => ({
+  soundFx: {
+    playSweep: vi.fn(),
+    playChime: vi.fn(),
+    playBlip: vi.fn(),
+    playClick: vi.fn(),
+    isEnabled: vi.fn(() => false),
+    toggle: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
   },
 }));
 
@@ -67,7 +82,7 @@ describe('UpdatePasswordModal Component', () => {
         'Password must be at least 8 characters long.'
       );
     });
-    expect(supabase.auth.updateUser).not.toHaveBeenCalled();
+    expect(supabase.auth.resetPasswordForEmail).not.toHaveBeenCalled();
   });
 
   it('validates password and confirm password match', async () => {
@@ -92,10 +107,54 @@ describe('UpdatePasswordModal Component', () => {
         'Passwords do not match'
       );
     });
-    expect(supabase.auth.updateUser).not.toHaveBeenCalled();
+    expect(supabase.auth.resetPasswordForEmail).not.toHaveBeenCalled();
   });
 
-  it('successfully updates password via supabase auth and emits audit event', async () => {
+  it('displays API error when sending recovery code fails in step 1', async () => {
+    vi.mocked(supabase.auth.resetPasswordForEmail).mockResolvedValueOnce({
+      data: {},
+      error: { message: 'Email rate limit exceeded. Please try again later.' } as any,
+    } as any);
+
+    render(
+      <UpdatePasswordModal
+        open={true}
+        onClose={vi.fn()}
+        userEmail="ajayramanan17@gmail.com"
+        userId="parent-admin-1"
+      />
+    );
+
+    fireEvent.change(screen.getByTestId('new-password-input'), {
+      target: { value: 'SuperSecret2026!' },
+    });
+    fireEvent.change(screen.getByTestId('confirm-password-input'), {
+      target: { value: 'SuperSecret2026!' },
+    });
+    fireEvent.click(screen.getByTestId('submit-update-password-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('update-password-error')).toHaveTextContent(
+        'Email rate limit exceeded. Please try again later.'
+      );
+    });
+    expect(supabase.auth.verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it('transitions to 6-digit OTP view, verifies OTP, updates password, and emits audit event', async () => {
+    vi.mocked(supabase.auth.resetPasswordForEmail).mockResolvedValueOnce({
+      data: {},
+      error: null,
+    } as any);
+
+    vi.mocked(supabase.auth.verifyOtp).mockResolvedValueOnce({
+      data: {
+        user: { id: 'parent-admin-1' } as any,
+        session: { access_token: 'token-123' } as any,
+      },
+      error: null,
+    } as any);
+
     vi.mocked(supabase.auth.updateUser).mockResolvedValueOnce({
       data: { user: { id: 'parent-admin-1' } as any },
       error: null,
@@ -118,7 +177,33 @@ describe('UpdatePasswordModal Component', () => {
     });
     fireEvent.click(screen.getByTestId('submit-update-password-btn'));
 
+    // Step 1 dispatches OTP code
     await waitFor(() => {
+      expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+        'ajayramanan17@gmail.com',
+        expect.objectContaining({
+          redirectTo: expect.stringContaining('/reset-password'),
+        })
+      );
+      expect(screen.getByText(/Enter 6-Digit Recovery Code/i)).toBeInTheDocument();
+    });
+
+    // Step 2 Enter 6-digit code
+    const otpBoxes = screen.getAllByRole('textbox');
+    expect(otpBoxes).toHaveLength(6);
+
+    fireEvent.paste(otpBoxes[0], {
+      clipboardData: {
+        getData: () => '852963',
+      },
+    });
+
+    await waitFor(() => {
+      expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
+        email: 'ajayramanan17@gmail.com',
+        token: '852963',
+        type: 'recovery',
+      });
       expect(supabase.auth.updateUser).toHaveBeenCalledWith({
         password: 'SuperSecret2026!',
       });
@@ -137,10 +222,15 @@ describe('UpdatePasswordModal Component', () => {
     );
   });
 
-  it('displays API error when supabase auth fails', async () => {
-    vi.mocked(supabase.auth.updateUser).mockResolvedValueOnce({
-      data: { user: null },
-      error: { message: 'Auth session expired. Please sign in again.' } as any,
+  it('displays user-friendly error message when OTP code is incorrect or expired', async () => {
+    vi.mocked(supabase.auth.resetPasswordForEmail).mockResolvedValueOnce({
+      data: {},
+      error: null,
+    } as any);
+
+    vi.mocked(supabase.auth.verifyOtp).mockResolvedValueOnce({
+      data: { user: null, session: null },
+      error: { message: 'Token has expired' } as any,
     } as any);
 
     render(
@@ -161,9 +251,58 @@ describe('UpdatePasswordModal Component', () => {
     fireEvent.click(screen.getByTestId('submit-update-password-btn'));
 
     await waitFor(() => {
+      expect(screen.getByText(/Enter 6-Digit Recovery Code/i)).toBeInTheDocument();
+    });
+
+    const otpBoxes = screen.getAllByRole('textbox');
+    fireEvent.paste(otpBoxes[0], {
+      clipboardData: {
+        getData: () => '000000',
+      },
+    });
+
+    await waitFor(() => {
       expect(screen.getByTestId('update-password-error')).toHaveTextContent(
-        'Auth session expired. Please sign in again.'
+        'This recovery code has expired. Please click "Resend recovery code" below.'
       );
+    });
+
+    expect(supabase.auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it('allows user to navigate back and edit their password from OTP view', async () => {
+    vi.mocked(supabase.auth.resetPasswordForEmail).mockResolvedValueOnce({
+      data: {},
+      error: null,
+    } as any);
+
+    render(
+      <UpdatePasswordModal
+        open={true}
+        onClose={vi.fn()}
+        userEmail="ajayramanan17@gmail.com"
+        userId="parent-admin-1"
+      />
+    );
+
+    fireEvent.change(screen.getByTestId('new-password-input'), {
+      target: { value: 'SuperSecret2026!' },
+    });
+    fireEvent.change(screen.getByTestId('confirm-password-input'), {
+      target: { value: 'SuperSecret2026!' },
+    });
+    fireEvent.click(screen.getByTestId('submit-update-password-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Enter 6-Digit Recovery Code/i)).toBeInTheDocument();
+    });
+
+    const backBtn = screen.getByRole('button', { name: /Edit password/i });
+    fireEvent.click(backBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('new-password-input')).toBeInTheDocument();
+      expect(screen.getByTestId('new-password-input')).toHaveValue('SuperSecret2026!');
     });
   });
 
