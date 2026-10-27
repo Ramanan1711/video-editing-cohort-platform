@@ -1092,7 +1092,7 @@ export function AdminOperations() {
   }> = [
     { id: 'overview', label: 'Overview' },
     { id: 'insights', label: 'Executive Insights', permission: 'view_insights' },
-    { id: 'users', label: 'Users & Roles', count: stats.users, permission: 'manage_roles' },
+    { id: 'users', label: 'Users & Roles', count: stats.users, permission: 'manage_user_status' },
     { id: 'enrollments', label: 'Cohort Enrollments', count: stats.enrollments, permission: 'manage_enrollments' },
     { id: 'announcements', label: 'Announcements', count: stats.announcements, permission: 'broadcast_announcements' },
     {
