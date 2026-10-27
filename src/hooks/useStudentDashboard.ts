@@ -114,7 +114,7 @@ export interface UseStudentDashboardReturn {
   refreshSubmissions: () => Promise<void>;
   selectLesson: (lesson: Lesson) => void;
   toggleComplete: () => Promise<void>;
-  handleWatchProgress: (lessonId: string, watchPct: number, autoCompleted: boolean) => void;
+  handleWatchProgress: (lessonId: string, watchPct: number, autoCompleted: boolean, positionSeconds?: number) => void;
 }
 
 const emptyCourse: StudentCourseData = {
@@ -668,12 +668,19 @@ export function useStudentDashboard(
     }
   };
 
-  const handleWatchProgress = (lessonId: string, watchPct: number, autoCompleted: boolean) => {
+  const handleWatchProgress = (
+    lessonId: string,
+    watchPct: number,
+    autoCompleted: boolean,
+    positionSeconds?: number
+  ) => {
     const effectivePct = Math.min(100, Math.max(0, Math.round(watchPct)));
     setCourse((current) => {
       const existing = current.progress.find((p) => p.lesson_id === lessonId);
       const isAlreadyCompleted = existing?.completed || false;
       const completed = isAlreadyCompleted || autoCompleted || effectivePct >= 80;
+      const lastPos =
+        positionSeconds !== undefined ? Math.round(positionSeconds) : existing?.last_position_seconds;
 
       return {
         ...current,
@@ -684,6 +691,7 @@ export function useStudentDashboard(
             completed,
             completed_at: completed ? (existing?.completed_at || new Date().toISOString()) : undefined,
             watch_percentage: Math.max(existing?.watch_percentage ?? 0, effectivePct),
+            last_position_seconds: lastPos,
           },
         ],
       };
@@ -692,6 +700,8 @@ export function useStudentDashboard(
       const existing = prev.find((p) => p.lesson_id === lessonId);
       const isAlreadyCompleted = existing?.completed || false;
       const completed = isAlreadyCompleted || autoCompleted || effectivePct >= 80;
+      const lastPos =
+        positionSeconds !== undefined ? Math.round(positionSeconds) : existing?.last_position_seconds;
       return [
         ...prev.filter((p) => p.lesson_id !== lessonId),
         {
@@ -699,6 +709,7 @@ export function useStudentDashboard(
           completed,
           completed_at: completed ? (existing?.completed_at || new Date().toISOString()) : undefined,
           watch_percentage: Math.max(existing?.watch_percentage ?? 0, effectivePct),
+          last_position_seconds: lastPos,
         },
       ];
     });

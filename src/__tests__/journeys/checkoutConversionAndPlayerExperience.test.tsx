@@ -254,11 +254,12 @@ describe('Pillar 3: Critical User Journeys (Checkout Conversion & Player Experie
       expect(screen.getByText(/✓ Completed \(≥80% watched\)/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Completed/i })).toBeInTheDocument();
 
-      // onWatchProgressUpdate callback must be triggered with autoCompleted = true
+      // onWatchProgressUpdate callback must be triggered with autoCompleted = true and positionSeconds
       expect(onWatchProgressUpdate).toHaveBeenCalledWith(
         'lesson-sprint-1',
         85,
-        true
+        true,
+        85
       );
 
       // Now resolve slow background mutation

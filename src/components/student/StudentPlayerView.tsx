@@ -105,7 +105,7 @@ export interface StudentPlayerViewProps {
   nextLesson: Lesson | null;
   selectLesson: (lesson: Lesson) => void;
   toggleComplete: () => Promise<void>;
-  handleWatchProgress: (lessonId: string, watchPct: number, autoCompleted: boolean) => void;
+  handleWatchProgress: (lessonId: string, watchPct: number, autoCompleted: boolean, positionSeconds?: number) => void;
   refreshSubmissions: () => Promise<void>;
   onBackToCatalog: () => void;
   onOpenAchievements: () => void;

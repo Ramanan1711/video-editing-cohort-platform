@@ -31,7 +31,7 @@ export interface LessonPlayerProps {
   cohortId?: string | null;
   initialWatchPercentage?: number;
   initialLastPositionSeconds?: number;
-  onWatchProgressUpdate?: (lessonId: string, watchPercentage: number, autoCompleted: boolean) => void;
+  onWatchProgressUpdate?: (lessonId: string, watchPercentage: number, autoCompleted: boolean, positionSeconds?: number) => void;
 }
 
 export function LessonPlayer({
@@ -55,12 +55,25 @@ export function LessonPlayer({
   const [downloadingResourceId, setDownloadingResourceId] = useState<string | null>(null);
   const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(lesson.video_url);
   const [showResumePrompt, setShowResumePrompt] = useState<boolean>(
-    () => initialLastPositionSeconds > 10 && !completed
+    () => (initialLastPositionSeconds ?? 0) > 5
   );
   const [isRefreshingStream, setIsRefreshingStream] = useState<boolean>(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const hudTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncTimeRef = useRef<number>(0);
+  const lastKnownTimeRef = useRef<number>(initialLastPositionSeconds || 0);
+  const signedAtRef = useRef<number>(Date.now());
+  const isRefreshingRef = useRef<boolean>(false);
+  const refreshAttemptsRef = useRef<number>(0);
+  const wasPlayingRef = useRef<boolean>(false);
+
+  // Sync state when lesson or initial progress values update
+  useEffect(() => {
+    setWatchPercentage(initialWatchPercentage);
+    setShowResumePrompt((initialLastPositionSeconds ?? 0) > 5);
+  }, [lesson.id, initialLastPositionSeconds, initialWatchPercentage]);
 
   // Optimistic UI for 80% watch completion and instant toggle
   const [optimisticCompleted, setOptimisticCompleted] = useState<boolean>(completed);
@@ -74,7 +87,6 @@ export function LessonPlayer({
     text: string;
     icon: 'play' | 'pause' | 'rewind' | 'forward' | 'fullscreen';
   } | null>(null);
-  const hudTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const triggerHud = useCallback(
     (text: string, icon: 'play' | 'pause' | 'rewind' | 'forward' | 'fullscreen') => {
@@ -157,13 +169,6 @@ export function LessonPlayer({
       if (hudTimerRef.current) clearTimeout(hudTimerRef.current);
     };
   }, [triggerHud]);
-
-  const lastSyncTimeRef = useRef<number>(0);
-  const lastKnownTimeRef = useRef<number>(initialLastPositionSeconds || 0);
-  const signedAtRef = useRef<number>(Date.now());
-  const isRefreshingRef = useRef<boolean>(false);
-  const refreshAttemptsRef = useRef<number>(0);
-  const wasPlayingRef = useRef<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -301,6 +306,20 @@ export function LessonPlayer({
   const handlePlay = () => {
     wasPlayingRef.current = true;
     setStreamError(null);
+
+    // If starting playback with resume prompt still active and video near beginning, seek to saved position
+    if (showResumePrompt && initialLastPositionSeconds > 5 && videoRef.current) {
+      if (videoRef.current.currentTime < 5) {
+        try {
+          videoRef.current.currentTime = initialLastPositionSeconds;
+          lastKnownTimeRef.current = initialLastPositionSeconds;
+        } catch {
+          // ignore if seeking fails before ready
+        }
+      }
+      setShowResumePrompt(false);
+    }
+
     const isSecurable = isSecurableAsset(lesson.video_url) || isSecurableAsset(resolvedVideoUrl);
     if (isSecurable && Date.now() - signedAtRef.current > 50 * 60 * 1000) {
       const cur = videoRef.current ? videoRef.current.currentTime : lastKnownTimeRef.current;
@@ -311,13 +330,31 @@ export function LessonPlayer({
   const handlePause = () => {
     wasPlayingRef.current = false;
     if (videoRef.current) {
-      lastKnownTimeRef.current = videoRef.current.currentTime;
+      const cur = videoRef.current.currentTime;
+      lastKnownTimeRef.current = cur;
+      const dur = videoRef.current.duration;
+      const pct = dur > 0 ? Math.min(100, Math.round((cur / dur) * 100)) : watchPercentage;
+      if (pct > watchPercentage) {
+        setWatchPercentage(pct);
+      }
+      syncWatchProgress(Math.max(watchPercentage, pct), cur);
     }
   };
 
   const handlePlaying = () => {
     refreshAttemptsRef.current = 0;
     setStreamError(null);
+  };
+
+  const handleLoadedMetadata = () => {
+    if (initialLastPositionSeconds > 5 && videoRef.current) {
+      try {
+        videoRef.current.currentTime = initialLastPositionSeconds;
+        lastKnownTimeRef.current = initialLastPositionSeconds;
+      } catch {
+        // ignore if seeking before interaction is restricted
+      }
+    }
   };
 
   const handleDownloadResource = async (resource: LessonResource) => {
@@ -367,7 +404,7 @@ export function LessonPlayer({
       }
       // Optimistic UI: notify parent state immediately before background promise
       if (onWatchProgressUpdate) {
-        onWatchProgressUpdate(lesson.id, pct, isAutoCompleted);
+        onWatchProgressUpdate(lesson.id, pct, isAutoCompleted, currentTime);
       }
       void updateLessonWatchProgress(userId, lesson.id, pct, currentTime, playbackSpeed);
     },
@@ -406,12 +443,54 @@ export function LessonPlayer({
 
   const handleResumePlayback = () => {
     if (videoRef.current && initialLastPositionSeconds > 0) {
-      videoRef.current.currentTime = initialLastPositionSeconds;
+      try {
+        videoRef.current.currentTime = initialLastPositionSeconds;
+      } catch {
+        // ignore
+      }
       lastKnownTimeRef.current = initialLastPositionSeconds;
       void videoRef.current.play().catch(() => {});
     }
     setShowResumePrompt(false);
   };
+
+  const handleStartOver = () => {
+    if (videoRef.current) {
+      try {
+        videoRef.current.currentTime = 0;
+      } catch {
+        // ignore
+      }
+      lastKnownTimeRef.current = 0;
+    }
+    setShowResumePrompt(false);
+    syncWatchProgress(watchPercentage, 0);
+  };
+
+  // Flush watch progress on unmount or tab exit
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!userId) return;
+      const cur = videoRef.current ? videoRef.current.currentTime : lastKnownTimeRef.current;
+      const dur = videoRef.current ? videoRef.current.duration : 0;
+      const pct = dur > 0 ? Math.min(100, Math.round((cur / dur) * 100)) : watchPercentage;
+      void updateLessonWatchProgress(userId, lesson.id, Math.max(watchPercentage, pct), cur, playbackSpeed);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+      if (userId) {
+        const cur = lastKnownTimeRef.current;
+        if (cur > 0) {
+          void updateLessonWatchProgress(userId, lesson.id, watchPercentage, cur, playbackSpeed);
+        }
+      }
+    };
+  }, [userId, lesson.id, watchPercentage, playbackSpeed]);
 
   // Listen for progress updates from embed iframes (YouTube, Vimeo)
   useEffect(() => {
@@ -496,6 +575,7 @@ export function LessonPlayer({
         showResumePrompt={showResumePrompt}
         initialLastPositionSeconds={initialLastPositionSeconds}
         handleResumePlayback={handleResumePlayback}
+        handleStartOver={handleStartOver}
         setShowResumePrompt={setShowResumePrompt}
         isRefreshingStream={isRefreshingStream}
         streamError={streamError}
@@ -505,6 +585,7 @@ export function LessonPlayer({
         playbackSpeed={playbackSpeed}
         handleSpeedChange={handleSpeedChange}
         handleTimeUpdate={handleTimeUpdate}
+        handleLoadedMetadata={handleLoadedMetadata}
         handleEnded={handleEnded}
         handleVideoError={handleVideoError}
         handlePlay={handlePlay}

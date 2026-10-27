@@ -21,6 +21,7 @@ export interface VideoScreenProps {
   showResumePrompt: boolean;
   initialLastPositionSeconds: number;
   handleResumePlayback: () => void;
+  handleStartOver?: () => void;
   setShowResumePrompt: (show: boolean) => void;
   isRefreshingStream: boolean;
   streamError: string | null;
@@ -30,6 +31,7 @@ export interface VideoScreenProps {
   playbackSpeed: number;
   handleSpeedChange: (speed: number) => void;
   handleTimeUpdate: () => void;
+  handleLoadedMetadata?: () => void;
   handleEnded: () => void;
   handleVideoError: () => void;
   handlePlay: () => void;
@@ -48,6 +50,7 @@ export function VideoScreen({
   showResumePrompt,
   initialLastPositionSeconds,
   handleResumePlayback,
+  handleStartOver,
   setShowResumePrompt,
   isRefreshingStream,
   streamError,
@@ -57,6 +60,7 @@ export function VideoScreen({
   playbackSpeed,
   handleSpeedChange,
   handleTimeUpdate,
+  handleLoadedMetadata,
   handleEnded,
   handleVideoError,
   handlePlay,
@@ -121,7 +125,7 @@ export function VideoScreen({
               </button>
               <button
                 type="button"
-                onClick={() => setShowResumePrompt(false)}
+                onClick={handleStartOver || (() => setShowResumePrompt(false))}
                 className="rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition"
               >
                 Start Over
@@ -146,6 +150,7 @@ export function VideoScreen({
               className="absolute inset-0 size-full object-contain bg-black"
               controls
               src={videoMeta.directUrl!}
+              onLoadedMetadata={handleLoadedMetadata}
               onTimeUpdate={handleTimeUpdate}
               onEnded={handleEnded}
               onError={handleVideoError}
