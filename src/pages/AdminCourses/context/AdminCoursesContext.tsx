@@ -983,6 +983,10 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
     newStatus: 'draft' | 'review' | 'published' | 'archived',
     lessonTitle?: string
   ) => {
+    if (isMentor && (newStatus === 'published' || newStatus === 'archived')) {
+      toast.error('Only administrators can approve and publish lessons.');
+      return;
+    }
     try {
       await updateLessonStatus(lessonId, newStatus);
       void logAuditEvent({

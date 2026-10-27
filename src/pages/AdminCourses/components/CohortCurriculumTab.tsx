@@ -223,32 +223,53 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                                 {lesson.title}
                               </strong>
 
-                              {/* Publishing Status Dropdown with 4 stages */}
-                              <select
-                                value={lesson.status ?? 'draft'}
-                                disabled={!canManageCurriculum}
-                                onChange={(e) =>
-                                  void handleUpdateLessonStatus(
-                                    lesson.id,
-                                    e.target.value as 'draft' | 'review' | 'published' | 'archived',
-                                    lesson.title
-                                  )
-                                }
-                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold border outline-none cursor-pointer ${
-                                  lesson.status === 'review'
-                                    ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-300'
-                                    : lesson.status === 'draft'
-                                    ? 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                              {/* Publishing Status: editable dropdown for admins, read-only status pill for mentors */}
+                              {canPublish ? (
+                                <select
+                                  value={lesson.status ?? 'draft'}
+                                  onChange={(e) =>
+                                    void handleUpdateLessonStatus(
+                                      lesson.id,
+                                      e.target.value as 'draft' | 'review' | 'published' | 'archived',
+                                      lesson.title
+                                    )
+                                  }
+                                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold border outline-none cursor-pointer ${
+                                    lesson.status === 'review'
+                                      ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-300'
+                                      : lesson.status === 'draft' || !lesson.status
+                                      ? 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                                      : lesson.status === 'archived'
+                                      ? 'border-slate-300 bg-slate-200/80 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                                      : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                  }`}
+                                >
+                                  <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">○ Draft</option>
+                                  <option value="review" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">◐ In Review</option>
+                                  <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">● Published</option>
+                                  <option value="archived" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">✕ Archived</option>
+                                </select>
+                              ) : (
+                                <span
+                                  className={`rounded px-2 py-0.5 text-[10px] font-bold border inline-flex items-center gap-1 select-none ${
+                                    lesson.status === 'review'
+                                      ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-300'
+                                      : lesson.status === 'draft' || !lesson.status
+                                      ? 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                                      : lesson.status === 'archived'
+                                      ? 'border-slate-300 bg-slate-200/80 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                                      : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                  }`}
+                                >
+                                  {lesson.status === 'review'
+                                    ? '◐ In Review'
+                                    : lesson.status === 'published'
+                                    ? '● Published'
                                     : lesson.status === 'archived'
-                                    ? 'border-slate-300 bg-slate-200/80 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
-                                    : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-300'
-                                }`}
-                              >
-                                <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">○ Draft</option>
-                                <option value="review" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">◐ In Review</option>
-                                <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">● Published</option>
-                                <option value="archived" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">✕ Archived</option>
-                              </select>
+                                    ? '✕ Archived'
+                                    : '○ Draft'}
+                                </span>
+                              )}
 
                               {/* Quick Lifecycle Action Buttons */}
                               {canManageCurriculum && (lesson.status === 'draft' || !lesson.status) && (
