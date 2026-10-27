@@ -19,6 +19,7 @@ export function ModuleLessonModal() {
     handleSave,
     saving,
     uploadingStatus,
+    isMentor,
   } = useAdminCourses();
 
   if (
@@ -98,20 +99,34 @@ export function ModuleLessonModal() {
                       Module Status
                     </span>
                     <select
-                      value={modEditor.status}
+                      value={isMentor ? 'draft' : modEditor.status}
+                      disabled={isMentor}
                       onChange={(e) =>
                         setEditor({
                           ...modEditor,
                           status: e.target.value as 'draft' | 'review' | 'published' | 'archived',
                         })
                       }
-                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-75 disabled:cursor-not-allowed"
                     >
-                      <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Draft</option>
-                      <option value="review" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">In Review</option>
-                      <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Published</option>
-                      <option value="archived" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Archived</option>
+                      {isMentor ? (
+                        <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                          Draft (Requires Admin Confirmation to Publish)
+                        </option>
+                      ) : (
+                        <>
+                          <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Draft</option>
+                          <option value="review" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">In Review</option>
+                          <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Published</option>
+                          <option value="archived" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Archived</option>
+                        </>
+                      )}
                     </select>
+                    {isMentor && (
+                      <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                        Mentors save content in Draft status. Confirmation to publish is granted by Parent Super Admin or Child Super Admin.
+                      </p>
+                    )}
                   </label>
                 </div>
               </>
@@ -138,20 +153,34 @@ export function ModuleLessonModal() {
                       Status
                     </span>
                     <select
-                      value={lessonEditor.status}
+                      value={isMentor ? 'draft' : lessonEditor.status}
+                      disabled={isMentor}
                       onChange={(e) =>
                         setEditor({
                           ...lessonEditor,
                           status: e.target.value as 'draft' | 'review' | 'published' | 'archived',
                         })
                       }
-                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-white shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-75 disabled:cursor-not-allowed"
                     >
-                      <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Draft</option>
-                      <option value="review" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">In Review</option>
-                      <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Published</option>
-                      <option value="archived" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Archived</option>
+                      {isMentor ? (
+                        <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                          Draft (Requires Admin Confirmation to Publish)
+                        </option>
+                      ) : (
+                        <>
+                          <option value="draft" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Draft</option>
+                          <option value="review" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">In Review</option>
+                          <option value="published" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Published</option>
+                          <option value="archived" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Archived</option>
+                        </>
+                      )}
                     </select>
+                    {isMentor && (
+                      <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                        Mentors save content in Draft status. Confirmation to publish is granted by Parent Super Admin or Child Super Admin.
+                      </p>
+                    )}
                   </label>
                 </div>
                 <TextareaField

@@ -274,7 +274,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         title: mod.title,
         description: mod.description ?? '',
         position: mod.position,
-        status: mod.status ?? 'published',
+        status: isMentor ? 'draft' : (mod.status ?? 'published'),
       });
     } else {
       const cohortModules = modules.filter((m) => m.cohort_id === cohortId);
@@ -284,7 +284,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         title: '',
         description: '',
         position: cohortModules.length + 1,
-        status: 'published',
+        status: isMentor ? 'draft' : 'published',
       });
     }
   };
@@ -301,7 +301,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         videoUrl: lesson.video_url ?? '',
         durationMinutes: lesson.duration_minutes ? String(lesson.duration_minutes) : '',
         position: lesson.position,
-        status: lesson.status ?? 'draft',
+        status: isMentor ? 'draft' : (lesson.status ?? 'draft'),
       });
     } else {
       const currentModule = modules.find((m) => m.id === moduleId);
@@ -591,19 +591,20 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         }
       } else if (editor.type === 'module') {
         if (!editor.title.trim()) throw new Error('Module title is required.');
+        const moduleStatus = isMentor ? 'draft' : editor.status;
         if (editor.id) {
           await updateModule(editor.id, {
             title: editor.title.trim(),
             description: editor.description.trim() || null,
             position: Number(editor.position) || 1,
-            status: editor.status,
+            status: moduleStatus,
           });
           void logAuditEvent({
             actor_id: user?.id,
             action: 'module.updated',
             entity_type: 'module',
             entity_id: editor.id,
-            metadata: { title: editor.title, status: editor.status },
+            metadata: { title: editor.title, status: moduleStatus },
           });
           setSuccess('Module updated successfully.');
         } else {
@@ -613,14 +614,14 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
             title: editor.title.trim(),
             description: editor.description.trim() || null,
             position: Number(editor.position) || 1,
-            status: editor.status,
+            status: moduleStatus,
           });
           void logAuditEvent({
             actor_id: user?.id,
             action: 'module.created',
             entity_type: 'module',
             entity_id: createdMod.id,
-            metadata: { title: editor.title, cohort_id: editor.cohortId, status: editor.status },
+            metadata: { title: editor.title, cohort_id: editor.cohortId, status: moduleStatus },
           });
           setSuccess('Module created successfully.');
         }
@@ -634,13 +635,15 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
           setUploadingStatus(null);
         }
 
+        const lessonStatus = isMentor ? 'draft' : editor.status;
+
         const payload = {
           title: editor.title.trim(),
           description: editor.description.trim() || null,
           video_url: finalVideoUrl,
           duration_minutes: editor.durationMinutes ? Number(editor.durationMinutes) : null,
           position: Number(editor.position) || 1,
-          status: editor.status,
+          status: lessonStatus,
         };
 
         if (editor.id) {
@@ -650,7 +653,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
             action: 'lesson.updated',
             entity_type: 'lesson',
             entity_id: editor.id,
-            metadata: { title: editor.title, status: editor.status },
+            metadata: { title: editor.title, status: lessonStatus },
           });
           setSuccess('Lesson updated successfully.');
         } else {
@@ -663,7 +666,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
             action: 'lesson.created',
             entity_type: 'lesson',
             entity_id: createdLesson.id,
-            metadata: { title: editor.title, status: editor.status, module_id: editor.moduleId },
+            metadata: { title: editor.title, status: lessonStatus, module_id: editor.moduleId },
           });
           setSuccess('Lesson created successfully.');
         }

@@ -178,4 +178,34 @@ describe('Mentor Course Authoring Studio & Permission Gates', () => {
     expect(screen.getAllByRole('button', { name: /Edit Cohort/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: /Add Module/i }).length).toBeGreaterThan(0);
   });
+
+  it('shows only Draft status for mentors in ModuleLessonModal and locks publishing until admin approval', async () => {
+    render(
+      <MemoryRouter initialEntries={['/mentor/courses?cohortId=cohort-published-1']}>
+        <AdminCourses />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Cybersecurity Masterclass')).toBeInTheDocument();
+    });
+
+    // Click Add Module as a mentor
+    const addModuleButtons = screen.getAllByRole('button', { name: /Add Module/i });
+    fireEvent.click(addModuleButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Create module')).toBeInTheDocument();
+      expect(screen.getByLabelText(/Module Title/i)).toBeInTheDocument();
+    });
+
+    // Module status must be Draft and disabled for mentors
+    const moduleStatusSelect = screen.getByRole('combobox');
+    expect(moduleStatusSelect).toBeDisabled();
+    expect(moduleStatusSelect).toHaveValue('draft');
+    expect(screen.getByText(/Requires Admin Confirmation to Publish/i)).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /^Published$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /^In Review$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /^Archived$/i })).not.toBeInTheDocument();
+  });
 });
