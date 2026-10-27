@@ -91,10 +91,10 @@ describe('Authentication Production Verification (Email Confirmation & Network F
       fireEvent.click(screen.getByRole('button', { name: /Create my account/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Resend verification email/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Resend verification/i })).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByRole('button', { name: /Resend verification email/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Resend verification/i }));
 
       await waitFor(() => {
         expect(supabase.auth.resend).toHaveBeenCalledWith(
@@ -103,7 +103,7 @@ describe('Authentication Production Verification (Email Confirmation & Network F
             email: 'student@example.com',
           })
         );
-        expect(screen.getByText(/Verification link resent! Please check your inbox/i)).toBeInTheDocument();
+        expect(screen.getByText(/Verification (link|code) resent! Please check your inbox/i)).toBeInTheDocument();
       });
     });
 

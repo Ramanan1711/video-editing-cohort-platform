@@ -216,7 +216,7 @@ describe('Signup Journey & Cohort Selection Preservation Across Email Confirmati
       });
 
       // Click resend
-      fireEvent.click(screen.getByRole('button', { name: /Resend verification email/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Resend verification/i }));
 
       await waitFor(() => {
         expect(supabase.auth.resend).toHaveBeenCalledWith({

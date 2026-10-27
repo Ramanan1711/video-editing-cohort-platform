@@ -399,7 +399,7 @@ export const Register: React.FC = () => {
               {resendSuccess && !otpSuccess && (
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 p-3 text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5">
                   <CheckCircle2 size={14} className="shrink-0" />
-                  <span>Verification link resent! Please check your inbox.</span>
+                  <span>Verification code resent! Please check your inbox.</span>
                 </div>
               )}
 
@@ -409,8 +409,8 @@ export const Register: React.FC = () => {
                   Next Steps:
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-slate-400">
-                  <li>Check your inbox (and junk / spam folder) for the 6-digit OTP code.</li>
-                  <li>Enter the 6-digit code above, or click the verification link in the email.</li>
+                  <li>Check your inbox (and spam folder) for the 6-digit OTP code.</li>
+                  <li>Enter the 6-digit code above to activate your student workspace.</li>
                   {targetCohort ? (
                     <li className="text-orange-300 font-semibold">
                       You will return directly to checkout for <strong>{targetCohort.name}</strong>.
@@ -449,7 +449,7 @@ export const Register: React.FC = () => {
                   ) : resendCooldown > 0 ? (
                     <span>Resend in {resendCooldown}s</span>
                   ) : (
-                    <span>Resend verification email</span>
+                    <span>Resend verification code</span>
                   )}
                 </Button>
 
