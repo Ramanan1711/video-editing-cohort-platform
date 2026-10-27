@@ -23,6 +23,7 @@ import {
 } from '../lib/cohortCheckoutPersistence';
 import { listCohorts, type Cohort } from '../lib/courseService';
 import { BRAND_LOGO_URL } from '../constants/branding';
+import { checkStudentLoginAccess } from '../lib/studentAccessService';
 import { recordSessionEstablished } from '../lib/authSessionService';
 
 export const Login: React.FC = () => {
@@ -132,6 +133,23 @@ export const Login: React.FC = () => {
           } else if (userRole === 'mentor') {
             navigate('/mentor');
           } else {
+            // Check student login access duration (course end date + 60 days)
+            const accessCheck = await checkStudentLoginAccess(data.user.id);
+            if (!accessCheck.hasAccess) {
+              try {
+                if (typeof supabase?.auth?.signOut === 'function') {
+                  await supabase.auth.signOut();
+                }
+              } catch {
+                // Ignore signOut error
+              }
+              setError(
+                accessCheck.message ||
+                `Your course login access expired on ${accessCheck.formattedAccessExpiryDate} (60 days after your course ended on ${accessCheck.formattedCourseEndDate}). Please contact admissions at support@iunoware.com to enroll in an upcoming cohort.`
+              );
+              setLoading(false);
+              return;
+            }
             navigate(redirectPath);
           }
         } catch {

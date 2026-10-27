@@ -24,6 +24,7 @@ import {
 } from '../lib/cohortCheckoutPersistence';
 import { listCohorts, type Cohort } from '../lib/courseService';
 import { normalizeWhatsAppPhone } from '../lib/whatsappService';
+import { checkCohortEnrollmentDeadline } from '../lib/studentAccessService';
 import { BRAND_LOGO_URL } from '../constants/branding';
 
 export const Register: React.FC = () => {
@@ -623,26 +624,42 @@ export const Register: React.FC = () => {
 
             {/* Target Cohort Reservation Indicator */}
             {targetCohortId && (
-              <div className="mt-2.5 rounded-xl border border-orange-500/30 bg-orange-500/10 p-2.5 text-xs text-orange-200 flex items-center justify-between shadow-lg shadow-orange-500/10">
-                <div className="flex items-center gap-2">
-                  <div className="flex size-6 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400 shrink-0">
-                    <Sparkles size={13} />
-                  </div>
-                  <div>
-                    <span className="font-bold text-white block text-xs">
-                      {targetCohort?.name ? `Joining ${targetCohort.name}` : 'Cohort Selected for Checkout'}
+              (() => {
+                const deadlineCheck = targetCohort ? checkCohortEnrollmentDeadline(targetCohort) : null;
+                const isClosed = deadlineCheck?.isClosed;
+                return (
+                  <div className={`mt-2.5 rounded-xl border p-2.5 text-xs flex items-center justify-between shadow-lg ${
+                    isClosed
+                      ? 'border-rose-500/30 bg-rose-500/10 text-rose-200 shadow-rose-500/10'
+                      : 'border-orange-500/30 bg-orange-500/10 text-orange-200 shadow-orange-500/10'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className={`flex size-6 items-center justify-center rounded-lg shrink-0 ${
+                        isClosed ? 'bg-rose-500/20 text-rose-400' : 'bg-orange-500/20 text-orange-400'
+                      }`}>
+                        <Sparkles size={13} />
+                      </div>
+                      <div>
+                        <span className="font-bold text-white block text-xs">
+                          {targetCohort?.name ? `Joining ${targetCohort.name}` : 'Cohort Selected for Checkout'}
+                        </span>
+                        <span className={`text-[10px] ${isClosed ? 'text-rose-300 font-semibold' : 'text-orange-300/80'}`}>
+                          {isClosed
+                            ? deadlineCheck?.reason
+                            : targetCohort?.price_inr
+                            ? `₹${targetCohort.price_inr.toLocaleString('en-IN')} ${targetCohort.currency || 'INR'} • Seat held during signup`
+                            : 'Seat reserved for checkout after email verification'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`rounded-full px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider font-bold shrink-0 ${
+                      isClosed ? 'bg-rose-500/20 text-rose-300' : 'bg-orange-500/20 text-orange-300'
+                    }`}>
+                      {isClosed ? 'Closed' : 'Step 1 of 2'}
                     </span>
-                    <span className="text-[10px] text-orange-300/80">
-                      {targetCohort?.price_inr
-                        ? `₹${targetCohort.price_inr.toLocaleString('en-IN')} ${targetCohort.currency || 'INR'} • Seat held during signup`
-                        : 'Seat reserved for checkout after email verification'}
-                    </span>
                   </div>
-                </div>
-                <span className="rounded-full bg-orange-500/20 px-2 py-0.5 text-[9px] font-mono text-orange-300 uppercase tracking-wider font-bold shrink-0">
-                  Step 1 of 2
-                </span>
-              </div>
+                );
+              })()
             )}
 
             {/* Network Failure / General Error Banner */}

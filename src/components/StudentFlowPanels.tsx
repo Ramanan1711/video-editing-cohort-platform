@@ -17,6 +17,7 @@ import {
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { startCohortCheckout, DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../lib/paymentService';
+import { checkCohortEnrollmentDeadline } from '../lib/studentAccessService';
 import {
   addFeedbackReply,
   formatFileSize,
@@ -44,9 +45,17 @@ const handleOpenSecureSubmissionFile = async (e: React.MouseEvent, rawUrl: strin
   window.open(secureUrl, '_blank', 'noopener,noreferrer');
 };
 
-function getCohortEnrollmentStatus(cohort: Cohort): { isOpen: boolean; label?: string } {
+function getCohortEnrollmentStatus(cohort: Cohort): { isOpen: boolean; label?: string; reason?: string } {
   if (cohort.status && !['published', 'active'].includes(cohort.status)) {
     return { isOpen: false, label: 'Not Open' };
+  }
+  const deadlineCheck = checkCohortEnrollmentDeadline(cohort);
+  if (deadlineCheck.isClosed) {
+    return {
+      isOpen: false,
+      label: 'Enrollment Closed',
+      reason: deadlineCheck.reason,
+    };
   }
   const now = Date.now();
   if (cohort.enrollment_start && new Date(cohort.enrollment_start).getTime() > now) {
@@ -193,6 +202,9 @@ export function EnrollmentPanel({
                     )}
                   </div>
                   <span className="mt-1 block text-sm text-slate-500">{cohort.description || 'A focused learning cohort.'}</span>
+                  {!status.isOpen && status.reason && (
+                    <span className="mt-1.5 block text-xs font-semibold text-rose-600">{status.reason}</span>
+                  )}
                 </span>
                 {isSelected && <Check className="text-orange-600" size={19} />}
               </button>
@@ -270,6 +282,13 @@ export function CohortDiscoveryModal({
   const handleEnrollAndSwitch = async (cohort: Cohort) => {
     setError(null);
     setEnrollingId(cohort.id);
+
+    const status = getCohortEnrollmentStatus(cohort);
+    if (!status.isOpen) {
+      setError(status.reason || 'Enrollment for this cohort is closed.');
+      setEnrollingId(null);
+      return;
+    }
 
     const price = cohort.price_inr ?? DEFAULT_COHORT_FEE_INR;
     if (price <= 0) {
@@ -421,17 +440,24 @@ export function CohortDiscoveryModal({
                       (() => {
                         const status = getCohortEnrollmentStatus(cohort);
                         return (
-                          <Button
-                            size="sm"
-                            variant={status.isOpen ? 'primary' : 'secondary'}
-                            disabled={!status.isOpen}
-                            loading={enrollingId === cohort.id}
-                            onClick={() => status.isOpen && void handleEnrollAndSwitch(cohort)}
-                          >
-                            {status.isOpen
-                              ? `Enroll (₹${(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} ${cohort.currency || DEFAULT_CURRENCY})`
-                              : status.label || 'Closed'}
-                          </Button>
+                          <div className="flex flex-col items-end gap-1">
+                            <Button
+                              size="sm"
+                              variant={status.isOpen ? 'primary' : 'secondary'}
+                              disabled={!status.isOpen}
+                              loading={enrollingId === cohort.id}
+                              onClick={() => status.isOpen && void handleEnrollAndSwitch(cohort)}
+                            >
+                              {status.isOpen
+                                ? `Enroll (₹${(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} ${cohort.currency || DEFAULT_CURRENCY})`
+                                : status.label || 'Closed'}
+                            </Button>
+                            {!status.isOpen && status.reason && (
+                              <span className="text-[10px] text-rose-600 font-semibold max-w-[200px] text-right">
+                                {status.reason}
+                              </span>
+                            )}
+                          </div>
                         );
                       })()
                     )}

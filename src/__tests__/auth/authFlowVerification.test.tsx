@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { Login } from '../../pages/Login';
 import { Register } from '../../pages/Register';
 import { supabase } from '../../lib/supabaseClient';
+import * as studentAccessService from '../../lib/studentAccessService';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -20,6 +21,7 @@ vi.mock('../../lib/supabaseClient', () => ({
       signInWithPassword: vi.fn(),
       signUp: vi.fn(),
       resend: vi.fn(),
+      signOut: vi.fn(),
     },
     from: vi.fn(),
   },
@@ -317,6 +319,53 @@ describe('Authentication Production Verification (Email Confirmation & Network F
 
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/mentor');
+      });
+    });
+
+    it('blocks login and displays access duration message when student course access period (end date + 60 days) has ended', async () => {
+      (supabase.auth.signInWithPassword as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: {
+          user: { id: 'student-expired-1', email: 'expired@example.com' },
+          session: { access_token: 'valid-token' },
+        },
+        error: null,
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { role: 'student' },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      vi.spyOn(studentAccessService, 'checkStudentLoginAccess').mockResolvedValue({
+        hasAccess: false,
+        isEnrolled: true,
+        courseEndDate: '2026-11-15T00:00:00.000Z',
+        accessExpiryDate: '2027-01-14T00:00:00.000Z',
+        formattedCourseEndDate: '15 Nov 2026',
+        formattedAccessExpiryDate: '14 Jan 2027',
+        message: 'Your course login access expired on 14 Jan 2027 (60 days after your course ended on 15 Nov 2026). Please contact admissions at support@iunoware.com to enroll in an upcoming cohort.',
+      });
+
+      render(
+        <MemoryRouter>
+          <Login />
+        </MemoryRouter>
+      );
+
+      fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: 'expired@example.com' } });
+      fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'securepassword123' } });
+      fireEvent.click(screen.getByRole('button', { name: /Log in/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Your course login access expired on 14 Jan 2027/i)).toBeInTheDocument();
+        expect(screen.getByText(/60 days after your course ended on 15 Nov 2026/i)).toBeInTheDocument();
+        expect(mockNavigate).not.toHaveBeenCalled();
       });
     });
   });

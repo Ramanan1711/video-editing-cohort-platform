@@ -83,6 +83,32 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
     );
   });
 
+  it('fails closed and blocks order creation when cohort enrollment deadline (30 days before course end date) has passed', async () => {
+    (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce((table: string) => {
+      if (table === 'cohorts') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'cohort-deadline-passed',
+                  end_date: '2026-11-15T00:00:00.000Z',
+                },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      return { select: vi.fn() };
+    });
+
+    // Today is 27 Oct 2026, which is only 19 days before 15 Nov 2026 (< 30 days deadline)
+    await expect(createCohortRazorpayOrder('cohort-deadline-passed')).rejects.toThrow(
+      /Admissions for this cohort closed 30 days prior to the course end date/i
+    );
+  });
+
   it('fails closed and throws if order creation network rejects', async () => {
     (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Network offline')

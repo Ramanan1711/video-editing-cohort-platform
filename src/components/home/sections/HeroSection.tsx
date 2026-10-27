@@ -11,6 +11,7 @@ import { LazyRobotTerminal } from '../LazyRobotTerminal';
 import { TiltCard } from '../TiltCard';
 import { soundFx } from '../../../lib/soundFx';
 import { setPendingCohortCheckout } from '../../../lib/cohortCheckoutPersistence';
+import { checkCohortEnrollmentDeadline } from '../../../lib/studentAccessService';
 
 export interface HeroSectionProps {
   loadingCohorts: boolean;
@@ -22,6 +23,10 @@ export interface HeroSectionProps {
     capacity?: number | null;
     price_inr?: number | null;
     currency?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    duration_days?: number | null;
+    enrollment_end?: string | null;
   }>;
   cohortError: string | null;
   publishedPrice: number;
@@ -176,57 +181,80 @@ export function HeroSection({
               </div>
             ) : cohorts.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 gsap-cards-group">
-                {cohorts.map((cohort) => (
-                  <TiltCard
-                    key={cohort.id}
-                    maxTilt={7}
-                    scale={1.02}
-                    perspective={1000}
-                    glareOpacity={0.25}
-                    glareColor="rgba(185, 43, 39, 0.25)"
-                    data-cursor="RESERVE SEAT"
-                    className="glass-obsidian p-6 border-white/10 hover:border-[#B92B27]/50 flex flex-col justify-between space-y-4 shadow-xl transition-all"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="dot-label dot-label--emerald text-[10px] uppercase font-mono font-bold">
-                          {cohort.status || 'Active Batch'}
-                        </span>
-                        <span className="text-[11px] font-bold text-slate-400 font-mono">
-                          Cap: {cohort.capacity || 30} Interns
-                        </span>
-                      </div>
-                      <h3 className="text-lg font-black text-white">
-                        {cohort.name}
-                      </h3>
-                      <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">
-                        {cohort.description || 'Full 15-day sprint curriculum featuring daily production briefs, WhatsApp mentor support, and verifiable certification.'}
-                      </p>
-                    </div>
+                {cohorts.map((cohort) => {
+                  const deadlineCheck = checkCohortEnrollmentDeadline(cohort);
+                  const isClosed = deadlineCheck.isClosed;
 
-                    <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-                      <div>
-                        <span className="text-xs font-bold text-[#F2B705] font-mono block">
-                          ₹{(cohort.price_inr ?? publishedPrice).toLocaleString('en-IN')} {cohort.currency || publishedCurrency}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">15 Days Intensive</span>
+                  return (
+                    <TiltCard
+                      key={cohort.id}
+                      maxTilt={7}
+                      scale={1.02}
+                      perspective={1000}
+                      glareOpacity={0.25}
+                      glareColor="rgba(185, 43, 39, 0.25)"
+                      data-cursor={isClosed ? 'CLOSED' : 'RESERVE SEAT'}
+                      className={`glass-obsidian p-6 border-white/10 flex flex-col justify-between space-y-4 shadow-xl transition-all ${
+                        isClosed ? 'opacity-75' : 'hover:border-[#B92B27]/50'
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className={`dot-label ${isClosed ? 'dot-label--rose text-rose-400' : 'dot-label--emerald'} text-[10px] uppercase font-mono font-bold`}>
+                            {isClosed ? 'Enrollment Closed' : cohort.status || 'Active Batch'}
+                          </span>
+                          <span className="text-[11px] font-bold text-slate-400 font-mono">
+                            Cap: {cohort.capacity || 30} Interns
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-black text-white">
+                          {cohort.name}
+                        </h3>
+                        <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">
+                          {cohort.description || 'Full 15-day sprint curriculum featuring daily production briefs, WhatsApp mentor support, and verifiable certification.'}
+                        </p>
+                        {isClosed && deadlineCheck.reason && (
+                          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5 text-[11px] font-semibold text-rose-300">
+                            {deadlineCheck.reason}
+                          </div>
+                        )}
                       </div>
-                      <Button
-                        href={`/register?cohort=${cohort.id}`}
-                        size="sm"
-                        data-cursor="ENROLL"
-                        onClick={() => {
-                          setPendingCohortCheckout(cohort.id, cohort.name, cohort.price_inr ?? undefined, cohort.currency ?? undefined);
-                          soundFx.playSweep(300, 700, 0.1, 0.05);
-                        }}
-                        className="bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] text-white font-bold border-none shadow-md shadow-[#B92B27]/25"
-                      >
-                        <span>Enroll</span>
-                        <ArrowRight size={13} />
-                      </Button>
-                    </div>
-                  </TiltCard>
-                ))}
+
+                      <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-bold text-[#F2B705] font-mono block">
+                            ₹{(cohort.price_inr ?? publishedPrice).toLocaleString('en-IN')} {cohort.currency || publishedCurrency}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">15 Days Intensive</span>
+                        </div>
+                        {isClosed ? (
+                          <Button
+                            size="sm"
+                            disabled
+                            variant="secondary"
+                            className="opacity-60 cursor-not-allowed text-xs font-bold"
+                          >
+                            <span>Closed</span>
+                          </Button>
+                        ) : (
+                          <Button
+                            href={`/register?cohort=${cohort.id}`}
+                            size="sm"
+                            data-cursor="ENROLL"
+                            onClick={() => {
+                              setPendingCohortCheckout(cohort.id, cohort.name, cohort.price_inr ?? undefined, cohort.currency ?? undefined);
+                              soundFx.playSweep(300, 700, 0.1, 0.05);
+                            }}
+                            className="bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] text-white font-bold border-none shadow-md shadow-[#B92B27]/25"
+                          >
+                            <span>Enroll</span>
+                            <ArrowRight size={13} />
+                          </Button>
+                        )}
+                      </div>
+                    </TiltCard>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center max-w-lg mx-auto p-8 rounded-2xl border border-white/10 bg-[#090d16]/80 backdrop-blur-xl space-y-4 shadow-xl">

@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { CreateOrderSchema, VerifyPaymentSchema } from './schemas/runtimeContracts';
+import { checkCohortEnrollmentDeadline } from './studentAccessService';
 
 export const DEFAULT_COHORT_FEE_INR = 4999;
 export const DEFAULT_CURRENCY = 'INR';
@@ -122,6 +123,27 @@ export async function createCohortRazorpayOrder(cohortId: string): Promise<Razor
   }
 
   const validatedCohortId = validation.data.cohortId;
+
+  // Pre-flight check: Verify cohort enrollment deadline (30 days before course end date)
+  try {
+    const { data: cohortData } = await supabase
+      .from('cohorts')
+      .select('end_date, start_date, duration_days, enrollment_end')
+      .eq('id', validatedCohortId)
+      .maybeSingle();
+
+    if (cohortData) {
+      const deadlineCheck = checkCohortEnrollmentDeadline(cohortData);
+      if (deadlineCheck.isClosed) {
+        throw new Error(deadlineCheck.reason || 'Enrollment for this cohort has closed.');
+      }
+    }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes('Admissions for this cohort closed')) {
+      throw err;
+    }
+  }
+
   const correlationId = `corr_ord_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   const { data, error } = await supabase.functions.invoke<{

@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
 import * as useAuthModule from '../../context/useAuth';
+import * as studentAccessService from '../../lib/studentAccessService';
 
 vi.mock('../../context/useAuth');
 
@@ -172,5 +173,44 @@ describe('ProtectedRoute Component', () => {
     );
 
     expect(screen.getByText('Admin Operations Control Room')).toBeInTheDocument();
+  });
+
+  it('renders Course Access Expired screen when student enrolled course duration (end date + 60 days) has ended', async () => {
+    vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+      user: { id: 'user-student-expired', email: 'expired@cutcraft.test' },
+      profile: { id: 'user-student-expired', email: 'expired@cutcraft.test', role: 'student', status: 'active' },
+      loading: false,
+      signOut: mockSignOut,
+      refreshProfile: mockRefreshProfile,
+      login: vi.fn(),
+      signup: vi.fn(),
+    } as unknown as ReturnType<typeof useAuthModule.useAuth>);
+
+    vi.spyOn(studentAccessService, 'checkStudentLoginAccess').mockResolvedValue({
+      hasAccess: false,
+      isEnrolled: true,
+      courseEndDate: '2026-11-15T00:00:00.000Z',
+      accessExpiryDate: '2027-01-14T00:00:00.000Z',
+      formattedCourseEndDate: '15 Nov 2026',
+      formattedAccessExpiryDate: '14 Jan 2027',
+      message: 'Your enrolled course access duration ended on 14 Jan 2027 (60 days after your course ended on 15 Nov 2026).',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/student/dashboard']}>
+        <ProtectedRoute allowedRoles={['student']}>
+          <div>Student Workspace</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Course Access Expired')).toBeInTheDocument();
+    expect(screen.getAllByText(/14 Jan 2027/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/15 Nov 2026/).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Student Workspace')).not.toBeInTheDocument();
+
+    const signOutBtn = screen.getByRole('button', { name: /Sign Out of Platform/i });
+    fireEvent.click(signOutBtn);
+    expect(mockSignOut).toHaveBeenCalledTimes(1);
   });
 });
