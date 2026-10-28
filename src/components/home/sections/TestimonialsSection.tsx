@@ -34,8 +34,7 @@ const PRODUCTION_DELIVERABLES: DeliverableDetails[] = [
     title: 'Cinematic Pacing & Kinetic Title Sequence',
     description:
       'Engineered for a commercial client with custom bezier easing curves, multi-track audio soundscapes, and viral retention pacing.',
-    imgSrc:
-      'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1280&q=80',
+    imgSrc: '/images/deliverables/kinetic-motion.png',
     alt: 'Cinematic video timeline with kinetic typography motion graphics',
     tags: ['Motion Design', 'After Effects', 'Kinetic Typography'],
     accentColor: '#B92B27',
@@ -67,8 +66,7 @@ const PRODUCTION_DELIVERABLES: DeliverableDetails[] = [
     title: 'Dynamic Sound Design & Multi-Layer Atmospheric Mix',
     description:
       'Full cinema-grade audio mix with high-impact sub-bass risers, whoosh impacts, dialogue ducking, and master loudness calibration.',
-    imgSrc:
-      'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1280&q=80',
+    imgSrc: '/images/deliverables/audio-engineering.jpg',
     alt: 'Professional audio mixer and studio monitors for sound design',
     tags: ['Sound Design', 'Adobe Audition', '-14 LUFS Audio'],
     accentColor: '#2675EB',
@@ -100,8 +98,7 @@ const PRODUCTION_DELIVERABLES: DeliverableDetails[] = [
     title: '60s Commercial Capstone & Master Grade',
     description:
       'Mastered to international broadcast delivery targets with skin-tone vector scopes, primary LUT grading, and 100% mentor rubric defense.',
-    imgSrc:
-      'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1280&q=80',
+    imgSrc: '/images/deliverables/color-grading.jpg',
     alt: 'DaVinci Resolve studio color grading interface and commercial video shot',
     tags: ['DaVinci Resolve', 'Color Primaries', 'Skin Tone Scopes'],
     accentColor: '#F2B705',
@@ -133,9 +130,8 @@ const PRODUCTION_DELIVERABLES: DeliverableDetails[] = [
     title: 'Multi-Cam Commercial Cut with Narrative Hooks',
     description:
       'Fast-paced editorial cut with seamless J/L audio transitions, retention pattern interrupts, and full client handoff deliverables.',
-    imgSrc:
-      'https://pixabay.com/get/gf350dcff53176aab6915172b6c2375c41e57f63b419330dd6e7a6484b531f98e04a158f5963cc0ed5521d86bc3f1ea1d4cbbf0dca83a8e00ed4b0ace69105ea7_1920.jpg',
-    alt: 'Broadcast television camera and video editing studio monitors',
+    imgSrc: '/images/deliverables/commercial-pacing.png',
+    alt: 'Film clapperboard on commercial set with production timecode',
     tags: ['Premiere Pro', 'Retention Edits', 'Multi-Cam Sync'],
     accentColor: '#38B44A',
     timecode: '00:30:12:06',
