@@ -1111,31 +1111,36 @@ export function AdminOperations() {
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 pb-16">
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/80 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 lg:px-8">
-          <div className="pl-12 sm:pl-14 lg:pl-0">
-            <span className="text-[10px] font-black uppercase tracking-wider text-orange-600">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-3 sm:px-5 py-2 sm:py-2.5 lg:py-3 lg:px-8">
+          <div className="pl-11 sm:pl-12 lg:pl-0 min-w-0 pr-2">
+            <span className="hidden xs:block text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-orange-600 truncate">
               Operations &amp; Governance
             </span>
-            <h1 className="text-lg font-black text-slate-950 dark:text-white">Admin Console</h1>
+            <h1 className="text-sm sm:text-base lg:text-lg font-black text-slate-950 dark:text-white truncate leading-tight">
+              Admin Console
+            </h1>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            <span className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-800 shadow-2xs whitespace-nowrap dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Administrative Role Badge (desktop wide screens) */}
+            <span className="hidden xl:inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 sm:px-3 text-xs font-bold text-slate-800 shadow-2xs whitespace-nowrap dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200">
               <ShieldCheck size={14} className="text-orange-500" />
               <span>{profile?.admin_role ? ROLE_LABELS[profile.admin_role as AdminSubRole] || 'Child Super Admin' : 'Admin'}</span>
             </span>
 
+            {/* Admin Dedicated Notification Bell */}
             <AdminNotificationCenter onNavigateTab={(t) => setTab(t as AdminTab)} />
 
+            {/* Desktop Navigation Shortcuts (kept in DOM, visible on wide screens to prevent mobile landscape clutter) */}
             <Link
               to="/admin/courses"
-              className="hidden sm:inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 whitespace-nowrap dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="hidden xl:inline-flex h-8 sm:h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 whitespace-nowrap dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               Course Studio →
             </Link>
             <Link
               to="/review/submissions"
-              className="hidden sm:inline-flex h-9 items-center rounded-xl bg-slate-950 px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-slate-800 whitespace-nowrap dark:bg-slate-800 dark:hover:bg-slate-700"
+              className="hidden xl:inline-flex h-8 sm:h-9 items-center rounded-xl bg-slate-950 px-3 text-xs font-bold text-white shadow-2xs hover:bg-slate-800 whitespace-nowrap dark:bg-slate-800 dark:hover:bg-slate-700"
             >
               Review Room →
             </Link>
@@ -1146,27 +1151,29 @@ export function AdminOperations() {
                   type="button"
                   onClick={() => setShowPasswordModal(true)}
                   data-testid="admin-operations-update-password-btn"
-                  className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors cursor-pointer"
+                  className="hidden 2xl:inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors cursor-pointer"
                 >
                   <KeyRound size={14} className="text-orange-500" />
                   Update Password
                 </button>
                 <Link
                   to="/admin/super-admin"
-                  className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-xl bg-orange-600 px-3.5 text-xs font-bold text-white shadow-2xs hover:bg-orange-500 whitespace-nowrap transition-colors"
+                  className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl bg-orange-600 px-2.5 sm:px-3 text-xs font-bold text-white shadow-2xs hover:bg-orange-500 whitespace-nowrap transition-colors"
+                  title="Register Staff"
                 >
                   <UserPlus size={14} />
-                  Register Staff →
+                  <span className="hidden sm:inline">Register Staff →</span>
                 </Link>
               </>
             )}
 
-            <TopRightControls />
+            {/* TopRightControls (with duplicate notification center disabled) */}
+            <TopRightControls showNotificationCenter={false} />
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-5 py-8 lg:px-8">
+      <main className="mx-auto max-w-6xl px-4 sm:px-5 py-6 sm:py-8 lg:px-8">
         {/* Toast Alerts */}
         {error && (
           <div className="mb-5 flex items-center justify-between rounded-xl bg-red-50 dark:bg-red-950/40 border border-transparent dark:border-red-900/60 p-3.5 text-xs text-red-700 dark:text-red-300">
@@ -1187,7 +1194,7 @@ export function AdminOperations() {
         )}
 
         {/* Navigation Tabs */}
-        <nav className="mb-8 flex gap-2 overflow-x-auto border-b border-slate-200 dark:border-slate-800 pb-1 text-xs font-bold">
+        <nav className="mb-6 sm:mb-8 flex gap-1.5 sm:gap-2 overflow-x-auto border-b border-slate-200 dark:border-slate-800 pb-1 text-xs font-bold scrollbar-none">
           {tabs.map((item) => {
             const hasAccess = !item.permission || hasAdminPermission(profile?.admin_role, item.permission);
             if (!hasAccess && item.id === 'audit') return null;

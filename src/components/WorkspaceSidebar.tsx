@@ -82,10 +82,10 @@ export function WorkspaceSidebar() {
     <>
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-4 z-40 rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 lg:hidden"
+        className="fixed left-3.5 sm:left-4 top-2 sm:top-2.5 z-40 rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 lg:hidden"
         aria-label="Open workspace navigation"
       >
-        <Menu size={19} />
+        <Menu size={18} />
       </button>
 
       {mobileOpen && (

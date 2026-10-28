@@ -9,11 +9,13 @@ import { soundFx } from '../lib/soundFx';
 interface TopRightControlsProps {
   showThemeToggle?: boolean;
   showSfxToggle?: boolean;
+  showNotificationCenter?: boolean;
 }
 
 export const TopRightControls: React.FC<TopRightControlsProps> = ({
   showThemeToggle = true,
   showSfxToggle = true,
+  showNotificationCenter = true,
 }) => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { user } = useAuth();
@@ -31,8 +33,8 @@ export const TopRightControls: React.FC<TopRightControlsProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-2.5 sm:gap-3">
-      {user && <NotificationCenter userId={user.id} />}
+    <div className="flex items-center gap-1.5 sm:gap-2.5">
+      {showNotificationCenter && user && <NotificationCenter userId={user.id} />}
       {showSfxToggle && (
         <button
           type="button"

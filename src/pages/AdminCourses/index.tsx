@@ -121,28 +121,28 @@ function AdminCoursesView() {
     <div className="min-h-screen bg-[#f6f7f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       {/* Header */}
       <header className="border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <div className="mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 px-5 py-5 lg:px-8">
-          <div className="pl-12 sm:pl-14 lg:pl-0">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-500">
+        <div className="mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-5 py-2.5 sm:py-3.5 lg:py-5 lg:px-8">
+          <div className="pl-11 sm:pl-12 lg:pl-0 min-w-0 pr-2">
+            <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] text-orange-500">
               {isMentor ? 'Mentor studio' : 'Admin studio'}
             </p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+            <h1 className="mt-0.5 text-lg sm:text-2xl font-black tracking-tight text-slate-950 dark:text-white lg:text-3xl truncate">
               {isMentor ? 'Course & Curriculum Authoring' : 'Course Authoring'}
             </h1>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 hidden sm:block truncate">
               {isMentor
                 ? 'Design cohorts, build modules & lessons, upload resources, and configure student sprint tracks.'
                 : 'Manage Cohorts, Modules, Lessons, Assignments, Deadlines & Lesson Resources.'}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5 shrink-0">
             {isMentor ? (
-              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-800 shadow-2xs dark:border-orange-800 dark:bg-orange-950/60 dark:text-orange-300">
+              <span className="hidden xl:inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-800 shadow-2xs dark:border-orange-800 dark:bg-orange-950/60 dark:text-orange-300">
                 <Sparkles size={14} className="text-orange-500" />
                 <span>Course Author / Mentor</span>
               </span>
             ) : (
-              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 shadow-2xs dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200">
+              <span className="hidden xl:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-2xs dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200">
                 <ShieldCheck size={14} className="text-orange-500" />
                 <span>
                   {profile?.admin_role
@@ -154,15 +154,15 @@ function AdminCoursesView() {
               </span>
             )}
             {isAdmin ? (
-              <Button href="/admin/operations" variant="secondary" className="hidden sm:inline-flex">
+              <Button href="/admin/operations" variant="secondary" className="hidden lg:inline-flex">
                 Control Room
               </Button>
             ) : (
-              <Button href="/mentor" variant="secondary" className="hidden sm:inline-flex">
+              <Button href="/mentor" variant="secondary" className="hidden lg:inline-flex">
                 Mentor Dashboard
               </Button>
             )}
-            <Button href="/review/submissions" variant="secondary" className="hidden sm:inline-flex">
+            <Button href="/review/submissions" variant="secondary" className="hidden lg:inline-flex">
               Review Queue
             </Button>
             {canManageCurriculum && (
