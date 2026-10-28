@@ -80,11 +80,31 @@ export const FwCard: React.FC<FwCardProps> = ({
         aria-label={`${title} - ${kicker}`}
       >
         {/* Cinema Viewfinder & Figure Container */}
-        <div className="relative w-full rounded-2xl overflow-hidden border border-white/10 group-hover:border-white/30 transition-all duration-500 shadow-xl bg-[#030712]">
-          {/* Subtle Ambient Accent Glow on Hover */}
+        <div
+          className={`relative w-full rounded-2xl overflow-hidden border transition-all duration-500 shadow-xl bg-[#030712] ${
+            isActive
+              ? 'border-white/40 ring-1 ring-white/20 shadow-2xl'
+              : 'border-white/10 group-hover:border-white/30'
+          }`}
+          style={{
+            borderColor: isActive ? `${accentColor}80` : undefined,
+          }}
+        >
+          {/* Subtle Ambient Accent Glow on Hover / Active */}
           <div
-            className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-700 blur-xl"
+            className={`pointer-events-none absolute inset-0 transition-opacity duration-700 blur-xl ${
+              isActive ? 'opacity-25' : 'opacity-0 group-hover:opacity-20'
+            }`}
             style={{ backgroundColor: accentColor }}
+          />
+
+          {/* Top Glowing Edge Accent Line */}
+          <div
+            className="absolute top-0 inset-x-0 h-1 transition-opacity duration-500 z-30 pointer-events-none"
+            style={{
+              backgroundColor: accentColor,
+              opacity: isActive || isHovered ? 1 : 0.35,
+            }}
           />
 
           {/* Top Cinema HUD Bar */}

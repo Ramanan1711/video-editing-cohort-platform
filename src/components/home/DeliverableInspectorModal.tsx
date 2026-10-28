@@ -114,24 +114,24 @@ export const DeliverableInspectorModal: React.FC<DeliverableInspectorModalProps>
       />
 
       {/* Main Modal Card */}
-      <div className="relative z-10 w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl border border-white/15 bg-gradient-to-b from-[#0e1320] via-[#080c16] to-[#04060c] p-5 sm:p-7 md:p-9 shadow-2xl shadow-black/80 text-white flex flex-col gap-6 custom-scrollbar">
+      <div className="relative z-10 w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl border border-white/15 bg-gradient-to-b from-[#0e1320] via-[#080c16] to-[#04060c] p-4 sm:p-6 md:p-8 shadow-2xl shadow-black/80 text-white flex flex-col gap-5 sm:gap-6 custom-scrollbar">
         {/* Top Header Bar */}
-        <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 rounded-full px-3 py-0.5 text-[11px] font-mono font-bold tracking-wider uppercase border border-white/15 bg-white/5">
+        <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-4 sm:pb-5">
+          <div className="space-y-1.5 min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full px-2.5 sm:px-3 py-0.5 text-[10px] sm:text-[11px] font-mono font-bold tracking-wider uppercase border border-white/15 bg-white/5 max-w-full truncate">
               <span
-                className="size-2 rounded-full animate-pulse"
+                className="size-2 rounded-full animate-pulse shrink-0"
                 style={{ backgroundColor: deliverable.accentColor }}
               />
-              <span className="text-slate-300">{deliverable.kicker}</span>
-              <span className="text-white/20">•</span>
-              <span className="text-[#38B44A] flex items-center gap-1">
-                <ShieldCheck size={12} /> Verified Deliverable
+              <span className="text-slate-300 truncate">{deliverable.kicker}</span>
+              <span className="text-white/20 hidden xs:inline">•</span>
+              <span className="text-[#38B44A] hidden xs:inline-flex items-center gap-1 shrink-0">
+                <ShieldCheck size={12} /> Verified
               </span>
             </div>
             <h2
               id="deliverable-modal-title"
-              className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white"
+              className="text-lg sm:text-2xl md:text-3xl font-black tracking-tight text-white leading-tight"
             >
               {deliverable.title}
             </h2>
@@ -173,19 +173,19 @@ export const DeliverableInspectorModal: React.FC<DeliverableInspectorModalProps>
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60 pointer-events-none" />
 
               {/* Viewfinder HUD Framing Corners */}
-              <div className="absolute top-3 left-3 size-4 border-t-2 border-l-2 border-white/70 pointer-events-none" />
-              <div className="absolute top-3 right-3 size-4 border-t-2 border-r-2 border-white/70 pointer-events-none" />
-              <div className="absolute bottom-3 left-3 size-4 border-b-2 border-l-2 border-white/70 pointer-events-none" />
-              <div className="absolute bottom-3 right-3 size-4 border-b-2 border-r-2 border-white/70 pointer-events-none" />
+              <div className="absolute top-2.5 sm:top-3 left-2.5 sm:left-3 size-3 sm:size-4 border-t-2 border-l-2 border-white/70 pointer-events-none" />
+              <div className="absolute top-2.5 sm:top-3 right-2.5 sm:right-3 size-3 sm:size-4 border-t-2 border-r-2 border-white/70 pointer-events-none" />
+              <div className="absolute bottom-2.5 sm:top-auto sm:bottom-3 left-2.5 sm:left-3 size-3 sm:size-4 border-b-2 border-l-2 border-white/70 pointer-events-none" />
+              <div className="absolute bottom-2.5 sm:top-auto sm:bottom-3 right-2.5 sm:right-3 size-3 sm:size-4 border-b-2 border-r-2 border-white/70 pointer-events-none" />
 
               {/* Viewfinder Top Telemetry */}
-              <div className="absolute top-3 left-8 right-8 flex items-center justify-between text-[11px] font-mono tracking-widest pointer-events-none">
-                <div className="flex items-center gap-2">
+              <div className="absolute top-2.5 sm:top-3 left-4 sm:left-8 right-4 sm:right-8 flex items-center justify-between text-[10px] sm:text-[11px] font-mono tracking-widest pointer-events-none">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <span className="size-2 rounded-full bg-red-500 animate-ping" />
                   <span className="font-bold text-red-400">REC ●</span>
                   <span className="text-white/80">{formattedTime}</span>
                 </div>
-                <div className="flex items-center gap-2 text-slate-300">
+                <div className="hidden sm:flex items-center gap-2 text-slate-300">
                   <span>{deliverable.specs.resolution}</span>
                   <span>•</span>
                   <span>{deliverable.specs.fps} FPS</span>
@@ -199,41 +199,41 @@ export const DeliverableInspectorModal: React.FC<DeliverableInspectorModalProps>
                     soundFx.playSweep(260, 680, 0.1, 0.05);
                     setIsPlaying((p) => !p);
                   }}
-                  className="flex size-14 sm:size-16 items-center justify-center rounded-full bg-black/60 border border-white/30 backdrop-blur-md text-white shadow-2xl hover:scale-110 hover:border-white transition-all group-hover:bg-[#B92B27]/80"
+                  className="flex size-12 sm:size-16 items-center justify-center rounded-full bg-black/60 border border-white/30 backdrop-blur-md text-white shadow-2xl hover:scale-110 hover:border-white transition-all group-hover:bg-[#B92B27]/80"
                   aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
                 >
                   {isPlaying ? (
-                    <Pause size={24} className="fill-white" />
+                    <Pause size={20} className="fill-white sm:w-6 sm:h-6" />
                   ) : (
-                    <Play size={24} className="fill-white translate-x-0.5" />
+                    <Play size={20} className="fill-white translate-x-0.5 sm:w-6 sm:h-6" />
                   )}
                 </button>
               </div>
 
               {/* Bottom Scrubber & Audio Controls */}
-              <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between gap-3 text-xs font-mono">
-                <div className="flex items-center gap-2">
+              <div className="absolute bottom-2.5 sm:bottom-3 left-3 sm:left-4 right-3 sm:right-4 flex items-center justify-between gap-2 text-xs font-mono">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                   <button
                     onClick={() => {
                       soundFx.playBlip(440, 0.03, 'sine', 0.02);
                       setIsMuted((m) => !m);
                     }}
-                    className="p-1.5 rounded-lg bg-black/60 hover:bg-white/20 text-white transition"
+                    className="p-1 sm:p-1.5 rounded-lg bg-black/60 hover:bg-white/20 text-white transition shrink-0"
                     aria-label={isMuted ? 'Unmute' : 'Mute'}
                   >
-                    {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                    {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
                   </button>
-                  <span className="text-[11px] text-slate-300 font-mono">
+                  <span className="text-[10px] sm:text-[11px] text-slate-300 font-mono truncate max-w-[130px] sm:max-w-none">
                     {deliverable.specs.audio}
                   </span>
                 </div>
 
                 {/* Simulated Audio EQ Visualizer */}
-                <div className="flex items-end gap-0.5 h-4">
+                <div className="flex items-end gap-0.5 h-3.5 sm:h-4 shrink-0">
                   {[4, 12, 8, 14, 6, 11, 7, 13, 9, 5].map((h, i) => (
                     <span
                       key={i}
-                      className="w-1 rounded-full transition-all duration-200"
+                      className="w-0.5 sm:w-1 rounded-full transition-all duration-200"
                       style={{
                         height: isPlaying ? `${Math.max(3, (h * (i % 2 === 0 ? 1.2 : 0.8))) % 16}px` : '3px',
                         backgroundColor: deliverable.accentColor,
@@ -245,10 +245,10 @@ export const DeliverableInspectorModal: React.FC<DeliverableInspectorModalProps>
             </div>
 
             {/* Technical Specifications Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/10 text-xs font-mono">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-white/10 text-xs font-mono">
               <div>
                 <p className="text-[10px] text-slate-400 uppercase font-semibold">Resolution</p>
-                <p className="text-slate-200 font-bold mt-0.5">{deliverable.specs.resolution}</p>
+                <p className="text-slate-200 font-bold mt-0.5 truncate">{deliverable.specs.resolution}</p>
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 uppercase font-semibold">Framerate</p>
@@ -256,11 +256,11 @@ export const DeliverableInspectorModal: React.FC<DeliverableInspectorModalProps>
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 uppercase font-semibold">Master Audio</p>
-                <p className="text-slate-200 font-bold mt-0.5">{deliverable.specs.audio}</p>
+                <p className="text-slate-200 font-bold mt-0.5 truncate">{deliverable.specs.audio}</p>
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 uppercase font-semibold">Stems / RAW</p>
-                <p className="text-slate-200 font-bold mt-0.5">{deliverable.specs.files}</p>
+                <p className="text-slate-200 font-bold mt-0.5 truncate">{deliverable.specs.files}</p>
               </div>
             </div>
           </div>

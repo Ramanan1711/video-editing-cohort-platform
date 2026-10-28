@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Award,
   CheckCircle2,
@@ -167,64 +167,159 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
   const [inspectingDeliverable, setInspectingDeliverable] =
     useState<DeliverableDetails | null>(null);
 
+  const carouselRef = useRef<HTMLUListElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const isProgrammaticScrollRef = useRef<boolean>(false);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const activeDeliverable = PRODUCTION_DELIVERABLES[activeDeliverableIndex];
+
+  // Smoothly scroll mobile/tablet carousel to specified card
+  const scrollToIndex = useCallback((index: number) => {
+    if (!carouselRef.current) return;
+    const container = carouselRef.current;
+    const items = container.children;
+    const targetItem = items[index] as HTMLElement | undefined;
+    if (targetItem) {
+      isProgrammaticScrollRef.current = true;
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+
+      const targetLeft =
+        targetItem.offsetLeft - (container.clientWidth - targetItem.offsetWidth) / 2;
+
+      if (typeof container.scrollTo === 'function') {
+        container.scrollTo({
+          left: Math.max(0, targetLeft),
+          behavior: 'smooth',
+        });
+      } else {
+        container.scrollLeft = Math.max(0, targetLeft);
+      }
+
+      scrollTimeoutRef.current = setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+      }, 500);
+    }
+  }, []);
+
+  // Sync scroll position from user swiping in carousel
+  const handleCarouselScroll = useCallback(() => {
+    if (isProgrammaticScrollRef.current || !carouselRef.current) return;
+    const container = carouselRef.current;
+    const containerCenter = container.scrollLeft + container.clientWidth / 2;
+    const items = Array.from(container.children) as HTMLElement[];
+    if (!items.length) return;
+
+    let closestIndex = 0;
+    let minDistance = Infinity;
+
+    items.forEach((item, index) => {
+      const itemCenter = item.offsetLeft + item.offsetWidth / 2;
+      const distance = Math.abs(containerCenter - itemCenter);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    if (
+      closestIndex !== activeDeliverableIndex &&
+      closestIndex >= 0 &&
+      closestIndex < PRODUCTION_DELIVERABLES.length
+    ) {
+      setActiveDeliverableIndex(closestIndex);
+    }
+  }, [activeDeliverableIndex]);
+
+  // Keep active tab visible in filter tab strip
+  useEffect(() => {
+    if (!tabsRef.current) return;
+    const activeTab = tabsRef.current.children[activeDeliverableIndex] as HTMLElement | undefined;
+    if (activeTab && typeof activeTab.scrollIntoView === 'function') {
+      activeTab.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'nearest',
+        block: 'nearest',
+      });
+    }
+  }, [activeDeliverableIndex]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
+  }, []);
 
   const handlePrev = () => {
     soundFx.playBlip(440, 0.02, 'sine', 0.02);
-    setActiveDeliverableIndex((prev) =>
-      prev === 0 ? PRODUCTION_DELIVERABLES.length - 1 : prev - 1
-    );
+    const nextIdx =
+      activeDeliverableIndex === 0
+        ? PRODUCTION_DELIVERABLES.length - 1
+        : activeDeliverableIndex - 1;
+    setActiveDeliverableIndex(nextIdx);
+    scrollToIndex(nextIdx);
   };
 
   const handleNext = () => {
     soundFx.playBlip(540, 0.02, 'sine', 0.02);
-    setActiveDeliverableIndex((prev) =>
-      prev === PRODUCTION_DELIVERABLES.length - 1 ? 0 : prev + 1
-    );
+    const nextIdx =
+      activeDeliverableIndex === PRODUCTION_DELIVERABLES.length - 1
+        ? 0
+        : activeDeliverableIndex + 1;
+    setActiveDeliverableIndex(nextIdx);
+    scrollToIndex(nextIdx);
+  };
+
+  const handleSelectTab = (idx: number) => {
+    soundFx.playBlip(520, 0.02, 'sine', 0.02);
+    setActiveDeliverableIndex(idx);
+    scrollToIndex(idx);
   };
 
   return (
     <>
       {/* ========================================================================= */}
-      {/* SECTION: SELECTED PRODUCTION DELIVERABLES (CREATIVE HORIZONTAL HOVER SHOWCASE) */}
+      {/* SECTION: SELECTED PRODUCTION DELIVERABLES (CREATIVE SHOWCASE)              */}
       {/* ========================================================================= */}
       <section
         id="deliverables"
-        className="border-t border-white/10 bg-[#030712] py-20 lg:py-28 relative overflow-hidden fw"
+        className="border-t border-white/10 bg-[#030712] py-16 sm:py-20 lg:py-28 relative overflow-hidden fw"
       >
         {/* Subtle Ambient Nebula */}
         <div
-          className="pointer-events-none absolute top-1/3 right-10 size-[500px] rounded-full blur-[150px] opacity-15 transition-colors duration-700"
+          className="pointer-events-none absolute top-1/3 right-10 size-[320px] sm:size-[450px] lg:size-[500px] rounded-full blur-[140px] opacity-15 transition-colors duration-700"
           style={{ backgroundColor: activeDeliverable.accentColor }}
         />
 
-        <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
           {/* Section Header */}
-          <div className="gsap-header-reveal flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+          <div className="gsap-header-reveal flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 sm:mb-12">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-mono font-bold tracking-wider uppercase border border-[#38B44A]/30 bg-[#38B44A]/10 text-[#38B44A] mb-3">
                 <span className="size-2 rounded-full bg-[#38B44A] animate-pulse" />
                 <span>Selected Production Deliverables · Junca .FW Showcase</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mt-1">
+              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mt-1">
                 Selected Production Proof-of-Work
               </h2>
             </div>
 
             <div className="flex flex-col md:items-end gap-3">
-              <p className="text-sm text-slate-400 max-w-md md:text-right leading-relaxed">
-                Hover horizontally to inspect real cuts built by cohort members under 24-hour sprint briefs.
+              <p className="text-xs sm:text-sm text-slate-400 max-w-md md:text-right leading-relaxed">
+                Inspect real production cuts built by cohort members under 24-hour sprint briefs.
               </p>
 
-              {/* Navigation Controls & Hint */}
-              <div className="hidden sm:flex items-center gap-2 text-xs font-mono">
+              {/* Navigation Controls & Hint (Visible across mobile, tablet, and desktop) */}
+              <div className="flex items-center gap-2 text-xs font-mono">
                 <span className="text-slate-500 mr-2 flex items-center gap-1.5">
                   <span className="size-1.5 rounded-full bg-[#F2B705] animate-ping" />
-                  Hover to Expand
+                  <span className="hidden lg:inline">Hover to Expand · Click to Inspect</span>
+                  <span className="lg:hidden">Swipe or Tap to Inspect</span>
                 </span>
                 <button
                   onClick={handlePrev}
-                  className="p-2 rounded-lg border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:border-white/30 transition-all"
+                  className="p-2 rounded-lg border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:border-white/30 active:scale-95 transition-all"
                   aria-label="Previous deliverable"
                 >
                   <ChevronLeft size={16} />
@@ -234,7 +329,7 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
                 </span>
                 <button
                   onClick={handleNext}
-                  className="p-2 rounded-lg border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:border-white/30 transition-all"
+                  className="p-2 rounded-lg border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:border-white/30 active:scale-95 transition-all"
                   aria-label="Next deliverable"
                 >
                   <ChevronRight size={16} />
@@ -244,21 +339,21 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
           </div>
 
           {/* Quick-Select Filter Tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
+          <div
+            ref={tabsRef}
+            className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 sm:mb-8 scrollbar-none"
+          >
             {PRODUCTION_DELIVERABLES.map((item, idx) => {
               const isSelected = idx === activeDeliverableIndex;
               return (
                 <button
                   key={item.id}
-                  onClick={() => {
-                    soundFx.playBlip(520, 0.02, 'sine', 0.02);
-                    setActiveDeliverableIndex(idx);
-                  }}
+                  onClick={() => handleSelectTab(idx)}
                   onMouseEnter={() => {
                     soundFx.playBlip(480, 0.015, 'sine', 0.01);
                     setActiveDeliverableIndex(idx);
                   }}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-mono font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-2 border ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-mono font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-2 border shrink-0 ${
                     isSelected
                       ? 'border-white text-white shadow-lg bg-white/10'
                       : 'border-white/10 text-slate-400 hover:text-white hover:border-white/20 bg-white/[0.02]'
@@ -280,9 +375,9 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
           </div>
 
           {/* ================================================================= */}
-          {/* DESKTOP & TABLET: CREATIVE HORIZONTAL HOVER ACCORDION DECK */}
+          {/* DESKTOP (≥ lg): CREATIVE HORIZONTAL HOVER ACCORDION DECK          */}
           {/* ================================================================= */}
-          <div className="hidden md:flex h-[560px] lg:h-[620px] gap-3 lg:gap-4 w-full select-none items-stretch">
+          <div className="hidden lg:flex h-[580px] xl:h-[620px] gap-3 lg:gap-4 w-full select-none items-stretch">
             {PRODUCTION_DELIVERABLES.map((item, idx) => {
               const isExpanded = idx === activeDeliverableIndex;
 
@@ -296,13 +391,18 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
                     }
                   }}
                   onClick={() => {
-                    soundFx.playSweep(260, 680, 0.1, 0.04);
-                    setInspectingDeliverable(item);
+                    if (!isExpanded) {
+                      soundFx.playBlip(540, 0.02, 'sine', 0.015);
+                      setActiveDeliverableIndex(idx);
+                    } else {
+                      soundFx.playSweep(260, 680, 0.1, 0.04);
+                      setInspectingDeliverable(item);
+                    }
                   }}
                   className={`relative rounded-2xl lg:rounded-3xl overflow-hidden border transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer group shadow-2xl flex flex-col justify-between ${
                     isExpanded
-                      ? 'flex-[3.5] lg:flex-[3.8] border-white/30 bg-[#080d1a]'
-                      : 'flex-1 lg:flex-[0.8] border-white/10 bg-[#050811] hover:border-white/20'
+                      ? 'flex-[3.5] xl:flex-[3.8] border-white/30 bg-[#080d1a]'
+                      : 'flex-1 xl:flex-[0.8] border-white/10 bg-[#050811] hover:border-white/20'
                   }`}
                   style={{
                     borderColor: isExpanded ? `${item.accentColor}80` : undefined,
@@ -498,56 +598,77 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
           </div>
 
           {/* ================================================================= */}
-          {/* MOBILE: FLUID HORIZONTAL SNAP CAROUSEL (< md)                     */}
+          {/* MOBILE & TABLET (< lg): FLUID HORIZONTAL SNAP CAROUSEL            */}
           {/* ================================================================= */}
-          <div className="md:hidden flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 -mx-5 px-5 scrollbar-none">
-            {PRODUCTION_DELIVERABLES.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => {
-                  soundFx.playSweep(260, 680, 0.1, 0.04);
-                  setInspectingDeliverable(item);
-                }}
-                className="w-[85vw] max-w-[340px] snap-center shrink-0 cursor-pointer"
-              >
-                <FwCard
-                  figure={{
-                    imgSrc: item.imgSrc,
-                    alt: item.alt,
-                    tags: item.tags,
-                    aspectRatio: '16/10',
-                  }}
-                  kicker={item.kicker}
-                  title={item.title}
-                  description={item.description}
-                  timecode={item.timecode}
-                  codec={item.codec}
-                  rubricScore={item.rubricScore}
-                  software={item.software}
-                  accentColor={item.accentColor}
-                  cursorLabel="INSPECT CUT"
-                  onClick={() => setInspectingDeliverable(item)}
-                />
-              </div>
-            ))}
-          </div>
+          <div className="lg:hidden space-y-4">
+            <ul
+              ref={carouselRef}
+              onScroll={handleCarouselScroll}
+              className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 -mx-4 px-4 sm:-mx-6 sm:px-6 scrollbar-none list-none m-0 pt-1"
+              aria-label="Production deliverables carousel"
+            >
+              {PRODUCTION_DELIVERABLES.map((item, idx) => {
+                const isSelected = idx === activeDeliverableIndex;
+                return (
+                  <FwCard
+                    key={item.id}
+                    className="w-[86vw] sm:w-[380px] md:w-[440px] snap-center shrink-0 cursor-pointer"
+                    isActive={isSelected}
+                    figure={{
+                      imgSrc: item.imgSrc,
+                      alt: item.alt,
+                      tags: item.tags,
+                      aspectRatio: '16/10',
+                    }}
+                    kicker={item.kicker}
+                    title={item.title}
+                    description={item.description}
+                    timecode={item.timecode}
+                    codec={item.codec}
+                    rubricScore={item.rubricScore}
+                    software={item.software}
+                    accentColor={item.accentColor}
+                    cursorLabel="INSPECT CUT"
+                    onClick={() => {
+                      soundFx.playSweep(260, 680, 0.1, 0.04);
+                      setInspectingDeliverable(item);
+                    }}
+                  />
+                );
+              })}
+            </ul>
 
-          {/* Mobile Dot Indicator */}
-          <div className="md:hidden flex items-center justify-center gap-2 pt-4">
-            {PRODUCTION_DELIVERABLES.map((item, idx) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveDeliverableIndex(idx)}
-                className={`size-2 rounded-full transition-all ${
-                  idx === activeDeliverableIndex ? 'w-6 bg-white' : 'bg-white/20'
-                }`}
-                style={{
-                  backgroundColor:
-                    idx === activeDeliverableIndex ? item.accentColor : undefined,
-                }}
-                aria-label={`Go to deliverable ${idx + 1}`}
-              />
-            ))}
+            {/* Mobile & Tablet Dots Indicator + Quick Jump */}
+            <div className="flex items-center justify-between gap-4 pt-2 px-1">
+              <div className="flex items-center gap-2">
+                {PRODUCTION_DELIVERABLES.map((item, idx) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      soundFx.playBlip(500, 0.02, 'sine', 0.015);
+                      setActiveDeliverableIndex(idx);
+                      scrollToIndex(idx);
+                    }}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      idx === activeDeliverableIndex
+                        ? 'w-8 bg-white'
+                        : 'w-2 bg-white/20 hover:bg-white/40'
+                    }`}
+                    style={{
+                      backgroundColor:
+                        idx === activeDeliverableIndex ? item.accentColor : undefined,
+                    }}
+                    aria-label={`Go to deliverable ${idx + 1}`}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400">
+                <span className="font-bold text-white">0{activeDeliverableIndex + 1}</span>
+                <span>/</span>
+                <span>0{PRODUCTION_DELIVERABLES.length}</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -562,26 +683,26 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
       />
 
       {/* ========================================================================= */}
-      {/* SECTION 12: VERIFIED CREDENTIAL & MENTOR RECOMMENDATION */}
+      {/* SECTION 12: VERIFIED CREDENTIAL & MENTOR RECOMMENDATION                   */}
       {/* ========================================================================= */}
       <section
         id="credentials"
-        className="border-t border-white/10 bg-[#070b16] py-20 lg:py-28 text-white relative overflow-hidden"
+        className="border-t border-white/10 bg-[#070b16] py-16 sm:py-20 lg:py-28 text-white relative overflow-hidden"
       >
         {/* Ambient Amber Glow */}
         <div className="gsap-parallax-slow absolute top-1/2 -right-40 size-96 rounded-full bg-[#F2B705]/10 blur-3xl pointer-events-none" />
 
-        <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="gsap-header-reveal space-y-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
+            <div className="gsap-header-reveal space-y-5 sm:space-y-6">
               <div className="inline-flex items-center gap-2 rounded-full bg-[#F2B705]/10 border border-[#F2B705]/20 px-3 py-1 text-xs font-black text-[#F2B705]">
                 <Award size={14} />
                 <span>Proof of Competence</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
+              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
                 A Verifiable Credential That Employers Actually Respect.
               </h2>
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
                 Anyone can fake watching videos. Nobody can fake 15 days of verified daily submissions and mentor reviews.
               </p>
 
@@ -618,56 +739,56 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
             </div>
 
             {/* Realistic Certificate Mockup with 3D Depth Tilt */}
-            <div className="relative">
+            <div className="relative w-full max-w-xl mx-auto lg:max-w-none">
               <div className="absolute -inset-2 rounded-3xl bg-gradient-to-tr from-[#B92B27] via-[#F2B705] to-[#2675EB] opacity-20 blur-2xl pointer-events-none" />
               <TiltCard
                 maxTilt={8}
                 glareColor="rgba(242, 183, 5, 0.2)"
-                className="relative rounded-2xl border border-[#F2B705]/40 bg-gradient-to-b from-slate-900 via-[#070b16] to-[#030712] p-7 sm:p-9 shadow-2xl text-slate-100 space-y-6"
+                className="relative rounded-2xl border border-[#F2B705]/40 bg-gradient-to-b from-slate-900 via-[#070b16] to-[#030712] p-5 sm:p-7 md:p-9 shadow-2xl text-slate-100 space-y-5 sm:space-y-6"
               >
-                <div className="flex items-start justify-between border-b border-white/10 pb-5">
-                  <div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#F2B705]">
+                <div className="flex items-start justify-between border-b border-white/10 pb-4 sm:pb-5">
+                  <div className="min-w-0 pr-2">
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] sm:tracking-[0.25em] text-[#F2B705]">
                       Iunoware Academy · Verified Credential
                     </span>
-                    <h3 className="text-lg font-black text-white mt-1">
+                    <h3 className="text-base sm:text-lg font-black text-white mt-1 leading-snug">
                       Certificate of Internship Completion
                     </h3>
                   </div>
-                  <div className="flex size-11 items-center justify-center rounded-xl bg-[#F2B705]/10 border border-[#F2B705]/30 text-[#F2B705]">
-                    <Award size={24} />
+                  <div className="flex size-10 sm:size-11 shrink-0 items-center justify-center rounded-xl bg-[#F2B705]/10 border border-[#F2B705]/30 text-[#F2B705]">
+                    <Award size={22} className="sm:w-6 sm:h-6" />
                   </div>
                 </div>
 
-                <div className="space-y-2 text-center py-4">
-                  <p className="text-xs text-slate-400 uppercase tracking-widest">
+                <div className="space-y-2 text-center py-2 sm:py-4">
+                  <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-widest">
                     This acknowledges that
                   </p>
-                  <p className="text-2xl font-black text-white tracking-tight">
+                  <p className="text-xl sm:text-2xl font-black text-white tracking-tight">
                     Candidate Name
                   </p>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  <p className="text-[11px] sm:text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
                     has successfully satisfied all 15 production deliverables, passed mentor audits, and graduated with distinction in
                   </p>
-                  <p className="text-sm font-black text-[#D93830]">
+                  <p className="text-xs sm:text-sm font-black text-[#D93830]">
                     Commercial Video Editing &amp; Kinetic Motion Track
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between border-t border-white/10 pt-5 text-xs text-slate-400">
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 border-t border-white/10 pt-4 sm:pt-5 text-xs text-slate-400">
                   <div>
-                    <p className="text-[10px] uppercase font-bold text-slate-500">
+                    <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-500">
                       Credential ID
                     </p>
                     <p className="font-mono text-xs text-slate-300">PCH-2026-VERIFIED</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <QrCode size={26} className="text-[#F2B705]" />
+                    <QrCode size={24} className="text-[#F2B705] shrink-0 sm:w-6 sm:h-6" />
                     <div className="text-right">
-                      <p className="text-[10px] font-bold text-[#38B44A]">
+                      <p className="text-[9px] sm:text-[10px] font-bold text-[#38B44A] whitespace-nowrap">
                         ✓ Cryptographically Signed
                       </p>
-                      <p className="text-[9px] text-slate-500">Scan to verify</p>
+                      <p className="text-[8px] sm:text-[9px] text-slate-500">Scan to verify</p>
                     </div>
                   </div>
                 </div>
@@ -678,26 +799,26 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
       </section>
 
       {/* ========================================================================= */}
-      {/* SECTION 15: WALL OF LOVE / VERIFIED STUDENT STORIES */}
+      {/* SECTION 15: WALL OF LOVE / VERIFIED STUDENT STORIES                        */}
       {/* ========================================================================= */}
-      <section className="bg-[#030712] border-t border-white/10 py-20 lg:py-28 text-white relative overflow-hidden">
+      <section className="bg-[#030712] border-t border-white/10 py-16 sm:py-20 lg:py-28 text-white relative overflow-hidden">
         {/* Ambient Warm Glow */}
         <div className="gsap-parallax-slow absolute top-1/2 left-1/4 -translate-y-1/2 size-96 rounded-full bg-[#B92B27]/10 blur-3xl pointer-events-none" />
 
-        <div className="mx-auto max-w-7xl px-5 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             <div className="gsap-header-reveal lg:col-span-1 space-y-4">
-              <Quote size={36} className="text-[#F2B705]/40" />
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
+              <Quote size={32} className="text-[#F2B705]/40 sm:w-9 sm:h-9" />
+              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
                 &quot;I finally finished work I am proud to send to clients.&quot;
               </h2>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
                 Verified stories from video editors who completed the 15-day sprint and landed paying client projects.
               </p>
             </div>
 
             <div className="gsap-cards-group lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <TiltCard className="bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-xl border border-white/10 p-6 rounded-2xl text-white space-y-3 shadow-xl hover:border-[#B92B27]/40 transition">
+              <TiltCard className="bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-xl border border-white/10 p-5 sm:p-6 rounded-2xl text-white space-y-3 shadow-xl hover:border-[#B92B27]/40 transition">
                 <div className="flex text-[#F2B705]">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} size={14} fill="currentColor" />
@@ -714,7 +835,7 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
                 </div>
               </TiltCard>
 
-              <TiltCard className="bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-xl border border-white/10 p-6 rounded-2xl text-white space-y-3 shadow-xl hover:border-[#B92B27]/40 transition">
+              <TiltCard className="bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-xl border border-white/10 p-5 sm:p-6 rounded-2xl text-white space-y-3 shadow-xl hover:border-[#B92B27]/40 transition">
                 <div className="flex text-[#F2B705]">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} size={14} fill="currentColor" />
