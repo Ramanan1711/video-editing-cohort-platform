@@ -1280,6 +1280,8 @@ export function AdminOperations() {
             {tab === 'users' && (
               <UsersTab
                 users={users}
+                enrollments={enrollments}
+                cohorts={cohorts}
                 currentUserId={user?.id}
                 currentUserEmail={user?.email}
                 canManageRoles={canManageRoles}

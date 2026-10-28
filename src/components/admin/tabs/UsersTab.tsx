@@ -1,14 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Ban,
+  BookOpen,
+  Calendar,
   Check,
   CheckCircle2,
   Download,
   GraduationCap,
+  Phone,
   Search,
   Shield,
   ShieldCheck,
+  UserCheck,
   UserPlus,
+  Users,
   UserX,
 } from 'lucide-react';
 import { Button } from '../../ui/Button';
@@ -19,12 +24,20 @@ import {
   isChildSuperAdmin,
   type AdminSubRole,
 } from '../../../lib/adminPermissions';
-import type { UserProfile } from '../../../lib/adminService';
+import {
+  listCohortEnrollments,
+  type AdminEnrollment,
+  type UserProfile,
+} from '../../../lib/adminService';
+import type { Cohort } from '../../../lib/courseService';
 
 export type UserRoleTab = 'student' | 'mentor' | 'admin' | 'all';
+export type StudentSegregationFilter = 'all' | 'registered' | 'enrolled';
 
 export interface UsersTabProps {
   users: UserProfile[];
+  enrollments?: AdminEnrollment[];
+  cohorts?: Cohort[];
   currentUserId?: string;
   currentUserEmail?: string;
   canManageRoles: boolean;
@@ -77,7 +90,7 @@ function RoleBadge({
     return (
       <span
         data-testid={userId ? `role-badge-${userId}` : 'role-badge'}
-        className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-[11px] font-bold text-purple-700"
+        className="inline-flex items-center gap-1 rounded-full bg-purple-100 dark:bg-purple-950/60 px-2.5 py-0.5 text-[11px] font-bold text-purple-700 dark:text-purple-300"
       >
         <ShieldCheck size={11} /> Mentor
       </span>
@@ -86,7 +99,7 @@ function RoleBadge({
   return (
     <span
       data-testid={userId ? `role-badge-${userId}` : 'role-badge'}
-      className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700"
+      className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300"
     >
       Student
     </span>
@@ -95,6 +108,8 @@ function RoleBadge({
 
 export function UsersTab({
   users,
+  enrollments: enrollmentsProp,
+  cohorts: _cohorts,
   currentUserId,
   currentUserEmail: _currentUserEmail,
   canManageRoles: _canManageRoles,
@@ -109,13 +124,44 @@ export function UsersTab({
 }: UsersTabProps) {
   const [userSearch, setUserSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRoleTab>(defaultRoleTab);
+  const [studentView, setStudentView] = useState<StudentSegregationFilter>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
-  const [userPage, setUserPage] = useState(1);
-  const [userPageSize, setUserPageSize] = useState(25);
+  const [registeredPage, setRegisteredPage] = useState(1);
+  const [enrolledPage, setEnrolledPage] = useState(1);
+  const [adminPage, setAdminPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [exportingUsersCsv, setExportingUsersCsv] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [bulkUpdatingUsers, setBulkUpdatingUsers] = useState(false);
+  const [internalEnrollments, setInternalEnrollments] = useState<AdminEnrollment[]>([]);
+
+  // Fetch enrollments if not passed via props
+  useEffect(() => {
+    if (!enrollmentsProp || enrollmentsProp.length === 0) {
+      listCohortEnrollments()
+        .then((data) => setInternalEnrollments(data || []))
+        .catch(() => {
+          // Non-blocking fallback
+        });
+    }
+  }, [enrollmentsProp]);
+
+  const activeEnrollments = useMemo(() => {
+    return enrollmentsProp && enrollmentsProp.length > 0 ? enrollmentsProp : internalEnrollments;
+  }, [enrollmentsProp, internalEnrollments]);
+
+  // Map user_id -> enrollments
+  const enrollmentsByUserMap = useMemo(() => {
+    const map = new Map<string, AdminEnrollment[]>();
+    for (const e of activeEnrollments) {
+      if (!e.user_id) continue;
+      const list = map.get(e.user_id) ?? [];
+      list.push(e);
+      map.set(e.user_id, list);
+    }
+    return map;
+  }, [activeEnrollments]);
 
   const roleCounts = useMemo(() => {
     let student = 0;
@@ -141,7 +187,7 @@ export function UsersTab({
         label: 'Students',
         icon: GraduationCap,
         count: roleCounts.student,
-        description: 'Active and enrolled students across cohort production tracks.',
+        description: 'Directory of registered and enrolled students across cohort production tracks.',
       },
     ],
     [roleCounts.student]
@@ -149,32 +195,102 @@ export function UsersTab({
 
   const handleTabChange = (newRole: UserRoleTab) => {
     setRoleFilter(newRole);
-    setUserPage(1);
+    setRegisteredPage(1);
+    setEnrolledPage(1);
+    setAdminPage(1);
     setSelectedUserIds(new Set());
   };
 
-  const filteredUsers = useMemo(() => {
-    return users.filter((u) => {
+  // Base student filter
+  const studentUsers = useMemo(() => {
+    return users.filter((u) => u.role === 'student' || (!['mentor', 'admin'].includes(u.role)));
+  }, [users]);
+
+  // Segregate into:
+  // 1. Enrolled students: have at least one valid cohort enrollment
+  // 2. Registered students: registered but not yet enrolled
+  const { allRegisteredStudents, allEnrolledStudents } = useMemo(() => {
+    const registered: UserProfile[] = [];
+    const enrolled: UserProfile[] = [];
+
+    for (const student of studentUsers) {
+      const userEnrolls = enrollmentsByUserMap.get(student.id) ?? [];
+      const hasActiveEnrollment = userEnrolls.some((e) => e.status !== 'dropped');
+      if (hasActiveEnrollment) {
+        enrolled.push(student);
+      } else {
+        registered.push(student);
+      }
+    }
+
+    return {
+      allRegisteredStudents: registered,
+      allEnrolledStudents: enrolled,
+    };
+  }, [studentUsers, enrollmentsByUserMap]);
+
+  // Filter with Search and Status filter
+  const filterList = (list: UserProfile[]) => {
+    return list.filter((u) => {
       const matchesSearch =
         u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
         (u.full_name && u.full_name.toLowerCase().includes(userSearch.toLowerCase()));
-      const matchesRole =
-        roleFilter === 'all' ||
-        u.role === roleFilter ||
-        (roleFilter === 'admin' && u.role === 'admin');
       const matchesStatus =
         statusFilter === 'all' || (u.status || 'active') === statusFilter;
-      return matchesSearch && matchesRole && matchesStatus;
+      return matchesSearch && matchesStatus;
     });
-  }, [users, userSearch, roleFilter, statusFilter]);
+  };
 
-  const totalUserPages = Math.ceil(filteredUsers.length / userPageSize) || 1;
-  const safeUserPage = Math.min(userPage, totalUserPages);
+  const filteredRegisteredStudents = useMemo(
+    () => filterList(allRegisteredStudents),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allRegisteredStudents, userSearch, statusFilter]
+  );
 
-  const pagedUsers = useMemo(() => {
-    const start = (safeUserPage - 1) * userPageSize;
-    return filteredUsers.slice(start, start + userPageSize);
-  }, [filteredUsers, safeUserPage, userPageSize]);
+  const filteredEnrolledStudents = useMemo(
+    () => filterList(allEnrolledStudents),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allEnrolledStudents, userSearch, statusFilter]
+  );
+
+  const nonStudentUsers = useMemo(() => {
+    return users.filter((u) => {
+      const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+      const matchesSearch =
+        u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+        (u.full_name && u.full_name.toLowerCase().includes(userSearch.toLowerCase()));
+      const matchesStatus =
+        statusFilter === 'all' || (u.status || 'active') === statusFilter;
+      return matchesRole && matchesSearch && matchesStatus;
+    });
+  }, [users, roleFilter, userSearch, statusFilter]);
+
+  // Pagination for Registered Students
+  const totalRegisteredPages = Math.ceil(filteredRegisteredStudents.length / pageSize) || 1;
+  const safeRegisteredPage = Math.min(registeredPage, totalRegisteredPages);
+  const pagedRegisteredStudents = useMemo(() => {
+    const start = (safeRegisteredPage - 1) * pageSize;
+    return filteredRegisteredStudents.slice(start, start + pageSize);
+  }, [filteredRegisteredStudents, safeRegisteredPage, pageSize]);
+
+  // Pagination for Enrolled Students
+  const totalEnrolledPages = Math.ceil(filteredEnrolledStudents.length / pageSize) || 1;
+  const safeEnrolledPage = Math.min(enrolledPage, totalEnrolledPages);
+  const pagedEnrolledStudents = useMemo(() => {
+    const start = (safeEnrolledPage - 1) * pageSize;
+    return filteredEnrolledStudents.slice(start, start + pageSize);
+  }, [filteredEnrolledStudents, safeEnrolledPage, pageSize]);
+
+  // Pagination for Non-Student Users (e.g. admins)
+  const totalAdminPages = Math.ceil(nonStudentUsers.length / pageSize) || 1;
+  const safeAdminPage = Math.min(adminPage, totalAdminPages);
+  const pagedAdminUsers = useMemo(() => {
+    const start = (safeAdminPage - 1) * pageSize;
+    return nonStudentUsers.slice(start, start + pageSize);
+  }, [nonStudentUsers, safeAdminPage, pageSize]);
+
+  // Total visible students matching current filter
+  const totalVisibleStudents = filteredRegisteredStudents.length + filteredEnrolledStudents.length;
 
   const handleToggleSelectUser = (id: string) => {
     setSelectedUserIds((prev) => {
@@ -222,8 +338,160 @@ export function UsersTab({
     }
   };
 
+  // Helper for rendering Student Table Row
+  const renderStudentRow = (student: UserProfile, isEnrolledTable: boolean) => {
+    const isSelf = student.id === currentUserId;
+    const isUpdating = updatingUserId === student.id;
+    const isSuspended = student.status === 'suspended';
+    const userEnrollments = enrollmentsByUserMap.get(student.id) ?? [];
+
+    return (
+      <tr
+        key={student.id}
+        className="border-b border-slate-100 hover:bg-slate-50/60 dark:border-slate-800/80 dark:hover:bg-slate-800/40 transition-colors"
+      >
+        {/* Select Checkbox */}
+        <td className="py-3.5 px-3 text-center align-middle">
+          {!isSelf && (
+            <input
+              type="checkbox"
+              checked={selectedUserIds.has(student.id)}
+              onChange={() => handleToggleSelectUser(student.id)}
+              className="size-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+              aria-label={`Select ${student.full_name || student.email}`}
+            />
+          )}
+        </td>
+
+        {/* Student Name & Email */}
+        <td className="py-3.5 px-4 align-middle">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 shadow-2xs">
+              {student.full_name?.charAt(0).toUpperCase() || student.email?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <strong className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                  {student.full_name || 'Unnamed Student'}
+                </strong>
+                {isSelf && (
+                  <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                    You
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{student.email}</p>
+            </div>
+          </div>
+        </td>
+
+        {/* If Enrolled Table: Enrolled Cohorts & Enrollment Status */}
+        {isEnrolledTable && (
+          <>
+            <td className="py-3.5 px-4 align-middle">
+              <div className="flex flex-wrap items-center gap-1.5 max-w-xs">
+                {userEnrollments.length > 0 ? (
+                  userEnrollments.map((enr, idx) => (
+                    <span
+                      key={`${enr.cohort_id}-${idx}`}
+                      className="inline-flex items-center gap-1 rounded-md bg-orange-50 dark:bg-orange-950/60 border border-orange-200/80 dark:border-orange-900/60 px-2 py-0.5 text-[11px] font-semibold text-orange-800 dark:text-orange-300"
+                    >
+                      <BookOpen size={11} className="text-orange-600 dark:text-orange-400 shrink-0" />
+                      <span className="truncate max-w-[140px]">{enr.cohort_name || 'Assigned Cohort'}</span>
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[11px] text-slate-400">—</span>
+                )}
+              </div>
+            </td>
+
+            <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+              {userEnrollments.length > 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-900/60 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                  {userEnrollments[0].status || 'Enrolled'}
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-400">—</span>
+              )}
+            </td>
+          </>
+        )}
+
+        {/* If Registered (Not Enrolled) Table: Contact Info */}
+        {!isEnrolledTable && (
+          <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+            {student.whatsapp_number || student.phone ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                <Phone size={11} className="text-slate-400" />
+                {student.whatsapp_number || student.phone}
+              </span>
+            ) : (
+              <span className="text-[11px] text-slate-400 italic">Not provided</span>
+            )}
+          </td>
+        )}
+
+        {/* Date (Registration or Enrollment) */}
+        <td className="py-3.5 px-4 align-middle whitespace-nowrap text-slate-600 dark:text-slate-400 text-[11px]">
+          <span className="inline-flex items-center gap-1">
+            <Calendar size={11} className="text-slate-400" />
+            {student.created_at
+              ? new Date(student.created_at).toLocaleDateString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : '—'}
+          </span>
+        </td>
+
+        {/* Account Status Badge */}
+        <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+          {isSuspended ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200/80 dark:border-rose-900/60 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-400">
+              <Ban size={10} /> Suspended
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-900/60 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 size={10} /> Active
+            </span>
+          )}
+        </td>
+
+        {/* Actions Button */}
+        <td className="py-3.5 px-4 align-middle text-right whitespace-nowrap">
+          {canManageStatus && !isSelf && student.email !== 'ajayramanan17@gmail.com' ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={isUpdating}
+              onClick={() => void handleStatus(student, isSuspended ? 'active' : 'suspended')}
+              className={`text-xs font-bold ${
+                isSuspended ? 'text-emerald-700' : 'text-rose-600 hover:text-rose-700'
+              }`}
+            >
+              {isSuspended ? (
+                <>
+                  <Check size={12} /> Reactivate
+                </>
+              ) : (
+                <>
+                  <UserX size={12} /> Suspend
+                </>
+              )}
+            </Button>
+          ) : (
+            <span className="text-[11px] text-slate-400">—</span>
+          )}
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <Card className="p-6">
+      {/* Top Header & Search Bar */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-lg font-black text-slate-950 dark:text-white">User Directory &amp; Permissions</h2>
@@ -259,7 +527,9 @@ export function UsersTab({
               value={userSearch}
               onChange={(e) => {
                 setUserSearch(e.target.value);
-                setUserPage(1);
+                setRegisteredPage(1);
+                setEnrolledPage(1);
+                setAdminPage(1);
               }}
               placeholder="Search by name or email..."
               className="w-40 sm:w-56 bg-transparent outline-none text-xs"
@@ -270,7 +540,9 @@ export function UsersTab({
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value as typeof statusFilter);
-              setUserPage(1);
+              setRegisteredPage(1);
+              setEnrolledPage(1);
+              setAdminPage(1);
             }}
             className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
           >
@@ -281,7 +553,7 @@ export function UsersTab({
         </div>
       </div>
 
-      {/* Role Navigation Sub-Tabs (Students only) */}
+      {/* Main Role Navigation Sub-Tabs (Students) */}
       <div className="mt-5 flex flex-wrap items-center gap-2 border-b border-slate-200/80 dark:border-slate-800 pb-3.5">
         {roleTabs.map((rt) => {
           const Icon = rt.icon;
@@ -314,177 +586,479 @@ export function UsersTab({
         })}
       </div>
 
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <p>{roleTabs.find((rt) => rt.id === roleFilter)?.description}</p>
-        <span className="font-mono text-[11px] font-semibold">
-          Showing {filteredUsers.length} of {roleCounts[roleFilter]} {roleFilter === 'all' ? 'users' : roleFilter + 's'}
-        </span>
-      </div>
+      {/* Sub-Filters specifically for Students Segregation */}
+      {roleFilter === 'student' && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 p-2.5 border border-slate-200/60 dark:border-slate-800/60">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
+              View:
+            </span>
 
-      {/* Bulk User Actions Bar */}
-      {filteredUsers.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/70 px-4 py-2.5">
-          <label className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={
-                filteredUsers.filter((u) => u.id !== currentUserId).length > 0 &&
-                filteredUsers
-                  .filter((u) => u.id !== currentUserId)
-                  .every((u) => selectedUserIds.has(u.id))
-              }
-              onChange={() =>
-                handleToggleSelectAllUsers(
-                  filteredUsers.filter((u) => u.id !== currentUserId).map((u) => u.id)
-                )
-              }
-              className="size-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
-            />
-            <span>Select All ({filteredUsers.filter((u) => u.id !== currentUserId).length})</span>
-          </label>
-
-          {selectedUserIds.size > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-black text-orange-950 dark:text-orange-200 bg-orange-100/70 dark:bg-orange-950/70 px-2 py-1 rounded-md">
-                {selectedUserIds.size} Selected
+            <button
+              type="button"
+              data-testid="student-filter-all"
+              onClick={() => setStudentView('all')}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer select-none ${
+                studentView === 'all'
+                  ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-xs border border-slate-200 dark:border-slate-700'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Users size={13} />
+              <span>All Students</span>
+              <span className="rounded-full bg-slate-200/80 dark:bg-slate-700 px-1.5 py-0.2 text-[10px] font-black text-slate-700 dark:text-slate-300">
+                {studentUsers.length}
               </span>
-              <Button
-                variant="secondary"
-                size="sm"
-                loading={bulkUpdatingUsers}
-                onClick={() => handleBulkStatus('active')}
-                className="text-[11px] font-bold"
+            </button>
+
+            <button
+              type="button"
+              data-testid="student-filter-registered"
+              onClick={() => setStudentView('registered')}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer select-none ${
+                studentView === 'registered'
+                  ? 'bg-amber-500 text-white shadow-xs font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <UserCheck size={13} />
+              <span>Registered Students</span>
+              <span
+                className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                  studentView === 'registered'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+                }`}
               >
-                <CheckCircle2 size={12} className="text-emerald-600" /> Activate
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                loading={bulkUpdatingUsers}
-                onClick={() => handleBulkStatus('suspended')}
-                className="text-[11px] font-bold text-rose-700"
+                {allRegisteredStudents.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              data-testid="student-filter-enrolled"
+              onClick={() => setStudentView('enrolled')}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer select-none ${
+                studentView === 'enrolled'
+                  ? 'bg-orange-600 text-white shadow-xs font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <GraduationCap size={13} />
+              <span>Enrolled Students</span>
+              <span
+                className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                  studentView === 'enrolled'
+                    ? 'bg-orange-700 text-white'
+                    : 'bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300'
+                }`}
               >
-                <Ban size={12} className="text-rose-600" /> Suspend
-              </Button>
-              <button
-                type="button"
-                onClick={() => setSelectedUserIds(new Set())}
-                className="text-[11px] font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 underline ml-1"
-              >
-                Deselect
-              </button>
+                {allEnrolledStudents.length}
+              </span>
+            </button>
+          </div>
+
+          <div className="text-right text-[11px] text-slate-500 dark:text-slate-400 font-mono pr-2">
+            Showing {totalVisibleStudents} matching students
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Action Controls */}
+      {selectedUserIds.size > 0 && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/70 px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-orange-950 dark:text-orange-200 bg-orange-100/70 dark:bg-orange-950/70 px-2.5 py-1 rounded-md">
+              {selectedUserIds.size} Selected
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={bulkUpdatingUsers}
+              onClick={() => handleBulkStatus('active')}
+              className="text-[11px] font-bold"
+            >
+              <CheckCircle2 size={12} className="text-emerald-600" /> Activate
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={bulkUpdatingUsers}
+              onClick={() => handleBulkStatus('suspended')}
+              className="text-[11px] font-bold text-rose-700"
+            >
+              <Ban size={12} className="text-rose-600" /> Suspend
+            </Button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setSelectedUserIds(new Set())}
+            className="text-[11px] font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 underline cursor-pointer"
+          >
+            Deselect All
+          </button>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 1. STUDENT SEGREGATION TABLES                                              */}
+      {/* ========================================================================= */}
+      {roleFilter === 'student' && (
+        <div className="mt-6 space-y-8">
+          {/* A. TABLE 1: REGISTERED STUDENTS (Registered but not enrolled) */}
+          {(studentView === 'all' || studentView === 'registered') && (
+            <div data-testid="registered-students-section" className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <UserCheck size={16} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                        Registered Students
+                      </h3>
+                      <span className="rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] font-black px-2 py-0.5 border border-amber-200/80 dark:border-amber-900/60">
+                        Registered but not enrolled
+                      </span>
+                      <span className="text-xs font-bold text-slate-400">
+                        ({filteredRegisteredStudents.length})
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Students who signed up on the platform but have not yet enrolled in any cohort track.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {pagedRegisteredStudents.length > 0 ? (
+                <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-3xs">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                        <th className="py-3 px-3 w-10 text-center">
+                          <input
+                            type="checkbox"
+                            checked={
+                              pagedRegisteredStudents.filter((u) => u.id !== currentUserId).length > 0 &&
+                              pagedRegisteredStudents
+                                .filter((u) => u.id !== currentUserId)
+                                .every((u) => selectedUserIds.has(u.id))
+                            }
+                            onChange={() =>
+                              handleToggleSelectAllUsers(
+                                pagedRegisteredStudents
+                                  .filter((u) => u.id !== currentUserId)
+                                  .map((u) => u.id)
+                              )
+                            }
+                            className="size-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                            aria-label="Select all registered students"
+                          />
+                        </th>
+                        <th className="py-3 px-4 font-black">Student</th>
+                        <th className="py-3 px-4 font-black">Contact</th>
+                        <th className="py-3 px-4 font-black">Registered On</th>
+                        <th className="py-3 px-4 font-black">Account Status</th>
+                        <th className="py-3 px-4 font-black text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                      {pagedRegisteredStudents.map((student) => renderStudentRow(student, false))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center text-xs text-slate-400 bg-slate-50/30 dark:bg-slate-900/30">
+                  <UserCheck size={24} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                  <p className="font-bold text-slate-700 dark:text-slate-300">No unregistered or unenrolled students found.</p>
+                  <p className="text-[11px] text-slate-500">
+                    {userSearch
+                      ? 'No students without enrollments match your search query.'
+                      : 'All registered students are currently enrolled in active cohort tracks.'}
+                  </p>
+                </div>
+              )}
+
+              {/* Pagination for Registered Students if segregated view */}
+              {studentView === 'registered' && filteredRegisteredStudents.length > pageSize && (
+                <Pagination
+                  currentPage={safeRegisteredPage}
+                  totalPages={totalRegisteredPages}
+                  totalItems={filteredRegisteredStudents.length}
+                  pageSize={pageSize}
+                  onPageChange={setRegisteredPage}
+                  onPageSizeChange={setPageSize}
+                />
+              )}
+            </div>
+          )}
+
+          {/* B. TABLE 2: ENROLLED STUDENTS (Registered -> enrolled) */}
+          {(studentView === 'all' || studentView === 'enrolled') && (
+            <div data-testid="enrolled-students-section" className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-orange-600/10 text-orange-600 dark:text-orange-400">
+                    <GraduationCap size={16} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                        Enrolled Students
+                      </h3>
+                      <span className="rounded-full bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 text-[10px] font-black px-2 py-0.5 border border-orange-200/80 dark:border-orange-900/60">
+                        Registered &rarr; Enrolled
+                      </span>
+                      <span className="text-xs font-bold text-slate-400">
+                        ({filteredEnrolledStudents.length})
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Students who registered and successfully enrolled in one or more cohort tracks.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {pagedEnrolledStudents.length > 0 ? (
+                <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-3xs">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                        <th className="py-3 px-3 w-10 text-center">
+                          <input
+                            type="checkbox"
+                            checked={
+                              pagedEnrolledStudents.filter((u) => u.id !== currentUserId).length > 0 &&
+                              pagedEnrolledStudents
+                                .filter((u) => u.id !== currentUserId)
+                                .every((u) => selectedUserIds.has(u.id))
+                            }
+                            onChange={() =>
+                              handleToggleSelectAllUsers(
+                                pagedEnrolledStudents
+                                  .filter((u) => u.id !== currentUserId)
+                                  .map((u) => u.id)
+                              )
+                            }
+                            className="size-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                            aria-label="Select all enrolled students"
+                          />
+                        </th>
+                        <th className="py-3 px-4 font-black">Student</th>
+                        <th className="py-3 px-4 font-black">Enrolled Cohort(s)</th>
+                        <th className="py-3 px-4 font-black">Enrollment Status</th>
+                        <th className="py-3 px-4 font-black">Joined Date</th>
+                        <th className="py-3 px-4 font-black">Account Status</th>
+                        <th className="py-3 px-4 font-black text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                      {pagedEnrolledStudents.map((student) => renderStudentRow(student, true))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center text-xs text-slate-400 bg-slate-50/30 dark:bg-slate-900/30">
+                  <GraduationCap size={24} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                  <p className="font-bold text-slate-700 dark:text-slate-300">No enrolled students found.</p>
+                  <p className="text-[11px] text-slate-500">
+                    {userSearch
+                      ? 'No enrolled students match your search criteria.'
+                      : 'Students who complete registration will appear here once they enroll in a cohort.'}
+                  </p>
+                </div>
+              )}
+
+              {/* Pagination for Enrolled Students if segregated view */}
+              {studentView === 'enrolled' && filteredEnrolledStudents.length > pageSize && (
+                <Pagination
+                  currentPage={safeEnrolledPage}
+                  totalPages={totalEnrolledPages}
+                  totalItems={filteredEnrolledStudents.length}
+                  pageSize={pageSize}
+                  onPageChange={setEnrolledPage}
+                  onPageSizeChange={setPageSize}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Empty fallback if search yields 0 across both */}
+          {totalVisibleStudents === 0 && (
+            <div className="py-12 text-center text-xs text-slate-400 space-y-1">
+              <p className="font-bold text-slate-700 dark:text-slate-300">No students found.</p>
+              {userSearch && (
+                <p className="text-[11px] text-slate-500">
+                  Try adjusting your search criteria or clear the search query.
+                </p>
+              )}
             </div>
           )}
         </div>
       )}
 
-      <div className="mt-6 divide-y divide-slate-100 dark:divide-slate-800">
-        {pagedUsers.length ? (
-          pagedUsers.map((item) => {
-            const isSelf = item.id === currentUserId;
-            const isUpdating = updatingUserId === item.id;
-            const isSuspended = item.status === 'suspended';
-
-            return (
-              <div key={item.id} className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center">
-                <div className="flex items-center gap-3">
-                  {!isSelf && (
+      {/* ========================================================================= */}
+      {/* 2. NON-STUDENT DIRECTORY (Mentors / Admins when filtered)                 */}
+      {/* ========================================================================= */}
+      {roleFilter !== 'student' && (
+        <div className="mt-6 space-y-4">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-3xs">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                  <th className="py-3 px-3 w-10 text-center">
                     <input
                       type="checkbox"
-                      checked={selectedUserIds.has(item.id)}
-                      onChange={() => handleToggleSelectUser(item.id)}
-                      className="size-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 shrink-0"
-                      aria-label={`Select ${item.full_name || item.email}`}
+                      checked={
+                        pagedAdminUsers.filter((u) => u.id !== currentUserId).length > 0 &&
+                        pagedAdminUsers
+                          .filter((u) => u.id !== currentUserId)
+                          .every((u) => selectedUserIds.has(u.id))
+                      }
+                      onChange={() =>
+                        handleToggleSelectAllUsers(
+                          pagedAdminUsers
+                            .filter((u) => u.id !== currentUserId)
+                            .map((u) => u.id)
+                        )
+                      }
+                      className="size-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                      aria-label="Select all staff"
                     />
-                  )}
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300">
-                    {item.full_name?.charAt(0).toUpperCase() || item.email?.charAt(0).toUpperCase() || 'U'}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <strong className="text-sm font-bold text-slate-950 dark:text-white">
-                        {item.full_name || 'Unnamed User'}
-                      </strong>
-                      {isSelf && (
-                        <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                          You
-                        </span>
-                      )}
-                      {isSuspended ? (
-                        <span className="rounded bg-red-100 dark:bg-red-950 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:text-red-400">
-                          Suspended
-                        </span>
-                      ) : (
-                        <span className="rounded bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-                          Active
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{item.email}</p>
-                  </div>
-                </div>
+                  </th>
+                  <th className="py-3 px-4 font-black">Staff Member</th>
+                  <th className="py-3 px-4 font-black">System Role</th>
+                  <th className="py-3 px-4 font-black">Account Status</th>
+                  <th className="py-3 px-4 font-black text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                {pagedAdminUsers.length > 0 ? (
+                  pagedAdminUsers.map((item) => {
+                    const isSelf = item.id === currentUserId;
+                    const isUpdating = updatingUserId === item.id;
+                    const isSuspended = item.status === 'suspended';
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <RoleBadge role={item.role} adminRole={item.admin_role} userId={item.id} userEmail={item.email} />
-
-                  {/* Suspend / Reactivate Actions */}
-                  {canManageStatus && !isSelf && item.email !== 'ajayramanan17@gmail.com' && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      loading={isUpdating}
-                      onClick={() => void handleStatus(item, isSuspended ? 'active' : 'suspended')}
-                      className={`text-xs font-bold ${
-                        isSuspended ? 'text-emerald-700' : 'text-red-600 hover:text-red-700'
-                      }`}
-                    >
-                      {isSuspended ? (
-                        <>
-                          <Check size={13} /> Reactivate
-                        </>
-                      ) : (
-                        <>
-                          <UserX size={13} /> Suspend
-                        </>
-                      )}
-                    </Button>
-                  )}
-
-                  {item.role === 'admin' && (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        data-testid={`admin-subrole-badge-${item.id}`}
-                        className="rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-400"
+                    return (
+                      <tr
+                        key={item.id}
+                        className="border-b border-slate-100 hover:bg-slate-50/60 dark:border-slate-800/80 dark:hover:bg-slate-800/40 transition-colors"
                       >
-                        {isParentSuperAdmin(item) ? 'Parent Super Admin' : 'Child Super Admin'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <div className="py-12 text-center text-xs text-slate-400 space-y-1">
-            <p className="font-bold">No {roleFilter === 'all' ? 'users' : roleFilter + 's'} found.</p>
-            {userSearch && (
-              <p className="text-[11px] text-slate-500">Try adjusting your search criteria or clear the search query.</p>
-            )}
+                        <td className="py-3.5 px-3 text-center align-middle">
+                          {!isSelf && (
+                            <input
+                              type="checkbox"
+                              checked={selectedUserIds.has(item.id)}
+                              onChange={() => handleToggleSelectUser(item.id)}
+                              className="size-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                              aria-label={`Select ${item.full_name || item.email}`}
+                            />
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 align-middle">
+                          <div className="flex items-center gap-3">
+                            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300">
+                              {item.full_name?.charAt(0).toUpperCase() || item.email?.charAt(0).toUpperCase() || 'U'}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <strong className="text-xs font-bold text-slate-900 dark:text-white">
+                                  {item.full_name || 'Staff User'}
+                                </strong>
+                                {isSelf && (
+                                  <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                    You
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">{item.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                          <RoleBadge
+                            role={item.role}
+                            adminRole={item.admin_role}
+                            userId={item.id}
+                            userEmail={item.email}
+                          />
+                          {item.role === 'admin' && (
+                            <span
+                              data-testid={`admin-subrole-badge-${item.id}`}
+                              className="ml-2 rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-400"
+                            >
+                              {isParentSuperAdmin(item) ? 'Parent Super Admin' : 'Child Super Admin'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+                          {isSuspended ? (
+                            <span className="rounded bg-rose-100 dark:bg-rose-950 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-400">
+                              Suspended
+                            </span>
+                          ) : (
+                            <span className="rounded bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                              Active
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 align-middle text-right whitespace-nowrap">
+                          {canManageStatus && !isSelf && item.email !== 'ajayramanan17@gmail.com' ? (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              loading={isUpdating}
+                              onClick={() => void handleStatus(item, isSuspended ? 'active' : 'suspended')}
+                              className={`text-xs font-bold ${
+                                isSuspended ? 'text-emerald-700' : 'text-rose-600 hover:text-rose-700'
+                              }`}
+                            >
+                              {isSuspended ? (
+                                <>
+                                  <Check size={12} /> Reactivate
+                                </>
+                              ) : (
+                                <>
+                                  <UserX size={12} /> Suspend
+                                </>
+                              )}
+                            </Button>
+                          ) : (
+                            <span className="text-[11px] text-slate-400">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-xs text-slate-400">
+                      <p className="font-bold">No {roleFilter === 'all' ? 'users' : roleFilter + 's'} found.</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
 
-      {filteredUsers.length > userPageSize && (
-        <Pagination
-          currentPage={safeUserPage}
-          totalPages={totalUserPages}
-          totalItems={filteredUsers.length}
-          pageSize={userPageSize}
-          onPageChange={setUserPage}
-          onPageSizeChange={setUserPageSize}
-        />
+          {nonStudentUsers.length > pageSize && (
+            <Pagination
+              currentPage={safeAdminPage}
+              totalPages={totalAdminPages}
+              totalItems={nonStudentUsers.length}
+              pageSize={pageSize}
+              onPageChange={setAdminPage}
+              onPageSizeChange={setPageSize}
+            />
+          )}
+        </div>
       )}
     </Card>
   );
 }
+
 
