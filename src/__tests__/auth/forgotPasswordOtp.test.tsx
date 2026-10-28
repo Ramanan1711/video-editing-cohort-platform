@@ -15,6 +15,8 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
+    rpc: vi.fn(),
+    from: vi.fn(),
     auth: {
       resetPasswordForEmail: vi.fn(),
       verifyOtp: vi.fn(),
@@ -37,6 +39,42 @@ vi.mock('../../lib/soundFx', () => ({
 describe('ForgotPassword.tsx - 6-Digit OTP Recovery Flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Default mock: editor@example.com is a verified registered active user
+    (supabase.rpc as any).mockImplementation(async (proc: string, args: any) => {
+      if (proc === 'check_user_registration_status') {
+        const email = args?.p_email?.toLowerCase();
+        if (email === 'unregistered@example.com') {
+          return {
+            data: {
+              is_registered: false,
+              status: 'unregistered',
+              message: 'No account found with this email address. Please check your email or register.',
+            },
+            error: null,
+          } as any;
+        }
+        if (email === 'suspended@example.com') {
+          return {
+            data: {
+              is_registered: true,
+              status: 'suspended',
+              message: 'This account has been suspended. Please contact platform support.',
+            },
+            error: null,
+          } as any;
+        }
+        return {
+          data: {
+            is_registered: true,
+            status: 'active',
+            message: 'User account verified.',
+          },
+          error: null,
+        } as any;
+      }
+      return { data: null, error: null } as any;
+    });
   });
 
   it('submits email and transitions to 6-digit OTP recovery screen', async () => {
@@ -191,5 +229,64 @@ describe('ForgotPassword.tsx - 6-Digit OTP Recovery Flow', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Send Recovery Code/i })).toBeInTheDocument();
     });
+  });
+
+  it('blocks unregistered users from receiving recovery OTP and displays registration error & link', async () => {
+    render(
+      <MemoryRouter>
+        <ForgotPassword />
+      </MemoryRouter>
+    );
+
+    const emailInput = screen.getByLabelText(/Email address/i);
+    fireEvent.change(emailInput, { target: { value: 'unregistered@example.com' } });
+
+    const submitBtn = screen.getByRole('button', { name: /Send Recovery Code/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('check_user_registration_status', {
+        p_email: 'unregistered@example.com',
+      });
+      expect(
+        screen.getByText(/No account found with this email address. Please check your email or register./i)
+      ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Create a new account now/i })).toHaveAttribute(
+        'href',
+        '/register?email=unregistered%40example.com'
+      );
+    });
+
+    // Ensures resetPasswordForEmail is NEVER called for unregistered users
+    expect(supabase.auth.resetPasswordForEmail).not.toHaveBeenCalled();
+    // Ensures recovery code screen is NOT rendered
+    expect(screen.queryByText(/Verify recovery code/i)).not.toBeInTheDocument();
+  });
+
+  it('blocks suspended users from recovery flow and shows suspension notice', async () => {
+    render(
+      <MemoryRouter>
+        <ForgotPassword />
+      </MemoryRouter>
+    );
+
+    const emailInput = screen.getByLabelText(/Email address/i);
+    fireEvent.change(emailInput, { target: { value: 'suspended@example.com' } });
+
+    const submitBtn = screen.getByRole('button', { name: /Send Recovery Code/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith('check_user_registration_status', {
+        p_email: 'suspended@example.com',
+      });
+      expect(
+        screen.getByText(/This account has been suspended. Please contact platform support./i)
+      ).toBeInTheDocument();
+    });
+
+    // Ensures resetPasswordForEmail is NEVER called for suspended accounts
+    expect(supabase.auth.resetPasswordForEmail).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Verify recovery code/i)).not.toBeInTheDocument();
   });
 });

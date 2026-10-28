@@ -15,11 +15,13 @@ import { StudioBar } from '../components/home/StudioBar';
 import { TiltCard } from '../components/home/TiltCard';
 import { soundFx } from '../lib/soundFx';
 import { recordSessionEstablished } from '../lib/authSessionService';
+import { checkUserRegistrationStatus } from '../lib/services/authRegistrationService';
 import { BRAND_LOGO_URL } from '../constants/branding';
 
 export const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [isUnregistered, setIsUnregistered] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -49,9 +51,35 @@ export const ForgotPassword: React.FC = () => {
 
     setLoading(true);
     setError('');
+    setIsUnregistered(false);
     soundFx.playSweep(260, 600, 0.1, 0.05);
 
     try {
+      // 1. Authoritative check: verify whether user is registered or unregistered
+      const regCheck = await checkUserRegistrationStatus(email.trim());
+
+      if (!regCheck.isRegistered) {
+        soundFx.playBlip(200, 0.08, 'sawtooth', 0.06);
+        setIsUnregistered(true);
+        setError(
+          regCheck.message ||
+            'No account found with this email address. Please check your email or register for a new account.'
+        );
+        setLoading(false);
+        return;
+      }
+
+      if (regCheck.status === 'suspended') {
+        soundFx.playBlip(200, 0.08, 'sawtooth', 0.06);
+        setError(
+          regCheck.message ||
+            'This account has been suspended. Please contact platform support.'
+        );
+        setLoading(false);
+        return;
+      }
+
+      // 2. Only registered active users trigger 6-digit recovery OTP dispatch
       const redirectUrl = `${window.location.origin}/reset-password`;
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: redirectUrl,
@@ -130,6 +158,14 @@ export const ForgotPassword: React.FC = () => {
     setResendSuccess(false);
 
     try {
+      // Verify registration status before dispatching recovery code
+      const regCheck = await checkUserRegistrationStatus(email.trim());
+      if (!regCheck.isRegistered) {
+        setOtpError('No account found with this email address.');
+        setResendLoading(false);
+        return;
+      }
+
       const redirectUrl = `${window.location.origin}/reset-password`;
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: redirectUrl,
@@ -327,7 +363,20 @@ export const ForgotPassword: React.FC = () => {
                 {error && (
                   <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-200 backdrop-blur-xl flex items-start gap-2.5">
                     <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
-                    <p className="leading-relaxed flex-1">{error}</p>
+                    <div className="leading-relaxed flex-1 space-y-1.5">
+                      <p>{error}</p>
+                      {isUnregistered && (
+                        <p className="pt-0.5">
+                          <Link
+                            to={`/register?email=${encodeURIComponent(email.trim())}`}
+                            className="font-bold text-orange-400 hover:text-orange-300 underline inline-flex items-center gap-1 transition-colors"
+                          >
+                            <span>Create a new account now</span>
+                            <span>→</span>
+                          </Link>
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
 

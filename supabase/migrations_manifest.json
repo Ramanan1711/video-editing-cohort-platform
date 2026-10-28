@@ -1,13 +1,13 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-23T05:52:42.056Z",
-  "migrationCount": 66,
+  "generatedAt": "2026-10-28T08:45:47.909Z",
+  "migrationCount": 77,
   "migrations": [
     {
       "order": 1,
       "filename": "20260921000001_core_schema.sql",
-      "sha256": "9fe9c094e71aeb6b223e95e49c414c4380ba730a65b39f0fdc8ba44eebc6b1f4",
-      "sizeBytes": 7138,
+      "sha256": "508410af14b8606a6fb20ab794c080933527ffb112cae359ab2bce8867e8ee97",
+      "sizeBytes": 7181,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [
         "profiles",
@@ -836,8 +836,8 @@
     {
       "order": 59,
       "filename": "20261014000001_fix_admin_role_default_and_restore_user_roles.sql",
-      "sha256": "7d613144a9fae3e36001fa9d7c5a5cb4ac57bb54364ebb18a6f5217c7fa1caf3",
-      "sizeBytes": 7550,
+      "sha256": "c825238c492685189723f4a88c7385f42d554e9eb4580a836cc00e1ea28f8b9a",
+      "sizeBytes": 7849,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -871,8 +871,8 @@
     {
       "order": 62,
       "filename": "20261014000004_security_hardening_rate_limits_and_privileges.sql",
-      "sha256": "21447429181b3dad9322a7fbd9a26a2d4494269c7f7d3f2d596b76dad8fd44f8",
-      "sizeBytes": 10131,
+      "sha256": "836227aaa3dc46b7b7fd4ab633c48e987f5d98478577a44a5e587bbb77bf009d",
+      "sizeBytes": 10490,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [
         "api_rate_limits"
@@ -916,12 +916,141 @@
     {
       "order": 66,
       "filename": "20261023000001_allow_public_read_cohorts_and_fix_rls.sql",
-      "sha256": "73330d1ca2c81975074b4041d9c8cbc6626282827ebc41d555538b7fa2218bcc",
-      "sizeBytes": 3197,
+      "sha256": "66dc2c0b9b8311885e45cf35470976d23fe12d6cc831a87b6440bb941d31e367",
+      "sizeBytes": 3198,
       "hasSecurityDefinerWithoutSearchPath": true,
       "tableCreations": [],
       "rpcDefinitions": [
         "get_public_cohorts"
+      ]
+    },
+    {
+      "order": 67,
+      "filename": "20261023000002_add_parent_and_child_super_admin_roles.sql",
+      "sha256": "1e24033650472ae3540f641bd86435db41c77734270e455b66adc6093a0cdc8c",
+      "sizeBytes": 10493,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "fn_protect_profile_privilege_fields",
+        "has_admin_permission",
+        "admin_update_user_role"
+      ]
+    },
+    {
+      "order": 68,
+      "filename": "20261026000001_strictly_two_admin_roles.sql",
+      "sha256": "f03c7f7c587559b69e5d8042b2189ef90de3248c72b087e2a8edd80d857301e4",
+      "sizeBytes": 9488,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "fn_protect_profile_privilege_fields",
+        "has_admin_permission",
+        "admin_update_user_role"
+      ]
+    },
+    {
+      "order": 69,
+      "filename": "20261026000002_purge_super_admin_role_secondary_layer.sql",
+      "sha256": "51642f283ddafc9adff45b5375f6ad413ebbdc1dc09fc72d64fd6ba44a3c4a7e",
+      "sizeBytes": 15531,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "fn_protect_profile_privilege_fields",
+        "has_admin_permission",
+        "admin_update_user_role",
+        "log_audit_event"
+      ]
+    },
+    {
+      "order": 70,
+      "filename": "20261026000003_mentor_cohort_review_and_approval_flow.sql",
+      "sha256": "f6c6c5f6293ab535e68bd918ad0c68a5eba66aae23d6e628b60f808c6205fad9",
+      "sizeBytes": 7600,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "mentor_create_cohort",
+        "admin_review_cohort",
+        "mentor_publish_cohort"
+      ]
+    },
+    {
+      "order": 71,
+      "filename": "20261026000004_mentor_curriculum_authoring_and_permission_gates.sql",
+      "sha256": "c9fa41a3338164323acc6ecd93da37c0c1def435e8f783ee31527af2682d0d68",
+      "sizeBytes": 5512,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "is_mentor_for_cohort",
+        "is_cohort_editable_by_mentor"
+      ]
+    },
+    {
+      "order": 72,
+      "filename": "20261026000005_fix_mentor_cohorts_rls_and_lessons_check_constraint.sql",
+      "sha256": "f05530ca421fd98a2a2bc42dceefde01ddc73807f8869acf1d2e2efe99fe6144",
+      "sizeBytes": 4036,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "auto_link_creator_mentor_cohort"
+      ]
+    },
+    {
+      "order": 73,
+      "filename": "20261026000006_strict_cohort_visibility_and_hide_rejected.sql",
+      "sha256": "02a8603e1457afebd65af27760332215a6d9bf053e216ffa05689df564fba33d",
+      "sizeBytes": 1863,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": []
+    },
+    {
+      "order": 74,
+      "filename": "20261026000007_unlock_mentor_curriculum_authoring.sql",
+      "sha256": "407473dd5fa042d01057681b74a3a0d6340c345fe557e46dbe9931a244a754a0",
+      "sizeBytes": 1605,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "is_cohort_editable_by_mentor"
+      ]
+    },
+    {
+      "order": 75,
+      "filename": "20261027000001_fix_can_access_course_asset_for_students.sql",
+      "sha256": "0a163b0b26ed94daa4af5fc30304ed2e6b9d737b1f65a91df6f092f7744aa1bc",
+      "sizeBytes": 3960,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "can_access_course_asset"
+      ]
+    },
+    {
+      "order": 76,
+      "filename": "20261027000002_enforce_cohort_enrollment_deadline_and_access_duration.sql",
+      "sha256": "4c2b241ce18e37450e135f1b23123c945e132b729a91823546a336f3e0e28751",
+      "sizeBytes": 8055,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "create_cohort_checkout_order"
+      ]
+    },
+    {
+      "order": 77,
+      "filename": "20261028000001_check_user_registration_status.sql",
+      "sha256": "7d90eb2e93dfa8c72f46eeaf25c9fad9daf6dde6e6ca7d97fc1652c8e86e5c1d",
+      "sizeBytes": 2573,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "check_user_registration_status"
       ]
     }
   ]

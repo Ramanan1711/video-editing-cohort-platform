@@ -9,7 +9,7 @@ create table if not exists public.profiles (
   email text not null,
   full_name text,
   role text not null default 'student' check (role in ('student', 'mentor', 'admin')),
-  admin_role text check (admin_role in ('super_admin', 'content_admin', 'operations_admin', 'moderator')),
+  admin_role text check (admin_role in ('parent_super_admin', 'child_super_admin', 'super_admin', 'content_admin', 'operations_admin', 'moderator')),
   status text not null default 'active' check (status in ('active', 'suspended', 'inactive')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

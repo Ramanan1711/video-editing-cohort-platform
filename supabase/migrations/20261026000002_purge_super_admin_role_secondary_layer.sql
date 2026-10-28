@@ -134,6 +134,16 @@ $$;
 -- 2. Data Migration: Canonical Roles for Ramanan, Ajay, and all other users
 -- ------------------------------------------------------------------------------
 
+-- Sanitize any invalid or null roles
+update public.profiles
+set role = 'student'
+where role is null or role not in ('student', 'mentor', 'admin');
+
+-- Ensure non-admins strictly have admin_role = null
+update public.profiles
+set admin_role = null, updated_at = now()
+where role is distinct from 'admin' or role in ('student', 'mentor');
+
 -- Ensure Ramanan is canonical Parent Super Admin
 update public.profiles
 set 
@@ -156,14 +166,8 @@ where email = 'ajayramanan4444@gmail.com' or id = '591e5ba9-2d77-4f7f-ab8b-ed9f9
 update public.profiles
 set admin_role = 'child_super_admin', updated_at = now()
 where role = 'admin'
-  and email != 'ajayramanan17@gmail.com'
-  and id != 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b'
-  and (admin_role is null or admin_role != 'child_super_admin');
-
--- Ensure non-admins (students and mentors) strictly have admin_role = null
-update public.profiles
-set admin_role = null, updated_at = now()
-where role in ('student', 'mentor') and admin_role is not null;
+  and (email is distinct from 'ajayramanan17@gmail.com' and id is distinct from 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b')
+  and (admin_role is distinct from 'child_super_admin');
 
 -- Synchronize auth.users raw_user_meta_data for Ramanan and Ajay
 update auth.users

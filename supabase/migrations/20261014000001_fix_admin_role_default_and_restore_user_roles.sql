@@ -32,7 +32,7 @@ begin
   if v_caller_id is null then
     if new.role != 'admin' then
       new.admin_role := null;
-    elsif new.admin_role in ('super_admin', 'content_admin', 'operations_admin', 'moderator') then
+    elsif new.admin_role in ('parent_super_admin', 'child_super_admin', 'super_admin', 'content_admin', 'operations_admin', 'moderator') then
       new.role := 'admin';
     end if;
     return new;
@@ -50,7 +50,7 @@ begin
     else
       if new.role != 'admin' then
         new.admin_role := null;
-      elsif new.admin_role in ('super_admin', 'content_admin', 'operations_admin', 'moderator') then
+      elsif new.admin_role in ('parent_super_admin', 'child_super_admin', 'super_admin', 'content_admin', 'operations_admin', 'moderator') then
         new.role := 'admin';
       end if;
     end if;
@@ -89,16 +89,16 @@ begin
       -- If role is demoted to student or mentor, clear admin_role automatically
       if new.role != 'admin' then
         new.admin_role := null;
-      elsif new.admin_role in ('super_admin', 'content_admin', 'operations_admin', 'moderator') then
+      elsif new.admin_role in ('parent_super_admin', 'child_super_admin', 'super_admin', 'content_admin', 'operations_admin', 'moderator') then
         new.role := 'admin';
       end if;
 
-      -- Protect against demoting the last active super_admin
-      if old.role = 'admin' and coalesce(old.admin_role, 'super_admin') = 'super_admin' and
-         (new.role != 'admin' or coalesce(new.admin_role, 'super_admin') != 'super_admin') then
+      -- Protect against demoting the last active super_admin / parent_super_admin
+      if old.role = 'admin' and coalesce(old.admin_role, 'parent_super_admin') in ('parent_super_admin', 'super_admin') and
+         (new.role != 'admin' or coalesce(new.admin_role, 'parent_super_admin') not in ('parent_super_admin', 'super_admin')) then
         select count(*) into v_super_admin_count
         from public.profiles
-        where role = 'admin' and coalesce(admin_role, 'super_admin') = 'super_admin' and coalesce(status, 'active') = 'active';
+        where role = 'admin' and coalesce(admin_role, 'parent_super_admin') in ('parent_super_admin', 'super_admin') and coalesce(status, 'active') = 'active';
 
         if v_super_admin_count <= 1 then
           raise exception 'Safety block: Cannot demote or revoke the last remaining active Super Admin.'
@@ -149,9 +149,9 @@ update public.profiles
 set role = 'mentor', admin_role = null, updated_at = now()
 where id = 'e32aa097-6285-4927-89c4-666b88af76d7' or email = 'ajayramanan2800@gmail.com';
 
--- Ramanan -> admin (super_admin)
+-- Ramanan -> admin (parent_super_admin)
 update public.profiles
-set role = 'admin', admin_role = 'super_admin', updated_at = now()
+set role = 'admin', admin_role = 'parent_super_admin', updated_at = now()
 where id = 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b' or email = 'ajayramanan17@gmail.com';
 
 -- General cleanup: ensure no non-admin profile has an admin_role set
@@ -176,6 +176,6 @@ set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role": 
 where id = 'e32aa097-6285-4927-89c4-666b88af76d7';
 
 update auth.users
-set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role": "admin"}'::jsonb
+set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"role": "admin", "admin_role": "parent_super_admin"}'::jsonb
 where id = 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b';
 

@@ -15,6 +15,8 @@ drop policy if exists "Mentors can view own cohort assignments" on public.mentor
 drop policy if exists "Authenticated users can view mentor assignments" on public.mentor_cohorts;
 drop policy if exists "Mentors can manage own mentor_cohorts" on public.mentor_cohorts;
 drop policy if exists "Mentors can insert own cohort links" on public.mentor_cohorts;
+drop policy if exists "Mentors and admins can link mentor cohorts" on public.mentor_cohorts;
+drop policy if exists "Mentors and admins can manage mentor cohorts" on public.mentor_cohorts;
 
 -- Read policy: Anyone authenticated can view mentor-cohort links
 create policy "Authenticated users can view mentor assignments"

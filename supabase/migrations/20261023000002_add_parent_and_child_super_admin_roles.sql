@@ -11,10 +11,123 @@
 --    can register/assign roles.
 -- ==============================================================================
 
--- 1. Normalize any legacy subroles to standard 'admin' or 'child_super_admin'
+-- 0. Upgrade fn_protect_profile_privilege_fields trigger FIRST so updates are not overridden
+create or replace function public.fn_protect_profile_privilege_fields()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_caller_id uuid := auth.uid();
+  v_parent_admin_count int;
+begin
+  -- Service role / migration execution without auth.uid()
+  if v_caller_id is null then
+    if new.role != 'admin' then
+      new.admin_role := null;
+    elsif new.admin_role is null or new.admin_role not in ('parent_super_admin', 'child_super_admin', 'super_admin', 'admin') then
+      if new.email = 'ajayramanan17@gmail.com' or new.id = 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b' then
+        new.admin_role := 'parent_super_admin';
+      else
+        new.admin_role := 'child_super_admin';
+      end if;
+    end if;
+    return new;
+  end if;
+
+  -- INSERT Logic: Prevent self-registration with elevated roles
+  if tg_op = 'INSERT' then
+    if not public.has_admin_permission('manage_roles') then
+      new.id := v_caller_id;
+      new.role := 'student';
+      new.admin_role := null;
+      new.status := 'active';
+    else
+      if new.role != 'admin' then
+        new.admin_role := null;
+      elsif new.admin_role not in ('parent_super_admin', 'child_super_admin', 'super_admin', 'admin') then
+        new.admin_role := 'child_super_admin';
+      end if;
+    end if;
+    return new;
+  end if;
+
+  -- UPDATE Logic: Prevent unauthorized role or status modification
+  if tg_op = 'UPDATE' then
+    -- User attempting to modify their own profile
+    if v_caller_id = old.id then
+      if new.role is distinct from old.role then
+        raise exception 'Unauthorized: Users cannot alter their own system role.'
+          using errcode = '42501';
+      end if;
+
+      if new.admin_role is distinct from old.admin_role then
+        raise exception 'Unauthorized: Users cannot alter their own administrative sub-role.'
+          using errcode = '42501';
+      end if;
+
+      if new.status is distinct from old.status then
+        raise exception 'Unauthorized: Users cannot alter their own account status.'
+          using errcode = '42501';
+      end if;
+    end if;
+
+    -- Caller modifying role or admin_role of any user
+    if (new.role is distinct from old.role) or (new.admin_role is distinct from old.admin_role) then
+      if not public.has_admin_permission('manage_roles') then
+        raise exception 'Unauthorized: Only Parent Super Admin can modify user roles or administrative sub-roles.'
+          using errcode = '42501';
+      end if;
+
+      -- Enforce role consistency
+      if new.role != 'admin' then
+        new.admin_role := null;
+      elsif new.admin_role not in ('parent_super_admin', 'child_super_admin', 'super_admin', 'admin') then
+        new.admin_role := 'child_super_admin';
+      end if;
+
+      -- Protect against demoting the root Parent Super Admin
+      if old.email = 'ajayramanan17@gmail.com' and (new.role != 'admin' or new.admin_role not in ('parent_super_admin', 'super_admin')) then
+        raise exception 'Cannot demote or revoke the root Parent Super Admin.'
+          using errcode = 'P0001';
+      end if;
+    end if;
+
+    -- Caller modifying user status
+    if new.status is distinct from old.status then
+      if not (public.has_admin_permission('manage_user_status') or public.has_admin_permission('manage_roles')) then
+        raise exception 'Unauthorized: Insufficient permissions to modify account status.'
+          using errcode = '42501';
+      end if;
+
+      -- Prevent deactivating the root Parent Super Admin
+      if old.email = 'ajayramanan17@gmail.com' and new.status != 'active' then
+        raise exception 'Cannot deactivate the root Parent Super Admin.'
+          using errcode = 'P0001';
+      end if;
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+-- 1. Sanitize all rows before applying check constraint
 update public.profiles
-set admin_role = 'admin', updated_at = now()
-where admin_role in ('content_admin', 'operations_admin', 'moderator');
+set role = 'student'
+where role is null or role not in ('student', 'mentor', 'admin');
+
+update public.profiles
+set admin_role = null, updated_at = now()
+where role is distinct from 'admin' or role in ('student', 'mentor');
+
+update public.profiles
+set admin_role = case
+  when email = 'ajayramanan17@gmail.com' or id = 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b' then 'parent_super_admin'
+  else 'child_super_admin'
+end, updated_at = now()
+where role = 'admin' and (admin_role is null or admin_role not in ('parent_super_admin', 'child_super_admin', 'super_admin', 'admin'));
 
 -- 2. Expand admin_role check constraint
 alter table public.profiles
@@ -22,7 +135,10 @@ alter table public.profiles
 
 alter table public.profiles
   add constraint profiles_admin_role_check
-  check (admin_role in ('parent_super_admin', 'child_super_admin', 'super_admin', 'admin'));
+  check (
+    admin_role is null
+    or admin_role in ('parent_super_admin', 'child_super_admin', 'super_admin', 'admin')
+  );
 
 -- 3. Ensure Ramanan is Parent Super Admin
 update public.profiles

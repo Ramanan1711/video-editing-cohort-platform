@@ -74,11 +74,15 @@ BEGIN
   IF v_caller_id IS NULL THEN
     IF new.role != 'admin' THEN
       new.admin_role := NULL;
-    ELSIF new.admin_role IN ('super_admin', 'content_admin', 'operations_admin', 'moderator') THEN
+    ELSIF new.admin_role IN ('parent_super_admin', 'child_super_admin', 'super_admin', 'content_admin', 'operations_admin', 'moderator') THEN
       new.role := 'admin';
     ELSE
       -- Fallback if admin_role is invalid or missing
-      new.admin_role := 'super_admin';
+      IF new.email = 'ajayramanan17@gmail.com' OR new.id = 'e7d1e39f-d098-42d3-a0b0-6a1e93c3538b' THEN
+        new.admin_role := 'parent_super_admin';
+      ELSE
+        new.admin_role := 'child_super_admin';
+      END IF;
     END IF;
     RETURN new;
   END IF;
@@ -97,7 +101,7 @@ BEGIN
       IF new.role != 'admin' THEN
         new.admin_role := NULL;
       ELSIF new.admin_role IS NULL THEN
-        new.admin_role := 'super_admin';
+        new.admin_role := 'child_super_admin';
       END IF;
     END IF;
     RETURN new;
@@ -136,15 +140,15 @@ BEGIN
       IF new.role != 'admin' THEN
         new.admin_role := NULL;
       ELSIF new.admin_role IS NULL THEN
-        new.admin_role := 'super_admin';
+        new.admin_role := 'child_super_admin';
       END IF;
 
-      -- Protect against demoting the last active super_admin
-      IF old.role = 'admin' AND coalesce(old.admin_role, 'super_admin') = 'super_admin' AND
-         (new.role != 'admin' OR coalesce(new.admin_role, 'super_admin') != 'super_admin') THEN
+      -- Protect against demoting the last active super_admin / parent_super_admin
+      IF old.role = 'admin' AND coalesce(old.admin_role, 'parent_super_admin') IN ('parent_super_admin', 'super_admin') AND
+         (new.role != 'admin' OR coalesce(new.admin_role, 'parent_super_admin') NOT IN ('parent_super_admin', 'super_admin')) THEN
         SELECT count(*) INTO v_super_admin_count
         FROM public.profiles
-        WHERE role = 'admin' AND coalesce(admin_role, 'super_admin') = 'super_admin' AND coalesce(status, 'active') = 'active';
+        WHERE role = 'admin' AND coalesce(admin_role, 'parent_super_admin') IN ('parent_super_admin', 'super_admin') AND coalesce(status, 'active') = 'active';
 
         IF v_super_admin_count <= 1 THEN
           RAISE EXCEPTION 'Safety block: Cannot demote or revoke the last remaining active Super Admin.'
