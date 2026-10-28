@@ -29,6 +29,8 @@ describe('Admin Console - Student Directory Enrollment Segregation', () => {
       full_name: 'Emma Enrolled',
       role: 'student',
       status: 'active',
+      phone: '+91 98765 43210',
+      whatsapp_number: '+91 98765 43210',
       created_at: '2026-09-01T10:00:00Z',
     },
     {
@@ -37,6 +39,7 @@ describe('Admin Console - Student Directory Enrollment Segregation', () => {
       full_name: 'Eric Enrolled',
       role: 'student',
       status: 'active',
+      phone: null,
       created_at: '2026-09-05T10:00:00Z',
     },
   ];
@@ -110,7 +113,7 @@ describe('Admin Console - Student Directory Enrollment Segregation', () => {
     expect(registeredSection).not.toHaveTextContent('Eric Enrolled');
   });
 
-  it('segregates enrolled students into the "Enrolled Students" table with cohort badges', () => {
+  it('segregates enrolled students into the "Enrolled Students" table with cohort badges and contact info', () => {
     render(<UsersTab {...defaultProps} />);
 
     const enrolledSection = screen.getByTestId('enrolled-students-section');
@@ -118,9 +121,14 @@ describe('Admin Console - Student Directory Enrollment Segregation', () => {
     // Emma and Eric are enrolled in cohorts
     expect(enrolledSection).toHaveTextContent('Emma Enrolled');
     expect(enrolledSection).toHaveTextContent('Batch 1 - Premiere Pro');
+    // Contact column info
+    expect(enrolledSection).toHaveTextContent('+91 98765 43210');
+    const waLink = enrolledSection.querySelector('a[href*="wa.me/919876543210"]');
+    expect(waLink).toBeInTheDocument();
 
     expect(enrolledSection).toHaveTextContent('Eric Enrolled');
     expect(enrolledSection).toHaveTextContent('Batch 2 - After Effects');
+    expect(enrolledSection).toHaveTextContent('Not provided');
 
     // Unenrolled students must NOT be in the Enrolled Students table
     expect(enrolledSection).not.toHaveTextContent('Rachel Registered');

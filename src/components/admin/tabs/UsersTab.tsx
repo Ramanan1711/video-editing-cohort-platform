@@ -385,6 +385,26 @@ export function UsersTab({
           </div>
         </td>
 
+        {/* Contact Info (Phone / WhatsApp) */}
+        <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+          {student.whatsapp_number || student.phone ? (
+            <div className="flex items-center gap-1.5">
+              <a
+                href={`https://wa.me/${(student.whatsapp_number || student.phone)?.replace(/[^0-9]/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 transition-colors"
+                title="Chat on WhatsApp / Contact student"
+              >
+                <Phone size={11} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>{student.whatsapp_number || student.phone}</span>
+              </a>
+            </div>
+          ) : (
+            <span className="text-[11px] text-slate-400 italic">Not provided</span>
+          )}
+        </td>
+
         {/* If Enrolled Table: Enrolled Cohorts & Enrollment Status */}
         {isEnrolledTable && (
           <>
@@ -416,20 +436,6 @@ export function UsersTab({
               )}
             </td>
           </>
-        )}
-
-        {/* If Registered (Not Enrolled) Table: Contact Info */}
-        {!isEnrolledTable && (
-          <td className="py-3.5 px-4 align-middle whitespace-nowrap">
-            {student.whatsapp_number || student.phone ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                <Phone size={11} className="text-slate-400" />
-                {student.whatsapp_number || student.phone}
-              </span>
-            ) : (
-              <span className="text-[11px] text-slate-400 italic">Not provided</span>
-            )}
-          </td>
         )}
 
         {/* Date (Registration or Enrollment) */}
@@ -849,6 +855,7 @@ export function UsersTab({
                           />
                         </th>
                         <th className="py-3 px-4 font-black">Student</th>
+                        <th className="py-3 px-4 font-black">Contact</th>
                         <th className="py-3 px-4 font-black">Enrolled Cohort(s)</th>
                         <th className="py-3 px-4 font-black">Enrollment Status</th>
                         <th className="py-3 px-4 font-black">Joined Date</th>
