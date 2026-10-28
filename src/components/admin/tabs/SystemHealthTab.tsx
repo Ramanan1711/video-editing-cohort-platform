@@ -117,7 +117,7 @@ export function SystemHealthTab({
             Real-time health probes, active operational alerts, application SaaS analytics, and deployment preflight validation.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="secondary"
             size="sm"
@@ -142,19 +142,21 @@ export function SystemHealthTab({
       </div>
 
       {/* Launch Readiness Gate Certification Card */}
-      <Card className="p-6 border-slate-800 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white shadow-xl">
+      <Card className="p-4 sm:p-6 border-slate-800 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white shadow-xl">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-800 pb-5">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-orange-500/20 text-orange-400">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start gap-3">
+              <div className="flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/20 text-orange-400 mt-0.5">
                 <ShieldCheck size={20} />
               </div>
-              <div>
-                <h3 className="text-base font-black text-white flex items-center gap-2">
-                  Checklist 8: Launch Readiness Gate
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-black text-white">
+                    Checklist 8: Launch Readiness Gate
+                  </h3>
                   {launchGateReport && (
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] sm:text-xs font-bold tracking-tight shrink-0 ${
                         launchGateReport.overallStatus === 'READY_FOR_LAUNCH'
                           ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                           : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
@@ -165,27 +167,38 @@ export function SystemHealthTab({
                         : 'ACTION REQUIRED'}
                     </span>
                   )}
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                </div>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                   Mandatory security-first pre-launch gate certifying database RLS, upload privacy, route locks, data isolation, error resilience, automated QA, monitoring, and controlled RBAC.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-[11px] uppercase tracking-wider font-mono text-slate-400">Passed Gates</p>
-              <p className="text-lg font-black text-emerald-400">
-                {launchGateReport ? `${launchGateReport.passedCriteria} / ${launchGateReport.totalCriteria}` : '—'}
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto shrink-0">
+            <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto bg-slate-800/40 sm:bg-transparent rounded-lg px-3 py-2 sm:p-0 border border-slate-800/80 sm:border-0">
+              <div className="text-left sm:text-right">
+                <p className="text-[10px] sm:text-[11px] uppercase tracking-wider font-mono text-slate-400">
+                  Passed Gates
+                </p>
+                <p className="text-base sm:text-lg font-black text-emerald-400">
+                  {launchGateReport
+                    ? `${launchGateReport.passedCriteria} / ${launchGateReport.totalCriteria}`
+                    : '—'}
+                </p>
+              </div>
+              {launchGateReport && (
+                <span className="sm:hidden text-xs font-mono font-bold text-slate-300 px-2.5 py-1 rounded-md bg-slate-800/80">
+                  Score: {launchGateReport.score}%
+                </span>
+              )}
             </div>
             <Button
               variant="primary"
               size="sm"
               onClick={() => void onRunLaunchGateAudit()}
               disabled={auditingGate}
-              className="gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold"
+              className="w-full sm:w-auto justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold shrink-0"
             >
               <RefreshCw size={14} className={auditingGate ? 'animate-spin' : ''} />
               {auditingGate ? 'Evaluating Gates...' : 'Audit Launch Readiness'}
@@ -194,48 +207,86 @@ export function SystemHealthTab({
         </div>
 
         {/* 8 Gate Criteria Grid */}
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {launchGateReport?.criteria.map((gate) => (
-            <div
-              key={gate.id}
-              className={`rounded-xl border p-3.5 transition-all ${
-                gate.status === 'PASSED'
-                  ? 'border-emerald-500/30 bg-slate-900/80 hover:border-emerald-500/50'
-                  : 'border-red-500/40 bg-red-950/30'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-black text-slate-400">
-                  GATE 0{gate.number}
-                </span>
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                    gate.status === 'PASSED'
-                      ? 'bg-emerald-500/20 text-emerald-300'
-                      : 'bg-red-500/20 text-red-300'
-                  }`}
-                >
-                  {gate.status === 'PASSED' ? <Check size={10} /> : <AlertTriangle size={10} />}
-                  {gate.status}
-                </span>
+        {launchGateReport ? (
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {launchGateReport.criteria.map((gate) => (
+              <div
+                key={gate.id}
+                className={`rounded-xl border p-3.5 transition-all flex flex-col justify-between ${
+                  gate.status === 'PASSED'
+                    ? 'border-emerald-500/30 bg-slate-900/80 hover:border-emerald-500/50'
+                    : 'border-red-500/40 bg-red-950/30'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-mono font-black text-slate-400">
+                      GATE 0{gate.number}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0 ${
+                        gate.status === 'PASSED'
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'bg-red-500/20 text-red-300'
+                      }`}
+                    >
+                      {gate.status === 'PASSED' ? <Check size={10} /> : <AlertTriangle size={10} />}
+                      {gate.status}
+                    </span>
+                  </div>
+                  <h4 className="mt-2 text-xs font-bold text-white leading-snug break-words">
+                    {gate.title}
+                  </h4>
+                  <p className="mt-1 text-[11px] text-slate-400 leading-relaxed break-words">
+                    {gate.requirement}
+                  </p>
+                </div>
+                <div className="mt-2.5 border-t border-slate-800/80 pt-2">
+                  <p className="text-[10px] font-mono text-emerald-400/90 leading-relaxed break-words [overflow-wrap:anywhere]">
+                    ✓ {gate.evidence}
+                  </p>
+                </div>
               </div>
-              <h4 className="mt-2 text-xs font-bold text-white line-clamp-1">{gate.title}</h4>
-              <p className="mt-1 text-[11px] text-slate-400 leading-snug line-clamp-2">
-                {gate.requirement}
-              </p>
-              <p className="mt-2 text-[10px] font-mono text-emerald-400/90 border-t border-slate-800/80 pt-2 truncate">
-                ✓ {gate.evidence}
-              </p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : auditingGate ? (
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="animate-pulse rounded-xl border border-slate-800 bg-slate-900/60 p-3.5 space-y-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="h-2.5 w-14 rounded bg-slate-800" />
+                  <div className="h-4 w-16 rounded-full bg-slate-800" />
+                </div>
+                <div className="h-3.5 w-3/4 rounded bg-slate-800" />
+                <div className="h-8 w-full rounded bg-slate-800/60" />
+                <div className="h-3 w-1/2 rounded bg-slate-800/40 border-t border-slate-800 pt-2" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-xl border border-dashed border-slate-800 p-8 text-center">
+            <ShieldCheck className="mx-auto size-8 text-slate-600 mb-2" />
+            <p className="text-xs text-slate-400">Launch readiness criteria have not been evaluated yet.</p>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => void onRunLaunchGateAudit()}
+              className="mt-3 bg-orange-500 hover:bg-orange-600 text-white font-bold"
+            >
+              Run Launch Readiness Audit
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Health Probes Banner */}
       <Card className="p-5 border-slate-200">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-black uppercase tracking-wider text-slate-500">Overall System Health</span>
               {healthReport ? (
                 <span
@@ -357,7 +408,7 @@ export function SystemHealthTab({
       {/* Active Operational Alerts Feed */}
       <Card className="p-5 border-slate-200">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Bell size={16} className="text-orange-500" />
             <h3 className="text-sm font-black text-slate-950">Active Operational Alerts</h3>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
@@ -407,7 +458,7 @@ export function SystemHealthTab({
                     <AlertTriangle size={14} />
                   </span>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h4 className="text-xs font-bold text-slate-900">{alert.title}</h4>
                       <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">
                         {alert.type}
@@ -443,7 +494,7 @@ export function SystemHealthTab({
               Authoritative metrics covering user activation, completion velocities, assignment SLA, and cohort retention.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-slate-500">Scope:</span>
             <select
               value={analyticsCohortFilter}
@@ -466,7 +517,7 @@ export function SystemHealthTab({
           <Card className="p-4 mb-4 border-orange-200 bg-linear-to-r from-orange-50/50 to-amber-50/30">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-orange-100 pb-3">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded bg-orange-600 px-2 py-0.5 text-[10px] font-black uppercase text-white tracking-wider">
                     Authoritative Baseline
                   </span>
@@ -682,7 +733,7 @@ export function SystemHealthTab({
       <Card className="p-5 border-slate-200">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 pb-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="flex size-7 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
                 <ShieldAlert size={16} />
               </span>
@@ -695,7 +746,7 @@ export function SystemHealthTab({
               PostgreSQL database-backed error monitoring, persistent local storage buffer, and verified RFC-compliant Sentry envelope dispatch.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
               size="sm"
@@ -728,7 +779,7 @@ export function SystemHealthTab({
                 : 'border-amber-200 bg-amber-50 text-amber-900'
             }`}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {sentryProbeResult.success ? (
                 <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
               ) : (
@@ -756,7 +807,7 @@ export function SystemHealthTab({
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Tracked</p>
-            <p className="mt-1 text-xl font-black text-slate-900">{errorStats?.total ?? errorLogs.length}</p>
+            <p className="mt-1 text-xl font-black text-slate-900">{errorStats?.total ?? (errorLogs?.length ?? 0)}</p>
             <span className="text-[10px] text-slate-400">lifetime captured</span>
           </div>
           <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
@@ -796,7 +847,7 @@ export function SystemHealthTab({
               className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-orange-500 focus:outline-hidden"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <select
               value={errorLevelFilter}
               onChange={(e) => onErrorLevelFilterChange(e.target.value as 'all' | 'error' | 'fatal' | 'warning' | 'info')}
@@ -826,13 +877,13 @@ export function SystemHealthTab({
               <RefreshCw size={18} className="mx-auto mb-2 animate-spin text-slate-400" />
               Loading durable error telemetry...
             </div>
-          ) : errorLogs.length === 0 ? (
+          ) : !errorLogs || errorLogs.length === 0 ? (
             <div className="py-8 text-center text-xs text-slate-400">
               <CheckCircle2 size={24} className="mx-auto mb-2 text-emerald-500" />
               No application errors recorded matching current criteria. All systems nominal.
             </div>
           ) : (
-            errorLogs.map((entry) => {
+            (errorLogs || []).map((entry) => {
               const isResolved = Boolean(entry.extra?.resolved);
               return (
                 <div
@@ -929,7 +980,7 @@ export function SystemHealthTab({
           <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded bg-rose-100 px-2 py-0.5 text-xs font-black text-rose-700 uppercase">
                     {selectedErrorEntry.level}
                   </span>
@@ -972,7 +1023,7 @@ export function SystemHealthTab({
                   <div className="mt-1 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-slate-50/50 p-2">
                     {selectedErrorEntry.breadcrumbs.map((b, idx) => (
                       <div key={idx} className="py-1.5 text-[11px] flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded bg-slate-200 px-1 py-0.5 text-[9px] font-bold text-slate-700 uppercase">
                             {b.category}
                           </span>
