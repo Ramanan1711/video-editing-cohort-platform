@@ -134,7 +134,7 @@ const PRODUCTION_DELIVERABLES: DeliverableDetails[] = [
     description:
       'Fast-paced editorial cut with seamless J/L audio transitions, retention pattern interrupts, and full client handoff deliverables.',
     imgSrc:
-      'https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&w=1280&q=80',
+      'https://pixabay.com/get/gf350dcff53176aab6915172b6c2375c41e57f63b419330dd6e7a6484b531f98e04a158f5963cc0ed5521d86bc3f1ea1d4cbbf0dca83a8e00ed4b0ace69105ea7_1920.jpg',
     alt: 'Broadcast television camera and video editing studio monitors',
     tags: ['Premiere Pro', 'Retention Edits', 'Multi-Cam Sync'],
     accentColor: '#38B44A',
