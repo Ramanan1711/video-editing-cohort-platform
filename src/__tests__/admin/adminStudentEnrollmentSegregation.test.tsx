@@ -55,6 +55,42 @@ describe('Admin Console - Student Directory Enrollment Segregation', () => {
       student_email: 'enrolled1@iunoware.com',
     },
     {
+      user_id: 'student-enrolled-1',
+      cohort_id: 'cohort-ae',
+      cohort_name: 'Batch 2 - Advanced After Effects',
+      status: 'active',
+      created_at: '2026-09-11T12:00:00Z',
+      student_name: 'Emma Enrolled',
+      student_email: 'enrolled1@iunoware.com',
+    },
+    {
+      user_id: 'student-enrolled-1',
+      cohort_id: 'cohort-davinci',
+      cohort_name: 'Batch 3 - DaVinci Resolve Color Grading',
+      status: 'active',
+      created_at: '2026-09-12T12:00:00Z',
+      student_name: 'Emma Enrolled',
+      student_email: 'enrolled1@iunoware.com',
+    },
+    {
+      user_id: 'student-enrolled-1',
+      cohort_id: 'cohort-sound',
+      cohort_name: 'Batch 4 - Sound Design & Foley',
+      status: 'active',
+      created_at: '2026-09-13T12:00:00Z',
+      student_name: 'Emma Enrolled',
+      student_email: 'enrolled1@iunoware.com',
+    },
+    {
+      user_id: 'student-enrolled-1',
+      cohort_id: 'cohort-3d',
+      cohort_name: 'Batch 5 - 3D Motion Graphics',
+      status: 'completed',
+      created_at: '2026-09-14T12:00:00Z',
+      student_name: 'Emma Enrolled',
+      student_email: 'enrolled1@iunoware.com',
+    },
+    {
       user_id: 'student-enrolled-2',
       cohort_id: 'cohort-aftereffects',
       cohort_name: 'Batch 2 - After Effects',
@@ -178,5 +214,56 @@ describe('Admin Console - Student Directory Enrollment Segregation', () => {
       expect.objectContaining({ id: 'student-registered-2' }),
       'active'
     );
+  });
+
+  it('handles multi-course enrolled students with uniform "+N more" badge and opens the detail modal', () => {
+    render(<UsersTab {...defaultProps} />);
+
+    const enrolledSection = screen.getByTestId('enrolled-students-section');
+
+    // Emma has 5 enrollments: should show the primary badge + "+4 more"
+    expect(enrolledSection).toHaveTextContent('Batch 1 - Premiere Pro');
+    const moreBtn = screen.getByTestId('view-cohorts-student-enrolled-1');
+    expect(moreBtn).toBeInTheDocument();
+    expect(moreBtn).toHaveTextContent('+4 more');
+
+    // Click "+4 more" to open the Enrolled Cohorts modal
+    fireEvent.click(moreBtn);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveTextContent('Emma Enrolled');
+    expect(dialog).toHaveTextContent('5 Cohorts');
+    expect(dialog).toHaveTextContent('Batch 1 - Premiere Pro');
+    expect(dialog).toHaveTextContent('Batch 2 - Advanced After Effects');
+    expect(dialog).toHaveTextContent('Batch 3 - DaVinci Resolve Color Grading');
+    expect(dialog).toHaveTextContent('Batch 4 - Sound Design & Foley');
+    expect(dialog).toHaveTextContent('Batch 5 - 3D Motion Graphics');
+
+    // Close button dismisses the modal
+    const closeBtn = screen.getByRole('button', { name: 'Close dialog' });
+    fireEvent.click(closeBtn);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('allows toggling cohort display mode between Compact and Expanded', () => {
+    render(<UsersTab {...defaultProps} />);
+
+    // Default is compact
+    expect(screen.getByTestId('view-cohorts-student-enrolled-1')).toBeInTheDocument();
+
+    // Toggle to expanded
+    const expandedBtn = screen.getByTestId('cohort-display-expanded');
+    fireEvent.click(expandedBtn);
+
+    // In expanded mode, all badges are rendered directly in the table
+    const enrolledSection = screen.getByTestId('enrolled-students-section');
+    expect(enrolledSection).toHaveTextContent('Batch 2 - Advanced After Effects');
+    expect(enrolledSection).toHaveTextContent('Batch 3 - DaVinci Resolve Color Grading');
+
+    // Switch back to compact
+    const compactBtn = screen.getByTestId('cohort-display-compact');
+    fireEvent.click(compactBtn);
+    expect(screen.getByTestId('view-cohorts-student-enrolled-1')).toBeInTheDocument();
   });
 });

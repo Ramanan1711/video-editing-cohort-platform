@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Download,
   GraduationCap,
+  Layers,
   Phone,
   Search,
   Shield,
@@ -19,6 +20,7 @@ import {
 import { Button } from '../../ui/Button';
 import { Card } from '../../ui/Card';
 import { Pagination } from '../../ui/Pagination';
+import { EnrolledCohortsModal } from './EnrolledCohortsModal';
 import {
   isParentSuperAdmin,
   isChildSuperAdmin,
@@ -109,7 +111,7 @@ function RoleBadge({
 export function UsersTab({
   users,
   enrollments: enrollmentsProp,
-  cohorts: _cohorts,
+  cohorts,
   currentUserId,
   currentUserEmail: _currentUserEmail,
   canManageRoles: _canManageRoles,
@@ -135,6 +137,11 @@ export function UsersTab({
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [bulkUpdatingUsers, setBulkUpdatingUsers] = useState(false);
   const [internalEnrollments, setInternalEnrollments] = useState<AdminEnrollment[]>([]);
+  const [selectedCohortModalUser, setSelectedCohortModalUser] = useState<{
+    student: UserProfile;
+    enrollments: AdminEnrollment[];
+  } | null>(null);
+  const [cohortDisplayMode, setCohortDisplayMode] = useState<'compact' | 'expanded'>('compact');
 
   // Fetch enrollments if not passed via props
   useEffect(() => {
@@ -408,31 +415,89 @@ export function UsersTab({
         {/* If Enrolled Table: Enrolled Cohorts & Enrollment Status */}
         {isEnrolledTable && (
           <>
-            <td className="py-3.5 px-4 align-middle">
-              <div className="flex flex-wrap items-center gap-1.5 max-w-xs">
-                {userEnrollments.length > 0 ? (
-                  userEnrollments.map((enr, idx) => (
-                    <span
+            <td className="py-3.5 px-4 align-middle whitespace-nowrap">
+              {userEnrollments.length === 0 ? (
+                <span className="text-[11px] text-slate-400">—</span>
+              ) : cohortDisplayMode === 'expanded' ? (
+                <div className="flex flex-wrap items-center gap-1.5 max-w-xs">
+                  {userEnrollments.map((enr, idx) => (
+                    <button
                       key={`${enr.cohort_id}-${idx}`}
-                      className="inline-flex items-center gap-1 rounded-md bg-orange-50 dark:bg-orange-950/60 border border-orange-200/80 dark:border-orange-900/60 px-2 py-0.5 text-[11px] font-semibold text-orange-800 dark:text-orange-300"
+                      type="button"
+                      onClick={() =>
+                        setSelectedCohortModalUser({ student, enrollments: userEnrollments })
+                      }
+                      className="inline-flex items-center gap-1 rounded-md bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/60 dark:hover:bg-orange-900 border border-orange-200/80 dark:border-orange-900/60 px-2 py-0.5 text-[11px] font-semibold text-orange-800 dark:text-orange-300 cursor-pointer transition-colors"
+                      title={enr.cohort_name || 'Assigned Cohort'}
                     >
                       <BookOpen size={11} className="text-orange-600 dark:text-orange-400 shrink-0" />
                       <span className="truncate max-w-[140px]">{enr.cohort_name || 'Assigned Cohort'}</span>
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-[11px] text-slate-400">—</span>
-                )}
-              </div>
+                    </button>
+                  ))}
+                </div>
+              ) : userEnrollments.length === 1 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedCohortModalUser({ student, enrollments: userEnrollments })
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/60 dark:hover:bg-orange-900 border border-orange-200/80 dark:border-orange-900/60 px-2.5 py-1 text-[11px] font-semibold text-orange-800 dark:text-orange-300 cursor-pointer transition-colors max-w-[210px] truncate group"
+                  title={`${userEnrollments[0].cohort_name || 'Assigned Cohort'} (Click to view details)`}
+                >
+                  <BookOpen size={11} className="text-orange-600 dark:text-orange-400 shrink-0 group-hover:scale-110 transition-transform" />
+                  <span className="truncate">{userEnrollments[0].cohort_name || 'Assigned Cohort'}</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedCohortModalUser({ student, enrollments: userEnrollments })
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-md bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/60 dark:hover:bg-orange-900 border border-orange-200/80 dark:border-orange-900/60 px-2.5 py-1 text-[11px] font-semibold text-orange-800 dark:text-orange-300 cursor-pointer transition-colors max-w-[155px] truncate group"
+                    title={userEnrollments.map((e, i) => `${i + 1}. ${e.cohort_name || 'Assigned Cohort'}`).join('\n')}
+                  >
+                    <BookOpen size={11} className="text-orange-600 dark:text-orange-400 shrink-0 group-hover:scale-110 transition-transform" />
+                    <span className="truncate">{userEnrollments[0].cohort_name || 'Assigned Cohort'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    data-testid={`view-cohorts-${student.id}`}
+                    onClick={() =>
+                      setSelectedCohortModalUser({ student, enrollments: userEnrollments })
+                    }
+                    className="inline-flex items-center gap-1 rounded-md bg-orange-100 hover:bg-orange-200 dark:bg-orange-900/70 dark:hover:bg-orange-800 text-orange-800 dark:text-orange-200 border border-orange-300/80 dark:border-orange-700/80 px-2 py-1 text-[10px] font-black tracking-tight transition-all cursor-pointer shadow-2xs hover:scale-105"
+                    title={`Click to view all ${userEnrollments.length} enrolled courses`}
+                  >
+                    <span>+{userEnrollments.length - 1} more</span>
+                    <Layers size={10} className="text-orange-700 dark:text-orange-300 shrink-0" />
+                  </button>
+                </div>
+              )}
             </td>
 
             <td className="py-3.5 px-4 align-middle whitespace-nowrap">
-              {userEnrollments.length > 0 ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-900/60 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+              {userEnrollments.length === 0 ? (
+                <span className="text-[11px] text-slate-400">—</span>
+              ) : userEnrollments.length === 1 ? (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                    userEnrollments[0].status === 'active'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300'
+                      : userEnrollments[0].status === 'completed'
+                      ? 'bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-900/60 text-blue-700 dark:text-blue-300'
+                      : 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
                   {userEnrollments[0].status || 'Enrolled'}
                 </span>
               ) : (
-                <span className="text-[11px] text-slate-400">—</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-900/60 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                  {userEnrollments.filter((e) => e.status === 'active').length === userEnrollments.length
+                    ? `${userEnrollments.length} Active`
+                    : `${userEnrollments.filter((e) => e.status === 'active').length} Active / ${userEnrollments.length} Total`}
+                </span>
               )}
             </td>
           </>
@@ -827,6 +892,42 @@ export function UsersTab({
                     </p>
                   </div>
                 </div>
+
+                {filteredEnrolledStudents.length > 0 && (
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">
+                      Display:
+                    </span>
+                    <div className="inline-flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 text-[11px] font-bold">
+                      <button
+                        type="button"
+                        data-testid="cohort-display-compact"
+                        onClick={() => setCohortDisplayMode('compact')}
+                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                          cohortDisplayMode === 'compact'
+                            ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-2xs font-black'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                        title="Uniform single-line rows with +N more counter"
+                      >
+                        Compact
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="cohort-display-expanded"
+                        onClick={() => setCohortDisplayMode('expanded')}
+                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                          cohortDisplayMode === 'expanded'
+                            ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-2xs font-black'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                        title="Display all enrolled cohort chips in each row"
+                      >
+                        Expanded
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {pagedEnrolledStudents.length > 0 ? (
@@ -1064,6 +1165,14 @@ export function UsersTab({
           )}
         </div>
       )}
+      {/* Enrolled Cohorts Details Modal */}
+      <EnrolledCohortsModal
+        isOpen={Boolean(selectedCohortModalUser)}
+        onClose={() => setSelectedCohortModalUser(null)}
+        student={selectedCohortModalUser?.student ?? null}
+        enrollments={selectedCohortModalUser?.enrollments ?? []}
+        cohorts={cohorts}
+      />
     </Card>
   );
 }
