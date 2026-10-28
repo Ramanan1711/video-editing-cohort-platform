@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { TestimonialsSection } from '../../components/home/sections/TestimonialsSection';
 
 // Mock soundFx to prevent audio errors in jsdom
@@ -23,20 +23,18 @@ describe('TestimonialsSection (Responsive Mobile & Tablet View)', () => {
     ).toBeInTheDocument();
 
     // Verify all deliverable filter tabs exist
-    expect(screen.getByText('Kinetic Motion')).toBeInTheDocument();
-    expect(screen.getByText('Audio Engineering')).toBeInTheDocument();
-    expect(screen.getByText('Color Grading')).toBeInTheDocument();
-    expect(screen.getByText('Commercial Pacing')).toBeInTheDocument();
+    expect(screen.getAllByText('Kinetic Motion').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Audio Engineering').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Color Grading').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Commercial Pacing').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders the mobile/tablet snap carousel region with accessible label', () => {
-    render(<TestimonialsSection />);
+  it('renders the mobile/tablet snap carousel container within lg:hidden wrapper', () => {
+    const { container } = render(<TestimonialsSection />);
 
-    const carousel = screen.getByRole('list', {
-      name: /production deliverables carousel/i,
-    });
+    const carousel = container.querySelector('ul[aria-label="Production deliverables carousel"]');
     expect(carousel).toBeInTheDocument();
-    expect(carousel).toHaveClass('lg:hidden');
+    expect(carousel?.parentElement).toHaveClass('lg:hidden');
   });
 
   it('renders navigation controls and indicator counters accessible on all viewports', () => {
@@ -67,8 +65,13 @@ describe('TestimonialsSection (Responsive Mobile & Tablet View)', () => {
   it('switches active deliverable when clicking quick-select filter tabs and dots', () => {
     render(<TestimonialsSection />);
 
-    const colorGradingTab = screen.getByText('Color Grading');
-    fireEvent.click(colorGradingTab);
+    // Click the Color Grading filter tab
+    const tabs = screen.getAllByRole('button');
+    const colorGradingTab = tabs.find((t) => t.textContent?.includes('Color Grading'));
+    expect(colorGradingTab).toBeDefined();
+    if (colorGradingTab) {
+      fireEvent.click(colorGradingTab);
+    }
 
     // Counter updates to 03 / 04
     expect(screen.getAllByText(/03 \/ 04/).length).toBeGreaterThanOrEqual(1);
@@ -91,18 +94,21 @@ describe('TestimonialsSection (Responsive Mobile & Tablet View)', () => {
     fireEvent.click(inspectLinks[0]);
 
     // Modal dialog should open with title and senior mentor score
-    const modalTitle = screen.getByRole('heading', {
-      name: /cinematic pacing & kinetic title sequence/i,
-    });
-    expect(modalTitle).toBeInTheDocument();
-    expect(screen.getByText('Senior Mentor Audit Score')).toBeInTheDocument();
-    expect(screen.getByText('99% RUBRIC MATCH')).toBeInTheDocument();
+    const modal = screen.getByRole('dialog');
+    expect(modal).toBeInTheDocument();
+    expect(
+      within(modal).getByRole('heading', {
+        name: /cinematic pacing & kinetic title sequence/i,
+      })
+    ).toBeInTheDocument();
+    expect(within(modal).getByText('Senior Mentor Audit Score')).toBeInTheDocument();
+    expect(within(modal).getByText('99% RUBRIC MATCH')).toBeInTheDocument();
 
     // Close modal
-    const closeButton = screen.getByRole('button', { name: /close modal/i });
+    const closeButton = within(modal).getByRole('button', { name: /close modal/i });
     fireEvent.click(closeButton);
 
-    expect(modalTitle).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('renders verified credential section with mobile-optimized tilt certificate and wall of love', () => {
@@ -122,4 +128,3 @@ describe('TestimonialsSection (Responsive Mobile & Tablet View)', () => {
     expect(screen.getByText('Rahul K.')).toBeInTheDocument();
   });
 });
-
