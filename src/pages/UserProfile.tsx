@@ -207,14 +207,10 @@ export function UserProfile() {
           {/* Top Brand Spectrum Accent Bar (homepage brand signature) */}
           <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[#B92B27] via-[#D93830] via-[#F2B705] via-[#38B44A] to-[#2675EB]" />
 
-          {/* Balanced Ambient Lighting Glows (homepage spectrum) */}
-          <div className="absolute -top-24 -right-24 size-80 sm:size-96 rounded-full bg-gradient-to-br from-[#B92B27]/12 via-[#F2B705]/10 to-transparent blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 size-80 rounded-full bg-gradient-to-tr from-[#2675EB]/10 via-[#38B44A]/8 to-transparent blur-3xl pointer-events-none" />
-
           <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
               {/* Avatar Pill */}
-              <div className="relative flex size-20 sm:size-24 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-tr from-[#B92B27] via-[#D93830] to-[#F2B705] text-white font-black text-2xl sm:text-3xl shadow-xl shadow-[#B92B27]/25 ring-4 ring-orange-100 dark:ring-surface-elevated">
+              <div className="relative flex size-20 sm:size-24 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-tr from-[#B92B27] via-[#D93830] to-[#F2B705] text-white font-black text-2xl sm:text-3xl shadow-xl shadow-[#B92B27]/25 ring-4 ring-slate-200/80 dark:ring-surface-elevated">
                 {initials}
                 <div className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-white dark:ring-surface-card shadow-sm" title="Active Student">
                   <CheckCircle2 size={15} />
