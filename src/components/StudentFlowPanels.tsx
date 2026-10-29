@@ -1179,16 +1179,16 @@ export function MilestonePanel({
 }) {
   const complete = progressPercent === 100 && totalLessons > 0;
   return (
-    <Card className="mt-8 overflow-hidden border-orange-200 bg-orange-50 p-6">
+    <Card className="mt-8 overflow-hidden border-orange-200/90 dark:border-white/10 bg-orange-50/70 dark:bg-surface-elevated/40 p-6">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-600">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">
             {complete ? 'Cohort complete' : 'Your milestone'}
           </p>
-          <h2 className="mt-1 text-2xl font-black text-slate-950">
+          <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
             {complete ? 'You made it through.' : `${progressPercent}% of the way there.`}
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
             {complete
               ? 'Your verified certificate and official internship evaluation report are ready.'
               : `${completedCount} of ${totalLessons} ${label}. Keep the streak alive.`}
@@ -1198,17 +1198,17 @@ export function MilestonePanel({
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={onViewCertificate}
-              className="flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:bg-orange-600"
+              className="flex items-center gap-2 rounded-xl bg-slate-950 dark:bg-orange-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:bg-orange-600 dark:hover:bg-orange-500 cursor-pointer"
             >
-              <Award size={18} className="text-orange-400" />
+              <Award size={18} className="text-orange-400 dark:text-white" />
               <span>View Official Certificate</span>
             </button>
             {onViewReportCard && (
               <button
                 onClick={onViewReportCard}
-                className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-800 shadow-xs transition hover:bg-slate-50"
+                className="flex items-center gap-2 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-surface-card px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100 shadow-xs transition hover:bg-slate-50 dark:hover:bg-surface-elevated cursor-pointer"
               >
-                <FileText size={18} className="text-orange-500" />
+                <FileText size={18} className="text-orange-500 dark:text-orange-400" />
                 <span>Internship Report Card</span>
               </button>
             )}
@@ -1218,13 +1218,13 @@ export function MilestonePanel({
             {onViewReportCard && (
               <button
                 onClick={onViewReportCard}
-                className="flex items-center gap-2 rounded-xl border border-orange-200 bg-white/80 px-4 py-2 text-xs font-bold text-slate-800 transition hover:bg-white"
+                className="flex items-center gap-2 rounded-xl border border-orange-200/90 dark:border-white/15 bg-white/80 dark:bg-surface-card/90 px-4 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 transition hover:bg-white dark:hover:bg-surface-elevated shadow-2xs cursor-pointer backdrop-blur-xs"
               >
-                <FileText size={15} className="text-orange-500" />
+                <FileText size={15} className="text-orange-500 dark:text-orange-400" />
                 <span>View Evaluation Dossier</span>
               </button>
             )}
-            <div className="flex items-center gap-2 text-orange-600 font-bold text-sm">
+            <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-bold text-sm">
               <Sparkles size={20} /> Keep going
             </div>
           </div>

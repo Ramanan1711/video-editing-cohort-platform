@@ -327,16 +327,16 @@ export function StudentPlayerView({
           <button
             type="button"
             onClick={onOpenAchievements}
-            className="flex items-center gap-2 rounded-xl border border-amber-200/90 bg-gradient-to-r from-amber-50/90 to-orange-50/90 px-3 py-1.5 text-xs font-bold text-amber-950 transition hover:border-amber-300 hover:shadow-xs"
+            className="flex items-center gap-2 rounded-xl border border-amber-200/90 dark:border-amber-500/30 bg-gradient-to-r from-amber-50/90 to-orange-50/90 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-surface-elevated px-3 py-1.5 text-xs font-bold text-amber-950 dark:text-amber-200 transition hover:border-amber-300 dark:hover:border-amber-400/50 hover:shadow-xs cursor-pointer group"
             title="View Editor Level & Achievements"
           >
-            <div className="flex size-5 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs">
+            <div className="flex size-5 items-center justify-center rounded-lg bg-orange-500 text-white shadow-2xs group-hover:scale-105 transition-transform">
               <Trophy size={11} />
             </div>
-            <span className="text-[10px] font-black uppercase text-orange-600">
+            <span className="text-[10px] font-black uppercase text-orange-600 dark:text-[#F2B705]">
               Lvl {gamification.level}
             </span>
-            <span className="text-[11px] font-black text-slate-800 truncate max-w-28 hidden md:inline">
+            <span className="text-[11px] font-black text-slate-800 dark:text-slate-100 truncate max-w-28 hidden md:inline">
               {gamification.tierTitle}
             </span>
           </button>
