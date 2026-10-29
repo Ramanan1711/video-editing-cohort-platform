@@ -2,7 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MilestonePanel } from '../../components/StudentFlowPanels';
 import { LessonPlayer } from '../../components/student/player/LessonPlayer';
+import { AchievementsModal } from '../../components/student/AchievementsModal';
 import type { Lesson } from '../../lib/courseService';
+import type { GamificationProfile } from '../../lib/gamificationService';
 
 describe('MilestonePanel & StudentPlayerView - Dark Mode Consistency', () => {
   it('renders View Evaluation Dossier button with dark mode classes in MilestonePanel', () => {
@@ -71,6 +73,62 @@ describe('MilestonePanel & StudentPlayerView - Dark Mode Consistency', () => {
     expect(completedBtn.className).toContain('dark:bg-emerald-950/60');
     expect(completedBtn.className).toContain('dark:text-emerald-300');
     expect(completedBtn.className).toContain('dark:hover:bg-emerald-900/60');
+  });
+
+  it('renders Unlocked badge pills and cards in AchievementsModal with professional dark mode styling', () => {
+    const mockGamification: GamificationProfile = {
+      totalXp: 1200,
+      level: 3,
+      tierTitle: 'Lead Editor',
+      nextTierTitle: 'Senior Post Artist',
+      currentLevelMinXp: 1000,
+      nextLevelXp: 2000,
+      progressPercent: 60,
+      streakDays: 4,
+      hasStreakShield: true,
+      weeklyActiveCount: 3,
+      weeklyTarget: 5,
+      recentHeatmap: [],
+      badges: [
+        {
+          id: 'badge-1',
+          name: 'First Cut Pro',
+          description: 'Exported first rough cut',
+          category: 'craft',
+          iconName: 'Award',
+          progressText: '1/1 cuts completed',
+          unlocked: true,
+          unlockedAt: '2026-03-01T00:00:00Z',
+        },
+        {
+          id: 'badge-2',
+          name: 'Pacing Virtuoso',
+          description: 'Perfect rhythm across 5 sequences',
+          category: 'consistency',
+          iconName: 'Flame',
+          progressText: '2/5 sequences completed',
+          unlocked: false,
+        },
+      ],
+    };
+
+    render(
+      <AchievementsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        gamification={mockGamification}
+      />
+    );
+
+    const unlockedBadge = screen.getByText('Unlocked');
+    expect(unlockedBadge).toBeInTheDocument();
+    expect(unlockedBadge.className).toContain('dark:border-emerald-500/30');
+    expect(unlockedBadge.className).toContain('dark:bg-emerald-950/60');
+    expect(unlockedBadge.className).toContain('dark:text-emerald-300');
+
+    const badgeTitle = screen.getByText('First Cut Pro');
+    expect(badgeTitle).toBeInTheDocument();
+    expect(badgeTitle.className).toContain('dark:text-white');
   });
 });
 
