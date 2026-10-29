@@ -564,7 +564,7 @@ export function LessonPlayer({
   };
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-950/5">
+    <article className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-surface-card shadow-lg shadow-slate-950/5">
       {/* Video Screen Component */}
       <VideoScreen
         lesson={lesson}
@@ -600,8 +600,8 @@ export function LessonPlayer({
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div className="flex-1">
             <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-orange-500">Active Lesson</p>
-            <h2 className="text-2xl font-black tracking-tight text-slate-950">{lesson.title}</h2>
-            <p className="mt-2 text-xs sm:text-sm leading-6 text-slate-600">
+            <h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">{lesson.title}</h2>
+            <p className="mt-2 text-xs sm:text-sm leading-6 text-slate-600 dark:text-slate-400">
               {lesson.description ??
                 'Sharpen your editing reflexes, storytelling pace, and master the technical timeline craft.'}
             </p>
@@ -625,19 +625,19 @@ export function LessonPlayer({
                   }
                   className={`rounded-xl px-4 py-2.5 text-xs font-bold transition shadow-xs ${
                     effectiveCompleted
-                      ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                      ? 'border border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-100/90 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200/90 dark:hover:bg-emerald-900/60 dark:hover:border-emerald-400/50 cursor-pointer shadow-emerald-950/20'
                       : isLocked
-                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                      : 'bg-slate-950 text-white hover:bg-orange-600'
+                      ? 'border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                      : 'border border-transparent dark:border-orange-500/30 bg-slate-950 dark:bg-orange-600 text-white hover:bg-orange-600 dark:hover:bg-orange-500 cursor-pointer'
                   }`}
                 >
                   {effectiveCompleted ? (
                     <span className="flex items-center gap-1.5">
-                      <Check size={15} /> Completed
+                      <Check size={15} className="text-emerald-700 dark:text-emerald-400" /> Completed
                     </span>
                   ) : isLocked ? (
                     <span className="flex items-center gap-1.5">
-                      <Lock size={13} className="text-slate-400" /> Watch 80% to Complete ({watchPercentage}%)
+                      <Lock size={13} className="text-slate-400 dark:text-slate-500" /> Watch 80% to Complete ({watchPercentage}%)
                     </span>
                   ) : (
                     'Mark as Complete'
@@ -649,11 +649,11 @@ export function LessonPlayer({
         </div>
 
         {/* Prev / Next Lesson Navigation Buttons */}
-        <div className="mt-6 flex items-center justify-between border-y border-slate-100 py-3 text-xs font-bold gap-2">
+        <div className="mt-6 flex items-center justify-between border-y border-slate-100 dark:border-white/10 py-3 text-xs font-bold gap-2">
           {prevLesson ? (
             <button
               onClick={() => onSelectLesson(prevLesson)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition max-w-[48%] truncate"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition max-w-[48%] truncate cursor-pointer"
               title={prevLesson.title}
             >
               <ChevronLeft size={16} className="shrink-0" />
@@ -667,7 +667,7 @@ export function LessonPlayer({
           {nextLesson ? (
             <button
               onClick={() => onSelectLesson(nextLesson)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 px-3 py-1.5 text-orange-700 hover:bg-orange-100 transition max-w-[48%] truncate justify-end"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-orange-50 dark:bg-orange-950/40 border border-transparent dark:border-orange-500/20 px-3 py-1.5 text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition max-w-[48%] truncate justify-end cursor-pointer"
               title={nextLesson.title}
             >
               <span className="hidden sm:inline shrink-0">Next:</span>
@@ -680,15 +680,15 @@ export function LessonPlayer({
         </div>
 
         {/* Tabs */}
-        <div className="mt-6 flex gap-4 sm:gap-6 border-b border-slate-100 text-xs sm:text-sm font-bold overflow-x-auto pb-1 scrollbar-none">
+        <div className="mt-6 flex gap-4 sm:gap-6 border-b border-slate-100 dark:border-white/10 text-xs sm:text-sm font-bold overflow-x-auto pb-1 scrollbar-none">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`shrink-0 whitespace-nowrap pb-2 ${
+              className={`shrink-0 whitespace-nowrap pb-2 cursor-pointer transition ${
                 activeTab === tab.id
-                  ? 'border-b-2 border-orange-500 text-orange-600'
-                  : 'text-slate-400 hover:text-slate-700'
+                  ? 'border-b-2 border-orange-500 text-orange-600 dark:text-orange-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
               {tab.label}
@@ -697,14 +697,14 @@ export function LessonPlayer({
         </div>
 
         {/* Tab Content */}
-        <div className="min-h-24 pt-5 text-xs sm:text-sm leading-relaxed text-slate-600">
+        <div className="min-h-24 pt-5 text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-300">
           {activeTab === 'overview' && (
             <div className="space-y-3">
               <p>
                 Watch the complete demonstration, apply the key cutting and pacing concepts in your timeline, and mark the
                 lesson complete to track your streak.
               </p>
-              <p className="text-slate-500">
+              <p className="text-slate-500 dark:text-slate-400">
                 Completing this lesson also automatically unlocks restricted downloadable resources and sample project
                 files attached below.
               </p>
@@ -727,8 +727,8 @@ export function LessonPlayer({
                 Keep a dedicated notebook or editing journal to jot down timecodes, audio transition notes, and shortcut
                 combinations demonstrated in this lesson.
               </p>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs">
-                <strong className="block font-bold text-slate-800 mb-1">Editor Pro-Tip:</strong>
+              <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-4 text-xs">
+                <strong className="block font-bold text-slate-800 dark:text-slate-200 mb-1">Editor Pro-Tip:</strong>
                 Always cut on subject action or kinetic eye-movement to disguise hard transitions and maintain viewer focus.
               </div>
             </div>

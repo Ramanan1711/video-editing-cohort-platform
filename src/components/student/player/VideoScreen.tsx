@@ -230,14 +230,14 @@ export function VideoScreen({
       </div>
 
       {/* Video Watch Progress & Controls Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-2.5 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-surface-elevated/40 px-6 py-2.5 text-xs">
         <div className="flex items-center gap-3">
-          <span className="font-bold text-slate-700 flex items-center gap-1.5">
+          <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
             <Clock3 size={13} className="text-orange-500" />
             Watch Progress:
           </span>
           <div className="flex items-center gap-2">
-            <div className="h-2 w-28 sm:w-44 overflow-hidden rounded-full bg-slate-200">
+            <div className="h-2 w-28 sm:w-44 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
                   watchPercentage >= 80 || effectiveCompleted ? 'bg-emerald-500' : 'bg-orange-500'
@@ -245,13 +245,13 @@ export function VideoScreen({
                 style={{ width: `${Math.max(watchPercentage, effectiveCompleted ? 100 : 0)}%` }}
               />
             </div>
-            <span className="font-mono font-bold text-slate-700">
+            <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
               {Math.max(watchPercentage, effectiveCompleted ? 100 : 0)}%
             </span>
           </div>
-          <span className="text-[11px] text-slate-500 hidden sm:inline">
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:inline">
             {watchPercentage >= 80 || effectiveCompleted ? (
-              <span className="font-bold text-emerald-600">✓ Completed (≥80% watched)</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">✓ Completed (≥80% watched)</span>
             ) : (
               <span>(80% required to verify)</span>
             )}
@@ -260,9 +260,9 @@ export function VideoScreen({
 
         <div className="flex items-center gap-4">
           {/* Keyboard shortcut guide badge */}
-          <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-400 font-mono">
-            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-slate-700 font-bold">Space</span> Play
-            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-slate-700 font-bold">F</span> Fullscreen
+          <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+            <span className="rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-slate-700 dark:text-slate-200 font-bold">Space</span> Play
+            <span className="rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-slate-700 dark:text-slate-200 font-bold">F</span> Fullscreen
             <span className="rounded bg-slate-200 px-1.5 py-0.5 text-slate-700 font-bold">←/→</span> ±5s
           </div>
 
