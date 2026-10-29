@@ -39,14 +39,14 @@ export const UserProfileDropdown: React.FC = () => {
   }, [showProfileMenu]);
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative shrink-0" ref={dropdownRef}>
       <button
         onClick={() => setShowProfileMenu((prev) => !prev)}
-        className="flex items-center gap-2 rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+        className="flex items-center gap-2 rounded-full p-0.5 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer shrink-0"
         aria-label="User Profile Menu"
         title={profile?.full_name || 'User Profile'}
       >
-        <div className="flex size-9 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-black text-xs shadow-sm ring-2 ring-orange-200 dark:ring-slate-800">
+        <div className="flex size-8 sm:size-9 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-black text-xs shadow-sm ring-2 ring-orange-200 dark:ring-slate-800 shrink-0">
           {profile?.full_name?.slice(0, 2).toUpperCase() || 'PE'}
         </div>
       </button>

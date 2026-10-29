@@ -191,9 +191,9 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors">
-      <div className="flex h-14 sm:h-16 lg:h-[72px] w-full items-center justify-between px-3 sm:px-6 lg:px-8">
+      <div className="flex h-14 sm:h-16 lg:h-[72px] w-full items-center justify-between px-3 sm:px-4 md:px-5 lg:px-6 xl:px-8">
         {/* Left: Navigation Menu (☰) & Iunoware Academy Brand Logo */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 lg:gap-3 shrink-0">
           <button
             onClick={() => setNavDrawerOpen(true)}
             aria-label="Open workspace navigation"
@@ -206,7 +206,7 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
           {/* Brand Logo - Iunoware Academy */}
           <Link
             to={profile?.role === 'admin' ? '/admin' : '/student/dashboard'}
-            className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 group select-none"
+            className="flex items-center gap-1.5 sm:gap-2 lg:gap-2.5 shrink-0 group select-none"
             title="Iunoware Academy"
           >
             <img
@@ -226,8 +226,8 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
           </Link>
         </div>
 
-        {/* Center: Segmented Navigation Pills (Adaptive: icon+label for active or all on lg+, icons on md) */}
-        <nav className="hidden md:flex items-center gap-1 lg:gap-1.5 rounded-full border border-slate-200/70 bg-slate-50/80 p-1 lg:p-1.5 shadow-2xs dark:border-slate-800 dark:bg-slate-900/80 shrink-0">
+        {/* Center: Segmented Navigation Pills (Adaptive: icon+label for active on md/lg, all labels on xl+) */}
+        <nav className="hidden md:flex items-center gap-1 xl:gap-1.5 rounded-full border border-slate-200/70 bg-slate-50/80 p-1 xl:p-1.5 shadow-2xs dark:border-slate-800 dark:bg-slate-900/80 shrink-0">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -244,14 +244,14 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
                 }}
                 title={item.label}
                 aria-label={item.label}
-                className={`relative flex items-center gap-1.5 xl:gap-2 rounded-full px-2.5 lg:px-3.5 xl:px-4 py-1.5 lg:py-2 text-xs font-bold transition-all ${
+                className={`relative flex items-center gap-1.5 xl:gap-2 rounded-full px-2.5 xl:px-4 py-1.5 lg:py-2 text-xs font-bold transition-all ${
                   isActive
                     ? 'bg-amber-50 text-amber-950 shadow-xs border border-amber-200/80 font-black dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-700/50'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 <Icon size={15} className={isActive ? 'text-amber-700 dark:text-amber-400 shrink-0' : 'shrink-0'} />
-                <span className={`text-xs ${isActive ? 'inline' : 'hidden lg:inline'}`}>
+                <span className={`text-xs ${isActive ? 'inline' : 'hidden xl:inline'}`}>
                   {item.label}
                 </span>
 
@@ -335,19 +335,19 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
         </nav>
 
         {/* Right: Actions & User Avatar */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-2.5 shrink-0 min-w-max">
           {/* Sound Mode Toggle */}
           <button
             type="button"
             onClick={handleToggleSfx}
             title={sfxEnabled ? 'Mute sound effects' : 'Enable sound effects'}
             aria-label={sfxEnabled ? 'Sound effects enabled. Click to mute.' : 'Sound effects muted. Click to enable.'}
-            className="flex size-8 sm:size-9 items-center justify-center rounded-lg sm:rounded-xl p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition cursor-pointer"
+            className="flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-lg sm:rounded-xl p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             {sfxEnabled ? (
-              <Volume2 className="size-4 sm:size-[18px] text-orange-500" />
+              <Volume2 className="size-4 sm:size-[18px] text-orange-500 shrink-0" />
             ) : (
-              <VolumeX className="size-4 sm:size-[18px] text-slate-400" />
+              <VolumeX className="size-4 sm:size-[18px] text-slate-400 shrink-0" />
             )}
           </button>
 
@@ -356,9 +356,9 @@ export const CommunityTopNav: React.FC<CommunityTopNavProps> = ({
             onClick={toggleTheme}
             title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             aria-label="Toggle dark mode"
-            className="flex size-8 sm:size-9 items-center justify-center rounded-lg sm:rounded-xl p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition cursor-pointer"
+            className="flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-lg sm:rounded-xl p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 transition cursor-pointer"
           >
-            {isDarkMode ? <Sun className="size-4 sm:size-[18px] text-amber-400" /> : <Moon className="size-4 sm:size-[18px]" />}
+            {isDarkMode ? <Sun className="size-4 sm:size-[18px] text-amber-400 shrink-0" /> : <Moon className="size-4 sm:size-[18px] shrink-0" />}
           </button>
 
           {/* Notifications Center */}

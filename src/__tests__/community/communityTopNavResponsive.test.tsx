@@ -89,5 +89,22 @@ describe('CommunityTopNav Responsive Behavior (Mobile Landscape, Mobile Portrait
     fireEvent.click(launcherBtn);
     expect(screen.queryByText('Iunoware Apps')).not.toBeInTheDocument();
   });
+
+  it('renders the user profile avatar icon with shrink protection and accessible menu for iPad Pro portrait view', () => {
+    const onTabChange = vi.fn();
+    render(
+      <MemoryRouter>
+        <CommunityTopNav activeTab="community" onTabChange={onTabChange} />
+      </MemoryRouter>
+    );
+
+    const userProfileBtn = screen.getByRole('button', { name: /user profile menu/i });
+    expect(userProfileBtn).toBeInTheDocument();
+    expect(userProfileBtn).toHaveClass('shrink-0');
+
+    // Opens user profile menu on click
+    fireEvent.click(userProfileBtn);
+    expect(screen.getByText('My Profile')).toBeInTheDocument();
+  });
 });
 
