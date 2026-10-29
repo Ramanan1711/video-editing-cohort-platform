@@ -120,13 +120,13 @@ function AdminCoursesView() {
   return (
     <div className="min-h-screen bg-[#f6f7f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       {/* Header */}
-      <header className="border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <div className="mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-5 py-2.5 sm:py-3.5 lg:py-5 lg:px-8">
-          <div className="pl-11 sm:pl-12 lg:pl-0 min-w-0 pr-2">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95">
+        <div className="mx-auto flex flex-wrap md:flex-nowrap items-center justify-between gap-y-2.5 sm:gap-y-3 px-4 sm:px-5 py-2.5 sm:py-3 lg:py-4 lg:px-8 max-w-7xl">
+          <div className="pl-11 sm:pl-12 lg:pl-0 min-w-0 pr-2 flex-1 md:flex-initial">
             <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] text-orange-500">
               {isMentor ? 'Mentor studio' : 'Admin studio'}
             </p>
-            <h1 className="mt-0.5 text-lg sm:text-2xl font-black tracking-tight text-slate-950 dark:text-white lg:text-3xl truncate">
+            <h1 className="mt-0.5 text-base sm:text-xl lg:text-2xl font-black tracking-tight text-slate-950 dark:text-white truncate">
               {isMentor ? 'Course & Curriculum Authoring' : 'Course Authoring'}
             </h1>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 hidden sm:block truncate">
@@ -135,7 +135,20 @@ function AdminCoursesView() {
                 : 'Manage Cohorts, Modules, Lessons, Assignments, Deadlines & Lesson Resources.'}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5 shrink-0">
+
+          {/* Controls: Notifications, SFX, Dark mode, Profile */}
+          <div className="order-2 md:order-3 shrink-0 flex items-center gap-1.5 sm:gap-2.5 ml-auto md:ml-0">
+            <TopRightControls />
+          </div>
+
+          {/* Action Buttons & Badges */}
+          <div
+            className={`order-3 md:order-2 w-full md:w-auto flex flex-wrap md:flex-nowrap items-center gap-1.5 sm:gap-2.5 ${
+              canManageCurriculum || canManageCohorts
+                ? 'pt-2 border-t border-slate-100 dark:border-slate-800/80 md:border-t-0 md:pt-0'
+                : 'hidden md:flex'
+            }`}
+          >
             {isMentor ? (
               <span className="hidden xl:inline-flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-800 shadow-2xs dark:border-orange-800 dark:bg-orange-950/60 dark:text-orange-300">
                 <Sparkles size={14} className="text-orange-500" />
@@ -154,40 +167,46 @@ function AdminCoursesView() {
               </span>
             )}
             {isAdmin ? (
-              <Button href="/admin/operations" variant="secondary" className="hidden lg:inline-flex">
+              <Button href="/admin/operations" variant="secondary" size="sm" className="hidden lg:inline-flex">
                 Control Room
               </Button>
             ) : (
-              <Button href="/mentor" variant="secondary" className="hidden lg:inline-flex">
+              <Button href="/mentor" variant="secondary" size="sm" className="hidden lg:inline-flex">
                 Mentor Dashboard
               </Button>
             )}
-            <Button href="/review/submissions" variant="secondary" className="hidden lg:inline-flex">
+            <Button href="/review/submissions" variant="secondary" size="sm" className="hidden lg:inline-flex">
               Review Queue
             </Button>
             {canManageCurriculum && (
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={() => {
                   setUploadModalCohortId(undefined);
                   setShowUploadChallengeModal(true);
                 }}
-                className="border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                className="flex-1 md:flex-initial justify-center border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/40 text-xs font-bold whitespace-nowrap"
               >
-                <Upload size={15} className="mr-1 text-amber-600" /> Upload Challenge
+                <Upload size={14} className="mr-1 text-amber-600 shrink-0" />
+                <span>Upload Challenge</span>
               </Button>
             )}
             {canManageCohorts && (
-              <Button onClick={() => openCohortEditor()}>
-                <Plus size={17} /> New Cohort
+              <Button
+                size="sm"
+                onClick={() => openCohortEditor()}
+                className="flex-1 md:flex-initial justify-center text-xs font-bold whitespace-nowrap"
+              >
+                <Plus size={15} className="shrink-0" />
+                <span>New Cohort</span>
               </Button>
             )}
-            <TopRightControls />
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 sm:px-5 py-6 sm:py-8 lg:px-8">
         {/* Mentor studio banner */}
         {isMentor && (
           <div className="mb-6 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 p-4 dark:border-orange-900/50 dark:from-orange-950/40 dark:via-amber-950/30 dark:to-orange-950/20">
