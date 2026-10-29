@@ -764,14 +764,14 @@ export function MentorDashboard() {
 
             {/* SLA Queue Health & Aging Breakdown */}
             <Card className="p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-white/10 pb-4">
                 <div className="flex items-center gap-2.5">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-950/60 border border-transparent dark:border-orange-500/30 text-orange-600 dark:text-orange-400 shadow-2xs">
                     <Clock size={18} />
                   </span>
                   <div>
-                    <h2 className="text-base font-black text-slate-950">Review SLA Aging &amp; Queue Velocity</h2>
-                    <p className="text-xs text-slate-500">
+                    <h2 className="text-base font-black text-slate-950 dark:text-white">Review SLA Aging &amp; Queue Velocity</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       Monitor submission turnaround thresholds to maintain strict 24-hour mentor feedback standards.
                     </p>
                   </div>
@@ -786,20 +786,20 @@ export function MentorDashboard() {
 
               <div className="mt-5 grid gap-4 sm:grid-cols-3">
                 {/* Bucket 1: Fresh */}
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-emerald-900">Fresh Submissions</span>
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
+                <div className="rounded-xl border border-emerald-200/90 dark:border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 transition shadow-2xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200">Fresh Submissions</span>
+                    <span className="rounded-full border border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-300 shadow-2xs shrink-0">
                       &lt; 12 Hours
                     </span>
                   </div>
-                  <p className="mt-2 text-2xl font-black text-emerald-950">
+                  <p className="mt-2 text-2xl font-black text-emerald-950 dark:text-white">
                     {Math.max(0, stats.pendingCount - stats.warningCount - stats.overdueCount)}
                   </p>
-                  <p className="mt-1 text-[11px] text-emerald-700">Optimal turnaround buffer</p>
-                  <div className="mt-3 h-1.5 w-full rounded-full bg-emerald-200 overflow-hidden">
+                  <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-400">Optimal turnaround buffer</p>
+                  <div className="mt-3 h-1.5 w-full rounded-full bg-emerald-200/80 dark:bg-emerald-950/60 overflow-hidden">
                     <div
-                      className="h-full bg-emerald-600 rounded-full transition-all"
+                      className="h-full bg-emerald-600 dark:bg-emerald-500 rounded-full transition-all"
                       style={{
                         width: `${
                           stats.pendingCount > 0
@@ -814,18 +814,18 @@ export function MentorDashboard() {
                 </div>
 
                 {/* Bucket 2: Approaching Warning */}
-                <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-amber-900">Approaching SLA</span>
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">
+                <div className="rounded-xl border border-amber-200/90 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 p-4 transition shadow-2xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-amber-900 dark:text-amber-200">Approaching SLA</span>
+                    <span className="rounded-full border border-amber-300/80 dark:border-amber-500/30 bg-amber-100 dark:bg-amber-950/60 px-2.5 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300 shadow-2xs shrink-0">
                       12 - 24 Hours
                     </span>
                   </div>
-                  <p className="mt-2 text-2xl font-black text-amber-950">{stats.warningCount}</p>
-                  <p className="mt-1 text-[11px] text-amber-700">Needs mentor attention today</p>
-                  <div className="mt-3 h-1.5 w-full rounded-full bg-amber-200 overflow-hidden">
+                  <p className="mt-2 text-2xl font-black text-amber-950 dark:text-white">{stats.warningCount}</p>
+                  <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-400">Needs mentor attention today</p>
+                  <div className="mt-3 h-1.5 w-full rounded-full bg-amber-200/80 dark:bg-amber-950/60 overflow-hidden">
                     <div
-                      className="h-full bg-amber-600 rounded-full transition-all"
+                      className="h-full bg-amber-600 dark:bg-amber-500 rounded-full transition-all"
                       style={{
                         width: `${
                           stats.pendingCount > 0 ? (stats.warningCount / stats.pendingCount) * 100 : 0
@@ -836,18 +836,18 @@ export function MentorDashboard() {
                 </div>
 
                 {/* Bucket 3: Overdue */}
-                <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-red-900">Overdue Breaches</span>
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-800">
+                <div className="rounded-xl border border-red-200/90 dark:border-red-500/30 bg-red-50/50 dark:bg-red-950/20 p-4 transition shadow-2xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-red-900 dark:text-red-200">Overdue Breaches</span>
+                    <span className="rounded-full border border-red-300/80 dark:border-red-500/30 bg-red-100 dark:bg-red-950/60 px-2.5 py-0.5 text-[10px] font-black text-red-800 dark:text-red-300 shadow-2xs shrink-0">
                       &gt; 24 Hours
                     </span>
                   </div>
-                  <p className="mt-2 text-2xl font-black text-red-950">{stats.overdueCount}</p>
-                  <p className="mt-1 text-[11px] text-red-700">Urgent review required</p>
-                  <div className="mt-3 h-1.5 w-full rounded-full bg-red-200 overflow-hidden">
+                  <p className="mt-2 text-2xl font-black text-red-950 dark:text-white">{stats.overdueCount}</p>
+                  <p className="mt-1 text-[11px] text-red-700 dark:text-red-400">Urgent review required</p>
+                  <div className="mt-3 h-1.5 w-full rounded-full bg-red-200/80 dark:bg-red-950/60 overflow-hidden">
                     <div
-                      className="h-full bg-red-600 rounded-full transition-all"
+                      className="h-full bg-red-600 dark:bg-red-500 rounded-full transition-all"
                       style={{
                         width: `${
                           stats.pendingCount > 0 ? (stats.overdueCount / stats.pendingCount) * 100 : 0
@@ -861,45 +861,47 @@ export function MentorDashboard() {
 
             {/* Student Skill Distribution across Cohorts */}
             <Card className="p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-white/10 pb-4">
                 <div className="flex items-center gap-2.5">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-950/60 border border-transparent dark:border-purple-500/30 text-purple-600 dark:text-purple-400 shadow-2xs">
                     <BarChart3 size={18} />
                   </span>
                   <div>
-                    <h2 className="text-base font-black text-slate-950">Cohort Student Skill Distribution</h2>
-                    <p className="text-xs text-slate-500">
+                    <h2 className="text-base font-black text-slate-950 dark:text-white">Cohort Student Skill Distribution</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       Aggregate rubric proficiency metrics across active cohorts to target live workshops.
                     </p>
                   </div>
                 </div>
-                <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-[10px] font-bold text-purple-700">
+                <span className="rounded-full bg-purple-50 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/40 px-2.5 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300 shrink-0">
                   5-Point Rubric Baseline
                 </span>
               </div>
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-5">
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5 sm:gap-4">
                 {skillItems.map((crit) => (
-                  <div key={crit.title} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-slate-700">{crit.title}</span>
+                  <div key={crit.title} className="rounded-xl border border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 p-3.5 overflow-hidden">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate min-w-0" title={crit.title}>
+                        {crit.title}
+                      </span>
                       <span
-                        className={`rounded px-1.5 py-0.2 text-[9px] font-black uppercase ${
+                        className={`shrink-0 rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
                           crit.color === 'emerald'
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
                             : crit.color === 'blue'
-                            ? 'bg-blue-100 text-blue-800'
+                            ? 'border-blue-300/80 dark:border-blue-500/30 bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300'
                             : crit.color === 'purple'
-                            ? 'bg-purple-100 text-purple-800'
+                            ? 'border-purple-300/80 dark:border-purple-500/30 bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300'
                             : crit.color === 'amber'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-slate-100 text-slate-600'
+                            ? 'border-amber-300/80 dark:border-amber-500/30 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+                            : 'border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400'
                         }`}
                       >
                         {crit.status}
                       </span>
                     </div>
-                    <p className="mt-2 text-xl font-black text-slate-950">
+                    <p className="mt-2 text-xl font-black text-slate-950 dark:text-white">
                       {stats.skillDistribution && stats.skillDistribution.total_graded_reviews > 0 ? (
                         <>
                           {crit.score.toFixed(1)} <span className="text-xs font-normal text-slate-400">/ 5.0</span>
@@ -908,7 +910,7 @@ export function MentorDashboard() {
                         <span className="text-slate-400 font-bold">—</span>
                       )}
                     </p>
-                    <div className="mt-2.5 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                    <div className="mt-2.5 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
                           crit.score >= 4
@@ -932,8 +934,8 @@ export function MentorDashboard() {
                 ))}
               </div>
 
-              <div className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/50 p-3 text-xs text-amber-900 flex items-start gap-2">
-                <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+              <div className="mt-4 rounded-xl border border-amber-200/80 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 p-3 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                <AlertCircle size={15} className="text-amber-600 dark:text-[#F2B705] shrink-0 mt-0.5" />
                 <p>
                   <strong>Instructional Insight:</strong>{' '}
                   {stats.skillDistribution && stats.skillDistribution.total_graded_reviews > 0 ? (
@@ -957,15 +959,15 @@ export function MentorDashboard() {
 
             {/* Urgent Student Performance Alerts */}
             {stats.attentionStudents && stats.attentionStudents.length > 0 && (
-              <Card className="p-6 border-amber-200/80 bg-white shadow-2xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <Card className="p-6 border-amber-200/80 dark:border-amber-500/30 bg-white dark:bg-surface-card shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-white/10 pb-4">
                   <div className="flex items-center gap-2.5">
-                    <span className="flex size-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                    <span className="flex size-9 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/60 border border-transparent dark:border-amber-500/30 text-amber-700 dark:text-amber-400 shadow-2xs">
                       <AlertCircle size={18} />
                     </span>
                     <div>
-                      <h2 className="text-base font-black text-slate-950">Student Performance Alerts ({stats.attentionStudents.length})</h2>
-                      <p className="text-xs text-slate-500">
+                      <h2 className="text-base font-black text-slate-950 dark:text-white">Student Performance Alerts ({stats.attentionStudents.length})</h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         Learners in your assigned cohorts showing inactivity or multiple revision friction patterns.
                       </p>
                     </div>
@@ -977,19 +979,19 @@ export function MentorDashboard() {
                   </Link>
                 </div>
 
-                <div className="mt-4 divide-y divide-slate-100">
+                <div className="mt-4 divide-y divide-slate-100 dark:divide-white/10">
                   {stats.attentionStudents.slice(0, 5).map((st) => (
                     <div
                       key={`${st.student_id}-${st.cohort_id}`}
                       className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex size-8 items-center justify-center rounded-lg bg-amber-100 text-xs font-bold text-amber-900">
+                        <div className="flex size-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950/60 border border-transparent dark:border-amber-500/30 text-xs font-bold text-amber-900 dark:text-amber-300 shadow-2xs">
                           {st.student_name[0] || 'S'}
                         </div>
                         <div>
-                          <p className="text-xs font-black text-slate-950">{st.student_name}</p>
-                          <p className="text-[11px] text-slate-500">
+                          <p className="text-xs font-black text-slate-950 dark:text-white">{st.student_name}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
                             {st.cohort_name} · {st.progress_pct}% curriculum progress · {st.resubmission_count} revisions
                           </p>
                         </div>
@@ -999,14 +1001,14 @@ export function MentorDashboard() {
                         {st.attention_reasons.map((reason, idx) => (
                           <span
                             key={idx}
-                            className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200"
+                            className="rounded-full bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 shadow-2xs"
                           >
                             {reason}
                           </span>
                         ))}
                         <Link
                           to={`/mentor/students?search=${encodeURIComponent(st.student_name)}`}
-                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:text-orange-600 shadow-2xs"
+                          className="rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-surface-elevated px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-slate-50 dark:hover:bg-surface-elevated/80 shadow-2xs transition cursor-pointer"
                         >
                           Inspect Roster →
                         </Link>
