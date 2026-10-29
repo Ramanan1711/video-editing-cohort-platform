@@ -6,6 +6,8 @@ import type { Lesson } from '../../lib/courseService';
 
 const mockRecommendations: StudioRecommendation[] = [
   {
+    id: 'rec-1',
+    priority: 'high',
     type: 'next_lesson',
     title: 'Color Grading Masterclass Part 2',
     subtitle: 'Resume where you left off in Module 3.',
@@ -14,6 +16,8 @@ const mockRecommendations: StudioRecommendation[] = [
     targetId: 'lesson-101',
   },
   {
+    id: 'rec-2',
+    priority: 'medium',
     type: 'weak_skill',
     title: 'Audio Compression & EQ',
     subtitle: 'Critique scores highlighted muddy low-end frequencies.',
@@ -30,7 +34,7 @@ const mockLessons: Lesson[] = [
     title: 'Color Grading Masterclass Part 2',
     description: 'Learn Lumetri Curves',
     video_url: 'https://example.com/video.mp4',
-    duration_seconds: 600,
+    duration_minutes: 10,
     position: 2,
     status: 'published',
   },

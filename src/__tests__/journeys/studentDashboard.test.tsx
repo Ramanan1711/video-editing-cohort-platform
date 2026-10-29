@@ -225,6 +225,14 @@ describe('StudentDashboard - Courses Catalog & Player View', () => {
       expect(screen.getByRole('button', { name: /back to courses/i })).toBeInTheDocument();
     });
 
+    // Verify Real Metric Stat Pills render with professional dark mode classes
+    const achievementsBtn = screen.getByTitle('Click to inspect Editor Level & Milestones');
+    expect(achievementsBtn).toBeInTheDocument();
+    expect(achievementsBtn).toHaveClass('dark:border-amber-500/30');
+    expect(achievementsBtn).toHaveClass('dark:from-amber-950/40');
+    expect(screen.getByText('Streak')).toBeInTheDocument();
+    expect(screen.getByText('Time')).toBeInTheDocument();
+
     // Clicking "Back to Courses" returns to the Catalog view
     const backBtn = screen.getByRole('button', { name: /back to courses/i });
     fireEvent.click(backBtn);

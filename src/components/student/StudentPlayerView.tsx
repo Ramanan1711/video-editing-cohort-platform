@@ -452,10 +452,10 @@ export function StudentPlayerView({
                 <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
                   <div>
                     <p className="mb-1 text-xs font-bold uppercase tracking-wider text-orange-500">Keep Building Your Edge</p>
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 dark:text-white">
                       Welcome back, {profile?.full_name?.split(' ')[0] ?? 'Editor'}.
                     </h1>
-                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                       Pick up where you left off and polish your creative timeline today.
                     </p>
                   </div>
@@ -465,35 +465,41 @@ export function StudentPlayerView({
                     <button
                       type="button"
                       onClick={onOpenAchievements}
-                      className="flex items-center gap-2 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-3.5 py-2 shadow-2xs hover:border-amber-300 transition text-left"
+                      className="flex items-center gap-2.5 rounded-xl border border-amber-200/90 dark:border-amber-500/30 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-surface-elevated px-3.5 py-2 shadow-2xs hover:border-amber-300 dark:hover:border-amber-400/50 transition-all text-left cursor-pointer group"
                       title="Click to inspect Editor Level & Milestones"
                     >
-                      <Trophy size={16} className="text-amber-600" />
+                      <span className="flex size-7 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-[#F2B705] shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                        <Trophy size={15} />
+                      </span>
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-amber-800">
+                        <p className="text-[10px] uppercase font-bold text-amber-800 dark:text-amber-300">
                           Lvl {gamification.level} · {gamification.tierTitle}
                         </p>
-                        <p className="text-xs font-black text-slate-950">
-                          {gamification.totalXp} XP <span className="text-[10px] font-normal text-slate-500">({gamification.badges.filter((b) => b.unlocked).length}/7 Badges)</span>
+                        <p className="text-xs font-black text-slate-950 dark:text-white">
+                          {gamification.totalXp} XP <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400">({gamification.badges.filter((b) => b.unlocked).length}/7 Badges)</span>
                         </p>
                       </div>
                     </button>
 
-                    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-2xs">
-                      <Flame size={16} className="text-orange-500" />
+                    <div className="flex items-center gap-2.5 rounded-xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface-elevated/60 backdrop-blur-md px-3.5 py-2 shadow-2xs text-left">
+                      <span className="flex size-7 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/50 text-orange-500 dark:text-orange-400 shrink-0 shadow-2xs">
+                        <Flame size={15} />
+                      </span>
                       <div className="text-left">
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Streak</p>
-                        <p className="text-xs font-black text-slate-950">
+                        <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Streak</p>
+                        <p className="text-xs font-black text-slate-950 dark:text-white">
                           {streak} {streak === 1 ? 'day' : 'days'}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 shadow-2xs">
-                      <Clock3 size={16} className="text-blue-500" />
+                    <div className="flex items-center gap-2.5 rounded-xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-surface-elevated/60 backdrop-blur-md px-3.5 py-2 shadow-2xs text-left">
+                      <span className="flex size-7 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-500 dark:text-blue-400 shrink-0 shadow-2xs">
+                        <Clock3 size={15} />
+                      </span>
                       <div className="text-left">
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Time</p>
-                        <p className="text-xs font-black text-slate-950">{learningTimeStr}</p>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Time</p>
+                        <p className="text-xs font-black text-slate-950 dark:text-white">{learningTimeStr}</p>
                       </div>
                     </div>
                   </div>
@@ -513,21 +519,21 @@ export function StudentPlayerView({
 
                 {/* Dynamic Sprint High-Priority Notification Banner */}
                 {course.cohort && (
-                  <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 p-4 shadow-2xs">
+                  <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-orange-200/90 dark:border-orange-500/30 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 dark:from-orange-950/40 dark:via-amber-950/30 dark:to-surface-elevated p-4 shadow-2xs transition-colors">
                     <div className="flex items-center gap-3">
                       <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm shrink-0">
                         <Flame size={20} className="animate-pulse" />
                       </span>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-orange-600">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">
                             {totalSprintDays}-Day Internship Track
                           </span>
-                          <span className="rounded-full bg-orange-200/80 px-2 py-0.2 text-[9px] font-extrabold text-orange-900">
+                          <span className="rounded-full bg-orange-200/80 dark:bg-orange-900/60 dark:text-orange-200 px-2 py-0.2 text-[9px] font-extrabold text-orange-900">
                             Day {Math.min(totalSprintDays, sprintCompletedCount + 1)} of {totalSprintDays}
                           </span>
                         </div>
-                        <p className="text-xs font-black text-slate-900">
+                        <p className="text-xs font-black text-slate-900 dark:text-white">
                           {sprintCompletedCount >= totalSprintDays
                             ? `All ${totalSprintDays} Sprint challenges completed! Awaiting final graduation certification.`
                             : `Today's production task is live! Complete and submit your deliverable for mentor critique.`}
