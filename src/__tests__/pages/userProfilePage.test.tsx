@@ -146,6 +146,14 @@ describe('UserProfile Page Component (Dedicated Student Profile Area)', () => {
     expect(screen.getByText('alex@example.com')).toBeInTheDocument();
     expect(screen.getByText('+91 98765 00000')).toBeInTheDocument();
 
+    // Hero Identity Card professional home page theme styling
+    const heroHeading = screen.getByText('Alex Morgan');
+    const heroCard = heroHeading.closest('.rounded-3xl');
+    expect(heroCard).toBeInTheDocument();
+    expect(heroCard).toHaveClass('relative');
+    expect(heroCard).toHaveClass('overflow-hidden');
+    expect(heroCard).toHaveClass('dark:to-surface-base');
+
     // Stats KPIs
     expect(screen.getByText('Enrolled Courses')).toBeInTheDocument();
     expect(screen.getByText('Total Fee Paid')).toBeInTheDocument();

@@ -203,15 +203,20 @@ export function UserProfile() {
         </div>
 
         {/* 1. HERO IDENTITY CARD */}
-        <Card className="relative overflow-hidden p-6 sm:p-8 border border-slate-200 dark:border-surface-subtle bg-white dark:bg-surface-card">
-          <div className="absolute top-0 right-0 -mr-16 -mt-16 size-64 rounded-full bg-gradient-to-br from-orange-500/10 via-amber-500/10 to-transparent blur-3xl pointer-events-none" />
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/90 dark:border-white/10 bg-gradient-to-b from-white via-slate-50 to-slate-100/90 dark:from-[#0e1424] dark:via-[#090d1a] dark:to-surface-base p-6 sm:p-8 shadow-xl dark:shadow-2xl dark:shadow-black/70 backdrop-blur-2xl">
+          {/* Top Brand Spectrum Accent Bar (homepage brand signature) */}
+          <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[#B92B27] via-[#D93830] via-[#F2B705] via-[#38B44A] to-[#2675EB]" />
+
+          {/* Balanced Ambient Lighting Glows (homepage spectrum) */}
+          <div className="absolute -top-24 -right-24 size-80 sm:size-96 rounded-full bg-gradient-to-br from-[#B92B27]/12 via-[#F2B705]/10 to-transparent blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 size-80 rounded-full bg-gradient-to-tr from-[#2675EB]/10 via-[#38B44A]/8 to-transparent blur-3xl pointer-events-none" />
 
           <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
               {/* Avatar Pill */}
-              <div className="relative flex size-20 sm:size-24 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-tr from-orange-500 via-amber-500 to-orange-400 text-white font-black text-2xl sm:text-3xl shadow-xl shadow-orange-500/20 ring-4 ring-orange-100 dark:ring-surface-elevated">
+              <div className="relative flex size-20 sm:size-24 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-tr from-[#B92B27] via-[#D93830] to-[#F2B705] text-white font-black text-2xl sm:text-3xl shadow-xl shadow-[#B92B27]/25 ring-4 ring-orange-100 dark:ring-surface-elevated">
                 {initials}
-                <div className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-white dark:ring-surface-card" title="Active Student">
+                <div className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-white dark:ring-surface-card shadow-sm" title="Active Student">
                   <CheckCircle2 size={15} />
                 </div>
               </div>
@@ -222,9 +227,9 @@ export function UserProfile() {
                   <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
                     {displayName}
                   </h1>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/10 border border-orange-500/30 px-3 py-0.5 text-[10px] font-black tracking-wider uppercase text-orange-600 dark:text-orange-400">
-                    <Sparkles size={11} />
-                    {displayRole}
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#B92B27]/15 to-[#F2B705]/15 border border-[#F2B705]/30 px-3 py-0.5 text-[10px] font-black tracking-wider uppercase text-amber-700 dark:text-[#F2B705] shadow-2xs">
+                    <Sparkles size={11} className="text-amber-600 dark:text-[#F2B705]" />
+                    <span>{displayRole}</span>
                   </span>
                 </div>
 
@@ -251,7 +256,7 @@ export function UserProfile() {
                 variant="secondary"
                 size="sm"
                 onClick={() => setEditModalOpen(true)}
-                className="inline-flex items-center gap-2"
+                className="inline-flex items-center gap-2 dark:border-white/15 dark:bg-surface-elevated/60 dark:hover:bg-surface-elevated dark:text-white"
               >
                 <Edit3 size={14} />
                 <span>Edit Profile</span>
@@ -260,10 +265,10 @@ export function UserProfile() {
           </div>
 
           {/* KPI HIGHLIGHT STRIP */}
-          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-surface-subtle grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-2xl bg-slate-50 dark:bg-surface-elevated/50 p-4 border border-slate-100 dark:border-surface-subtle">
+          <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-white/10 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="rounded-2xl bg-white/80 dark:bg-surface-elevated/40 backdrop-blur-md p-4 border border-slate-200/80 dark:border-white/10 shadow-2xs hover:border-[#F2B705]/40 transition-colors">
               <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                <BookOpen size={14} className="text-orange-500" />
+                <BookOpen size={14} className="text-[#F2B705]" />
                 <span>Enrolled Courses</span>
               </div>
               <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
@@ -274,9 +279,9 @@ export function UserProfile() {
               </p>
             </div>
 
-            <div className="rounded-2xl bg-slate-50 dark:bg-surface-elevated/50 p-4 border border-slate-100 dark:border-surface-subtle">
+            <div className="rounded-2xl bg-white/80 dark:bg-surface-elevated/40 backdrop-blur-md p-4 border border-slate-200/80 dark:border-white/10 shadow-2xs hover:border-[#38B44A]/40 transition-colors">
               <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                <CreditCard size={14} className="text-emerald-500" />
+                <CreditCard size={14} className="text-[#38B44A]" />
                 <span>Total Fee Paid</span>
               </div>
               <div className="mt-2 text-2xl font-black text-emerald-600 dark:text-emerald-400">
@@ -287,9 +292,9 @@ export function UserProfile() {
               </p>
             </div>
 
-            <div className="rounded-2xl bg-slate-50 dark:bg-surface-elevated/50 p-4 border border-slate-100 dark:border-surface-subtle">
+            <div className="rounded-2xl bg-white/80 dark:bg-surface-elevated/40 backdrop-blur-md p-4 border border-slate-200/80 dark:border-white/10 shadow-2xs hover:border-[#2675EB]/40 transition-colors">
               <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                <Clock size={14} className="text-amber-500" />
+                <Clock size={14} className="text-[#2675EB]" />
                 <span>Attendance Rate</span>
               </div>
               <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
@@ -300,9 +305,9 @@ export function UserProfile() {
               </p>
             </div>
 
-            <div className="rounded-2xl bg-slate-50 dark:bg-surface-elevated/50 p-4 border border-slate-100 dark:border-surface-subtle">
+            <div className="rounded-2xl bg-white/80 dark:bg-surface-elevated/40 backdrop-blur-md p-4 border border-slate-200/80 dark:border-white/10 shadow-2xs hover:border-[#D93830]/40 transition-colors">
               <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                <ShieldCheck size={14} className="text-blue-500" />
+                <ShieldCheck size={14} className="text-[#D93830]" />
                 <span>Account Status</span>
               </div>
               <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white capitalize">
@@ -313,7 +318,7 @@ export function UserProfile() {
               </p>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* 2. SECTION TABS */}
         <div className="flex items-center gap-2 border-b border-slate-200 dark:border-surface-subtle pb-3 overflow-x-auto scrollbar-none">
