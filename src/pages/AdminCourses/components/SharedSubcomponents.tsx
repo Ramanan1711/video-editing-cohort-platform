@@ -11,14 +11,35 @@ import {
 import { Card } from '../../../components/ui/Card';
 import type { ResourceType, VisibilityRule } from '../../../lib/courseService';
 
-export function StatCard({ label, value, icon }: { label: string; value: number; icon: ReactNode }) {
+export function StatCard({
+  label,
+  value,
+  icon,
+  className = '',
+}: {
+  label: string;
+  value: number;
+  icon: ReactNode;
+  className?: string;
+}) {
   return (
-    <Card className="flex items-center justify-between p-5 shadow-sm">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{label}</p>
-        <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{value}</p>
+    <Card className={`relative overflow-hidden p-3.5 sm:p-4 lg:p-5 shadow-sm transition-all hover:shadow-md ${className}`}>
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="min-w-0 flex-1">
+          <p
+            className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate"
+            title={label}
+          >
+            {label}
+          </p>
+          <p className="mt-1 text-xl sm:text-2xl lg:text-3xl font-black text-slate-950 dark:text-white leading-tight">
+            {value}
+          </p>
+        </div>
+        <div className="flex size-8 sm:size-9 lg:size-10 shrink-0 items-center justify-center rounded-xl bg-slate-100/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+          {icon}
+        </div>
       </div>
-      <div className="flex size-10 items-center justify-center rounded-xl bg-slate-100/70 dark:bg-slate-800">{icon}</div>
     </Card>
   );
 }

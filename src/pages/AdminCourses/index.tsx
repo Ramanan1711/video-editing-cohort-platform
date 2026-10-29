@@ -229,12 +229,12 @@ function AdminCoursesView() {
           </div>
         )}
         {/* Top Stats */}
-        <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           <StatCard label="Master Courses" value={courses.length} icon={<FileText size={18} className="text-indigo-500" />} />
           <StatCard label="Cohorts" value={cohorts.length} icon={<Sparkles size={18} className="text-orange-500" />} />
           <StatCard label="Modules" value={modules.length} icon={<BookOpen size={18} className="text-blue-500" />} />
           <StatCard label="Lessons" value={totalLessons} icon={<Play size={18} className="text-emerald-500" />} />
-          <StatCard label="Assignments" value={assignments.length} icon={<Calendar size={18} className="text-purple-500" />} />
+          <StatCard label="Assignments" value={assignments.length} icon={<Calendar size={18} className="text-purple-500" />} className="col-span-2 sm:col-span-1" />
         </div>
 
         {/* Feedback Messages */}

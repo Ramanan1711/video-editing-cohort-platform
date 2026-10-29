@@ -113,4 +113,50 @@ describe('AdminCourses Responsive Header (Mobile View Portrait, Tablet & Desktop
     // Verify TopRightControls
     expect(screen.getByRole('button', { name: /Toggle dark mode/i })).toBeInTheDocument();
   });
+
+  it('renders top stats grid and StatCards with overflow-hidden and adaptive column constraints for tablet portrait', async () => {
+    vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+      user: { id: 'admin-1', email: 'admin@example.com' } as any,
+      profile: mockAdminProfile,
+      loading: false,
+      signOut: vi.fn(),
+      refreshProfile: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <AdminCourses />
+      </MemoryRouter>
+    );
+
+    // Wait for stat cards to render
+    expect(await screen.findByText('Master Courses')).toBeInTheDocument();
+    expect(screen.getByText('Cohorts')).toBeInTheDocument();
+    expect(screen.getByText('Modules')).toBeInTheDocument();
+    expect(screen.getByText('Lessons')).toBeInTheDocument();
+    expect(screen.getByText('Assignments')).toBeInTheDocument();
+
+    // Verify stats grid classes: sm:grid-cols-3 and xl:grid-cols-5 (preventing 5 cramped columns on tablet portrait)
+    const masterCoursesCard = screen.getByText('Master Courses').closest('.rounded-2xl');
+    const statsGrid = masterCoursesCard?.parentElement;
+    expect(statsGrid).toHaveClass('grid');
+    expect(statsGrid).toHaveClass('grid-cols-2');
+    expect(statsGrid).toHaveClass('sm:grid-cols-3');
+    expect(statsGrid).toHaveClass('xl:grid-cols-5');
+
+    // Verify StatCard container safety: overflow-hidden, relative positioning, and adaptive padding
+    expect(masterCoursesCard).toHaveClass('relative');
+    expect(masterCoursesCard).toHaveClass('overflow-hidden');
+    expect(masterCoursesCard).toHaveClass('p-3.5');
+
+    // Verify text container has min-w-0 flex-1 with truncate label
+    const labelElem = screen.getByText('Master Courses');
+    expect(labelElem).toHaveClass('truncate');
+    expect(labelElem.parentElement).toHaveClass('min-w-0');
+    expect(labelElem.parentElement).toHaveClass('flex-1');
+
+    // Verify icon badge container has shrink-0 and adaptive size
+    const iconContainer = masterCoursesCard?.querySelector('.rounded-xl.bg-slate-100\\/80, .rounded-xl.dark\\:bg-slate-800');
+    expect(iconContainer).toHaveClass('shrink-0');
+  });
 });
