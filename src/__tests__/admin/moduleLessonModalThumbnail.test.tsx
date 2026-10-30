@@ -159,4 +159,23 @@ describe('ModuleLessonModal Video Thumbnail Provision', () => {
     fireEvent.click(screen.getByRole('button', { name: /Remove/i }));
     expect(screen.queryByText(/cool-cover.png/i)).not.toBeInTheDocument();
   });
+
+  it('renders uploaded mobile photos with long filenames safely inside bounded pill', () => {
+    render(<TestWrapper />);
+
+    const thumbFileInput = screen.getByLabelText('Upload Thumbnail Image') as HTMLInputElement;
+    const longFileName = 'IMG_20261030_170613_ultra_high_res_mobile_capture_screenshot_cover_aspect_ratio_16_9.png';
+    const mockFile = new File(['image-bytes'], longFileName, { type: 'image/png' });
+    fireEvent.change(thumbFileInput, { target: { files: [mockFile] } });
+
+    // File name text should exist and contain truncate block class for mobile responsiveness
+    const fileNameElements = screen.getAllByText(longFileName);
+    expect(fileNameElements.length).toBeGreaterThan(0);
+    const textSpan = fileNameElements[0];
+    expect(textSpan.className).toContain('truncate');
+
+    // Remove button is accessible and visible
+    const removeBtn = screen.getByRole('button', { name: /Remove/i });
+    expect(removeBtn).toBeInTheDocument();
+  });
 });
