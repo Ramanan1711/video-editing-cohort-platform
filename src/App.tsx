@@ -120,7 +120,7 @@ function AnimatedRoutes() {
                     <Route
                       path="/community"
                       element={
-                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']} requireEnrolledCourse>
                           <WorkspaceShell>
                             <Suspense fallback={<PageLoadingFallback />}>
                               <CommunityHub />
@@ -132,7 +132,7 @@ function AnimatedRoutes() {
                     <Route
                       path="/messages"
                       element={
-                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']} requireEnrolledCourse>
                           <WorkspaceShell>
                             <Suspense fallback={<PageLoadingFallback />}>
                               <CommunityHub />

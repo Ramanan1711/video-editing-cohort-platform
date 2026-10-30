@@ -12,6 +12,8 @@ import {
   Award,
   Loader2,
   BookOpen,
+  Lock,
+  ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
 import {
@@ -24,6 +26,7 @@ import {
 } from '../../lib/gamificationService';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 import { fetchUserProHistory, type ProHistoryTransaction } from '../../lib/gamificationService';
+import { checkStudentLoginAccess } from '../../lib/studentAccessService';
 
 interface LevelUpModalProps {
   isOpen: boolean;
@@ -46,6 +49,35 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
   const [initialCohortResolved, setInitialCohortResolved] = useState<boolean>(false);
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(profile?.role !== 'student');
+  const [checkingEnrollment, setCheckingEnrollment] = useState<boolean>(profile?.role === 'student');
+
+  // Verify student cohort enrollment
+  useEffect(() => {
+    if (!isOpen || !user?.id || profile?.role !== 'student') {
+      if (profile?.role !== 'student') {
+        setIsEnrolled(true);
+        setCheckingEnrollment(false);
+      }
+      return;
+    }
+    let active = true;
+    setCheckingEnrollment(true);
+    checkStudentLoginAccess(user.id)
+      .then((res) => {
+        if (!active) return;
+        setIsEnrolled(res.isEnrolled);
+      })
+      .catch(() => {
+        if (active) setIsEnrolled(false);
+      })
+      .finally(() => {
+        if (active) setCheckingEnrollment(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isOpen, user?.id, profile?.role]);
 
   // Fetch dynamic PRO points history when history modal is viewed
   useEffect(() => {
@@ -58,6 +90,14 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
   useEffect(() => {
     let isMounted = true;
     async function loadCourses() {
+      // If student is unenrolled, do not leak cohort list
+      if (profile?.role === 'student' && !isEnrolled) {
+        if (!isMounted) return;
+        setCourses([]);
+        setInitialCohortResolved(true);
+        return;
+      }
+
       let enrolledCourses: CourseOption[] = [];
       if (user?.id) {
         enrolledCourses = await fetchUserEnrolledCourses(user.id);
@@ -87,6 +127,14 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
         return;
       }
 
+      // Fallback: If non-student user has 0 enrollments (e.g., admin exploring catalog), fetch available courses
+      if (profile?.role === 'student') {
+        if (!isMounted) return;
+        setCourses([]);
+        setInitialCohortResolved(true);
+        return;
+      }
+
       const courseList = await fetchAvailableCourses();
       if (!isMounted) return;
       setCourses(courseList);
@@ -96,18 +144,25 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
       }
       setInitialCohortResolved(true);
     }
-    if (isOpen) {
+    if (isOpen && (!checkingEnrollment || profile?.role !== 'student')) {
       void loadCourses();
     }
     return () => {
       isMounted = false;
     };
-  }, [isOpen, user?.id]);
+  }, [isOpen, user?.id, profile?.role, isEnrolled, checkingEnrollment]);
 
   // Fetch enrolled students dynamically from Supabase
   useEffect(() => {
     let isMounted = true;
     async function loadMembers() {
+      if (profile?.role === 'student' && !isEnrolled) {
+        if (isMounted) {
+          setMembers([]);
+          setLoadingMembers(false);
+        }
+        return;
+      }
       try {
         setLoadingMembers(true);
         const data = await fetchEnrolledLeaderboard(
@@ -125,13 +180,13 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
         }
       }
     }
-    if (isOpen && (initialCohortResolved || selectedCohortId !== 'all')) {
+    if (isOpen && (initialCohortResolved || selectedCohortId !== 'all') && (!checkingEnrollment || profile?.role !== 'student')) {
       loadMembers();
     }
     return () => {
       isMounted = false;
     };
-  }, [isOpen, selectedCohortId, user?.id, initialCohortResolved]);
+  }, [isOpen, selectedCohortId, user?.id, initialCohortResolved, profile?.role, isEnrolled, checkingEnrollment]);
 
   // User's current rank data
   const currentUserMember = useMemo(() => {
@@ -202,11 +257,13 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
                   Level Up &amp; Mastery
                 </h2>
                 <span className="rounded-full bg-amber-500/10 dark:bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-black tracking-wider uppercase text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                  PRO LEADERBOARD
+                  {profile?.role === 'student' && !isEnrolled ? 'ENROLLMENT REQUIRED' : 'PRO LEADERBOARD'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Compare your editing points, habit streaks, and cohort rank with fellow creators
+                {profile?.role === 'student' && !isEnrolled
+                  ? 'Access to live sprints, XP tracking, and peer leaderboards requires an active cohort'
+                  : 'Compare your editing points, habit streaks, and cohort rank with fellow creators'}
               </p>
             </div>
           </div>
@@ -224,8 +281,56 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
           </div>
         </div>
 
-        {/* Modal Main Grid Layout (3 Columns matching reference) */}
-        <div className="p-4 sm:p-6 lg:p-7">
+        {/* Modal Main Grid Layout or Enrollment Paywall */}
+        {checkingEnrollment ? (
+          <div className="flex h-96 items-center justify-center p-12">
+            <Loader2 className="size-8 animate-spin text-amber-500" />
+          </div>
+        ) : profile?.role === 'student' && !isEnrolled ? (
+          <div className="flex flex-col items-center justify-center p-8 sm:p-14 text-center">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 dark:text-amber-400">
+              <Lock size={28} />
+            </div>
+            <h3 className="mt-4 text-xl font-black text-slate-900 dark:text-white">
+              Cohort Enrollment Required
+            </h3>
+            <p className="mt-2 max-w-md text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              Level UP challenges, habit streak tracking, and XP sprint leaderboards are exclusive to enrolled cohort students. You are registered with an account, but have not yet enrolled in any cohort.
+            </p>
+            <div className="mt-5 w-full max-w-sm rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/80 dark:bg-black/40 p-3 text-left text-xs text-slate-600 dark:text-slate-400 space-y-1.5">
+              <div className="flex justify-between">
+                <span>Account:</span>
+                <span className="font-mono text-slate-900 dark:text-white font-bold">{user?.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Membership:</span>
+                <span className="font-mono text-amber-600 dark:text-amber-400 font-bold">Registered (Unenrolled)</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 dark:border-white/5">
+                <span>Access Requirement:</span>
+                <span>Active Cohort Enrollment</span>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+              <a
+                href="/#pricing"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#B92B27] hover:bg-[#D93830] px-4 py-2.5 text-xs font-bold text-white transition-colors cursor-pointer shadow-sm"
+              >
+                Explore Cohorts &amp; Enroll <ArrowRight size={14} />
+              </a>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/80 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Modal Main Grid Layout (3 Columns matching reference) */}
+            <div className="p-4 sm:p-6 lg:p-7">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
             
             {/* ========================================================================= */}
@@ -869,7 +974,9 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose }) =
             Close
           </button>
         </div>
-      </div>
+      </>
+    )}
+  </div>
 
       {/* ========================================================================= */}
       {/* Nested PRO Points History Modal                                           */}

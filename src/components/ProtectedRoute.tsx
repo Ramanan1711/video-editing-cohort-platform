@@ -196,7 +196,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           </div>
           <h2 className="mt-4 text-xl font-black text-white">Course Enrollment Required</h2>
           <p className="mt-2 text-xs text-slate-300 leading-relaxed">
-            Live interactive workshops, weekly masterclasses, and mentor sessions are exclusive to enrolled cohort students. You are registered with an account, but have not yet enrolled in any cohort.
+            Live interactive workshops, weekly masterclasses, community discussion hubs, cohort channels, and Level UP challenges are exclusive to enrolled cohort students. You are registered with an account, but have not yet enrolled in any cohort.
           </p>
           <div className="mt-4 rounded-xl border border-white/10 bg-black/40 p-3 text-left text-xs text-slate-400 space-y-1">
             <div className="flex justify-between">

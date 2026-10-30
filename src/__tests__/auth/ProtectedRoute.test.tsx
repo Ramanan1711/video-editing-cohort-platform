@@ -279,4 +279,60 @@ describe('ProtectedRoute Component', () => {
     expect(await screen.findByText('Protected Live Workshops Content')).toBeInTheDocument();
     expect(screen.queryByText('Course Enrollment Required')).not.toBeInTheDocument();
   });
+
+  it('strictly blocks registered but unenrolled students from /community and /messages', async () => {
+    vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+      user: { id: 'user-student-unenrolled-2', email: 'unenrolled2@cutcraft.test' },
+      profile: { id: 'user-student-unenrolled-2', email: 'unenrolled2@cutcraft.test', role: 'student', status: 'active' },
+      loading: false,
+      signOut: mockSignOut,
+      refreshProfile: mockRefreshProfile,
+      login: vi.fn(),
+      signup: vi.fn(),
+    } as unknown as ReturnType<typeof useAuthModule.useAuth>);
+
+    vi.spyOn(studentAccessService, 'checkStudentLoginAccess').mockResolvedValue({
+      hasAccess: true,
+      isEnrolled: false,
+      courseEndDate: null,
+      accessExpiryDate: null,
+      formattedCourseEndDate: null,
+      formattedAccessExpiryDate: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/community']}>
+        <ProtectedRoute allowedRoles={['student', 'mentor', 'admin', 'super_admin']} requireEnrolledCourse>
+          <div>Community &amp; Level UP Hub Content</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Course Enrollment Required')).toBeInTheDocument();
+    expect(screen.getByText('Registered (Unenrolled)')).toBeInTheDocument();
+    expect(screen.queryByText('Community & Level UP Hub Content')).not.toBeInTheDocument();
+  });
+
+  it('permits mentors and admins through without requiring enrolled course', () => {
+    vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+      user: { id: 'user-mentor-1', email: 'mentor@cutcraft.test' },
+      profile: { id: 'user-mentor-1', email: 'mentor@cutcraft.test', role: 'mentor', status: 'active' },
+      loading: false,
+      signOut: mockSignOut,
+      refreshProfile: mockRefreshProfile,
+      login: vi.fn(),
+      signup: vi.fn(),
+    } as unknown as ReturnType<typeof useAuthModule.useAuth>);
+
+    render(
+      <MemoryRouter initialEntries={['/community']}>
+        <ProtectedRoute allowedRoles={['student', 'mentor', 'admin', 'super_admin']} requireEnrolledCourse>
+          <div>Community &amp; Level UP Hub Content</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Community & Level UP Hub Content')).toBeInTheDocument();
+    expect(screen.queryByText('Course Enrollment Required')).not.toBeInTheDocument();
+  });
 });

@@ -29,8 +29,10 @@ import {
   BookOpen,
   ExternalLink,
   Loader2,
+  ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../../context/useAuth';
+import { checkStudentLoginAccess } from '../../lib/studentAccessService';
 import {
   fetchEnrolledLeaderboard,
   fetchAvailableCourses,
@@ -202,6 +204,35 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
   const [initialCohortResolved, setInitialCohortResolved] = useState<boolean>(false);
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(profile?.role !== 'student');
+  const [checkingEnrollment, setCheckingEnrollment] = useState<boolean>(profile?.role === 'student');
+
+  // Verify student cohort enrollment
+  useEffect(() => {
+    if (!user?.id || profile?.role !== 'student') {
+      if (profile?.role !== 'student') {
+        setIsEnrolled(true);
+        setCheckingEnrollment(false);
+      }
+      return;
+    }
+    let active = true;
+    setCheckingEnrollment(true);
+    checkStudentLoginAccess(user.id)
+      .then((res) => {
+        if (!active) return;
+        setIsEnrolled(res.isEnrolled);
+      })
+      .catch(() => {
+        if (active) setIsEnrolled(false);
+      })
+      .finally(() => {
+        if (active) setCheckingEnrollment(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.id, profile?.role]);
 
   // Selected course details
   const selectedCourse = useMemo(() => {
@@ -216,6 +247,14 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
   useEffect(() => {
     let isMounted = true;
     async function loadCourses() {
+      // If student is unenrolled, do not leak cohort list
+      if (profile?.role === 'student' && !isEnrolled) {
+        if (!isMounted) return;
+        setCourses([]);
+        setInitialCohortResolved(true);
+        return;
+      }
+
       let enrolledCourses: CourseOption[] = [];
       if (user?.id) {
         enrolledCourses = await fetchUserEnrolledCourses(user.id);
@@ -247,7 +286,14 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
         return;
       }
 
-      // Fallback: If user has 0 enrollments (e.g., admin exploring catalog, or guest), fetch available courses
+      // Fallback: If non-student user has 0 enrollments (e.g., admin exploring catalog), fetch available courses
+      if (profile?.role === 'student') {
+        if (!isMounted) return;
+        setCourses([]);
+        setInitialCohortResolved(true);
+        return;
+      }
+
       const courseList = await fetchAvailableCourses();
       if (!isMounted) return;
       setCourses(courseList);
@@ -257,16 +303,25 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
       }
       setInitialCohortResolved(true);
     }
-    void loadCourses();
+    if (!checkingEnrollment || profile?.role !== 'student') {
+      void loadCourses();
+    }
     return () => {
       isMounted = false;
     };
-  }, [user?.id]);
+  }, [user?.id, profile?.role, isEnrolled, checkingEnrollment]);
 
   // Fetch enrolled students and their live XP points whenever selected cohort changes
   useEffect(() => {
     let isMounted = true;
     async function loadMembers() {
+      if (profile?.role === 'student' && !isEnrolled) {
+        if (isMounted) {
+          setMembers([]);
+          setLoadingMembers(false);
+        }
+        return;
+      }
       setLoadingMembers(true);
       const data = await fetchEnrolledLeaderboard(
         selectedCohortId !== 'all' ? selectedCohortId : undefined,
@@ -277,13 +332,13 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
         setLoadingMembers(false);
       }
     }
-    if (initialCohortResolved || selectedCohortId !== 'all') {
+    if ((initialCohortResolved || selectedCohortId !== 'all') && (!checkingEnrollment || profile?.role !== 'student')) {
       loadMembers();
     }
     return () => {
       isMounted = false;
     };
-  }, [selectedCohortId, user?.id, initialCohortResolved]);
+  }, [selectedCohortId, user?.id, initialCohortResolved, profile?.role, isEnrolled, checkingEnrollment]);
 
   // Dynamic live today reference (defaults to real current Date)
   // Dynamic reference for Today (supports testing with initialDate or live clock)
@@ -734,6 +789,58 @@ export const LevelUpView: React.FC<LevelUpViewProps> = ({
     if (challengeFilter === 'all') return challenges;
     return challenges.filter((c) => c.status === challengeFilter);
   }, [challenges, challengeFilter]);
+
+  if (profile?.role === 'student' && checkingEnrollment) {
+    return (
+      <div className="flex-1 flex min-h-[400px] items-center justify-center bg-[#f8f9fc] dark:bg-slate-950">
+        <Loader2 className="size-8 animate-spin text-amber-500" />
+      </div>
+    );
+  }
+
+  if (profile?.role === 'student' && !isEnrolled) {
+    return (
+      <div className="flex-1 flex min-h-[500px] items-center justify-center p-6 text-center bg-[#f8f9fc] dark:bg-slate-950">
+        <div className="w-full max-w-md rounded-2xl border border-amber-500/20 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-md">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400">
+            <Lock size={28} />
+          </div>
+          <h2 className="mt-4 text-xl font-black text-white">Cohort Enrollment Required</h2>
+          <p className="mt-2 text-xs text-slate-300 leading-relaxed">
+            Level UP challenges, habit streak tracking, and XP sprint leaderboards are exclusive to enrolled cohort students. You are registered with an account, but have not yet enrolled in any cohort.
+          </p>
+          <div className="mt-4 rounded-xl border border-white/10 bg-black/40 p-3 text-left text-xs text-slate-400 space-y-1">
+            <div className="flex justify-between">
+              <span>Account:</span>
+              <span className="font-mono text-white font-bold">{user?.email}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Membership:</span>
+              <span className="font-mono text-amber-400 font-bold">Registered (Unenrolled)</span>
+            </div>
+            <div className="flex justify-between text-[11px] text-slate-500 pt-1 border-t border-white/5">
+              <span>Access Requirement:</span>
+              <span>Active Cohort Enrollment</span>
+            </div>
+          </div>
+          <div className="mt-6 flex flex-col gap-2.5">
+            <a
+              href="/#pricing"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#B92B27] hover:bg-[#D93830] px-4 py-2.5 text-xs font-bold text-white transition-colors cursor-pointer"
+            >
+              Explore Cohorts &amp; Enroll <ArrowRight size={14} />
+            </a>
+            <Link
+              to="/student/dashboard"
+              className="rounded-xl border border-white/10 bg-slate-800/80 px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors block text-center"
+            >
+              Go to Student Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex overflow-hidden bg-[#f8f9fc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
