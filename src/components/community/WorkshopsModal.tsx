@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Video, Clock, ExternalLink, Calendar, Loader2 } from 'lucide-react';
+import { X, Video, Clock, ExternalLink, Calendar, Loader2, Lock, ArrowRight } from 'lucide-react';
+import { useAuth } from '../../context/useAuth';
+import { checkStudentLoginAccess } from '../../lib/studentAccessService';
 import {
   listStudentLiveSessions,
   type StudentLiveSession,
@@ -22,11 +24,48 @@ interface FormattedWorkshop {
 
 export const WorkshopsModal: React.FC<WorkshopsModalProps> = ({ isOpen, onClose }) => {
   useModalScrollLock(isOpen);
+  const { user, profile } = useAuth();
   const [workshops, setWorkshops] = useState<FormattedWorkshop[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(() => profile?.role !== 'student');
+  const [checkingEnrollment, setCheckingEnrollment] = useState<boolean>(() => profile?.role === 'student');
 
   useEffect(() => {
     if (!isOpen) return;
+    if (!user?.id || profile?.role !== 'student') {
+      setIsEnrolled(true);
+      setCheckingEnrollment(false);
+      return;
+    }
+
+    let active = true;
+    checkStudentLoginAccess(user.id)
+      .then((res) => {
+        if (!active) return;
+        setIsEnrolled(res.isEnrolled);
+        setCheckingEnrollment(false);
+      })
+      .catch(() => {
+        if (active) {
+          setIsEnrolled(true);
+          setCheckingEnrollment(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, user?.id, profile?.role]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (checkingEnrollment) return;
+    if (profile?.role === 'student' && !isEnrolled) {
+      setWorkshops([]);
+      setLoading(false);
+      return;
+    }
+
     let active = true;
 
     async function loadSessions() {
@@ -101,10 +140,32 @@ export const WorkshopsModal: React.FC<WorkshopsModalProps> = ({ isOpen, onClose 
           </button>
         </div>
 
-        {loading ? (
+        {checkingEnrollment || loading ? (
           <div className="flex flex-col items-center justify-center py-12 text-slate-400">
             <Loader2 size={24} className="animate-spin text-orange-500 mb-2" />
             <p className="text-xs font-semibold">Loading live sessions...</p>
+          </div>
+        ) : !isEnrolled && profile?.role === 'student' ? (
+          <div className="py-8 px-4 text-center">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 mb-3">
+              <Lock size={26} />
+            </div>
+            <h4 className="text-sm font-black text-slate-950 dark:text-white">
+              Cohort Enrollment Required
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
+              Live interactive workshops, weekly masterclasses, and mentor critiques are exclusive to students enrolled in an active cohort sprint.
+            </p>
+            <div className="mt-5 flex justify-center gap-3">
+              <a
+                href="/#pricing"
+                onClick={onClose}
+                className="flex items-center gap-1.5 rounded-xl bg-[#B92B27] hover:bg-[#D93830] px-4 py-2 text-xs font-bold text-white transition-colors"
+              >
+                <span>Explore Cohorts &amp; Enroll</span>
+                <ArrowRight size={13} />
+              </a>
+            </div>
           </div>
         ) : workshops.length > 0 ? (
           <div className="mt-4 space-y-3 max-h-[420px] overflow-y-auto pr-1">

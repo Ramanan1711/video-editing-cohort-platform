@@ -144,7 +144,7 @@ function AnimatedRoutes() {
                     <Route
                       path="/workshops"
                       element={
-                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']} requireEnrolledCourse>
                           <WorkspaceShell>
                             <Suspense fallback={<PageLoadingFallback />}>
                               <WorkshopsPage />

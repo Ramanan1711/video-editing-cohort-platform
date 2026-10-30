@@ -138,8 +138,38 @@ export async function listStudentAnnouncements(cohortId?: string | null): Promis
   return (data ?? []) as StudentAnnouncement[];
 }
 
-// Student Live Sessions
+// Student Live Sessions (Enforces Paid/Enrolled Access Guard)
 export async function listStudentLiveSessions(): Promise<StudentLiveSession[]> {
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const currentUser = authData?.user;
+
+    if (currentUser?.id) {
+      // Check user role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+
+      // If user is a student, ensure they have at least one active/completed enrollment
+      if (profile?.role === 'student') {
+        const { data: enrollments, error: enrollError } = await supabase
+          .from('enrollments')
+          .select('cohort_id, status')
+          .eq('user_id', currentUser.id)
+          .in('status', ['enrolled', 'active', 'completed']);
+
+        if (enrollError || !enrollments || enrollments.length === 0) {
+          // Registered but unenrolled: strictly return empty list to protect meeting URLs
+          return [];
+        }
+      }
+    }
+  } catch {
+    // Fail closed on security verification error
+  }
+
   const { data, error } = await supabase
     .from('live_sessions')
     .select('id, title, description, starts_at, meeting_url')

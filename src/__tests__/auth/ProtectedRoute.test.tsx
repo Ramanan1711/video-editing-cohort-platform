@@ -213,4 +213,70 @@ describe('ProtectedRoute Component', () => {
     fireEvent.click(signOutBtn);
     expect(mockSignOut).toHaveBeenCalledTimes(1);
   });
+
+  it('strictly blocks registered but unenrolled students when requireEnrolledCourse is true', async () => {
+    vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+      user: { id: 'user-student-unenrolled', email: 'unenrolled@cutcraft.test' },
+      profile: { id: 'user-student-unenrolled', email: 'unenrolled@cutcraft.test', role: 'student', status: 'active' },
+      loading: false,
+      signOut: mockSignOut,
+      refreshProfile: mockRefreshProfile,
+      login: vi.fn(),
+      signup: vi.fn(),
+    } as unknown as ReturnType<typeof useAuthModule.useAuth>);
+
+    vi.spyOn(studentAccessService, 'checkStudentLoginAccess').mockResolvedValue({
+      hasAccess: true,
+      isEnrolled: false,
+      courseEndDate: null,
+      accessExpiryDate: null,
+      formattedCourseEndDate: null,
+      formattedAccessExpiryDate: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/workshops']}>
+        <ProtectedRoute allowedRoles={['student']} requireEnrolledCourse>
+          <div>Protected Live Workshops Content</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Course Enrollment Required')).toBeInTheDocument();
+    expect(screen.getByText('Registered (Unenrolled)')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Explore Cohorts & Enroll/i })).toBeInTheDocument();
+    expect(screen.queryByText('Protected Live Workshops Content')).not.toBeInTheDocument();
+  });
+
+  it('permits enrolled students through when requireEnrolledCourse is true', async () => {
+    vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+      user: { id: 'user-student-enrolled', email: 'enrolled@cutcraft.test' },
+      profile: { id: 'user-student-enrolled', email: 'enrolled@cutcraft.test', role: 'student', status: 'active' },
+      loading: false,
+      signOut: mockSignOut,
+      refreshProfile: mockRefreshProfile,
+      login: vi.fn(),
+      signup: vi.fn(),
+    } as unknown as ReturnType<typeof useAuthModule.useAuth>);
+
+    vi.spyOn(studentAccessService, 'checkStudentLoginAccess').mockResolvedValue({
+      hasAccess: true,
+      isEnrolled: true,
+      courseEndDate: '2026-12-15T00:00:00.000Z',
+      accessExpiryDate: '2027-02-14T00:00:00.000Z',
+      formattedCourseEndDate: '15 Dec 2026',
+      formattedAccessExpiryDate: '14 Feb 2027',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/workshops']}>
+        <ProtectedRoute allowedRoles={['student']} requireEnrolledCourse>
+          <div>Protected Live Workshops Content</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Protected Live Workshops Content')).toBeInTheDocument();
+    expect(screen.queryByText('Course Enrollment Required')).not.toBeInTheDocument();
+  });
 });

@@ -16,10 +16,13 @@ import {
   Loader2,
   Users,
   CheckCircle2,
+  Lock,
+  ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { CommunityTopNav } from '../components/community/CommunityTopNav';
 import { LevelUpModal } from '../components/community/LevelUpModal';
+import { checkStudentLoginAccess } from '../lib/studentAccessService';
 import {
   listStudentLiveSessions,
   type StudentLiveSession,
@@ -83,7 +86,44 @@ export function WorkshopsPage() {
   const [checkedInIds, setCheckedInIds] = useState<Set<string>>(new Set());
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
 
+  // Student enrollment status verification (registered vs enrolled)
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(() => {
+    return profile?.role !== 'student';
+  });
+  const [checkingEnrollment, setCheckingEnrollment] = useState<boolean>(() => {
+    return profile?.role === 'student';
+  });
+
+  useEffect(() => {
+    if (!user?.id || profile?.role !== 'student') {
+      setIsEnrolled(true);
+      setCheckingEnrollment(false);
+      return;
+    }
+    let active = true;
+    checkStudentLoginAccess(user.id)
+      .then((res) => {
+        if (!active) return;
+        setIsEnrolled(res.isEnrolled);
+        setCheckingEnrollment(false);
+      })
+      .catch(() => {
+        if (active) {
+          setIsEnrolled(true);
+          setCheckingEnrollment(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.id, profile?.role]);
+
   const loadLiveSessions = async () => {
+    if (profile?.role === 'student' && !isEnrolled && !checkingEnrollment) {
+      setWorkshops([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const data: StudentLiveSession[] = await listStudentLiveSessions();
@@ -148,6 +188,13 @@ export function WorkshopsPage() {
   };
 
   useEffect(() => {
+    if (checkingEnrollment) return;
+    if (profile?.role === 'student' && !isEnrolled) {
+      setWorkshops([]);
+      setLoading(false);
+      return;
+    }
+
     void loadLiveSessions();
     if (user?.id) {
       void getStudentAttendanceHistory(user.id).then((history) => {
@@ -157,7 +204,7 @@ export function WorkshopsPage() {
         setCheckedInIds(attended);
       });
     }
-  }, [user?.id]);
+  }, [user?.id, isEnrolled, checkingEnrollment, profile?.role]);
 
   const handleCheckIn = async (workshopId: string) => {
     if (!user) return;
@@ -313,7 +360,8 @@ export function WorkshopsPage() {
           </div>
 
           {/* Right Controls: Date Range Filter Pill + Refresh Button + Optional Mentor Schedule Button */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          {(!profile || profile.role !== 'student' || isEnrolled) && (
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {canManageSessions && (
               <button
                 type="button"
@@ -421,9 +469,58 @@ export function WorkshopsPage() {
               <RotateCw size={15} className={loading ? 'animate-spin text-orange-500' : ''} />
             </button>
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Sub-tabs: Upcoming vs Completed */}
+      {checkingEnrollment ? (
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="size-8 animate-spin text-orange-500" />
+        </div>
+      ) : !isEnrolled && profile?.role === 'student' ? (
+        <div className="mx-auto mt-12 max-w-lg rounded-3xl border border-amber-500/20 bg-white dark:bg-slate-900/90 p-8 text-center shadow-2xl backdrop-blur-xl">
+          <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 mb-4">
+            <Lock size={32} />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white">
+            Cohort Enrollment Required
+          </h2>
+          <p className="mt-2.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Live interactive workshops, weekly masterclasses, and mentor timeline audits are exclusive to students enrolled in an active cohort sprint.
+          </p>
+          <div className="mt-5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black/30 p-4 text-left text-xs space-y-1.5">
+            <div className="flex justify-between">
+              <span className="text-slate-500 dark:text-slate-400">Account:</span>
+              <span className="font-mono font-bold text-slate-900 dark:text-white">{user?.email}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500 dark:text-slate-400">Membership:</span>
+              <span className="font-semibold text-amber-600 dark:text-amber-400">Registered (Unenrolled)</span>
+            </div>
+            <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-white/5 text-[11px]">
+              <span className="text-slate-400">Access:</span>
+              <span className="text-slate-600 dark:text-slate-300">Requires Active Cohort Sprint</span>
+            </div>
+          </div>
+          <div className="mt-6 flex flex-col gap-2.5">
+            <a
+              href="/#pricing"
+              className="flex items-center justify-center gap-2 rounded-xl bg-[#B92B27] hover:bg-[#D93830] px-4 py-2.5 text-xs font-bold text-white transition-colors cursor-pointer shadow-lg shadow-[#B92B27]/20"
+            >
+              <span>Explore Cohorts &amp; Enroll</span>
+              <ArrowRight size={14} />
+            </a>
+            <button
+              type="button"
+              onClick={() => navigate('/student/dashboard')}
+              className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+            >
+              Go to Student Dashboard
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Sub-tabs: Upcoming vs Completed */}
         <div className="flex items-center gap-8 border-b border-slate-200/80 dark:border-slate-800 mt-6 mb-8">
           <button
             type="button"
@@ -694,6 +791,8 @@ export function WorkshopsPage() {
             ) : null}
           </div>
         )}
+        </>
+      )}
       </main>
 
       {/* Schedule Live Session Modal (Admins / Mentors) */}

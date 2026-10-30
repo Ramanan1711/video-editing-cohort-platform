@@ -3,6 +3,18 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { WorkshopsPage } from '../../pages/WorkshopsPage';
 import { ThemeProvider } from '../../context/ThemeContext';
+import { checkStudentLoginAccess } from '../../lib/studentAccessService';
+
+vi.mock('../../lib/studentAccessService', () => ({
+  checkStudentLoginAccess: vi.fn().mockResolvedValue({
+    hasAccess: true,
+    isEnrolled: true,
+    courseEndDate: null,
+    accessExpiryDate: null,
+    formattedCourseEndDate: null,
+    formattedAccessExpiryDate: null,
+  }),
+}));
 
 vi.mock('../../context/useAuth', () => ({
   useAuth: () => ({
@@ -138,6 +150,25 @@ describe('WorkshopsPage - Full Screen Workshops Layout', () => {
     await waitFor(() => {
       expect(screen.queryByText('Session Information')).not.toBeInTheDocument();
     });
+  });
+
+  it('strictly blocks registered but unenrolled students and displays the Cohort Enrollment Required screen', async () => {
+    vi.mocked(checkStudentLoginAccess).mockResolvedValueOnce({
+      hasAccess: true,
+      isEnrolled: false,
+      courseEndDate: null,
+      accessExpiryDate: null,
+      formattedCourseEndDate: null,
+      formattedAccessExpiryDate: null,
+    });
+
+    renderWorkshops();
+
+    expect(await screen.findByText('Cohort Enrollment Required')).toBeInTheDocument();
+    expect(screen.getByText(/Live interactive workshops, weekly masterclasses/i)).toBeInTheDocument();
+    expect(screen.getByText('Registered (Unenrolled)')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Explore Cohorts & Enroll/i })).toBeInTheDocument();
+    expect(screen.queryByTitle('Session details')).not.toBeInTheDocument();
   });
 });
 
