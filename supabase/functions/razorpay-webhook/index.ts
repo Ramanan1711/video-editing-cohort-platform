@@ -1,13 +1,56 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
 import { z } from 'https://deno.land/x/zod/mod.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://platform.iunoware.com',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-razorpay-signature, x-correlation-id, x-request-id',
-  'Access-Control-Expose-Headers': 'x-correlation-id',
-  'Vary': 'Origin',
-};
+/**
+ * Resolves allowed origins from the environment variable ALLOWED_ORIGINS (comma-separated).
+ * Automatically trims whitespace, strips trailing slashes, and lowercases for reliable matching.
+ * e.g. ALLOWED_ORIGINS="https://iunoware.com, https://academy.iunoware.com, https://platform.iunoware.com"
+ */
+export function getConfiguredOrigins(): string[] {
+  const envVal = (typeof Deno !== 'undefined' ? Deno.env.get('ALLOWED_ORIGINS') : undefined) || '';
+  return envVal
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, '').toLowerCase())
+    .filter(Boolean);
+}
+
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://platform.iunoware.com',
+  'https://staging.iunoware.com',
+  'https://video-editing-cohort-platform.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173',
+  'http://127.0.0.1:5173',
+];
+
+export function isOriginAllowed(origin: string): boolean {
+  if (!origin) return true; // Direct non-browser callers (Razorpay webhook dispatcher or test runners)
+  const normalizedOrigin = origin.trim().replace(/\/+$/, '').toLowerCase();
+  const configured = getConfiguredOrigins();
+  const allowlist = [...DEFAULT_ALLOWED_ORIGINS, ...configured];
+  if (allowlist.includes(normalizedOrigin)) return true;
+  return (
+    /^https:\/\/([a-zA-Z0-9-]+\.)*iunoware\.com$/.test(normalizedOrigin) ||
+    /^https:\/\/([a-zA-Z0-9-]+\.)*vercel\.app$/.test(normalizedOrigin)
+  );
+}
+
+export function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  const isAllowed = isOriginAllowed(origin);
+  const configured = getConfiguredOrigins();
+  const defaultOrigin = configured[0] || 'https://platform.iunoware.com';
+  const matchedOrigin = isAllowed && origin ? origin : defaultOrigin;
+
+  return {
+    'Access-Control-Allow-Origin': matchedOrigin,
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type, x-razorpay-signature, x-correlation-id, x-request-id',
+    'Access-Control-Expose-Headers': 'x-correlation-id',
+    'Vary': 'Origin',
+  };
+}
 
 interface StructuredTelemetry {
   timestamp: string;
@@ -130,7 +173,7 @@ Deno.serve(async (req: Request) => {
     crypto.randomUUID();
 
   const responseHeaders = {
-    ...corsHeaders,
+    ...getCorsHeaders(req),
     'Content-Type': 'application/json',
     'x-correlation-id': traceId,
   };

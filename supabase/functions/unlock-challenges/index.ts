@@ -10,9 +10,23 @@ export const UnlockChallengesSchema = z
     cohort_id: (data.cohort_id || data.cohortId) ?? null,
   }));
 
+/**
+ * Resolves allowed origins from the environment variable ALLOWED_ORIGINS (comma-separated).
+ * Automatically trims whitespace, strips trailing slashes, and lowercases for reliable matching.
+ * e.g. ALLOWED_ORIGINS="https://iunoware.com, https://academy.iunoware.com, https://platform.iunoware.com"
+ */
+export function getConfiguredOrigins(): string[] {
+  const envVal = (typeof Deno !== 'undefined' ? Deno.env.get('ALLOWED_ORIGINS') : undefined) || '';
+  return envVal
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, '').toLowerCase())
+    .filter(Boolean);
+}
+
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://platform.iunoware.com',
   'https://staging.iunoware.com',
+  'https://video-editing-cohort-platform.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:4173',
@@ -21,19 +35,22 @@ const DEFAULT_ALLOWED_ORIGINS = [
 
 export function isOriginAllowed(origin: string): boolean {
   if (!origin) return true; // Direct non-browser callers (crons or server-to-server)
-  const configured = (Deno.env.get('ALLOWED_ORIGINS') || '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
+  const normalizedOrigin = origin.trim().replace(/\/+$/, '').toLowerCase();
+  const configured = getConfiguredOrigins();
   const allowlist = [...DEFAULT_ALLOWED_ORIGINS, ...configured];
-  if (allowlist.includes(origin)) return true;
-  return /^https:\/\/([a-zA-Z0-9-]+\.)*iunoware\.com$/.test(origin);
+  if (allowlist.includes(normalizedOrigin)) return true;
+  return (
+    /^https:\/\/([a-zA-Z0-9-]+\.)*iunoware\.com$/.test(normalizedOrigin) ||
+    /^https:\/\/([a-zA-Z0-9-]+\.)*vercel\.app$/.test(normalizedOrigin)
+  );
 }
 
 export function getCorsHeaders(req: Request) {
   const origin = req.headers.get('origin') || '';
   const isAllowed = isOriginAllowed(origin);
-  const matchedOrigin = isAllowed && origin ? origin : 'https://platform.iunoware.com';
+  const configured = getConfiguredOrigins();
+  const defaultOrigin = configured[0] || 'https://platform.iunoware.com';
+  const matchedOrigin = isAllowed && origin ? origin : defaultOrigin;
 
   return {
     'Access-Control-Allow-Origin': matchedOrigin,

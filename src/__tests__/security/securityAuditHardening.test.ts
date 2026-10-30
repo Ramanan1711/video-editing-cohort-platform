@@ -94,26 +94,49 @@ describe('3.2 Security Audit & Attack Vectors Hardening', () => {
   });
 
   describe('CORS Origin Allowlist Verification', () => {
-    // Pure function testing CORS allowlist logic
     const DEFAULT_ALLOWED_ORIGINS = [
       'https://platform.iunoware.com',
       'https://staging.iunoware.com',
+      'https://video-editing-cohort-platform.vercel.app',
       'http://localhost:5173',
       'http://localhost:3000',
       'http://localhost:4173',
       'http://127.0.0.1:5173',
     ];
 
-    function isOriginAllowed(origin: string): boolean {
+    function parseEnvOrigins(envString?: string): string[] {
+      return (envString || '')
+        .split(',')
+        .map((o) => o.trim().replace(/\/+$/, '').toLowerCase())
+        .filter(Boolean);
+    }
+
+    function isOriginAllowed(origin: string, envAllowedOrigins?: string): boolean {
       if (!origin) return true;
-      if (DEFAULT_ALLOWED_ORIGINS.includes(origin)) return true;
-      return /^https:\/\/([a-zA-Z0-9-]+\.)*iunoware\.com$/.test(origin);
+      const normalized = origin.trim().replace(/\/+$/, '').toLowerCase();
+      const configured = parseEnvOrigins(envAllowedOrigins);
+      const allowlist = [...DEFAULT_ALLOWED_ORIGINS, ...configured];
+      if (allowlist.includes(normalized)) return true;
+      return (
+        /^https:\/\/([a-zA-Z0-9-]+\.)*iunoware\.com$/.test(normalized) ||
+        /^https:\/\/([a-zA-Z0-9-]+\.)*vercel\.app$/.test(normalized)
+      );
     }
 
     it('permits authorized production and staging origins', () => {
       expect(isOriginAllowed('https://platform.iunoware.com')).toBe(true);
       expect(isOriginAllowed('https://staging.iunoware.com')).toBe(true);
       expect(isOriginAllowed('https://admin.iunoware.com')).toBe(true);
+      expect(isOriginAllowed('https://iunoware.com')).toBe(true);
+      expect(isOriginAllowed('https://video-editing-cohort-platform.vercel.app')).toBe(true);
+      expect(isOriginAllowed('https://video-editing-cohort-platform-git-feat.vercel.app')).toBe(true);
+    });
+
+    it('permits dynamic origins configured via ALLOWED_ORIGINS environment variable with whitespace and trailing slashes', () => {
+      const customEnv = ' https://custom-domain.com/ , https://learn.partner.org/ ';
+      expect(isOriginAllowed('https://custom-domain.com', customEnv)).toBe(true);
+      expect(isOriginAllowed('https://custom-domain.com/', customEnv)).toBe(true);
+      expect(isOriginAllowed('https://learn.partner.org', customEnv)).toBe(true);
     });
 
     it('permits local development ports', () => {
