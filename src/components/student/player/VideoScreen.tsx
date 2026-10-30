@@ -149,8 +149,10 @@ export function VideoScreen({
             <video
               ref={videoRef}
               key={lesson.id}
-              className="absolute inset-0 size-full object-contain bg-black"
+              className="absolute inset-0 size-full object-contain bg-black select-none"
               controls
+              controlsList="nodownload"
+              onContextMenu={(e) => e.preventDefault()}
               poster={resolvedThumbnailUrl || undefined}
               src={videoMeta.directUrl!}
               onLoadedMetadata={handleLoadedMetadata}

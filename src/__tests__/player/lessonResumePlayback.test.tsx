@@ -232,4 +232,36 @@ describe('LessonPlayer - Video Resume Playback Flow', () => {
       1
     );
   });
+
+  it('removes the native download option and disables context menu to prevent unauthorized downloads', async () => {
+    let renderedContainer: HTMLElement | undefined;
+    await act(async () => {
+      const { container } = render(
+        <LessonPlayer
+          lesson={mockLesson}
+          completed={false}
+          onToggleComplete={vi.fn()}
+          prevLesson={null}
+          nextLesson={null}
+          onSelectLesson={vi.fn()}
+          userId="student-1"
+        />
+      );
+      renderedContainer = container;
+    });
+
+    const videoEl = renderedContainer?.querySelector('video') as HTMLVideoElement;
+    expect(videoEl).toBeInTheDocument();
+
+    // Verify controlsList="nodownload" is configured
+    expect(videoEl.getAttribute('controlsList')).toBe('nodownload');
+
+    // Verify context menu is prevented on right click to stop "Save video as..."
+    const preventDefault = vi.fn();
+    fireEvent.contextMenu(videoEl, { preventDefault });
+    // In fireEvent, onContextMenu handler calls e.preventDefault()
+    // Test native dispatch
+    const defaultPrevented = !fireEvent.contextMenu(videoEl);
+    expect(defaultPrevented).toBe(true);
+  });
 });

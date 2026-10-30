@@ -170,10 +170,12 @@ export const PostMediaRenderer: React.FC<PostMediaRendererProps> = ({
           key={resolvedUrl}
           src={resolvedUrl}
           controls
+          controlsList="nodownload"
+          onContextMenu={(e) => e.preventDefault()}
           playsInline
           preload="metadata"
           onError={handleMediaError}
-          className="w-full max-h-[460px] object-contain bg-black"
+          className="w-full max-h-[460px] object-contain bg-black select-none"
         >
           Your browser does not support HTML5 video playback.
         </video>

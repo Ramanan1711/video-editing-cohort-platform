@@ -945,7 +945,11 @@ html.lenis body {
   overflow: clip;
 }
 
-
-
-
+/* Secure HTML5 Video Player: Prevent native download options */
+video::-internal-media-controls-download-button {
+  display: none !important;
+}
+video::-webkit-media-controls-enclosure {
+  overflow: hidden;
+}
 

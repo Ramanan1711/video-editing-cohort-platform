@@ -853,6 +853,8 @@ export function ReviewSubmissions() {
                                   videoRefs.current[submission.id] = el;
                                 }}
                                 controls
+                                controlsList="nodownload"
+                                onContextMenu={(e) => e.preventDefault()}
                                 src={resolvedUrl}
                                 onTimeUpdate={(e) => {
                                   const time = e.currentTarget?.currentTime;
