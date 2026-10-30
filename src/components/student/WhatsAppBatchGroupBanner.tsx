@@ -74,36 +74,39 @@ export const WhatsAppBatchGroupBanner: React.FC<WhatsAppBatchGroupBannerProps> =
   // If minimized, display a sleek floating / inline pill to re-open the WhatsApp community link
   if (isMinimized) {
     return (
-      <aside aria-label="WhatsApp Community Links" className="px-4 sm:px-6 py-1.5 bg-emerald-950/40 border-b border-emerald-900/40 flex items-center justify-between text-xs text-emerald-300">
-        <div className="flex items-center gap-2">
-          <MessageCircle size={14} className="text-emerald-400 shrink-0" />
-          <span className="font-semibold text-slate-200">
+      <aside
+        aria-label="WhatsApp Community Links"
+        className="px-4 sm:px-6 py-1.5 border-b border-emerald-200/80 dark:border-emerald-900/40 bg-emerald-50/90 dark:bg-emerald-950/40 backdrop-blur-xs flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300 transition-colors"
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          <MessageCircle size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="font-semibold text-slate-800 dark:text-slate-200">
             {cohortName} WhatsApp Community:
           </span>
           <a
             href={targetGroupUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-bold text-emerald-400 hover:text-emerald-300 underline underline-offset-2"
+            className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:text-emerald-900 dark:text-emerald-400 dark:hover:text-emerald-300 underline underline-offset-2 transition-colors"
           >
             <span>Batch Group</span>
             <ExternalLink size={11} />
           </a>
-          <span className="text-emerald-600/70">•</span>
+          <span className="text-emerald-300 dark:text-emerald-700 select-none">•</span>
           <a
             href={mentorChatUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-medium text-slate-300 hover:text-emerald-300"
+            className="inline-flex items-center gap-1 font-medium text-slate-600 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-300 transition-colors"
           >
-            <Phone size={10} className="text-emerald-400" />
+            <Phone size={10} className="text-emerald-600 dark:text-emerald-400" />
             <span>Ask Mentor</span>
           </a>
         </div>
         <button
           onClick={handleRestore}
           aria-label="Expand Batch Community banner"
-          className="text-[11px] font-bold text-emerald-400 hover:text-emerald-200 transition"
+          className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 dark:text-emerald-400 dark:hover:text-emerald-200 px-2 py-0.5 rounded-md hover:bg-emerald-100/70 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer shrink-0 ml-2"
         >
           Show Details
         </button>

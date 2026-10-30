@@ -211,7 +211,7 @@ describe('Real WhatsApp Integration & Configuration', () => {
       expect(joinLink).toHaveAttribute('href', DEFAULT_WHATSAPP_GROUP_FALLBACK_URL);
     });
 
-    it('minimizes the banner when dismissed and persists to localStorage', () => {
+    it('minimizes the banner when dismissed and persists to localStorage with professional light/dark shades', () => {
       render(
         <WhatsAppBatchGroupBanner
           cohortId="cohort-15"
@@ -224,7 +224,16 @@ describe('Real WhatsApp Integration & Configuration', () => {
       fireEvent.click(dismissBtn);
 
       expect(localStorage.getItem('dismissed_wa_group_cohort-15')).toBe('true');
-      expect(screen.getByText(/Show Details/i)).toBeInTheDocument();
+      const showDetailsBtn = screen.getByRole('button', { name: /Expand Batch Community banner/i });
+      expect(showDetailsBtn).toBeInTheDocument();
+      expect(showDetailsBtn.className).toContain('text-emerald-700');
+      expect(showDetailsBtn.className).toContain('dark:text-emerald-400');
+
+      const asidePill = screen.getByLabelText('WhatsApp Community Links');
+      expect(asidePill).toHaveClass('bg-emerald-50/90');
+      expect(asidePill).toHaveClass('border-emerald-200/80');
+      expect(asidePill.className).toContain('dark:bg-emerald-950/40');
+      expect(asidePill.className).toContain('dark:border-emerald-900/40');
     });
   });
 
