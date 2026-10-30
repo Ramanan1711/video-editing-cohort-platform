@@ -13,6 +13,7 @@ import {
   listLessonResources,
   parseVideoUrl,
   updateLessonWatchProgress,
+  getVideoThumbnailUrl,
   type Lesson,
   type LessonResource,
 } from '../../../lib/courseService';
@@ -200,6 +201,34 @@ export function LessonPlayer({
       isMounted = false;
     };
   }, [lesson.video_url]);
+
+  const [resolvedThumbnailUrl, setResolvedThumbnailUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const rawThumb = getVideoThumbnailUrl(lesson.video_url, lesson.thumbnail_url);
+
+    if (!rawThumb) {
+      setResolvedThumbnailUrl(null);
+      return;
+    }
+
+    if (isSecurableAsset(rawThumb)) {
+      void getSecureAssetUrl(rawThumb)
+        .then((signed) => {
+          if (isMounted) setResolvedThumbnailUrl(signed);
+        })
+        .catch(() => {
+          if (isMounted) setResolvedThumbnailUrl(rawThumb);
+        });
+    } else {
+      setResolvedThumbnailUrl(rawThumb);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [lesson.thumbnail_url, lesson.video_url]);
 
   const videoMeta = parseVideoUrl(resolvedVideoUrl);
 
@@ -593,6 +622,7 @@ export function LessonPlayer({
         handlePlaying={handlePlaying}
         lastKnownTimeRef={lastKnownTimeRef}
         refreshAttemptsRef={refreshAttemptsRef}
+        resolvedThumbnailUrl={resolvedThumbnailUrl}
       />
 
       {/* Lesson Details & Prev/Next Controls */}

@@ -42,6 +42,8 @@ export interface AdminCoursesContextType {
   setEditor: Dispatch<SetStateAction<EditorState | null>>;
   uploadFile: File | null;
   setUploadFile: Dispatch<SetStateAction<File | null>>;
+  uploadThumbnailFile: File | null;
+  setUploadThumbnailFile: Dispatch<SetStateAction<File | null>>;
   challengesByCohort: Record<string, DailyChallenge[]>;
   setChallengesByCohort: Dispatch<SetStateAction<Record<string, DailyChallenge[]>>>;
   cohortActiveTab: Record<string, 'curriculum' | 'challenges' | 'sprint'>;

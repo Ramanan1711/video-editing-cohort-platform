@@ -1,6 +1,24 @@
-import { BookOpen, ExternalLink, FileText, Lock, Paperclip, Upload, Video, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import {
+  BookOpen,
+  CheckCircle2,
+  ExternalLink,
+  FileText,
+  Image as ImageIcon,
+  Lock,
+  Paperclip,
+  Sparkles,
+  Upload,
+  Video,
+  X,
+} from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
-import { detectResourceType, formatFileSize, type ResourceType } from '../../../lib/courseService';
+import {
+  detectResourceType,
+  formatFileSize,
+  getVideoThumbnailUrl,
+  type ResourceType,
+} from '../../../lib/courseService';
 import { useAdminCourses } from '../context/useAdminCourses';
 import { FormField, TextareaField } from '../components/SharedSubcomponents';
 import type {
@@ -16,11 +34,36 @@ export function ModuleLessonModal() {
     setEditor,
     uploadFile,
     setUploadFile,
+    uploadThumbnailFile,
+    setUploadThumbnailFile,
     handleSave,
     saving,
     uploadingStatus,
     isMentor,
   } = useAdminCourses();
+
+  const [localThumbnailPreview, setLocalThumbnailPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!uploadThumbnailFile) {
+      setLocalThumbnailPreview(null);
+      return;
+    }
+    let objectUrl: string | null = null;
+    try {
+      if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+        objectUrl = URL.createObjectURL(uploadThumbnailFile);
+        setLocalThumbnailPreview(objectUrl);
+      }
+    } catch {
+      setLocalThumbnailPreview(null);
+    }
+    return () => {
+      if (objectUrl && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [uploadThumbnailFile]);
 
   if (
     !editor ||
@@ -76,6 +119,7 @@ export function ModuleLessonModal() {
             onClick={() => {
               setEditor(null);
               setUploadFile(null);
+              setUploadThumbnailFile(null);
             }}
             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition"
             aria-label="Close"
@@ -248,6 +292,7 @@ export function ModuleLessonModal() {
                     </span>
                     <input
                       type="file"
+                      aria-label="Upload Video File"
                       accept="video/mp4,video/quicktime,video/webm,video/*"
                       onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
                       className="block w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 px-3 py-2 text-xs"
@@ -260,6 +305,152 @@ export function ModuleLessonModal() {
                     )}
                   </div>
                 </div>
+
+                {/* Video Thumbnail Provision */}
+                {(() => {
+                  const customUrl = lessonEditor.thumbnailUrl?.trim() || null;
+                  const autoUrl = getVideoThumbnailUrl(lessonEditor.videoUrl);
+                  const activeThumbnail = localThumbnailPreview || customUrl || autoUrl || null;
+                  const isCustomThumbnail = Boolean(uploadThumbnailFile || localThumbnailPreview || customUrl);
+                  const isAutoThumbnail = !isCustomThumbnail && Boolean(autoUrl);
+
+                  return (
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 p-3.5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="block text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
+                          <ImageIcon size={14} /> Video Thumbnail Cover
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                            isCustomThumbnail
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                              : isAutoThumbnail
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300 dark:border-blue-800'
+                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          {isCustomThumbnail ? (
+                            <>
+                              <CheckCircle2 size={10} /> Custom Thumbnail
+                            </>
+                          ) : isAutoThumbnail ? (
+                            <>
+                              <Sparkles size={10} /> Auto-detected (YouTube)
+                            </>
+                          ) : (
+                            <>
+                              <Video size={10} /> Existing Video Type
+                            </>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="grid gap-3.5 sm:grid-cols-5 items-start">
+                        {/* Inputs (3 cols) */}
+                        <div className="sm:col-span-3 space-y-3">
+                          <div className="relative">
+                            <FormField
+                              label="Custom Thumbnail URL (Optional)"
+                              value={lessonEditor.thumbnailUrl ?? ''}
+                              onChange={(val) => setEditor({ ...lessonEditor, thumbnailUrl: val })}
+                              placeholder="https://.../thumbnail.jpg"
+                            />
+                            {lessonEditor.thumbnailUrl && (
+                              <button
+                                type="button"
+                                onClick={() => setEditor({ ...lessonEditor, thumbnailUrl: '' })}
+                                className="absolute right-2.5 top-8 text-xs font-semibold text-slate-400 hover:text-red-500 cursor-pointer"
+                                title="Clear custom thumbnail URL"
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+
+                          <div>
+                            <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                              Or Upload Thumbnail Image (.png, .jpg, .jpeg, .webp)
+                            </span>
+                            <input
+                              type="file"
+                              aria-label="Upload Thumbnail Image"
+                              accept="image/png,image/jpeg,image/webp,image/jpg"
+                              onChange={(e) => setUploadThumbnailFile(e.target.files?.[0] ?? null)}
+                              className="block w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 px-3 py-2 text-xs"
+                            />
+                            {uploadThumbnailFile && (
+                              <div className="mt-1.5 flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                  {uploadThumbnailFile.name} ({formatFileSize(uploadThumbnailFile.size)})
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setUploadThumbnailFile(null)}
+                                  className="text-slate-400 hover:text-red-500 text-[11px] font-normal underline ml-2 cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-normal">
+                            If provided, this thumbnail will be taken as the video poster. Otherwise, it automatically falls back to the existing video provider thumbnail (e.g. YouTube cover) or default player poster.
+                          </p>
+                        </div>
+
+                        {/* Live Preview Box (2 cols) */}
+                        <div className="sm:col-span-2">
+                          <span className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                            Thumbnail Preview
+                          </span>
+                          <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-950 flex flex-col items-center justify-center text-center shadow-inner">
+                            {activeThumbnail ? (
+                              <>
+                                <img
+                                  src={activeThumbnail}
+                                  alt="Thumbnail preview"
+                                  className="size-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-2 pointer-events-none">
+                                  <span className="text-[10px] font-bold text-white/90 truncate">
+                                    {isCustomThumbnail
+                                      ? 'Taking custom thumbnail'
+                                      : 'Existing type (YouTube cover)'}
+                                  </span>
+                                </div>
+                              </>
+                            ) : uploadThumbnailFile ? (
+                              <div className="p-3 flex flex-col items-center justify-center text-emerald-400">
+                                <ImageIcon size={24} className="mb-1 text-emerald-400" />
+                                <span className="text-[10px] font-bold text-white truncate max-w-full px-2">
+                                  {uploadThumbnailFile.name}
+                                </span>
+                                <span className="text-[9px] text-emerald-300/80 mt-0.5">
+                                  Custom File Ready for Upload
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="p-3 flex flex-col items-center justify-center text-slate-400">
+                                <Video size={24} className="text-slate-500 mb-1" />
+                                <span className="text-[10px] font-semibold text-slate-300">
+                                  Existing Type
+                                </span>
+                                <span className="text-[9px] text-slate-500 mt-0.5">
+                                  Default video player poster
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </>
             );
           })()}
@@ -510,6 +701,7 @@ export function ModuleLessonModal() {
               onClick={() => {
                 setEditor(null);
                 setUploadFile(null);
+                setUploadThumbnailFile(null);
               }}
             >
               Cancel

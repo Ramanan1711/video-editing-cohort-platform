@@ -35,6 +35,7 @@ import {
   updateModule,
   updateModuleStatus,
   uploadCourseAsset,
+  getVideoThumbnailUrl,
   adminReviewCohort,
   type Assignment,
   type Cohort,
@@ -105,6 +106,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
 
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadThumbnailFile, setUploadThumbnailFile] = useState<File | null>(null);
 
   const [challengesByCohort, setChallengesByCohort] = useState<Record<string, DailyChallenge[]>>({});
   const [cohortActiveTab, setCohortActiveTab] = useState<Record<string, 'curriculum' | 'challenges' | 'sprint'>>({});
@@ -231,6 +233,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
 
   const openCohortEditor = (cohort?: Cohort) => {
     setUploadFile(null);
+    setUploadThumbnailFile(null);
     if (cohort) {
       setEditor({
         type: 'cohort',
@@ -271,6 +274,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
 
   const openModuleEditor = (cohortId: string, mod?: Module) => {
     setUploadFile(null);
+    setUploadThumbnailFile(null);
     if (mod) {
       setEditor({
         type: 'module',
@@ -297,6 +301,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
 
   const openLessonEditor = (moduleId: string, lesson?: Lesson) => {
     setUploadFile(null);
+    setUploadThumbnailFile(null);
     if (lesson) {
       setEditor({
         type: 'lesson',
@@ -305,6 +310,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         title: lesson.title,
         description: lesson.description ?? '',
         videoUrl: lesson.video_url ?? '',
+        thumbnailUrl: lesson.thumbnail_url ?? '',
         durationMinutes: lesson.duration_minutes ? String(lesson.duration_minutes) : '',
         position: lesson.position,
         status: isMentor ? 'draft' : (lesson.status ?? 'draft'),
@@ -318,6 +324,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
         title: '',
         description: '',
         videoUrl: '',
+        thumbnailUrl: '',
         durationMinutes: '10',
         position: nextPos,
         status: 'draft',
@@ -647,12 +654,23 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
           setUploadingStatus(null);
         }
 
+        let finalThumbnailUrl: string | null = editor.thumbnailUrl?.trim() || null;
+
+        if (uploadThumbnailFile) {
+          setUploadingStatus(`Uploading thumbnail ${uploadThumbnailFile.name}...`);
+          finalThumbnailUrl = await uploadCourseAsset(uploadThumbnailFile, 'thumbnails');
+          setUploadingStatus(null);
+        } else if (!finalThumbnailUrl && finalVideoUrl) {
+          finalThumbnailUrl = getVideoThumbnailUrl(finalVideoUrl);
+        }
+
         const lessonStatus = isMentor ? 'draft' : editor.status;
 
         const payload = {
           title: editor.title.trim(),
           description: editor.description.trim() || null,
           video_url: finalVideoUrl,
+          thumbnail_url: finalThumbnailUrl,
           duration_minutes: editor.durationMinutes ? Number(editor.durationMinutes) : null,
           position: Number(editor.position) || 1,
           status: lessonStatus,
@@ -836,6 +854,7 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
 
       setEditor(null);
       setUploadFile(null);
+      setUploadThumbnailFile(null);
       toast.success('Curriculum item saved successfully.');
       await loadData();
     } catch (saveError) {
@@ -1106,6 +1125,8 @@ export function AdminCoursesProvider({ children }: { children: React.ReactNode }
     setEditor,
     uploadFile,
     setUploadFile,
+    uploadThumbnailFile,
+    setUploadThumbnailFile,
     challengesByCohort,
     setChallengesByCohort,
     cohortActiveTab,

@@ -39,6 +39,7 @@ export interface LessonEditorState {
   title: string;
   description: string;
   videoUrl: string;
+  thumbnailUrl?: string;
   durationMinutes: string;
   position: number;
   status: 'draft' | 'review' | 'published' | 'archived';

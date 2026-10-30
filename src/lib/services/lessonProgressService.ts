@@ -480,3 +480,27 @@ export function parseVideoUrl(url: string | null): ParsedVideoMeta {
     directUrl: trimmed,
   };
 }
+
+/**
+ * Resolves the appropriate thumbnail for a video lesson.
+ * If a custom thumbnail URL is explicitly provided, it returns that.
+ * Otherwise, it detects and extracts the thumbnail from the existing video provider
+ * (e.g. YouTube hqdefault thumbnail) or returns null for default video poster handling.
+ */
+export function getVideoThumbnailUrl(
+  videoUrl: string | null | undefined,
+  customThumbnailUrl?: string | null | undefined
+): string | null {
+  if (customThumbnailUrl && customThumbnailUrl.trim()) {
+    return customThumbnailUrl.trim();
+  }
+  if (!videoUrl || !videoUrl.trim()) {
+    return null;
+  }
+  const meta = parseVideoUrl(videoUrl);
+  if (meta.provider === 'youtube' && meta.videoId) {
+    return `https://img.youtube.com/vi/${meta.videoId}/hqdefault.jpg`;
+  }
+  return null;
+}
+

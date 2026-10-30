@@ -81,6 +81,7 @@ create table if not exists public.lessons (
   title text not null,
   description text,
   video_url text,
+  thumbnail_url text,
   duration_minutes integer default 0,
   position integer not null default 1,
   status text not null default 'published' check (status in ('draft', 'review', 'published', 'archived')),

@@ -39,6 +39,7 @@ export interface VideoScreenProps {
   handlePlaying: () => void;
   lastKnownTimeRef: React.MutableRefObject<number>;
   refreshAttemptsRef: React.MutableRefObject<number>;
+  resolvedThumbnailUrl?: string | null;
 }
 
 export function VideoScreen({
@@ -68,6 +69,7 @@ export function VideoScreen({
   handlePlaying,
   lastKnownTimeRef,
   refreshAttemptsRef,
+  resolvedThumbnailUrl,
 }: VideoScreenProps) {
   return (
     <>
@@ -149,6 +151,7 @@ export function VideoScreen({
               key={lesson.id}
               className="absolute inset-0 size-full object-contain bg-black"
               controls
+              poster={resolvedThumbnailUrl || undefined}
               src={videoMeta.directUrl!}
               onLoadedMetadata={handleLoadedMetadata}
               onTimeUpdate={handleTimeUpdate}
@@ -202,14 +205,23 @@ export function VideoScreen({
             )}
           </>
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-orange-950/40 p-6 text-center">
-            <div className="flex size-16 items-center justify-center rounded-2xl bg-white/10 text-orange-400 backdrop-blur-md shadow-2xl mb-3">
-              <Play size={28} fill="currentColor" className="ml-1" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-orange-950/40 p-6 text-center relative overflow-hidden">
+            {resolvedThumbnailUrl && (
+              <img
+                src={resolvedThumbnailUrl}
+                alt={lesson.title}
+                className="absolute inset-0 size-full object-cover opacity-25 blur-xs"
+              />
+            )}
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="flex size-16 items-center justify-center rounded-2xl bg-white/10 text-orange-400 backdrop-blur-md shadow-2xl mb-3">
+                <Play size={28} fill="currentColor" className="ml-1" />
+              </div>
+              <h4 className="text-sm font-bold text-white">Video Lesson Stream</h4>
+              <p className="mt-1 text-xs text-slate-400 max-w-sm">
+                Source timeline or lesson video is being finalized by instructor.
+              </p>
             </div>
-            <h4 className="text-sm font-bold text-white">Video Lesson Stream</h4>
-            <p className="mt-1 text-xs text-slate-400 max-w-sm">
-              Source timeline or lesson video is being finalized by instructor.
-            </p>
           </div>
         )}
 

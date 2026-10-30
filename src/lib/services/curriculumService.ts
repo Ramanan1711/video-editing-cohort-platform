@@ -101,6 +101,7 @@ export interface Lesson {
   title: string;
   description: string | null;
   video_url: string | null;
+  thumbnail_url?: string | null;
   duration_minutes: number | null;
   position: number;
   status?: 'draft' | 'review' | 'published' | 'archived';
@@ -148,11 +149,11 @@ export type ModuleInput = Pick<Module, 'title'> &
   Partial<Pick<Module, 'cohort_id' | 'course_id' | 'description' | 'position' | 'status'>>;
 
 export type LessonInput = Pick<Lesson, 'module_id' | 'title' | 'description' | 'video_url' | 'duration_minutes' | 'position'> &
-  Partial<Pick<Lesson, 'status'>>;
+  Partial<Pick<Lesson, 'status' | 'thumbnail_url'>>;
 
 export type EnrollmentInput = Pick<Enrollment, 'user_id' | 'cohort_id' | 'status'>;
 
-export const courseSelectWithStatus = 'id, cohort_id, course_id, title, description, position, status, lessons(id, module_id, title, description, video_url, duration_minutes, position, status)';
+export const courseSelectWithStatus = 'id, cohort_id, course_id, title, description, position, status, lessons(id, module_id, title, description, video_url, thumbnail_url, duration_minutes, position, status)';
 export const courseSelectLegacy = 'id, cohort_id, title, description, position, lessons(id, module_id, title, description, video_url, duration_minutes, position)';
 export const courseSelect = courseSelectWithStatus;
 
@@ -952,11 +953,15 @@ export async function deleteModule(id: string, options?: { force?: boolean }): P
 export async function createLesson(input: LessonInput): Promise<Lesson> {
   queryCache.invalidate('curriculum');
   queryCache.invalidate('cohorts');
-  let res = await supabase.from('lessons').insert(input).select('id, module_id, title, description, video_url, duration_minutes, position, status').single();
+  let res = await supabase.from('lessons').insert(input).select('id, module_id, title, description, video_url, thumbnail_url, duration_minutes, position, status').single();
   if (res.error) {
-    const legacyInput = { ...input };
-    delete legacyInput.status;
-    res = await supabase.from('lessons').insert(legacyInput).select('id, module_id, title, description, video_url, duration_minutes, position').single();
+    const fallbackInput = { ...input };
+    delete fallbackInput.thumbnail_url;
+    res = await supabase.from('lessons').insert(fallbackInput).select('id, module_id, title, description, video_url, duration_minutes, position, status').single();
+    if (res.error) {
+      delete fallbackInput.status;
+      res = await supabase.from('lessons').insert(fallbackInput).select('id, module_id, title, description, video_url, duration_minutes, position').single();
+    }
   }
   if (res.error) throw res.error;
   return { ...(res.data as Lesson), status: res.data.status ?? 'published' };
@@ -965,11 +970,15 @@ export async function createLesson(input: LessonInput): Promise<Lesson> {
 export async function updateLesson(id: string, input: Omit<LessonInput, 'module_id'>): Promise<Lesson> {
   queryCache.invalidate('curriculum');
   queryCache.invalidate('cohorts');
-  let res = await supabase.from('lessons').update(input).eq('id', id).select('id, module_id, title, description, video_url, duration_minutes, position, status').single();
+  let res = await supabase.from('lessons').update(input).eq('id', id).select('id, module_id, title, description, video_url, thumbnail_url, duration_minutes, position, status').single();
   if (res.error) {
-    const legacyInput = { ...input };
-    delete legacyInput.status;
-    res = await supabase.from('lessons').update(legacyInput).eq('id', id).select('id, module_id, title, description, video_url, duration_minutes, position').single();
+    const fallbackInput = { ...input };
+    delete fallbackInput.thumbnail_url;
+    res = await supabase.from('lessons').update(fallbackInput).eq('id', id).select('id, module_id, title, description, video_url, duration_minutes, position, status').single();
+    if (res.error) {
+      delete fallbackInput.status;
+      res = await supabase.from('lessons').update(fallbackInput).eq('id', id).select('id, module_id, title, description, video_url, duration_minutes, position').single();
+    }
   }
   if (res.error) throw res.error;
   return { ...(res.data as Lesson), status: res.data.status ?? 'published' };

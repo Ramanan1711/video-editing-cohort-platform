@@ -9,6 +9,7 @@ import {
   Clock,
   Copy,
   ExternalLink,
+  Image as ImageIcon,
   Paperclip,
   Pencil,
   Plus,
@@ -316,6 +317,11 @@ export function CohortCurriculumTab({ cohort }: { cohort: Cohort }) {
                               ) : (
                                 <span className="inline-flex items-center gap-1 rounded bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
                                   No video
+                                </span>
+                              )}
+                              {lesson.thumbnail_url && (
+                                <span className="inline-flex items-center gap-1 rounded bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 text-[11px] font-bold text-indigo-700 dark:text-indigo-300" title="Custom thumbnail cover attached">
+                                  <ImageIcon size={12} /> Thumbnail
                                 </span>
                               )}
                               {lesson.duration_minutes && (

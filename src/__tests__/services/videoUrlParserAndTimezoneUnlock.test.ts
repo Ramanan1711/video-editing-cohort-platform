@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseVideoUrl } from '../../lib/services/lessonProgressService';
+import { parseVideoUrl, getVideoThumbnailUrl } from '../../lib/services/lessonProgressService';
 import { getLocalDateInTimezone, calculateSprintProgress } from '../../lib/internshipService';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -112,6 +112,40 @@ describe('2.3 Edge Case & Boundary Analysis: Video URL Parser & Timezone-Aware U
       expect(parseVideoUrl(null)).toEqual({ type: 'empty', embedUrl: null, directUrl: null });
       expect(parseVideoUrl('')).toEqual({ type: 'empty', embedUrl: null, directUrl: null });
       expect(parseVideoUrl('   ')).toEqual({ type: 'empty', embedUrl: null, directUrl: null });
+    });
+  });
+
+  describe('Video Lesson Thumbnail Provision (Custom vs Existing Type)', () => {
+    it('prioritizes custom thumbnail when explicitly provided', () => {
+      const custom = 'https://cdn.cutcraft.com/thumbnails/masterclass-cover.png';
+      const ytUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+      const directUrl = 'https://storage.cutcraft.com/lessons/edit101.mp4';
+
+      expect(getVideoThumbnailUrl(ytUrl, custom)).toBe(custom);
+      expect(getVideoThumbnailUrl(directUrl, custom)).toBe(custom);
+      expect(getVideoThumbnailUrl(null, custom)).toBe(custom);
+    });
+
+    it('falls back to existing video provider thumbnail when no custom thumbnail is given', () => {
+      // Standard YouTube watch
+      expect(getVideoThumbnailUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(
+        'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
+      );
+      // YouTube shorts
+      expect(getVideoThumbnailUrl('https://youtube.com/shorts/dQw4w9WgXcQ?feature=share')).toBe(
+        'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
+      );
+      // youtu.be shortlink
+      expect(getVideoThumbnailUrl('https://youtu.be/dQw4w9WgXcQ?t=10')).toBe(
+        'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg'
+      );
+    });
+
+    it('returns null for non-YouTube direct video URLs without custom thumbnail so player uses native frame poster', () => {
+      expect(getVideoThumbnailUrl('https://storage.cutcraft.com/lessons/edit101.mp4')).toBeNull();
+      expect(getVideoThumbnailUrl('https://vimeo.com/12345678')).toBeNull();
+      expect(getVideoThumbnailUrl(null)).toBeNull();
+      expect(getVideoThumbnailUrl('')).toBeNull();
     });
   });
 
