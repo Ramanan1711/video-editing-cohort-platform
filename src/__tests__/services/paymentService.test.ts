@@ -490,8 +490,10 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
 
     it('blocks checkout with PRODUCTION PAYMENT SAFETY LOCK if test keys are used when PROD is true', async () => {
       const originalProd = import.meta.env.PROD;
+      const originalAllowTest = import.meta.env.VITE_ALLOW_TEST_PAYMENTS_IN_PROD;
       try {
         (import.meta.env as unknown as { PROD: boolean }).PROD = true;
+        (import.meta.env as unknown as { VITE_ALLOW_TEST_PAYMENTS_IN_PROD: string | undefined }).VITE_ALLOW_TEST_PAYMENTS_IN_PROD = undefined;
 
         (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
           data: {
@@ -518,6 +520,40 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
         );
       } finally {
         (import.meta.env as unknown as { PROD: boolean }).PROD = originalProd;
+        (import.meta.env as unknown as { VITE_ALLOW_TEST_PAYMENTS_IN_PROD: string | undefined }).VITE_ALLOW_TEST_PAYMENTS_IN_PROD = originalAllowTest;
+      }
+    });
+
+    it('permits test keys in production if VITE_ALLOW_TEST_PAYMENTS_IN_PROD is true', async () => {
+      const originalProd = import.meta.env.PROD;
+      const originalAllowTest = import.meta.env.VITE_ALLOW_TEST_PAYMENTS_IN_PROD;
+      try {
+        (import.meta.env as unknown as { PROD: boolean }).PROD = true;
+        (import.meta.env as unknown as { VITE_ALLOW_TEST_PAYMENTS_IN_PROD: string }).VITE_ALLOW_TEST_PAYMENTS_IN_PROD = 'true';
+
+        (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: {
+            orderId: 'order_staging_test_123',
+            amount: 499900,
+            currency: 'INR',
+            keyId: 'rzp_test_staging_allowed',
+          },
+          error: null,
+        });
+
+        const onSuccess = vi.fn();
+        const onError = vi.fn();
+        await startCohortCheckout({
+          cohortId: 'cohort-staging-test',
+          cohortName: 'Staging Cohort',
+          onSuccess,
+          onError,
+        });
+
+        expect(onError).not.toHaveBeenCalled();
+      } finally {
+        (import.meta.env as unknown as { PROD: boolean }).PROD = originalProd;
+        (import.meta.env as unknown as { VITE_ALLOW_TEST_PAYMENTS_IN_PROD: string | undefined }).VITE_ALLOW_TEST_PAYMENTS_IN_PROD = originalAllowTest;
       }
     });
 
