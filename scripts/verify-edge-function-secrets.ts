@@ -105,8 +105,8 @@ async function main() {
   console.log(`   Supabase URL:      ${supabaseUrl ? supabaseUrl : 'MISSING'}`);
   console.log(`   Supabase Anon Key: ${supabaseAnonKey ? `${supabaseAnonKey.slice(0, 16)}...` : 'MISSING'}`);
   console.log(`   Razorpay Key ID:   ${razorpayKeyId ? `${razorpayKeyId.slice(0, 14)}... (${razorpayKeyId.startsWith('rzp_live_') ? 'PRODUCTION LIVE' : 'TEST MODE'})` : 'MISSING'}`);
-  console.log(`   Razorpay Secret:   ${razorpayKeySecret ? `${razorpayKeySecret.slice(0, 6)}... (Configured locally)` : 'MISSING'}`);
-  console.log(`   Webhook Secret:    ${razorpayWebhookSecret ? `${razorpayWebhookSecret.slice(0, 6)}... (Configured locally)` : 'NOT SET in local .env (Mandatory on server-side)'}`);
+  console.log(`   Razorpay Secret:   ${razorpayKeySecret ? `${razorpayKeySecret.slice(0, 6)}... (Configured locally)` : 'Managed strictly in Supabase Secrets (Vault)'}`);
+  console.log(`   Webhook Secret:    ${razorpayWebhookSecret ? `${razorpayWebhookSecret.slice(0, 6)}... (Configured locally)` : 'Managed strictly in Supabase Secrets (Vault)'}`);
   console.log('');
 
   // 1. Audit edge functions on disk
