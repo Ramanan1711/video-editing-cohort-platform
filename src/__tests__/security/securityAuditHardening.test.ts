@@ -133,10 +133,11 @@ describe('3.2 Security Audit & Attack Vectors Hardening', () => {
     });
 
     it('permits dynamic origins configured via ALLOWED_ORIGINS environment variable with whitespace and trailing slashes', () => {
-      const customEnv = ' https://custom-domain.com/ , https://learn.partner.org/ ';
+      const customEnv = ' https://custom-domain.com/ , https://learn.partner.org/ , https://e-tech.iunoware.tech ';
       expect(isOriginAllowed('https://custom-domain.com', customEnv)).toBe(true);
       expect(isOriginAllowed('https://custom-domain.com/', customEnv)).toBe(true);
       expect(isOriginAllowed('https://learn.partner.org', customEnv)).toBe(true);
+      expect(isOriginAllowed('https://e-tech.iunoware.tech', customEnv)).toBe(true);
     });
 
     it('permits local development ports', () => {
