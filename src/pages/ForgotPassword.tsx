@@ -295,7 +295,7 @@ export const ForgotPassword: React.FC = () => {
                     disabled={otpLoading || otpToken.length !== 6 || otpSuccess}
                     loading={otpLoading}
                     onMouseEnter={() => soundFx.playBlip(480, 0.02, 'sine', 0.02)}
-                    className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3 hover:scale-[1.01] transition-all disabled:opacity-50"
+                    className="w-full justify-center bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 hover:from-orange-500 hover:to-orange-500 text-white font-extrabold tracking-wide border border-orange-400/30 shadow-lg shadow-orange-600/30 hover:shadow-orange-500/40 py-3 hover:scale-[1.01] transition-all disabled:opacity-50 drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]"
                   >
                     <span>{otpLoading ? 'Verifying code...' : 'Verify & Set New Password'}</span>
                   </Button>
@@ -399,7 +399,7 @@ export const ForgotPassword: React.FC = () => {
                     loading={loading}
                     data-cursor="SEND CODE"
                     onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
-                    className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+                    className="w-full justify-center bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 hover:from-orange-500 hover:to-orange-500 text-white font-extrabold tracking-wide border border-orange-400/30 shadow-lg shadow-orange-600/30 hover:shadow-orange-500/40 py-3.5 hover:scale-[1.01] transition-all drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]"
                   >
                     {loading ? 'Sending code...' : 'Send Recovery Code'}
                   </Button>

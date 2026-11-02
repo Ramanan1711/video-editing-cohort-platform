@@ -438,7 +438,7 @@ export function UpdatePasswordModal({
                 disabled={otpLoading || otpToken.length !== 6 || success}
                 loading={otpLoading}
                 data-testid="otp-verify-btn"
-                className="w-full justify-center bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black py-2.5 text-xs shadow-md shadow-orange-500/20"
+                className="w-full justify-center bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 hover:from-orange-500 hover:to-orange-500 text-white font-extrabold tracking-wide border border-orange-400/30 shadow-lg shadow-orange-600/30 hover:shadow-orange-500/40 py-2.5 text-xs drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]"
               >
                 {otpLoading ? 'Verifying & Updating...' : 'Confirm & Update Password'}
               </Button>

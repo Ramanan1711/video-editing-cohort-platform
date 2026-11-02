@@ -424,7 +424,7 @@ export const Login: React.FC = () => {
                 loading={loading}
                 data-cursor="SIGN IN"
                 onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
-                className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+                className="w-full justify-center bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 hover:from-orange-500 hover:to-orange-500 text-white font-extrabold tracking-wide border border-orange-400/30 shadow-lg shadow-orange-600/30 hover:shadow-orange-500/40 py-3.5 hover:scale-[1.01] transition-all drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]"
               >
                 {loading ? 'Logging in...' : 'Log in'}
               </Button>

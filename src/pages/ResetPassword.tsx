@@ -309,7 +309,7 @@ export const ResetPassword: React.FC = () => {
 
                 <div className="mt-7">
                   <Button
-                    className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+                    className="w-full justify-center bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 hover:from-orange-500 hover:to-orange-500 text-white font-extrabold tracking-wide border border-orange-400/30 shadow-lg shadow-orange-600/30 hover:shadow-orange-500/40 py-3.5 hover:scale-[1.01] transition-all drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]"
                     onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
                     onClick={() => navigate('/login')}
                   >
@@ -380,7 +380,7 @@ export const ResetPassword: React.FC = () => {
                     />
                     <Button
                       type="submit"
-                      className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3 hover:scale-[1.01] transition-all"
+                      className="w-full justify-center bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 hover:from-orange-500 hover:to-orange-500 text-white font-extrabold tracking-wide border border-orange-400/30 shadow-lg shadow-orange-600/30 hover:shadow-orange-500/40 py-3 hover:scale-[1.01] transition-all drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]"
                       loading={otpLoading}
                       onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
                     >
@@ -397,7 +397,7 @@ export const ResetPassword: React.FC = () => {
                 ) : (
                   <div className="mt-7 flex flex-col gap-3">
                     <Button
-                      className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+                      className="w-full justify-center bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 hover:from-orange-500 hover:to-orange-500 text-white font-extrabold tracking-wide border border-orange-400/30 shadow-lg shadow-orange-600/30 hover:shadow-orange-500/40 py-3.5 hover:scale-[1.01] transition-all drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]"
                       onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
                       onClick={() => navigate('/forgot-password')}
                     >
@@ -444,7 +444,7 @@ export const ResetPassword: React.FC = () => {
 
                 <div className="mt-7 flex flex-col gap-3">
                   <Button
-                    className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+                    className="w-full justify-center bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 hover:from-orange-500 hover:to-orange-500 text-white font-extrabold tracking-wide border border-orange-400/30 shadow-lg shadow-orange-600/30 hover:shadow-orange-500/40 py-3.5 hover:scale-[1.01] transition-all drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]"
                     onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
                     onClick={() => navigate('/forgot-password')}
                   >
@@ -548,7 +548,7 @@ export const ResetPassword: React.FC = () => {
                     loading={loading}
                     data-cursor="UPDATE"
                     onMouseEnter={() => soundFx.playBlip(480, 0.025, 'sine', 0.03)}
-                    className="w-full justify-center bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black border-none shadow-xl shadow-orange-500/25 py-3.5 hover:scale-[1.01] transition-all"
+                    className="w-full justify-center bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 hover:from-orange-500 hover:to-orange-500 text-white font-extrabold tracking-wide border border-orange-400/30 shadow-lg shadow-orange-600/30 hover:shadow-orange-500/40 py-3.5 hover:scale-[1.01] transition-all drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]"
                   >
                     {loading ? 'Updating password...' : 'Update password'}
                   </Button>
