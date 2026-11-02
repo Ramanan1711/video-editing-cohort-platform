@@ -199,4 +199,118 @@ describe('NotificationCenter - Realtime Reconnect & Window Focus Reconciliation'
 
     nowSpy.mockRestore();
   });
+
+  it('normalizes legacy /assignments action URL to student dashboard assignments tab and marks as read', async () => {
+    const legacyNotification: StudentNotification = {
+      id: 'notif-legacy-1',
+      user_id: userId,
+      title: 'Assignment Approved!',
+      body: 'Your mentor reviewed and approved your cut.',
+      category: 'assignment',
+      action_url: '/assignments',
+      read_at: null,
+      created_at: new Date().toISOString(),
+    };
+
+    vi.mocked(notificationService.listUserNotifications).mockResolvedValue([legacyNotification]);
+    vi.mocked(notificationService.markNotificationAsRead).mockResolvedValue();
+
+    const { fireEvent } = await import('@testing-library/react');
+    const { MemoryRouter } = await import('react-router-dom');
+
+    render(
+      <MemoryRouter>
+        <NotificationCenter userId={userId} />
+      </MemoryRouter>
+    );
+
+    // Open notification popover
+    const bellBtn = await screen.findByRole('button', { name: /open notifications/i });
+    await act(async () => {
+      fireEvent.click(bellBtn);
+    });
+
+    // Check that Review & Grade badge is shown for 'assignment' category
+    expect(await screen.findByText('Review & Grade')).toBeInTheDocument();
+    expect(screen.getByText('Assignment Approved!')).toBeInTheDocument();
+
+    // Check Open details button
+    const openBtn = screen.getByRole('button', { name: /open details/i });
+    expect(openBtn).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(openBtn);
+    });
+
+    // Verify it marks notification as read
+    expect(notificationService.markNotificationAsRead).toHaveBeenCalledWith('notif-legacy-1');
+  });
+
+  it('synchronizes tab badge counts with filtered notification lists', async () => {
+    const diverseNotifications: StudentNotification[] = [
+      {
+        id: 'notif-rev-1',
+        user_id: userId,
+        title: 'Assignment Approved!',
+        body: 'Approved',
+        category: 'assignment',
+        action_url: '/assignments',
+        read_at: null,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'notif-rev-2',
+        user_id: userId,
+        title: 'New Critique Reply',
+        body: 'Mentor feedback',
+        category: 'review',
+        action_url: null,
+        read_at: null,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'notif-comm-1',
+        user_id: userId,
+        title: 'New Reply on Discussion',
+        body: 'Check comment',
+        category: 'community',
+        action_url: null,
+        read_at: null,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'notif-dead-1',
+        user_id: userId,
+        title: 'Sprint Submission Due in 2 Hours',
+        body: 'Reminder',
+        category: 'deadline',
+        action_url: null,
+        read_at: null,
+        created_at: new Date().toISOString(),
+      },
+    ];
+
+    vi.mocked(notificationService.listUserNotifications).mockResolvedValue(diverseNotifications);
+
+    const { fireEvent } = await import('@testing-library/react');
+    const { MemoryRouter } = await import('react-router-dom');
+
+    render(
+      <MemoryRouter>
+        <NotificationCenter userId={userId} />
+      </MemoryRouter>
+    );
+
+    const bellBtn = await screen.findByRole('button', { name: /open notifications/i });
+    await act(async () => {
+      fireEvent.click(bellBtn);
+    });
+
+    // Reviews count should be 2 (assignment approval + critique reply)
+    expect(screen.getByRole('button', { name: /Reviews \(2\)/i })).toBeInTheDocument();
+    // Community count should be 1
+    expect(screen.getByRole('button', { name: /Community \(1\)/i })).toBeInTheDocument();
+    // Deadlines count should be 1
+    expect(screen.getByRole('button', { name: /Deadlines \(1\)/i })).toBeInTheDocument();
+  });
 });

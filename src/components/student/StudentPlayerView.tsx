@@ -177,6 +177,22 @@ export function StudentPlayerView({
     return 'curriculum';
   });
 
+  const tabParam = searchParams.get('tab');
+  useEffect(() => {
+    if (
+      tabParam === 'internship_sprint' ||
+      tabParam === 'assignments' ||
+      tabParam === 'calendar' ||
+      tabParam === 'community' ||
+      tabParam === 'sessions' ||
+      tabParam === 'announcements'
+    ) {
+      setActiveTab(tabParam);
+    } else if (!tabParam) {
+      setActiveTab('curriculum');
+    }
+  }, [tabParam]);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [nowTimestamp] = useState(() => Date.now());
 

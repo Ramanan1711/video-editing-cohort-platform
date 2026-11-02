@@ -3873,8 +3873,8 @@ begin
         then 'Your mentor has reviewed and approved your submission.'
         else 'Your mentor reviewed your submission and requested revisions.'
       end,
-      'assignment',
-      '/assignments'
+      'review',
+      '/student/dashboard?view=player&tab=assignments'
     );
   exception
     when others then
@@ -8357,8 +8357,8 @@ begin
         then 'Your mentor has reviewed and approved your submission.'
         else 'Your mentor reviewed your submission and requested revisions.'
       end,
-      'assignment',
-      '/assignments',
+      'review',
+      '/student/dashboard?view=player&tab=assignments',
       now()
     );
   exception

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Bell,
   Check,
@@ -22,7 +23,44 @@ interface NotificationCenterProps {
 
 export type NotificationTab = 'all' | 'reviews' | 'community' | 'deadlines' | 'unread';
 
+const isReviewNotif = (n: StudentNotification) =>
+  n.category === 'review' ||
+  n.category === 'assignment' ||
+  n.title.toLowerCase().includes('feedback') ||
+  n.title.toLowerCase().includes('critique') ||
+  n.title.toLowerCase().includes('grade') ||
+  n.title.toLowerCase().includes('reviewed');
+
+const isCommunityNotif = (n: StudentNotification) =>
+  n.category === 'community' ||
+  (!isReviewNotif(n) &&
+    (n.title.toLowerCase().includes('comment') ||
+      n.title.toLowerCase().includes('reply') ||
+      n.title.toLowerCase().includes('reaction')));
+
+const isDeadlineNotif = (n: StudentNotification) =>
+  n.category === 'deadline' ||
+  (!isReviewNotif(n) &&
+    !isCommunityNotif(n) &&
+    (n.category === 'system' ||
+      n.title.toLowerCase().includes('due') ||
+      n.title.toLowerCase().includes('deadline') ||
+      n.title.toLowerCase().includes('reminder')));
+
+function useSafeNavigate() {
+  try {
+    return useNavigate();
+  } catch {
+    return (to: string) => {
+      if (typeof window !== 'undefined') {
+        window.location.assign(to);
+      }
+    };
+  }
+}
+
 export function NotificationCenter({ userId }: NotificationCenterProps) {
+  const navigate = useSafeNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<StudentNotification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -173,37 +211,20 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
   }, [isOpen]);
 
   const unreadCount = notifications.filter((n) => !n.read_at).length;
+  const reviewsCount = useMemo(() => notifications.filter(isReviewNotif).length, [notifications]);
+  const communityCount = useMemo(() => notifications.filter(isCommunityNotif).length, [notifications]);
+  const deadlinesCount = useMemo(() => notifications.filter(isDeadlineNotif).length, [notifications]);
 
   const filteredNotifications = useMemo(() => {
     switch (filter) {
       case 'unread':
         return notifications.filter((n) => !n.read_at);
       case 'reviews':
-        return notifications.filter(
-          (n) =>
-            n.category === 'review' ||
-            n.title.toLowerCase().includes('feedback') ||
-            n.title.toLowerCase().includes('critique') ||
-            n.title.toLowerCase().includes('grade') ||
-            n.title.toLowerCase().includes('reviewed')
-        );
+        return notifications.filter(isReviewNotif);
       case 'community':
-        return notifications.filter(
-          (n) =>
-            n.category === 'community' ||
-            n.title.toLowerCase().includes('comment') ||
-            n.title.toLowerCase().includes('reply') ||
-            n.title.toLowerCase().includes('reaction')
-        );
+        return notifications.filter(isCommunityNotif);
       case 'deadlines':
-        return notifications.filter(
-          (n) =>
-            n.category === 'deadline' ||
-            n.category === 'system' ||
-            n.title.toLowerCase().includes('due') ||
-            n.title.toLowerCase().includes('deadline') ||
-            n.title.toLowerCase().includes('reminder')
-        );
+        return notifications.filter(isDeadlineNotif);
       case 'all':
       default:
         return notifications;
@@ -218,6 +239,28 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
       );
     } catch (err) {
       console.warn('Failed to mark notification read:', err);
+    }
+  };
+
+  const handleActionClick = (notification: StudentNotification) => {
+    if (!notification.read_at) {
+      void handleMarkAsRead(notification.id);
+    }
+    setIsOpen(false);
+
+    if (!notification.action_url) return;
+
+    let targetUrl = notification.action_url.trim();
+
+    // Map legacy /assignments URL to the canonical student dashboard assignments tab
+    if (targetUrl === '/assignments' || targetUrl.startsWith('/assignments?')) {
+      targetUrl = targetUrl.replace(/^\/assignments/, '/student/dashboard?view=player&tab=assignments');
+    }
+
+    if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      navigate(targetUrl);
     }
   };
 
@@ -246,7 +289,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
             refreshNotifications();
           }
         }}
-        className="relative rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+        className="relative rounded-xl p-2 text-slate-600 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-950 dark:hover:text-white"
         aria-label="Open notifications"
       >
         <Bell size={20} />
@@ -295,21 +338,9 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
           <div className="flex overflow-x-auto border-b border-slate-100 dark:border-slate-800 px-3 pt-2 text-[11px] font-bold gap-1 scrollbar-none">
             {[
               { id: 'all' as const, label: 'All', count: notifications.length },
-              {
-                id: 'reviews' as const,
-                label: 'Reviews',
-                count: notifications.filter((n) => n.category === 'review' || n.title.toLowerCase().includes('feedback')).length,
-              },
-              {
-                id: 'community' as const,
-                label: 'Community',
-                count: notifications.filter((n) => n.category === 'community' || n.title.toLowerCase().includes('comment')).length,
-              },
-              {
-                id: 'deadlines' as const,
-                label: 'Deadlines',
-                count: notifications.filter((n) => n.category === 'deadline' || n.title.toLowerCase().includes('due')).length,
-              },
+              { id: 'reviews' as const, label: 'Reviews', count: reviewsCount },
+              { id: 'community' as const, label: 'Community', count: communityCount },
+              { id: 'deadlines' as const, label: 'Deadlines', count: deadlinesCount },
               { id: 'unread' as const, label: 'Unread', count: unreadCount },
             ].map((tab) => (
               <button
@@ -359,21 +390,25 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
                         )}
                         <span
                           className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
-                            category === 'review'
+                            category === 'review' || category === 'assignment'
                               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                               : category === 'community'
                               ? 'bg-violet-100 text-violet-800 dark:bg-violet-950/60 dark:text-violet-300'
                               : category === 'deadline'
                               ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                              : category === 'internship_report_published'
+                              ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300'
                               : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                           }`}
                         >
-                          {category === 'review'
+                          {category === 'review' || category === 'assignment'
                             ? 'Review & Grade'
                             : category === 'community'
                             ? 'Community'
                             : category === 'deadline'
                             ? 'Deadline'
+                            : category === 'internship_report_published'
+                            ? 'Report Card'
                             : 'Notification'}
                         </span>
                         <h4 className={`text-xs leading-tight truncate ${isRead ? 'font-bold text-slate-800 dark:text-slate-200' : 'font-black text-slate-950 dark:text-white'}`}>
@@ -385,13 +420,14 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
                       </p>
 
                       {notification.action_url && (
-                        <a
-                          href={notification.action_url}
-                          className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline"
+                        <button
+                          type="button"
+                          onClick={() => handleActionClick(notification)}
+                          className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline cursor-pointer"
                         >
                           <span>Open details</span>
                           <ExternalLink size={10} />
-                        </a>
+                        </button>
                       )}
 
                       <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400">
@@ -403,7 +439,7 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
                     {!isRead && (
                       <button
                         onClick={() => void handleMarkAsRead(notification.id)}
-                        className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-orange-100 hover:text-orange-700"
+                        className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-950/60 dark:hover:text-orange-300 transition cursor-pointer"
                         title="Mark as read"
                       >
                         <Check size={14} />

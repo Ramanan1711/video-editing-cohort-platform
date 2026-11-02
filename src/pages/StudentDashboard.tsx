@@ -51,13 +51,34 @@ export function StudentDashboard() {
 
   // Courses Catalog View vs Detailed Player View
   const viewParam = searchParams.get('view');
+  const tabParam = searchParams.get('tab');
+  const shouldDefaultToPlayer =
+    viewParam === 'player' ||
+    Boolean(
+      tabParam &&
+        ['assignments', 'curriculum', 'internship_sprint', 'calendar', 'community', 'sessions', 'announcements'].includes(
+          tabParam
+        )
+    );
   const [dashboardView, setDashboardView] = useState<'catalog' | 'player'>(
-    viewParam === 'player' ? 'player' : 'catalog'
+    shouldDefaultToPlayer ? 'player' : 'catalog'
   );
 
   useEffect(() => {
-    setDashboardView(viewParam === 'player' ? 'player' : 'catalog');
-  }, [viewParam]);
+    if (
+      viewParam === 'player' ||
+      Boolean(
+        tabParam &&
+          ['assignments', 'curriculum', 'internship_sprint', 'calendar', 'community', 'sessions', 'announcements'].includes(
+            tabParam
+          )
+      )
+    ) {
+      setDashboardView('player');
+    } else if (viewParam === 'catalog') {
+      setDashboardView('catalog');
+    }
+  }, [viewParam, tabParam]);
 
   const [discoveryModalOpen, setDiscoveryModalOpen] = useState(false);
   const [selectedCohortForDiscovery, setSelectedCohortForDiscovery] = useState<string | null>(null);
@@ -116,6 +137,12 @@ export function StudentDashboard() {
   const [certificateModalOpen, setCertificateModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(() => searchParams.get('tab') === 'internship_report');
   const [achievementsModalOpen, setAchievementsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'internship_report') {
+      setReportModalOpen(true);
+    }
+  }, [searchParams]);
 
   // Celebratory first-time onboarding modal state
   const [celebrationModalOpen, setCelebrationModalOpen] = useState(false);

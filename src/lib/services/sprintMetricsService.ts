@@ -23,7 +23,7 @@ export interface StudentNotification {
   body: string;
   read_at: string | null;
   created_at: string;
-  category?: 'review' | 'community' | 'deadline' | 'system';
+  category?: 'review' | 'community' | 'deadline' | 'system' | 'assignment' | 'announcement' | 'internship_report_published' | string;
   action_url?: string | null;
 }
 

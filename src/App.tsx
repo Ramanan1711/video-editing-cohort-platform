@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -66,6 +66,7 @@ function AnimatedRoutes() {
                     <Route path="/verify-certificate" element={<VerifyCertificate />} />
                     <Route path="/credentials/:certificateNumber" element={<VerifyCertificate />} />
                     <Route path="/credentials" element={<VerifyCertificate />} />
+                    <Route path="/assignments" element={<Navigate to="/student/dashboard?view=player&tab=assignments" replace />} />
                     <Route path="/" element={<Home />} />
 
                     {/* Protected Student / Mentor Routes */}
