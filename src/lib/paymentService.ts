@@ -345,7 +345,9 @@ export async function startCohortCheckout(params: CohortCheckoutParams): Promise
     const isVercelOrStaging =
       typeof window !== 'undefined' &&
       (window.location.hostname.endsWith('vercel.app') ||
-        window.location.hostname.includes('staging'));
+        window.location.hostname.includes('staging') ||
+        window.location.hostname === 'e-tech.iunoware.tech' ||
+        window.location.hostname.endsWith('.iunoware.tech'));
 
     if (
       import.meta.env.PROD &&

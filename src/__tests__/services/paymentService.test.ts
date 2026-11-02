@@ -524,6 +524,48 @@ describe('paymentService (Razorpay INR Payments - Fail-Closed)', () => {
       }
     });
 
+    it('permits test keys on e-tech.iunoware.tech staging domain without VITE_ALLOW_TEST_PAYMENTS_IN_PROD', async () => {
+      const originalProd = import.meta.env.PROD;
+      const originalAllowTest = import.meta.env.VITE_ALLOW_TEST_PAYMENTS_IN_PROD;
+      const originalHostname = window.location.hostname;
+      try {
+        (import.meta.env as unknown as { PROD: boolean }).PROD = true;
+        (import.meta.env as unknown as { VITE_ALLOW_TEST_PAYMENTS_IN_PROD: string | undefined }).VITE_ALLOW_TEST_PAYMENTS_IN_PROD = undefined;
+        Object.defineProperty(window, 'location', {
+          writable: true,
+          value: { ...window.location, hostname: 'e-tech.iunoware.tech' },
+        });
+
+        (supabase.functions.invoke as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+          data: {
+            orderId: 'order_etech_test_123',
+            amount: 499900,
+            currency: 'INR',
+            keyId: 'rzp_test_etech_allowed',
+          },
+          error: null,
+        });
+
+        const onSuccess = vi.fn();
+        const onError = vi.fn();
+        await startCohortCheckout({
+          cohortId: 'cohort-etech-test',
+          cohortName: 'E-Tech Cohort',
+          onSuccess,
+          onError,
+        });
+
+        expect(onError).not.toHaveBeenCalled();
+      } finally {
+        (import.meta.env as unknown as { PROD: boolean }).PROD = originalProd;
+        (import.meta.env as unknown as { VITE_ALLOW_TEST_PAYMENTS_IN_PROD: string | undefined }).VITE_ALLOW_TEST_PAYMENTS_IN_PROD = originalAllowTest;
+        Object.defineProperty(window, 'location', {
+          writable: true,
+          value: { ...window.location, hostname: originalHostname },
+        });
+      }
+    });
+
     it('permits test keys in production if VITE_ALLOW_TEST_PAYMENTS_IN_PROD is true', async () => {
       const originalProd = import.meta.env.PROD;
       const originalAllowTest = import.meta.env.VITE_ALLOW_TEST_PAYMENTS_IN_PROD;
