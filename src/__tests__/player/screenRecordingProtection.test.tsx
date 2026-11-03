@@ -36,10 +36,12 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
 
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    sessionStorage.clear();
   });
 
   it('renders anti-capture protection badge and dynamic multi-layer forensic watermarks', async () => {
@@ -301,5 +303,61 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
       configurable: true,
       writable: true,
     });
+  });
+
+  it('mounts player in restricted blackout mode if screen recording shortcut was initiated on student dashboard prior to entering course', async () => {
+    // Simulate user pressing Cmd+Shift+5 while browsing /student/dashboard
+    sessionStorage.setItem(
+      'iunoware_capture_detected',
+      'macOS screen recording / capture shortcut (Cmd+Shift+3/4/5) detected on portal'
+    );
+
+    await act(async () => {
+      render(
+        <LessonPlayer
+          lesson={mockLesson}
+          completed={false}
+          onToggleComplete={vi.fn()}
+          prevLesson={null}
+          nextLesson={null}
+          onSelectLesson={vi.fn()}
+        />
+      );
+    });
+
+    // Player must mount with the shield active, preventing pre-recorded playback
+    expect(screen.getByTestId('screen-protection-shield')).toBeInTheDocument();
+    expect(screen.getByText(/macOS screen recording \/ capture shortcut \(Cmd\+Shift\+3\/4\/5\) detected on portal/i)).toBeInTheDocument();
+
+    // Clean up sessionStorage
+    sessionStorage.removeItem('iunoware_capture_detected');
+  });
+
+  it('immediately triggers restriction shield when portal security event is received', async () => {
+    await act(async () => {
+      render(
+        <LessonPlayer
+          lesson={mockLesson}
+          completed={false}
+          onToggleComplete={vi.fn()}
+          prevLesson={null}
+          nextLesson={null}
+          onSelectLesson={vi.fn()}
+        />
+      );
+    });
+
+    expect(screen.queryByTestId('screen-protection-shield')).not.toBeInTheDocument();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('iunoware:security-alert', {
+          detail: { reason: 'Screen recording initiated in background' },
+        })
+      );
+    });
+
+    expect(screen.getByTestId('screen-protection-shield')).toBeInTheDocument();
+    expect(screen.getByText(/Screen recording initiated in background/i)).toBeInTheDocument();
   });
 });

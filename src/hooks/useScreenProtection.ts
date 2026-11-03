@@ -34,8 +34,18 @@ export function useScreenProtection({
   protectOnBlur = true,
 }: ScreenProtectionOptions = {}): ScreenProtectionState {
   const [isProtectionActive, setIsProtectionActive] = useState<boolean>(enabled);
-  const [isRestricted, setIsRestricted] = useState<boolean>(false);
-  const [restrictionReason, setRestrictionReason] = useState<string | null>(null);
+  const [isRestricted, setIsRestricted] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      return !!window.sessionStorage.getItem('iunoware_capture_detected');
+    }
+    return false;
+  });
+  const [restrictionReason, setRestrictionReason] = useState<string | null>(() => {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      return window.sessionStorage.getItem('iunoware_capture_detected') || null;
+    }
+    return null;
+  });
 
   // Dynamic floating watermark position (coordinates in percentage)
   const [watermarkPosition, setWatermarkPosition] = useState<{ x: number; y: number }>({
@@ -77,6 +87,10 @@ export function useScreenProtection({
     (reason: string) => {
       if (!isProtectionActive) return;
 
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.setItem('iunoware_capture_detected', reason);
+      }
+
       // Pause playback immediately if playing
       if (videoRef?.current && !videoRef.current.paused) {
         try {
@@ -95,10 +109,29 @@ export function useScreenProtection({
 
   // Clear restriction and allow student to resume
   const clearRestriction = useCallback(() => {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem('iunoware_capture_detected');
+    }
     setIsRestricted(false);
     setRestrictionReason(null);
     onRestored?.();
   }, [onRestored]);
+
+  // Listen for portal-level security events triggered on other pages (e.g. dashboard)
+  useEffect(() => {
+    if (!isProtectionActive) return;
+
+    const handleSecurityAlert = (e: Event) => {
+      const customEvent = e as CustomEvent<{ reason?: string }>;
+      const reason = customEvent.detail?.reason || 'Screen capture or recording tool detected';
+      triggerRestriction(reason);
+    };
+
+    window.addEventListener('iunoware:security-alert', handleSecurityAlert);
+    return () => {
+      window.removeEventListener('iunoware:security-alert', handleSecurityAlert);
+    };
+  }, [isProtectionActive, triggerRestriction]);
 
   // Manual trigger for testing or administrative enforcement
   const triggerManualRestriction = useCallback(

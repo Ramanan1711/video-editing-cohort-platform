@@ -2,10 +2,14 @@ import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { WorkspaceSidebar } from './WorkspaceSidebar';
 import { useSidebar } from '../context/useSidebar';
+import { usePortalScreenSecurity } from '../hooks/usePortalScreenSecurity';
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
   const { collapsed } = useSidebar();
   const location = useLocation();
+
+  // Enforce portal-wide screen recording & capture security across all authenticated routes
+  usePortalScreenSecurity();
 
   const isTopNavRoute =
     location.pathname.startsWith('/student') ||
