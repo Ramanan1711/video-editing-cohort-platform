@@ -38,7 +38,7 @@ export function SiteFooter() {
                 <Code2 size={15} />
               </a>
               <a
-                href="https://youtube.com"
+                href="https://www.youtube.com/channel/UCP5VGHS-Wx2vIBRVHhjn_Zw"
                 target="_blank"
                 rel="noreferrer"
                 aria-label="YouTube"
@@ -47,7 +47,7 @@ export function SiteFooter() {
                 <Video size={15} />
               </a>
               <a
-                href="https://instagram.com"
+                href="https://www.instagram.com/iunoware/"
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Instagram"
