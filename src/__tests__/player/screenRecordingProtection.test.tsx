@@ -72,7 +72,7 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
     expect(watermark).toHaveTextContent('Alex Chen');
     expect(watermark).toHaveTextContent('alex.chen@example.com');
     expect(watermark).toHaveTextContent('Protected Content · Iunoware Academy');
-    expect(watermark).toHaveClass('top-3.5', 'right-3.5');
+    expect(watermark).toHaveClass('bottom-12', 'right-4');
 
     // 3. Verify screen center is completely clean and unobstructed (no intrusive tiled grid)
     expect(screen.queryByTestId('student-forensic-tiled-grid')).not.toBeInTheDocument();

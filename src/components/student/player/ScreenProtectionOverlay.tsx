@@ -43,15 +43,15 @@ export function ScreenProtectionOverlay({
 
   return (
     <>
-      {/* Discrete Corner Forensic Watermark (Clean Enterprise LMS Style: ~18% opacity, anchored to corner, completely unobstructed viewing) */}
+      {/* Discrete Corner Forensic Watermark (Clean Enterprise LMS Style: ~20-25% opacity, anchored to corner, completely unobstructed viewing in normal and fullscreen) */}
       {!isRestricted && showWatermark && (
         <div
           data-testid="student-forensic-watermark"
           aria-hidden="true"
-          className="pointer-events-none absolute top-3.5 right-3.5 z-20 select-none opacity-20 sm:opacity-25 transition-opacity"
+          className="pointer-events-none absolute bottom-12 right-4 z-40 select-none opacity-25 sm:opacity-30 transition-opacity"
         >
-          <div className="flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-0.5 text-[10px] font-mono text-white/90 backdrop-blur-xs border border-white/10 shadow-xs">
-            <Lock size={10} className="text-orange-400 shrink-0" />
+          <div className="flex items-center gap-1.5 rounded-md bg-black/50 px-2.5 py-1 text-[11px] font-mono text-white/95 backdrop-blur-xs border border-white/15 shadow-md">
+            <Lock size={11} className="text-orange-400 shrink-0" />
             <span>{watermarkText}</span>
           </div>
         </div>

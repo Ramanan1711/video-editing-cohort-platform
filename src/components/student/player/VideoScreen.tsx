@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Clock3,
   Gauge,
+  Maximize,
+  Minimize,
   Play,
   RefreshCw,
   RotateCcw,
@@ -102,25 +104,99 @@ export function VideoScreen({
     },
   });
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Sync fullscreen state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (typeof document === 'undefined') return;
+      const fsElement = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      setIsFullscreen(!!fsElement && (fsElement === videoContainerRef.current || fsElement === videoRef.current));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, [videoRef, videoContainerRef]);
+
+  // Synchronously direct any fullscreen request on the video element to the container
+  // so that watermarks, security shields, and HUDs are preserved during fullscreen mode.
+  useEffect(() => {
+    const vid = videoRef.current;
+    const container = videoContainerRef.current;
+    if (!vid || !container) return;
+
+    const origRequestFullscreen = vid.requestFullscreen;
+    const origWebkitRequestFullscreen = (vid as any).webkitRequestFullscreen;
+
+    vid.requestFullscreen = function (options?: FullscreenOptions) {
+      if (container.requestFullscreen) {
+        return container.requestFullscreen(options);
+      }
+      return origRequestFullscreen ? origRequestFullscreen.call(vid, options) : Promise.resolve();
+    };
+
+    if (origWebkitRequestFullscreen || (container as any).webkitRequestFullscreen) {
+      (vid as any).webkitRequestFullscreen = function () {
+        if ((container as any).webkitRequestFullscreen) {
+          return (container as any).webkitRequestFullscreen();
+        }
+        if (container.requestFullscreen) {
+          return container.requestFullscreen();
+        }
+        return origWebkitRequestFullscreen ? origWebkitRequestFullscreen.call(vid) : undefined;
+      };
+    }
+
+    return () => {
+      if (origRequestFullscreen) {
+        vid.requestFullscreen = origRequestFullscreen;
+      }
+      if (origWebkitRequestFullscreen) {
+        (vid as any).webkitRequestFullscreen = origWebkitRequestFullscreen;
+      }
+    };
+  }, [videoRef, videoContainerRef]);
+
+  const toggleFullscreen = useCallback(() => {
+    const container = videoContainerRef.current || videoRef.current;
+    if (!container || typeof document === 'undefined') return;
+
+    const fsElement = document.fullscreenElement || (document as any).webkitFullscreenElement;
+    if (!fsElement) {
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch(() => {});
+      } else if ((container as any).webkitRequestFullscreen) {
+        (container as any).webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+    }
+  }, [videoContainerRef, videoRef]);
+
   return (
     <>
-      {/* Video Container Area with 16:9 Aspect Ratio */}
+      {/* Video Container Area with 16:9 Aspect Ratio and Fullscreen support */}
       <div
         ref={videoContainerRef}
         tabIndex={0}
         onContextMenu={(e) => e.preventDefault()}
+        onDoubleClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (target && target.tagName !== 'BUTTON' && target.tagName !== 'INPUT' && target.tagName !== 'A') {
+            toggleFullscreen();
+          }
+        }}
         aria-label="Video player viewport. Press Space to play or pause, F for fullscreen, Left and Right arrows to seek."
-        className="group relative aspect-video w-full overflow-hidden bg-black focus:outline-hidden focus:ring-2 focus:ring-orange-500"
+        className="group relative aspect-video w-full overflow-hidden bg-black focus:outline-hidden focus:ring-2 focus:ring-orange-500 [&:fullscreen]:aspect-auto [&:fullscreen]:size-full [&:-webkit-full-screen]:aspect-auto [&:-webkit-full-screen]:size-full"
       >
-        {/* Anti-Screen Recording & DRM Protection Shield & Forensic Watermark */}
-        <ScreenProtectionOverlay
-          isRestricted={screenProtection.isRestricted}
-          restrictionReason={screenProtection.restrictionReason}
-          watermarkText={screenProtection.watermarkText}
-          watermarkPosition={screenProtection.watermarkPosition}
-          onDismissRestriction={screenProtection.clearRestriction}
-          showWatermark={screenProtection.isProtectionActive}
-        />
 
         {/* HUD Feedback Toast Overlay */}
         {hudMessage && (
@@ -291,13 +367,37 @@ export function VideoScreen({
           </span>
         </div>
 
-        {lesson.duration_minutes && (
+        {lesson.duration_minutes && !isFullscreen && (
           <div className="pointer-events-none absolute top-4 right-4">
             <span className="rounded-md bg-black/60 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
               {lesson.duration_minutes} mins
             </span>
           </div>
         )}
+
+        {/* Floating Quick Exit Fullscreen button on overlay */}
+        {isFullscreen && (
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            aria-label="Exit Fullscreen"
+            title="Exit Fullscreen (Esc or F)"
+            className="absolute top-4 right-4 z-40 flex items-center gap-1.5 rounded-lg bg-black/80 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md border border-white/20 shadow-xl hover:bg-black transition cursor-pointer"
+          >
+            <Minimize size={13} className="text-orange-400" />
+            <span>Exit Fullscreen</span>
+          </button>
+        )}
+
+        {/* Anti-Screen Recording & DRM Protection Shield & Forensic Watermark (Rendered on top of video) */}
+        <ScreenProtectionOverlay
+          isRestricted={screenProtection.isRestricted}
+          restrictionReason={screenProtection.restrictionReason}
+          watermarkText={screenProtection.watermarkText}
+          watermarkPosition={screenProtection.watermarkPosition}
+          onDismissRestriction={screenProtection.clearRestriction}
+          showWatermark={screenProtection.isProtectionActive}
+        />
       </div>
 
       {/* Video Watch Progress & Controls Toolbar */}
@@ -370,6 +470,23 @@ export function VideoScreen({
               </div>
             </div>
           )}
+
+          {/* Fullscreen Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+            title={isFullscreen ? 'Exit Fullscreen (Esc or F)' : 'Fullscreen (F)'}
+            data-testid="player-fullscreen-toggle"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-surface-elevated px-2.5 py-1 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition font-bold shadow-2xs cursor-pointer"
+          >
+            {isFullscreen ? (
+              <Minimize size={13} className="text-orange-500" />
+            ) : (
+              <Maximize size={13} className="text-orange-500" />
+            )}
+            <span className="text-[11px] font-mono">{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
+          </button>
         </div>
       </div>
     </>

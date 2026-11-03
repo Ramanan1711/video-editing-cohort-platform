@@ -945,8 +945,11 @@ html.lenis body {
   overflow: clip;
 }
 
-/* Secure HTML5 Video Player: Prevent native download options */
+/* Secure HTML5 Video Player: Prevent native download options and redirect fullscreen to container */
 video::-internal-media-controls-download-button {
+  display: none !important;
+}
+video::-webkit-media-controls-fullscreen-button {
   display: none !important;
 }
 video::-webkit-media-controls-enclosure {
