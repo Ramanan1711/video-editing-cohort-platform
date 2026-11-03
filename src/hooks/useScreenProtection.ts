@@ -136,19 +136,27 @@ export function useScreenProtection({
         return;
       }
 
-      // macOS Screen Capture / Screen Recording Shortcuts (Cmd + Shift + 3 / 4 / 5)
+      // macOS Screen Capture / Screen Recording Shortcuts (Cmd + Shift + 3 / 4 / 5 / 6)
       // or Windows Snipping Tool (Win/Ctrl + Shift + S)
+      // CRITICAL MACOS M-SERIES / SILICON FIX:
+      // The macOS WindowServer intercepts the digit keys (3, 4, 5) BEFORE the browser DOM
+      // receives keydown. Therefore, detecting the combination of (metaKey || ctrlKey) + shiftKey
+      // MUST trigger immediately before the OS screen grab takes place!
       if ((e.metaKey || e.ctrlKey) && e.shiftKey) {
-        if (key === '3' || key === '4' || key === '5') {
-          e.preventDefault();
-          triggerRestriction('macOS screen recording / capture shortcut (Cmd+Shift+3/4/5) detected');
+        // If user is editing text in an input and using Cmd+Shift+Z (Redo) or text navigation, allow it
+        const target = e.target as HTMLElement | null;
+        const isTextInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+        if (isTextInput && (key.toLowerCase() === 'z' || key.startsWith('Arrow'))) {
           return;
         }
-        if (key.toLowerCase() === 's') {
-          e.preventDefault();
-          triggerRestriction('Screen snipping tool (Cmd/Win+Shift+S) detected');
-          return;
+
+        e.preventDefault();
+        triggerRestriction('macOS screen recording / capture shortcut (Cmd+Shift+3/4/5) detected');
+        // Scramble clipboard in case Cmd+Ctrl+Shift was used to copy screenshot
+        if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText('Protected Content · Iunoware Academy').catch(() => {});
         }
+        return;
       }
 
       // Windows Game Bar Screen Recording (Win + Alt + R / Alt + PrtScn)

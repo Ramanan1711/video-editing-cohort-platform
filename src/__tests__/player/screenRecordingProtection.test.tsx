@@ -193,6 +193,39 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
     expect(screen.getByText(/macOS screen recording \/ capture shortcut/i)).toBeInTheDocument();
   });
 
+  it('triggers restriction shield immediately when Cmd+Shift modifier combination is pressed before any digit (macOS M-Series hardware protection)', async () => {
+    await act(async () => {
+      render(
+        <LessonPlayer
+          lesson={mockLesson}
+          completed={false}
+          onToggleComplete={vi.fn()}
+          prevLesson={null}
+          nextLesson={null}
+          onSelectLesson={vi.fn()}
+        />
+      );
+    });
+
+    expect(screen.queryByTestId('screen-protection-shield')).not.toBeInTheDocument();
+
+    // User presses Meta (Cmd) + Shift on MacBook
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Shift',
+          metaKey: true,
+          shiftKey: true,
+          bubbles: true,
+        })
+      );
+    });
+
+    // Verify protection shield activates immediately before user can press 3, 4, or 5
+    expect(screen.getByTestId('screen-protection-shield')).toBeInTheDocument();
+    expect(screen.getByText(/macOS screen recording \/ capture shortcut/i)).toBeInTheDocument();
+  });
+
   it('triggers restriction shield when window loses focus (e.g. snipping tool overlay or external recorder)', async () => {
     await act(async () => {
       render(
