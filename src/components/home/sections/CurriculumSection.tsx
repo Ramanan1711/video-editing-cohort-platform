@@ -20,7 +20,7 @@ export function CurriculumSection() {
               The Daily Rhythm
             </p>
             <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-white">
-              A Day in the Life of an Iunoware Academy Intern
+              A Day in the Life of an Iunoware Academy Student
             </h2>
             <p className="mt-3 text-sm text-slate-400 leading-relaxed">
               Every single day follows an engineered 4-step sequence designed to build professional velocity without burning you out.
@@ -40,7 +40,7 @@ export function CurriculumSection() {
                 9:00 AM · The Morning Brief Drop
               </h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Receive the day&apos;s realistic production challenge directly via WhatsApp and the portal, complete with source assets, raw footage, and Figma specs.
+                Receive the day&apos;s practical project challenge directly via WhatsApp and the portal, complete with source assets, starter files, and project specs.
               </p>
               <div className="text-[11px] font-bold text-[#D93830] pt-2 border-t border-white/10 font-mono">
                 Duration: 15–20 min brief review
