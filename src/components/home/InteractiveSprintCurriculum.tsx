@@ -767,7 +767,7 @@ export function InteractiveSprintCurriculum({
               </span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
-              Separate 15-Day Sprint Tracks
+              Specialized Academy Cohort Tracks
             </h2>
             <p className="mt-2 text-sm sm:text-base text-slate-300 max-w-2xl leading-relaxed">
               {currentTrackMeta.description}
@@ -785,12 +785,12 @@ export function InteractiveSprintCurriculum({
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3 text-xs font-mono uppercase tracking-wider text-slate-400">
             <Sparkles size={14} className={currentTrackMeta.color.primary} />
-            <span>Select Sprint Specialization:</span>
+            <span>Select Cohort Track:</span>
           </div>
 
           <div
             role="tablist"
-            aria-label="Sprint Track Selection"
+            aria-label="Cohort Track Selection"
             className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-2 rounded-2xl bg-[#070b16] border border-white/10 shadow-2xl backdrop-blur-xl"
           >
             {(['video', 'coding', 'motion'] as SprintTrack[]).map((trackKey) => {
