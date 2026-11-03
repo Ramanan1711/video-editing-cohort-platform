@@ -608,7 +608,7 @@ export const Register: React.FC = () => {
                   Create your account.
                 </h1>
                 <p className="text-xs text-slate-400">
-                  Start your 15-day intensive production internship.
+                  Start your industry-guided cohort learning journey.
                 </p>
               </div>
 
@@ -618,7 +618,7 @@ export const Register: React.FC = () => {
                 className="self-start sm:self-auto inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-[#060913]/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-orange-400 font-mono shadow-md backdrop-blur-xl shrink-0"
               >
                 <span className="flex size-2 rounded-full bg-orange-500 animate-ping" />
-                <span>Join Batch 15 Cohort Sprint</span>
+                <span>Cohort Admissions Open</span>
               </div>
             </div>
 
