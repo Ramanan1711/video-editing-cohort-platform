@@ -182,8 +182,8 @@ export function VideoScreen({
           <iframe
             src={videoMeta.embedUrl!}
             title={lesson.title}
-            className={`absolute inset-0 size-full border-0 transition-all duration-300 ${
-              screenProtection.isRestricted ? 'blur-2xl brightness-0 pointer-events-none' : ''
+            className={`absolute inset-0 size-full border-0 ${
+              screenProtection.isRestricted ? 'opacity-0 invisible pointer-events-none' : 'opacity-100 visible'
             }`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
@@ -193,8 +193,8 @@ export function VideoScreen({
             <video
               ref={videoRef}
               key={lesson.id}
-              className={`absolute inset-0 size-full object-contain bg-black select-none transition-all duration-300 ${
-                screenProtection.isRestricted ? 'blur-2xl brightness-0 pointer-events-none' : ''
+              className={`absolute inset-0 size-full object-contain bg-black select-none ${
+                screenProtection.isRestricted ? 'opacity-0 invisible pointer-events-none' : 'opacity-100 visible'
               }`}
               controls={!screenProtection.isRestricted}
               controlsList="nodownload"

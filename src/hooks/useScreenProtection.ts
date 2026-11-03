@@ -8,12 +8,14 @@ export interface ScreenProtectionOptions {
   videoRef?: React.RefObject<HTMLVideoElement | null>;
   onRestricted?: (reason: string) => void;
   onRestored?: () => void;
+  protectOnBlur?: boolean;
 }
 
 export interface ScreenProtectionState {
   isRestricted: boolean;
   restrictionReason: string | null;
   watermarkText: string;
+  studentIdentifier: string;
   watermarkPosition: { x: number; y: number };
   clearRestriction: () => void;
   triggerManualRestriction: (reason: string) => void;
@@ -29,6 +31,7 @@ export function useScreenProtection({
   videoRef,
   onRestricted,
   onRestored,
+  protectOnBlur = true,
 }: ScreenProtectionOptions = {}): ScreenProtectionState {
   const [isProtectionActive, setIsProtectionActive] = useState<boolean>(enabled);
   const [isRestricted, setIsRestricted] = useState<boolean>(false);
@@ -36,31 +39,34 @@ export function useScreenProtection({
 
   // Dynamic floating watermark position (coordinates in percentage)
   const [watermarkPosition, setWatermarkPosition] = useState<{ x: number; y: number }>({
-    x: 20,
-    y: 25,
+    x: 25,
+    y: 30,
   });
 
   const positionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Primary student identifier
+  const studentIdentifier = userEmail || (userId ? `ID: ${userId.slice(0, 8)}` : 'Verified Learner');
+
   // Format watermark string
   const watermarkText = [
     userName || 'Iunoware Student',
-    userEmail || (userId ? `ID: ${userId.slice(0, 8)}` : 'Verified Learner'),
+    studentIdentifier,
     'Protected Content · Iunoware Academy',
   ].filter(Boolean).join(' · ');
 
-  // Shift watermark to random coordinates every 12 seconds
+  // Shift floating watermark to random coordinates every 8 seconds
   useEffect(() => {
     if (!isProtectionActive) return;
 
     const shiftPosition = () => {
-      // Keep watermark safely within the visible 16:9 frame (10% to 75% range)
-      const newX = Math.floor(10 + Math.random() * 65);
-      const newY = Math.floor(15 + Math.random() * 60);
+      // Keep watermark safely within the visible 16:9 frame (12% to 70% range)
+      const newX = Math.floor(12 + Math.random() * 58);
+      const newY = Math.floor(18 + Math.random() * 52);
       setWatermarkPosition({ x: newX, y: newY });
     };
 
-    positionTimerRef.current = setInterval(shiftPosition, 12000);
+    positionTimerRef.current = setInterval(shiftPosition, 8000);
     return () => {
       if (positionTimerRef.current) clearInterval(positionTimerRef.current);
     };
@@ -112,25 +118,25 @@ export function useScreenProtection({
     });
   }, []);
 
-  // Listen for screen capture / recording hotkeys
+  // 1. Hotkey & Keyboard Interception
   useEffect(() => {
     if (!isProtectionActive) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key;
 
-      // 1. Windows PrintScreen
+      // Windows PrintScreen
       if (key === 'PrintScreen') {
         e.preventDefault();
         triggerRestriction('Screen capture hotkey (PrintScreen) detected');
-        // Clear clipboard
+        // Scramble clipboard
         if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
           navigator.clipboard.writeText('Protected Content · Iunoware Academy').catch(() => {});
         }
         return;
       }
 
-      // 2. macOS Screen Capture / Screen Recording Shortcuts (Cmd + Shift + 3 / 4 / 5)
+      // macOS Screen Capture / Screen Recording Shortcuts (Cmd + Shift + 3 / 4 / 5)
       // or Windows Snipping Tool (Win/Ctrl + Shift + S)
       if ((e.metaKey || e.ctrlKey) && e.shiftKey) {
         if (key === '3' || key === '4' || key === '5') {
@@ -145,17 +151,35 @@ export function useScreenProtection({
         }
       }
 
-      // 3. Windows Game Bar Screen Recording (Win + Alt + R)
+      // Windows Game Bar Screen Recording (Win + Alt + R / Alt + PrtScn)
       if (e.altKey && (key.toLowerCase() === 'r' || key === 'PrintScreen')) {
         e.preventDefault();
         triggerRestriction('Screen recording shortcut (Alt+R / Alt+PrtScn) detected');
         return;
       }
 
-      // 4. Print / PDF Export Shortcut (Cmd/Ctrl + P)
+      // DevTools Inspection (F12, Cmd+Opt+I, Ctrl+Shift+I, Cmd+Opt+J, Cmd+Opt+C)
+      if (
+        key === 'F12' ||
+        ((e.metaKey || e.ctrlKey) && e.altKey && (key.toLowerCase() === 'i' || key.toLowerCase() === 'j' || key.toLowerCase() === 'c')) ||
+        ((e.metaKey || e.ctrlKey) && e.shiftKey && (key.toLowerCase() === 'i' || key.toLowerCase() === 'j' || key.toLowerCase() === 'c'))
+      ) {
+        e.preventDefault();
+        triggerRestriction('Developer tools inspection hotkey detected');
+        return;
+      }
+
+      // Page print / PDF export shortcut (Cmd/Ctrl + P)
       if ((e.metaKey || e.ctrlKey) && key.toLowerCase() === 'p') {
         e.preventDefault();
         triggerRestriction('Page print / PDF export shortcut detected');
+        return;
+      }
+
+      // View Source / Page Save (Cmd/Ctrl + U, Cmd/Ctrl + S)
+      if ((e.metaKey || e.ctrlKey) && (key.toLowerCase() === 'u' || key.toLowerCase() === 's')) {
+        e.preventDefault();
+        triggerRestriction('Page source / save shortcut detected');
         return;
       }
     };
@@ -175,7 +199,31 @@ export function useScreenProtection({
     };
   }, [isProtectionActive, triggerRestriction]);
 
-  // Hook getDisplayMedia to intercept WebRTC screen sharing attempts
+  // 2. Window Blur & Unfocus Detection
+  // (Whenever a screenshot tool like macOS Cmd+Shift+4 crosshairs, Windows Snipping Tool,
+  // or external recording app opens, the browser window immediately loses focus).
+  useEffect(() => {
+    if (!isProtectionActive || !protectOnBlur) return;
+
+    const handleWindowBlur = () => {
+      // Pause playback immediately if playing
+      if (videoRef?.current && !videoRef.current.paused) {
+        try {
+          videoRef.current.pause();
+        } catch {
+          // ignore playback interruption
+        }
+      }
+      triggerRestriction('Screen capture or window focus lost');
+    };
+
+    window.addEventListener('blur', handleWindowBlur);
+    return () => {
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [isProtectionActive, protectOnBlur, videoRef, triggerRestriction]);
+
+  // 3. Hook getDisplayMedia to intercept WebRTC screen sharing attempts
   useEffect(() => {
     if (!isProtectionActive) return;
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getDisplayMedia) return;
@@ -194,13 +242,12 @@ export function useScreenProtection({
     };
   }, [isProtectionActive, triggerRestriction]);
 
-  // Detect visibility changes (e.g. background capture software taking over or tab switching)
+  // 4. Tab Visibility Detection (Minimizing tab or switching tabs during playback)
   useEffect(() => {
     if (!isProtectionActive) return;
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        // If video was playing, pause it to prevent unattended capture
         if (videoRef?.current && !videoRef.current.paused) {
           triggerRestriction('Window lost focus while video playback was active');
         }
@@ -217,6 +264,7 @@ export function useScreenProtection({
     isRestricted,
     restrictionReason,
     watermarkText,
+    studentIdentifier,
     watermarkPosition,
     clearRestriction,
     triggerManualRestriction,

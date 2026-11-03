@@ -19,7 +19,46 @@ export function ScreenProtectionOverlay({
 }: ScreenProtectionOverlayProps) {
   return (
     <>
-      {/* 1. Dynamic Forensic Watermark (Drifts across the video surface during playback) */}
+      {/* 1. Tiled Forensic Watermark Matrix (Diagonal repeating grid covering 100% of the player viewport) */}
+      {!isRestricted && showWatermark && (
+        <div
+          data-testid="student-forensic-tiled-grid"
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-20 overflow-hidden select-none opacity-[0.16] mix-blend-screen"
+        >
+          <svg className="size-full w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern
+                id="forensic-watermark-pattern"
+                width="360"
+                height="140"
+                patternUnits="userSpaceOnUse"
+                patternTransform="rotate(-22)"
+              >
+                <text
+                  x="15"
+                  y="40"
+                  fill="white"
+                  className="fill-white font-mono text-[11px] font-bold tracking-wider"
+                >
+                  {watermarkText}
+                </text>
+                <text
+                  x="35"
+                  y="90"
+                  fill="white"
+                  className="fill-white font-mono text-[10px] font-semibold tracking-widest opacity-80"
+                >
+                  IUNOWARE ACADEMY · UNAUTHORIZED RECORDING RESTRICTED
+                </text>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#forensic-watermark-pattern)" />
+          </svg>
+        </div>
+      )}
+
+      {/* 2. Dynamic Floating Forensic Watermark (Drifts across the video surface during playback) */}
       {!isRestricted && showWatermark && (
         <div
           data-testid="student-forensic-watermark"
@@ -29,22 +68,33 @@ export function ScreenProtectionOverlay({
             left: `${watermarkPosition.x}%`,
             transition: 'top 1.8s ease-in-out, left 1.8s ease-in-out',
           }}
-          className="pointer-events-none absolute z-20 select-none opacity-25 dark:opacity-30 -translate-x-1/2 -translate-y-1/2"
+          className="pointer-events-none absolute z-25 select-none opacity-35 dark:opacity-40 -translate-x-1/2 -translate-y-1/2"
         >
-          <div className="flex items-center gap-1.5 rounded-md bg-black/60 px-2.5 py-1 text-[10px] font-mono font-medium text-white/90 backdrop-blur-xs border border-white/10 shadow-sm whitespace-nowrap">
+          <div className="flex items-center gap-1.5 rounded-md bg-black/75 px-2.5 py-1 text-[10px] font-mono font-medium text-white/90 backdrop-blur-xs border border-white/15 shadow-sm whitespace-nowrap">
             <Lock size={10} className="text-orange-400 shrink-0" />
             <span>{watermarkText}</span>
           </div>
         </div>
       )}
 
-      {/* 2. Full-Screen Anti-Recording / Anti-Share Protection Shield */}
+      {/* 3. Discrete Corner Forensic Session Stamp */}
+      {!isRestricted && showWatermark && (
+        <div
+          data-testid="student-forensic-corner-stamp"
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-12 right-4 z-20 select-none opacity-40 font-mono text-[9px] text-white/80 bg-black/70 px-2 py-0.5 rounded-xs border border-white/10 hidden sm:block"
+        >
+          <span>{watermarkText}</span>
+        </div>
+      )}
+
+      {/* 4. Full-Screen Anti-Recording / Anti-Share Protection Shield */}
       {isRestricted && (
         <div
           data-testid="screen-protection-shield"
           role="alert"
           aria-live="assertive"
-          className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/95 p-6 text-center backdrop-blur-lg animate-in fade-in zoom-in-95 duration-200 select-none"
+          className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black p-6 text-center select-none"
         >
           {/* Animated Warning Emblem */}
           <div className="relative mb-4 flex size-16 items-center justify-center rounded-2xl bg-red-500/15 border border-red-500/30 text-red-400 shadow-2xl shadow-red-500/20">

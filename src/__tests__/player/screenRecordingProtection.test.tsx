@@ -42,7 +42,7 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
     vi.restoreAllMocks();
   });
 
-  it('renders anti-capture protection badge and dynamic forensic watermark', async () => {
+  it('renders anti-capture protection badge and dynamic multi-layer forensic watermarks', async () => {
     await act(async () => {
       render(
         <LessonPlayer
@@ -64,12 +64,20 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
     expect(screen.getByTestId('screen-protection-status-badge')).toBeInTheDocument();
     expect(screen.getByText(/Anti-Capture Protected/i)).toBeInTheDocument();
 
-    // 2. Verify dynamic forensic watermark is rendered with student's credentials
+    // 2. Verify dynamic forensic wandering watermark is rendered with student's credentials
     const watermark = screen.getByTestId('student-forensic-watermark');
     expect(watermark).toBeInTheDocument();
     expect(watermark).toHaveTextContent('Alex Chen');
     expect(watermark).toHaveTextContent('alex.chen@example.com');
     expect(watermark).toHaveTextContent('Protected Content · Iunoware Academy');
+
+    // 3. Verify diagonal repeating tiled forensic watermark grid
+    expect(screen.getByTestId('student-forensic-tiled-grid')).toBeInTheDocument();
+
+    // 4. Verify corner forensic session stamp
+    const cornerStamp = screen.getByTestId('student-forensic-corner-stamp');
+    expect(cornerStamp).toBeInTheDocument();
+    expect(cornerStamp).toHaveTextContent('alex.chen@example.com');
   });
 
   it('enforces disablePictureInPicture and nodownload attributes on the video element', async () => {
@@ -183,6 +191,31 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
 
     expect(screen.getByTestId('screen-protection-shield')).toBeInTheDocument();
     expect(screen.getByText(/macOS screen recording \/ capture shortcut/i)).toBeInTheDocument();
+  });
+
+  it('triggers restriction shield when window loses focus (e.g. snipping tool overlay or external recorder)', async () => {
+    await act(async () => {
+      render(
+        <LessonPlayer
+          lesson={mockLesson}
+          completed={false}
+          onToggleComplete={vi.fn()}
+          prevLesson={null}
+          nextLesson={null}
+          onSelectLesson={vi.fn()}
+        />
+      );
+    });
+
+    expect(screen.queryByTestId('screen-protection-shield')).not.toBeInTheDocument();
+
+    // Trigger window blur (fired when macOS Cmd+Shift+4 cursor opens or Windows Snipping Tool is activated)
+    act(() => {
+      window.dispatchEvent(new Event('blur'));
+    });
+
+    expect(screen.getByTestId('screen-protection-shield')).toBeInTheDocument();
+    expect(screen.getByText(/Screen capture or window focus lost/i)).toBeInTheDocument();
   });
 
   it('intercepts getDisplayMedia screen sharing calls and restricts video player', async () => {
