@@ -1165,7 +1165,7 @@ export function InteractiveSprintCurriculum({
                     onClick={() => soundFx.playSweep(300, 700, 0.12, 0.05)}
                     className={`w-full bg-gradient-to-r ${currentTrackMeta.color.gradient} text-white font-black border-none shadow-xl justify-center py-3`}
                   >
-                    <span>Enroll In 15-Day {currentTrackMeta.name.split('&')[0].trim()} Sprint</span>
+                    <span>Enroll in {currentTrackMeta.name.split('&')[0].trim()} Cohort</span>
                     <ArrowRight size={15} />
                   </Button>
                 </div>
@@ -1175,7 +1175,7 @@ export function InteractiveSprintCurriculum({
         </div>
 
         {/* ========================================================================= */}
-        {/* ALTERNATING ZIG-ZAG 15-DAY CONNECTED ROADMAP (Left / Right / Left / Right) */}
+        {/* ALTERNATING ZIG-ZAG CONNECTED ROADMAP (Left / Right / Left / Right) */}
         {/* ========================================================================= */}
         <div className="relative">
           {/* Centered Timeline Header */}
@@ -1184,7 +1184,7 @@ export function InteractiveSprintCurriculum({
               Chronological Architecture
             </p>
             <h3 className="mt-1 text-2xl sm:text-3xl font-black text-white">
-              The 15-Day Sprint Roadmap
+              The Day-by-Day Cohort Roadmap
             </h3>
             <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
               Follow the left-to-right alternating milestones. Click any day to inspect full narrative briefs and deliverables.
