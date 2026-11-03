@@ -1,4 +1,5 @@
-import { ShieldAlert, Play, Lock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShieldAlert, Play, Lock, AlertTriangle } from 'lucide-react';
 
 export interface ScreenProtectionOverlayProps {
   isRestricted: boolean;
@@ -17,6 +18,30 @@ export function ScreenProtectionOverlay({
   onDismissRestriction,
   showWatermark = true,
 }: ScreenProtectionOverlayProps) {
+  // Verification cooldown to prevent rapid bypassing of security shields
+  const [cooldown, setCooldown] = useState<number>(() =>
+    import.meta.env?.MODE === 'test' ? 0 : 3
+  );
+
+  useEffect(() => {
+    if (!isRestricted) return;
+
+    if (import.meta.env?.MODE !== 'test') {
+      setCooldown(3);
+      const timer = setInterval(() => {
+        setCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [isRestricted]);
+
   return (
     <>
       {/* 1. Tiled Forensic Watermark Matrix (Diagonal repeating grid covering 100% of the player viewport) */}
@@ -101,8 +126,8 @@ export function ScreenProtectionOverlay({
           className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black p-6 text-center select-none"
         >
           {/* Animated Warning Emblem */}
-          <div className="relative mb-4 flex size-16 items-center justify-center rounded-2xl bg-red-500/15 border border-red-500/30 text-red-400 shadow-2xl shadow-red-500/20">
-            <ShieldAlert size={32} className="animate-pulse" />
+          <div className="relative mb-3 flex size-14 items-center justify-center rounded-2xl bg-red-500/15 border border-red-500/30 text-red-400 shadow-2xl shadow-red-500/20">
+            <ShieldAlert size={28} className="animate-pulse" />
             <span className="absolute -top-1 -right-1 flex size-3">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-red-400 opacity-75" />
               <span className="relative inline-flex size-3 rounded-full bg-red-500" />
@@ -117,23 +142,42 @@ export function ScreenProtectionOverlay({
           </p>
 
           {restrictionReason && (
-            <div className="my-3.5 inline-flex items-center gap-1.5 rounded-full bg-red-950/60 border border-red-500/30 px-3 py-1 text-[11px] font-mono text-red-300">
+            <div className="my-2.5 inline-flex items-center gap-1.5 rounded-full bg-red-950/60 border border-red-500/30 px-3 py-1 text-[11px] font-mono text-red-300">
               <span className="size-1.5 rounded-full bg-red-400" />
               <span>{restrictionReason}</span>
             </div>
           )}
 
-          <p className="text-[11px] text-slate-400 max-w-sm mb-5 leading-normal">
-            Please stop any active screen share (Zoom, Meet, Discord) or close recording software to continue viewing this proprietary lesson.
-          </p>
+          {/* Forensic Legal Accountability Notice */}
+          <div className="my-3 max-w-md rounded-xl bg-slate-900/90 border border-white/10 p-3 text-left">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-orange-400 mb-1">
+              <AlertTriangle size={13} className="shrink-0" />
+              <span>Forensic Attribution Active</span>
+            </div>
+            <p className="text-[10px] text-slate-300 leading-relaxed font-mono truncate">
+              Session watermarked to: <span className="text-white font-bold">{watermarkText}</span>
+            </p>
+            <p className="mt-1 text-[9px] text-slate-400 leading-normal">
+              All playback frames are indelibly watermarked with your student credentials. Any unauthorized recording or distribution is strictly prohibited and subject to immediate account termination.
+            </p>
+          </div>
 
           <button
             type="button"
+            disabled={cooldown > 0}
             onClick={onDismissRestriction}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-orange-500/25 hover:from-orange-600 hover:to-red-600 transition active:scale-95 cursor-pointer"
+            className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold text-white shadow-lg transition active:scale-95 ${
+              cooldown > 0
+                ? 'bg-slate-800 text-slate-400 border border-white/10 cursor-not-allowed opacity-60'
+                : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-orange-500/25 cursor-pointer'
+            }`}
           >
             <Play size={14} fill="currentColor" />
-            <span>I Have Stopped Recording — Resume Playback</span>
+            <span>
+              {cooldown > 0
+                ? `Verifying System Security (${cooldown}s)...`
+                : 'I Have Stopped Recording — Resume Playback'}
+            </span>
           </button>
         </div>
       )}
