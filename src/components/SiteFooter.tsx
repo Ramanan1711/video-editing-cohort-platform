@@ -25,7 +25,7 @@ export function SiteFooter() {
               </div>
             </Link>
             <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
-              The premier 15-day intensive production internship platform for aspiring software developers and creative editors. Ship real production briefs, collaborate on WhatsApp, and earn verified credentials.
+              The premier mentor-led cohort learning platform for ambitious developers, designers, and creators. Ship real industry briefs, collaborate on WhatsApp, and earn accredited credentials.
             </p>
             <div className="flex items-center gap-3 text-slate-400">
               <a

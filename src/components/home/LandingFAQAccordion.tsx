@@ -9,7 +9,7 @@ export interface FAQItem {
 
 const defaultFaqs: FAQItem[] = [
   {
-    q: 'How does the 15-Day Internship model work?',
+    q: 'How does the Iunoware Academy cohort model work?',
     a: 'Each morning at 9:00 AM, a production-level challenge unlocks with a detailed brief and starter assets. You work on the task, submit your deliverable link (GitHub PR, Loom walkthrough, or Google Drive cut) before midnight, and receive structured feedback and grading from assigned mentors within 24 hours.',
   },
   {
