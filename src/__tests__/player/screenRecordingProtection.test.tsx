@@ -66,20 +66,16 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
     expect(screen.getByTestId('screen-protection-status-badge')).toBeInTheDocument();
     expect(screen.getByText(/Anti-Capture Protected/i)).toBeInTheDocument();
 
-    // 2. Verify dynamic forensic wandering watermark is rendered with student's credentials
+    // 2. Verify discrete corner forensic watermark is rendered with student's credentials (clean enterprise LMS style)
     const watermark = screen.getByTestId('student-forensic-watermark');
     expect(watermark).toBeInTheDocument();
     expect(watermark).toHaveTextContent('Alex Chen');
     expect(watermark).toHaveTextContent('alex.chen@example.com');
     expect(watermark).toHaveTextContent('Protected Content · Iunoware Academy');
+    expect(watermark).toHaveClass('top-3.5', 'right-3.5');
 
-    // 3. Verify diagonal repeating tiled forensic watermark grid
-    expect(screen.getByTestId('student-forensic-tiled-grid')).toBeInTheDocument();
-
-    // 4. Verify corner forensic session stamp
-    const cornerStamp = screen.getByTestId('student-forensic-corner-stamp');
-    expect(cornerStamp).toBeInTheDocument();
-    expect(cornerStamp).toHaveTextContent('alex.chen@example.com');
+    // 3. Verify screen center is completely clean and unobstructed (no intrusive tiled grid)
+    expect(screen.queryByTestId('student-forensic-tiled-grid')).not.toBeInTheDocument();
   });
 
   it('enforces disablePictureInPicture and nodownload attributes on the video element', async () => {

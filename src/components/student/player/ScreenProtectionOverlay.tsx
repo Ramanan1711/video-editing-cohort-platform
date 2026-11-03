@@ -5,7 +5,7 @@ export interface ScreenProtectionOverlayProps {
   isRestricted: boolean;
   restrictionReason: string | null;
   watermarkText: string;
-  watermarkPosition: { x: number; y: number };
+  watermarkPosition?: { x: number; y: number };
   onDismissRestriction: () => void;
   showWatermark?: boolean;
 }
@@ -14,7 +14,6 @@ export function ScreenProtectionOverlay({
   isRestricted,
   restrictionReason,
   watermarkText,
-  watermarkPosition,
   onDismissRestriction,
   showWatermark = true,
 }: ScreenProtectionOverlayProps) {
@@ -44,80 +43,21 @@ export function ScreenProtectionOverlay({
 
   return (
     <>
-      {/* 1. Tiled Forensic Watermark Matrix (Diagonal repeating grid covering 100% of the player viewport) */}
-      {!isRestricted && showWatermark && (
-        <div
-          data-testid="student-forensic-tiled-grid"
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-20 overflow-hidden select-none opacity-25"
-        >
-          <svg className="size-full w-full h-full" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern
-                id="forensic-watermark-pattern"
-                width="380"
-                height="150"
-                patternUnits="userSpaceOnUse"
-                patternTransform="rotate(-22)"
-              >
-                <text
-                  x="15"
-                  y="40"
-                  fill="rgba(255, 255, 255, 0.75)"
-                  stroke="rgba(0, 0, 0, 0.65)"
-                  strokeWidth="0.8"
-                  className="font-mono text-[12px] font-bold tracking-wider"
-                >
-                  {watermarkText}
-                </text>
-                <text
-                  x="35"
-                  y="95"
-                  fill="rgba(255, 255, 255, 0.55)"
-                  stroke="rgba(0, 0, 0, 0.6)"
-                  strokeWidth="0.6"
-                  className="font-mono text-[10px] font-semibold tracking-widest"
-                >
-                  IUNOWARE ACADEMY · UNAUTHORIZED RECORDING RESTRICTED
-                </text>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#forensic-watermark-pattern)" />
-          </svg>
-        </div>
-      )}
-
-      {/* 2. Dynamic Floating Forensic Watermark (Drifts across the video surface during playback) */}
+      {/* Discrete Corner Forensic Watermark (Clean Enterprise LMS Style: ~18% opacity, anchored to corner, completely unobstructed viewing) */}
       {!isRestricted && showWatermark && (
         <div
           data-testid="student-forensic-watermark"
           aria-hidden="true"
-          style={{
-            top: `${watermarkPosition.y}%`,
-            left: `${watermarkPosition.x}%`,
-            transition: 'top 1.8s ease-in-out, left 1.8s ease-in-out',
-          }}
-          className="pointer-events-none absolute z-25 select-none opacity-60 dark:opacity-70 -translate-x-1/2 -translate-y-1/2"
+          className="pointer-events-none absolute top-3.5 right-3.5 z-20 select-none opacity-20 sm:opacity-25 transition-opacity"
         >
-          <div className="flex items-center gap-1.5 rounded-md bg-black/85 px-3 py-1.5 text-[11px] font-mono font-medium text-white backdrop-blur-sm border border-white/20 shadow-lg whitespace-nowrap">
-            <Lock size={12} className="text-orange-400 shrink-0" />
+          <div className="flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-0.5 text-[10px] font-mono text-white/90 backdrop-blur-xs border border-white/10 shadow-xs">
+            <Lock size={10} className="text-orange-400 shrink-0" />
             <span>{watermarkText}</span>
           </div>
         </div>
       )}
 
-      {/* 3. Discrete Corner Forensic Session Stamp */}
-      {!isRestricted && showWatermark && (
-        <div
-          data-testid="student-forensic-corner-stamp"
-          aria-hidden="true"
-          className="pointer-events-none absolute bottom-12 right-4 z-20 select-none opacity-40 font-mono text-[9px] text-white/80 bg-black/70 px-2 py-0.5 rounded-xs border border-white/10 hidden sm:block"
-        >
-          <span>{watermarkText}</span>
-        </div>
-      )}
-
-      {/* 4. Full-Screen Anti-Recording / Anti-Share Protection Shield */}
+      {/* Full-Screen Anti-Recording / Anti-Share Protection Shield */}
       {isRestricted && (
         <div
           data-testid="screen-protection-shield"
