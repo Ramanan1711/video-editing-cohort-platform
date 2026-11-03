@@ -35,7 +35,7 @@ export function PricingSection({
               Transparent Enrollment
             </p>
             <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
-              One Clear Investment. Full 15-Day Access.
+              One Clear Investment. Full Cohort Access.
             </h2>
             <p className="mt-3 text-sm text-slate-400 max-w-xl mx-auto">
               Everything you need to ship daily work, receive continuous feedback, and graduate with an industry credential.
@@ -51,14 +51,14 @@ export function PricingSection({
               <div className="grid gap-8 p-7 sm:grid-cols-[1fr_auto] sm:p-10">
                 <div>
                   <span className="rounded-full bg-[#B92B27]/15 border border-[#B92B27]/30 px-3 py-1 text-xs font-black uppercase tracking-wider text-[#D93830]">
-                    15-Day Sprint Pass
+                    Active Cohort Pass
                   </span>
                   <h3 className="mt-4 text-2xl font-black text-white">
                     Full Cohort Membership
                   </h3>
                   <div className="mt-6 grid gap-3 text-xs text-slate-300 sm:grid-cols-2">
                     {[
-                      '15 Daily Production Challenges',
+                      'Daily Hands-On Industry Challenges',
                       '1-on-1 WhatsApp Mentor Support',
                       'Weekly Live Masterclass Workshops',
                       'Verified Digital Certificate',
@@ -109,9 +109,9 @@ export function PricingSection({
               <div className="border-t border-white/10 bg-white/[0.02] p-4 px-7 sm:px-10 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
                 <span className="flex items-center gap-1.5 font-bold text-white">
                   <Shield size={14} className="text-[#38B44A]" />
-                  100% 5-Day Money-Back Guarantee
+                  100% Risk-Free Guarantee
                 </span>
-                <span>If unsatisfied during Days 1–3, request a full refund before Day 5.</span>
+                <span>If unsatisfied within your first 3 milestone days, receive a full refund with zero hassle.</span>
               </div>
             </TiltCard>
           </div>
@@ -130,13 +130,13 @@ export function PricingSection({
         <div className="gsap-parallax-slow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[32rem] rounded-full bg-gradient-to-r from-[#B92B27]/20 via-[#F2B705]/15 to-[#2675EB]/20 blur-3xl pointer-events-none" />
         <div className="gsap-header-reveal relative z-10 max-w-3xl mx-auto space-y-4">
           <p className="text-xs font-black uppercase tracking-[0.25em] text-[#F2B705]">
-            15 Days From Now
+            By Cohort Graduation
           </p>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
             You Could Have a Finished Portfolio and Verified Credential.
           </h2>
           <p className="text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
-            Join the next intensive cohort. Experience the power of daily production constraints, real WhatsApp mentorship, and peer momentum.
+            Join the next intensive cohort. Experience the power of daily milestone discipline, real WhatsApp mentorship, and peer momentum.
           </p>
           <div className="pt-6">
             <Button
@@ -147,7 +147,7 @@ export function PricingSection({
               withArrow
               className="bg-gradient-to-r from-[#B92B27] via-[#D93830] to-[#F2B705] hover:from-[#D93830] hover:to-[#D99B02] text-white border-none shadow-2xl shadow-[#B92B27]/30 hover:shadow-[#B92B27]/50"
             >
-              Join Next 15-Day Cohort
+              Join Upcoming Academy Cohort
             </Button>
           </div>
         </div>
