@@ -71,7 +71,7 @@ export function HeroSection({
               </span>
               <span className="hidden sm:inline text-white/20">•</span>
               <span className="hidden sm:inline text-[11px] font-bold text-slate-300 font-mono">
-                {loadingCohorts ? 'Checking Active Cohorts...' : `${cohorts.length || 2} Production Cohorts Active`}
+                {loadingCohorts ? 'Checking Active Cohorts...' : `${cohorts.length || 2} Active Cohorts Open`}
               </span>
             </div>
 
@@ -159,10 +159,10 @@ export function HeroSection({
                 <span>Verified Platform Operations · Live Cohort Registry</span>
               </div>
               <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-white">
-                Available Production Cohorts
+                Available Academy Cohorts
               </h2>
               <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-                Directly connected to our database. Inspect active tracks and reserve your place in an upcoming 15-day sprint.
+                Directly connected to our live registry. Explore active programs and reserve your seat for the upcoming intake.
               </p>
             </div>
 
@@ -204,14 +204,14 @@ export function HeroSection({
                             {isClosed ? 'Enrollment Closed' : cohort.status || 'Active Batch'}
                           </span>
                           <span className="text-[11px] font-bold text-slate-400 font-mono">
-                            Cap: {cohort.capacity || 30} Interns
+                            Cap: {cohort.capacity || 30} Seats
                           </span>
                         </div>
                         <h3 className="text-lg font-black text-white">
                           {cohort.name}
                         </h3>
                         <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">
-                          {cohort.description || 'Full 15-day sprint curriculum featuring daily production briefs, WhatsApp mentor support, and verifiable certification.'}
+                          {cohort.description || 'Hands-on cohort curriculum featuring daily project milestones, WhatsApp mentor support, and verifiable certification.'}
                         </p>
                         {isClosed && deadlineCheck.reason && (
                           <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5 text-[11px] font-semibold text-rose-300">
