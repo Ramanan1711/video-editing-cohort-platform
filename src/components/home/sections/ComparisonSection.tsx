@@ -10,10 +10,10 @@ export function ComparisonSection() {
             The Core Difference
           </p>
           <h2 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-white">
-            Why 94% of Our Interns Finish (and Traditional Courses Fail)*
+            Why 94% of Our Students Finish (and Traditional Courses Fail)*
           </h2>
           <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-            Most online courses are passive video libraries. Iunoware Academy enforces a structured daily production discipline with real accountability.
+            Most online courses are passive video libraries. Iunoware Academy enforces a structured daily project discipline with real accountability.
           </p>
         </div>
 
@@ -72,8 +72,8 @@ export function ComparisonSection() {
           >
             <div className="flex items-center justify-between border-b border-[#38B44A]/20 pb-4">
               <div>
-                <span className="text-xs font-black uppercase tracking-wider text-[#38B44A]">The Iunoware Sprint</span>
-                <h3 className="text-xl font-black text-white mt-1">15-Day Production Sprint</h3>
+                <span className="text-xs font-black uppercase tracking-wider text-[#38B44A]">The Iunoware Way</span>
+                <h3 className="text-xl font-black text-white mt-1">Active Cohort Sprints</h3>
               </div>
               <span className="flex size-10 items-center justify-center rounded-2xl bg-[#38B44A] text-white shadow-lg shadow-[#38B44A]/30">
                 <Check size={20} />
@@ -83,11 +83,11 @@ export function ComparisonSection() {
             <ul className="space-y-4 text-xs sm:text-sm text-slate-200">
               <li className="flex items-start gap-3">
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#38B44A] text-white mt-0.5 font-bold shadow-xs">✓</span>
-                <span><strong className="text-white">Daily Production Tasks:</strong> 15 real client briefs with 24-hour turnaround to build shipping stamina.</span>
+                <span><strong className="text-white">Daily Hands-on Tasks:</strong> Real industry briefs and structured milestones to build shipping stamina.</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#38B44A] text-white mt-0.5 font-bold shadow-xs">✓</span>
-                <span><strong className="text-white">Portfolio-Grade Deliverables:</strong> Broadcast commercial cuts, 4K timeline masters, and color-graded reels.</span>
+                <span><strong className="text-white">Portfolio-Grade Deliverables:</strong> Real-world capstone projects, verified code/timeline repos, and client-ready showcase deliverables.</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#38B44A] text-white mt-0.5 font-bold shadow-xs">✓</span>
