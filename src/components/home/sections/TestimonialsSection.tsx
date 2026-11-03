@@ -294,16 +294,16 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-mono font-bold tracking-wider uppercase border border-[#38B44A]/30 bg-[#38B44A]/10 text-[#38B44A] mb-3">
                 <span className="size-2 rounded-full bg-[#38B44A] animate-pulse" />
-                <span>Selected Production Deliverables · Junca .FW Showcase</span>
+                <span>Verified Student Deliverables · Academy Showcase</span>
               </div>
               <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mt-1">
-                Selected Production Proof-of-Work
+                Verified Student Proof-of-Work
               </h2>
             </div>
 
             <div className="flex flex-col md:items-end gap-3">
               <p className="text-xs sm:text-sm text-slate-400 max-w-md md:text-right leading-relaxed">
-                Inspect real production cuts built by cohort members under 24-hour sprint briefs.
+                Inspect real projects built by cohort students under industry-standard briefs.
               </p>
 
               {/* Navigation Controls & Hint (Visible across mobile, tablet, and desktop) */}

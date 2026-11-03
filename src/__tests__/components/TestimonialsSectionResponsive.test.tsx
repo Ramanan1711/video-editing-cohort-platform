@@ -19,7 +19,7 @@ describe('TestimonialsSection (Responsive Mobile & Tablet View)', () => {
     render(<TestimonialsSection />);
 
     expect(
-      screen.getByText('Selected Production Proof-of-Work')
+      screen.getByText('Verified Student Proof-of-Work')
     ).toBeInTheDocument();
 
     // Verify all deliverable filter tabs exist
