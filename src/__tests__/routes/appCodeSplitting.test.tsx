@@ -84,7 +84,7 @@ describe('App - Code Splitting & Dynamic Lazy Loading Architecture', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
-      expect(screen.getByRole('heading', { level: 1, name: /return to the room/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1, name: /return to your workspace/i })).toBeInTheDocument();
     });
   });
 
