@@ -5,9 +5,12 @@ import {
   Play,
   RefreshCw,
   RotateCcw,
+  ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 import type { Lesson, parseVideoUrl } from '../../../lib/courseService';
+import { useScreenProtection } from '../../../hooks/useScreenProtection';
+import { ScreenProtectionOverlay } from './ScreenProtectionOverlay';
 
 export interface VideoScreenProps {
   lesson: Lesson;
@@ -40,6 +43,10 @@ export interface VideoScreenProps {
   lastKnownTimeRef: React.MutableRefObject<number>;
   refreshAttemptsRef: React.MutableRefObject<number>;
   resolvedThumbnailUrl?: string | null;
+  userEmail?: string | null;
+  userId?: string | null;
+  userName?: string | null;
+  enableScreenProtection?: boolean;
 }
 
 export function VideoScreen({
@@ -70,16 +77,51 @@ export function VideoScreen({
   lastKnownTimeRef,
   refreshAttemptsRef,
   resolvedThumbnailUrl,
+  userEmail,
+  userId,
+  userName,
+  enableScreenProtection,
 }: VideoScreenProps) {
+  const screenProtection = useScreenProtection({
+    enabled: enableScreenProtection ?? true,
+    userEmail,
+    userId,
+    userName,
+    videoRef,
+    onRestored: () => {
+      if (videoRef.current && videoRef.current.paused) {
+        try {
+          const playPromise = videoRef.current.play();
+          if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(() => {});
+          }
+        } catch {
+          // ignore playback interruption
+        }
+      }
+    },
+  });
+
   return (
     <>
       {/* Video Container Area with 16:9 Aspect Ratio */}
       <div
         ref={videoContainerRef}
         tabIndex={0}
+        onContextMenu={(e) => e.preventDefault()}
         aria-label="Video player viewport. Press Space to play or pause, F for fullscreen, Left and Right arrows to seek."
         className="group relative aspect-video w-full overflow-hidden bg-black focus:outline-hidden focus:ring-2 focus:ring-orange-500"
       >
+        {/* Anti-Screen Recording & DRM Protection Shield & Forensic Watermark */}
+        <ScreenProtectionOverlay
+          isRestricted={screenProtection.isRestricted}
+          restrictionReason={screenProtection.restrictionReason}
+          watermarkText={screenProtection.watermarkText}
+          watermarkPosition={screenProtection.watermarkPosition}
+          onDismissRestriction={screenProtection.clearRestriction}
+          showWatermark={screenProtection.isProtectionActive}
+        />
+
         {/* HUD Feedback Toast Overlay */}
         {hudMessage && (
           <div
@@ -140,7 +182,9 @@ export function VideoScreen({
           <iframe
             src={videoMeta.embedUrl!}
             title={lesson.title}
-            className="absolute inset-0 size-full border-0"
+            className={`absolute inset-0 size-full border-0 transition-all duration-300 ${
+              screenProtection.isRestricted ? 'blur-2xl brightness-0 pointer-events-none' : ''
+            }`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
           />
@@ -149,9 +193,12 @@ export function VideoScreen({
             <video
               ref={videoRef}
               key={lesson.id}
-              className="absolute inset-0 size-full object-contain bg-black select-none"
-              controls
+              className={`absolute inset-0 size-full object-contain bg-black select-none transition-all duration-300 ${
+                screenProtection.isRestricted ? 'blur-2xl brightness-0 pointer-events-none' : ''
+              }`}
+              controls={!screenProtection.isRestricted}
               controlsList="nodownload"
+              disablePictureInPicture={true}
               onContextMenu={(e) => e.preventDefault()}
               poster={resolvedThumbnailUrl || undefined}
               src={videoMeta.directUrl!}
@@ -272,9 +319,19 @@ export function VideoScreen({
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {/* DRM / Anti-Capture Status Indicator */}
+          <div
+            data-testid="screen-protection-status-badge"
+            className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20"
+          >
+            <ShieldCheck size={11} className="text-emerald-500" />
+            <span className="hidden sm:inline">Anti-Capture Protected</span>
+            <span className="sm:hidden">Protected</span>
+          </div>
+
           {/* Keyboard shortcut guide badge */}
-          <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+          <div className="hidden xl:flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 font-mono">
             <span className="rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-slate-700 dark:text-slate-200 font-bold">Space</span> Play
             <span className="rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-slate-700 dark:text-slate-200 font-bold">F</span> Fullscreen
             <span className="rounded bg-slate-200 px-1.5 py-0.5 text-slate-700 font-bold">←/→</span> ±5s

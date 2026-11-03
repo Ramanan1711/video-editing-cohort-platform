@@ -29,10 +29,13 @@ export interface LessonPlayerProps {
   nextLesson: Lesson | null;
   onSelectLesson: (lesson: Lesson) => void;
   userId?: string;
+  userEmail?: string | null;
+  userName?: string | null;
   cohortId?: string | null;
   initialWatchPercentage?: number;
   initialLastPositionSeconds?: number;
   onWatchProgressUpdate?: (lessonId: string, watchPercentage: number, autoCompleted: boolean, positionSeconds?: number) => void;
+  enableScreenProtection?: boolean;
 }
 
 export function LessonPlayer({
@@ -43,10 +46,13 @@ export function LessonPlayer({
   nextLesson,
   onSelectLesson,
   userId,
+  userEmail,
+  userName,
   cohortId,
   initialWatchPercentage = 0,
   initialLastPositionSeconds = 0,
   onWatchProgressUpdate,
+  enableScreenProtection,
 }: LessonPlayerProps) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'overview' | 'resources' | 'notes' | 'discussion'>('overview');
@@ -623,6 +629,10 @@ export function LessonPlayer({
         lastKnownTimeRef={lastKnownTimeRef}
         refreshAttemptsRef={refreshAttemptsRef}
         resolvedThumbnailUrl={resolvedThumbnailUrl}
+        userId={userId}
+        userEmail={userEmail}
+        userName={userName}
+        enableScreenProtection={enableScreenProtection}
       />
 
       {/* Lesson Details & Prev/Next Controls */}

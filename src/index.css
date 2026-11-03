@@ -953,3 +953,15 @@ video::-webkit-media-controls-enclosure {
   overflow: hidden;
 }
 
+/* Anti-Screen Recording & Print Screen Protection */
+@media print {
+  video,
+  iframe,
+  [data-testid="screen-protection-shield"],
+  [data-testid="student-forensic-watermark"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+
+

@@ -716,6 +716,8 @@ export function StudentPlayerView({
                           nextLesson={nextLesson}
                           onSelectLesson={selectLesson}
                           userId={user?.id}
+                          userEmail={user?.email}
+                          userName={profile?.full_name || user?.user_metadata?.full_name}
                           cohortId={course.cohort?.id}
                           initialWatchPercentage={
                             course.progress.find((p) => p.lesson_id === selectedLesson.id)?.watch_percentage ?? 0
