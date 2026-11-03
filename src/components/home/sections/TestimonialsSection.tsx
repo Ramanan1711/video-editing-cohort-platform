@@ -699,7 +699,7 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
                 A Verifiable Credential That Employers Actually Respect.
               </h2>
               <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                Anyone can fake watching videos. Nobody can fake 15 days of verified daily submissions and mentor reviews.
+                Anyone can fake watching tutorials. Nobody can fake hands-on cohort milestones, verified project submissions, and direct mentor reviews.
               </p>
 
               <div className="space-y-3.5 text-xs sm:text-sm text-slate-300">
@@ -712,7 +712,7 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 size={16} className="text-[#38B44A] shrink-0 mt-0.5" />
                   <span>
-                    <strong>Mentor Letter of Recommendation:</strong> Detailed assessment of your timeline speed, storytelling discipline, and technical execution.
+                    <strong>Mentor Letter of Recommendation:</strong> Detailed assessment of your project discipline, problem-solving velocity, and technical execution.
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
