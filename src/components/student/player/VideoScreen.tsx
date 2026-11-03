@@ -206,7 +206,17 @@ export function VideoScreen({
               onTimeUpdate={handleTimeUpdate}
               onEnded={handleEnded}
               onError={handleVideoError}
-              onPlay={handlePlay}
+              onPlay={(e) => {
+                if (screenProtection.isRestricted) {
+                  try {
+                    e.currentTarget.pause();
+                  } catch {
+                    // ignore
+                  }
+                  return;
+                }
+                handlePlay();
+              }}
               onPause={handlePause}
               onPlaying={handlePlaying}
             />

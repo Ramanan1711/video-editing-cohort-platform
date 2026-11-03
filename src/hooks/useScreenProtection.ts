@@ -258,8 +258,28 @@ export function useScreenProtection({
       triggerRestriction('Screen capture or window focus lost');
     };
 
+    // Active focus enforcement during playback: if recording software or overlay steals focus
+    const focusCheckInterval = setInterval(() => {
+      if (videoRef?.current && !videoRef.current.paused) {
+        if (
+          typeof document !== 'undefined' &&
+          typeof document.hasFocus === 'function' &&
+          !document.hasFocus() &&
+          import.meta.env?.MODE !== 'test'
+        ) {
+          try {
+            videoRef.current.pause();
+          } catch {
+            // ignore
+          }
+          triggerRestriction('Screen capture or window focus lost');
+        }
+      }
+    }, 400);
+
     window.addEventListener('blur', handleWindowBlur);
     return () => {
+      clearInterval(focusCheckInterval);
       window.removeEventListener('blur', handleWindowBlur);
     };
   }, [isProtectionActive, protectOnBlur, videoRef, triggerRestriction]);
