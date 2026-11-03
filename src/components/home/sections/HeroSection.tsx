@@ -67,7 +67,7 @@ export function HeroSection({
             >
               <span className="flex size-2 rounded-full bg-[#38B44A] animate-ping" />
               <span className="text-[11px] font-black uppercase tracking-wider text-[#F2B705] font-mono">
-                Stop Watching Tutorials · 15-Day Production Sprint
+                Stop Watching Tutorials · Cohort-Based Learning
               </span>
               <span className="hidden sm:inline text-white/20">•</span>
               <span className="hidden sm:inline text-[11px] font-bold text-slate-300 font-mono">
@@ -89,7 +89,7 @@ export function HeroSection({
 
             {/* Subtitle */}
             <p className="mt-2 md:mt-6 max-w-xl text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
-              An intensive 15-day sprint for ambitious video editors and motion designers. Solve real production briefs daily, get 1-on-1 mentor guidance via WhatsApp, and graduate with a portfolio-grade project and accredited recommendation.
+              Intensive, mentor-led cohorts for ambitious learners and creators. Solve real-world industry challenges, receive 1-on-1 mentor guidance via WhatsApp, and graduate with proof of work and an accredited credential.
             </p>
 
             {/* CTA Buttons */}
@@ -108,12 +108,12 @@ export function HeroSection({
                 href="#sprint"
                 variant="secondary"
                 size="lg"
-                data-cursor="INSPECT 15 DAYS"
+                data-cursor="INSPECT CURRICULUM"
                 onClick={() => soundFx.playBlip(480, 0.04, 'sine', 0.04)}
                 className="w-full sm:w-auto justify-center bg-white/5 border border-white/15 text-white hover:bg-white/10 hover:border-[#2675EB]/50 backdrop-blur-xl px-7 py-3.5 font-bold transition-all"
               >
                 <Play size={15} className="text-[#2675EB]" fill="currentColor" />
-                <span>Inspect 15-Day Roadmap</span>
+                <span>Explore Cohort Curriculum</span>
               </Button>
             </div>
 
@@ -121,7 +121,7 @@ export function HeroSection({
             <div className="mt-8 flex flex-wrap items-center justify-start gap-4 text-xs text-slate-300">
               <div className="inline-flex items-center gap-1.5 font-bold">
                 <CheckCircle2 size={15} className="text-[#38B44A]" />
-                <span>15 Daily Submissions Required</span>
+                <span>Daily Project Milestones</span>
               </div>
               <span className="text-white/20">•</span>
               <div className="inline-flex items-center gap-1.5 font-bold">
