@@ -809,7 +809,7 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
                 &quot;I finally finished work I am proud to send to clients.&quot;
               </h2>
               <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                Verified stories from video editors who completed the 15-day sprint and landed paying client projects.
+                Verified stories from academy students who completed their cohort sprints and landed paying client projects and roles.
               </p>
             </div>
 
@@ -821,7 +821,7 @@ export function TestimonialsSection(_props: TestimonialsSectionProps = {}) {
                   ))}
                 </div>
                 <p className="text-xs leading-relaxed text-slate-300">
-                  &quot;The 15-day structure is genius. You don&apos;t have time to procrastinate. The WhatsApp support helped me unblock a tricky pacing cut in 10 minutes.&quot;
+                  &quot;The cohort sprint structure is genius. You don&apos;t have time to procrastinate. The WhatsApp support helped me unblock a tricky project roadblock in 10 minutes.&quot;
                 </p>
                 <div>
                   <p className="text-xs font-black text-white">Pooja S.</p>
