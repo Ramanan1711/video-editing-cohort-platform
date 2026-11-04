@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-28T08:45:47.909Z",
-  "migrationCount": 77,
+  "generatedAt": "2026-11-04T10:33:58.592Z",
+  "migrationCount": 81,
   "migrations": [
     {
       "order": 1,
@@ -262,8 +262,8 @@
     {
       "order": 17,
       "filename": "20260928000010_canonical_lesson_resources_and_storage_privacy.sql",
-      "sha256": "8d223cfc9fadecb680b249b4c38fcbb14038da506bcad57af5fd3037e2ee4638",
-      "sizeBytes": 12620,
+      "sha256": "740631d49053fee9efaf0c6eee588a5ab40ebfbe935ffa5f590831d2f2f527e6",
+      "sizeBytes": 15148,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
@@ -1051,6 +1051,46 @@
       "tableCreations": [],
       "rpcDefinitions": [
         "check_user_registration_status"
+      ]
+    },
+    {
+      "order": 78,
+      "filename": "20261030000001_add_thumbnail_url_to_lessons.sql",
+      "sha256": "c31ae17538119f370dfb8fb851c05a8f02ccccbcbbbe6485ea7905d3cd931d98",
+      "sizeBytes": 450,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": []
+    },
+    {
+      "order": 79,
+      "filename": "20261102000001_canonical_fix_assignment_notification_action_url.sql",
+      "sha256": "618a39d7a8b6d6077dc2f68621ec60253aece5914f8241af179692aeae1adfd2",
+      "sizeBytes": 4314,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "review_submission_v2"
+      ]
+    },
+    {
+      "order": 80,
+      "filename": "20261104000001_default_practice_footage_and_project_files_to_enrolled.sql",
+      "sha256": "be02133fc41da8ae7611c6fb68299fdf9a90b92ecc52da235156abbdbbd58dcd",
+      "sizeBytes": 1435,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": []
+    },
+    {
+      "order": 81,
+      "filename": "20261104000002_canonical_fix_course_assets_and_video_playback_access.sql",
+      "sha256": "3e38c73c10d1bc5e47705fcdd1a92d16116862ac22cdec715fa43591721f8069",
+      "sizeBytes": 6163,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "can_access_course_asset"
       ]
     }
   ]

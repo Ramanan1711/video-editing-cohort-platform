@@ -41,17 +41,28 @@ set search_path = public
 as $$
 declare
   v_uid uuid := auth.uid();
+  v_clean_path text;
   v_folder text;
+  v_filename text;
 begin
   if p_object_name is null or length(trim(p_object_name)) = 0 then
     return false;
   end if;
 
-  -- Extract the root folder from the object path
-  v_folder := (storage.foldername(p_object_name))[1];
+  -- 1. Sanitize object path: strip query params, hashes, leading slashes, and full URL prefixes
+  v_clean_path := trim(p_object_name);
+  v_clean_path := split_part(v_clean_path, '?', 1);
+  v_clean_path := split_part(v_clean_path, '#', 1);
+  v_clean_path := regexp_replace(v_clean_path, '^https?://[^/]+/storage/v1/object/(public|sign|authenticated)/course-assets/', '');
+  v_clean_path := regexp_replace(v_clean_path, '^course-assets/', '');
+  v_clean_path := regexp_replace(v_clean_path, '^/+', '');
 
-  -- 1. Public assets (thumbnails, preview covers, public logos) are readable by anyone
-  if v_folder in ('thumbnails', 'covers', 'public') then
+  -- Extract root folder and filename
+  v_folder := split_part(v_clean_path, '/', 1);
+  v_filename := split_part(v_clean_path, '/', -1);
+
+  -- 2. Public folders: readable by any client (unauthenticated or authenticated)
+  if v_folder in ('thumbnails', 'covers', 'public', 'advertisements', 'community', 'challenges', 'sprint-starters') then
     return true;
   end if;
 
@@ -60,35 +71,83 @@ begin
     return false;
   end if;
 
-  -- 2. Administrators and mentors have platform-wide or curriculum access
+  -- 3. Administrators and mentors have platform-wide or curriculum access
   if public.is_admin() or public.is_mentor() then
     return true;
   end if;
 
-  -- 3. Community board media is readable by any authenticated member
-  if v_folder = 'community' then
+  -- 4. Check if object is linked to a lesson video that the student is enrolled in
+  if exists (
+    select 1
+    from public.lessons l
+    join public.modules m on m.id = l.module_id
+    where (
+      l.video_url like '%' || v_clean_path
+      or v_clean_path like '%' || l.video_url
+      or l.video_url like '%' || p_object_name
+      or p_object_name like '%' || l.video_url
+      or (length(v_filename) > 10 and l.video_url like '%' || v_filename)
+    )
+    and exists (
+      select 1 from public.enrollments e
+      left join public.cohorts c on c.id = e.cohort_id
+      where (
+        e.cohort_id = m.cohort_id
+        or (m.course_id is not null and c.course_id = m.course_id)
+        or (m.cohort_id is not null and exists (
+          select 1 from public.cohorts mc 
+          where mc.id = m.cohort_id 
+            and mc.course_id is not null 
+            and mc.course_id = c.course_id
+        ))
+      )
+      and e.user_id = v_uid
+      and e.status in ('enrolled', 'active', 'completed', 'inactive')
+    )
+  ) then
     return true;
   end if;
 
-  -- 4. Check if object is linked to an authorized lesson resource
+  -- 5. Check if object is linked to an authorized lesson resource
   return exists (
     select 1
     from public.lesson_resources lr
     join public.lessons l on l.id = lr.lesson_id
     join public.modules m on m.id = l.module_id
     where (
-      lr.url like '%' || p_object_name
+      lr.url like '%' || v_clean_path
+      or v_clean_path like '%' || lr.url
+      or lr.url like '%' || p_object_name
       or p_object_name like '%' || lr.url
-      or (lr.file_url is not null and (lr.file_url like '%' || p_object_name or p_object_name like '%' || lr.file_url))
+      or (lr.file_url is not null and (
+        lr.file_url like '%' || v_clean_path
+        or v_clean_path like '%' || lr.file_url
+        or lr.file_url like '%' || p_object_name
+        or p_object_name like '%' || lr.file_url
+      ))
+      or (length(v_filename) > 10 and (
+        lr.url like '%' || v_filename
+        or (lr.file_url is not null and lr.file_url like '%' || v_filename)
+      ))
     )
     and (
       lr.visibility = 'public'
       or (
         exists (
           select 1 from public.enrollments e
-          where e.cohort_id = m.cohort_id
-            and e.user_id = v_uid
-            and e.status in ('enrolled', 'active', 'completed')
+          left join public.cohorts c on c.id = e.cohort_id
+          where (
+            e.cohort_id = m.cohort_id
+            or (m.course_id is not null and c.course_id = m.course_id)
+            or (m.cohort_id is not null and exists (
+              select 1 from public.cohorts mc 
+              where mc.id = m.cohort_id 
+                and mc.course_id is not null 
+                and mc.course_id = c.course_id
+            ))
+          )
+          and e.user_id = v_uid
+          and e.status in ('enrolled', 'active', 'completed', 'inactive')
         )
         and (
           lr.visibility = 'enrolled'

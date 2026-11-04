@@ -60,7 +60,9 @@ export function LessonPlayer({
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [watchPercentage, setWatchPercentage] = useState<number>(initialWatchPercentage);
   const [downloadingResourceId, setDownloadingResourceId] = useState<string | null>(null);
-  const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(lesson.video_url);
+  const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string | null>(
+    lesson.video_url && !isSecurableAsset(lesson.video_url) ? lesson.video_url : null
+  );
   const [showResumePrompt, setShowResumePrompt] = useState<boolean>(
     () => (initialLastPositionSeconds ?? 0) > 5
   );
