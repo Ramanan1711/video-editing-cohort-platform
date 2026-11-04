@@ -29,18 +29,34 @@ export function usePortalScreenSecurity() {
       // 2. macOS Screen Capture / Screen Recording Shortcuts (Cmd + Shift + 3/4/5/6)
       // or Windows Snipping Tool (Win/Ctrl + Shift + S)
       if ((e.metaKey || e.ctrlKey) && e.shiftKey) {
-        // Allow text editing shortcuts like Cmd+Shift+Z (Redo) or text selection inside inputs
-        const target = e.target as HTMLElement | null;
-        const isTextInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-        if (isTextInput && (key.toLowerCase() === 'z' || key.startsWith('Arrow'))) {
+        // Narrow detector strictly to capture keys only: 3, 4, 5, 6, S
+        // Allow legitimate browser/navigation shortcuts like Cmd+Shift+T (reopen closed tab),
+        // Cmd+Shift+R (hard reload), Cmd+Shift+Z (redo), etc.
+        const isCapture =
+          key === '3' ||
+          key === '#' ||
+          e.code === 'Digit3' ||
+          key === '4' ||
+          key === '$' ||
+          e.code === 'Digit4' ||
+          key === '5' ||
+          key === '%' ||
+          e.code === 'Digit5' ||
+          key === '6' ||
+          key === '^' ||
+          e.code === 'Digit6' ||
+          key.toLowerCase() === 's' ||
+          e.code === 'KeyS';
+
+        if (!isCapture) {
           return;
         }
 
         e.preventDefault();
-        const reason = 'macOS screen recording / capture shortcut (Cmd+Shift+3/4/5) detected on portal';
+        const reason = 'Screen recording / capture shortcut (Cmd/Ctrl+Shift+3/4/5/S) detected on portal';
         sessionStorage.setItem(CAPTURE_DETECTED_STORAGE_KEY, reason);
         window.dispatchEvent(new CustomEvent(SECURITY_ALERT_EVENT, { detail: { reason } }));
-        toast?.error('Content Protection: Screen recording shortcuts (Cmd+Shift) are disabled.');
+        toast?.error('Content Protection: Screen recording shortcuts are disabled.');
         if (navigator.clipboard?.writeText) {
           navigator.clipboard.writeText('Protected Content · Iunoware Academy').catch(() => {});
         }
@@ -48,7 +64,7 @@ export function usePortalScreenSecurity() {
       }
 
       // 3. Windows Game Bar Screen Recording (Win + Alt + R / Alt + PrtScn)
-      if (e.altKey && (key.toLowerCase() === 'r' || key === 'PrintScreen')) {
+      if (e.altKey && !e.metaKey && !e.ctrlKey && (key.toLowerCase() === 'r' || key === 'PrintScreen')) {
         e.preventDefault();
         const reason = 'Screen recording shortcut (Alt+R / Alt+PrtScn) detected on portal';
         sessionStorage.setItem(CAPTURE_DETECTED_STORAGE_KEY, reason);

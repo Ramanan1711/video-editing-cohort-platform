@@ -191,7 +191,7 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
     expect(screen.getByText(/macOS screen recording \/ capture shortcut/i)).toBeInTheDocument();
   });
 
-  it('triggers restriction shield immediately when Cmd+Shift modifier combination is pressed before any digit (macOS M-Series hardware protection)', async () => {
+  it('does not trigger restriction shield on navigation shortcuts like Cmd+Shift+T and Cmd+Shift+R', async () => {
     await act(async () => {
       render(
         <LessonPlayer
@@ -207,11 +207,12 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
 
     expect(screen.queryByTestId('screen-protection-shield')).not.toBeInTheDocument();
 
-    // User presses Meta (Cmd) + Shift on MacBook
+    // User presses Cmd+Shift+T (reopen closed tab)
     act(() => {
       window.dispatchEvent(
         new KeyboardEvent('keydown', {
-          key: 'Shift',
+          key: 't',
+          code: 'KeyT',
           metaKey: true,
           shiftKey: true,
           bubbles: true,
@@ -219,9 +220,24 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
       );
     });
 
-    // Verify protection shield activates immediately before user can press 3, 4, or 5
-    expect(screen.getByTestId('screen-protection-shield')).toBeInTheDocument();
-    expect(screen.getByText(/macOS screen recording \/ capture shortcut/i)).toBeInTheDocument();
+    // Should NOT trigger protection shield
+    expect(screen.queryByTestId('screen-protection-shield')).not.toBeInTheDocument();
+
+    // User presses Cmd+Shift+R (hard refresh)
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'r',
+          code: 'KeyR',
+          metaKey: true,
+          shiftKey: true,
+          bubbles: true,
+        })
+      );
+    });
+
+    // Should NOT trigger protection shield
+    expect(screen.queryByTestId('screen-protection-shield')).not.toBeInTheDocument();
   });
 
   it('pauses playback without triggering restriction shield when window loses focus (split-screen multitasking / taking notes)', async () => {
