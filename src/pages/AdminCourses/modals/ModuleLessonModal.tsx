@@ -645,11 +645,11 @@ export function ModuleLessonModal() {
                           className="text-orange-600 focus:ring-orange-500"
                         />
                         <strong className="text-xs font-bold text-slate-900 dark:text-white">
-                          Enrolled
+                          Enrolled (Practice Assets)
                         </strong>
                       </div>
                       <span className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                        Active cohort students only.
+                        Immediate access for students to edit along (footage, project files, LUTs).
                       </span>
                     </label>
 
@@ -691,11 +691,11 @@ export function ModuleLessonModal() {
                           className="text-orange-600 focus:ring-orange-500"
                         />
                         <strong className="flex items-center gap-1 text-xs font-bold text-slate-900 dark:text-white">
-                          <Lock size={11} className="text-amber-600 dark:text-amber-400" /> Lesson Complete
+                          <Lock size={11} className="text-amber-600 dark:text-amber-400" /> Solution / Benchmark
                         </strong>
                       </div>
                       <span className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                        Unlocked after completion.
+                        Solution files (unlocked only after lesson completion).
                       </span>
                     </label>
                   </div>

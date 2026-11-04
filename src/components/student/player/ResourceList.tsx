@@ -57,7 +57,7 @@ export function ResourceList({
                   <div className="flex flex-wrap items-center gap-2">
                     <strong className="text-xs sm:text-sm font-bold text-slate-900">{resource.name}</strong>
                     <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                      Locked Resource
+                      Solution / Benchmark (Locked)
                     </span>
                     {resource.file_size && (
                       <span className="text-[10px] text-slate-400">
@@ -66,7 +66,7 @@ export function ResourceList({
                     )}
                   </div>
                   <p className="mt-1 text-xs text-amber-700">
-                    Mark this lesson as complete to unlock this download (e.g. project files, source media, or LUTs).
+                    Complete this lesson to unlock this reference solution file or benchmark project.
                   </p>
                 </div>
               </div>
@@ -94,7 +94,12 @@ export function ResourceList({
                   <strong className="text-xs sm:text-sm font-bold text-slate-900">{resource.name}</strong>
                   {resource.visibility === 'after_completion' && (
                     <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                      ✓ Unlocked
+                      ✓ Solution Unlocked
+                    </span>
+                  )}
+                  {resource.visibility === 'enrolled' && (
+                    <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                      Practice Footage &amp; Project Assets
                     </span>
                   )}
                   {resource.visibility === 'public' && (

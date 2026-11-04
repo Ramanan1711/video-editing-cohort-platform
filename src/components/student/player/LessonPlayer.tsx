@@ -401,7 +401,7 @@ export function LessonPlayer({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to download resource.';
       if (message.includes('LOCKED_RESOURCE')) {
-        toast.error('Mark this lesson complete first to unlock this download.');
+        toast.error('Complete this lesson first to unlock this solution file.');
       } else if (message.includes('UNAUTHORIZED')) {
         toast.error('You must be actively enrolled in this cohort to download this file.');
       } else {
@@ -745,8 +745,8 @@ export function LessonPlayer({
                 lesson complete to track your streak.
               </p>
               <p className="text-slate-500 dark:text-slate-400">
-                Completing this lesson also automatically unlocks restricted downloadable resources and sample project
-                files attached below.
+                Practice footage, project templates, and editing assets are available to download immediately so you can
+                edit alongside the instructor. Benchmark solution files unlock upon lesson completion.
               </p>
             </div>
           )}

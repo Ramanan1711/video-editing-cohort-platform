@@ -8,9 +8,11 @@
 --                 - Public folders ('thumbnails', 'covers', 'public') readable by all.
 --                 - Mentors and Admins have full read/write management.
 --                 - Community media uploads readable by authenticated users.
---                 - Restricted lesson resources ('enrolled', 'after_completion') only
---                   accessible by enrolled students; 'after_completion' strictly requires
---                   completed lesson_progress before download URL resolution.
+--                 - Restricted lesson resources: 'enrolled' (practice footage, project
+--                   templates, sound effects, LUTs) are accessible immediately to all
+--                   actively enrolled students at lesson start; 'after_completion' is
+--                   strictly reserved for solution files and benchmark project timelines,
+--                   requiring completed lesson_progress before download URL resolution.
 --              4. Provides server-side RPC get_lesson_resource_download_url(p_resource_id)
 --                 for authorized URL resolution and locked-state verification.
 -- ==============================================================================

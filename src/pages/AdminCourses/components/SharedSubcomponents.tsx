@@ -48,7 +48,7 @@ export function VisibilityBadge({ rule }: { rule: VisibilityRule }) {
   if (rule === 'after_completion') {
     return (
       <span className="inline-flex items-center gap-1 rounded bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60">
-        <Lock size={10} /> Locked until complete
+        <Lock size={10} /> Solution (Locked until complete)
       </span>
     );
   }
@@ -61,7 +61,7 @@ export function VisibilityBadge({ rule }: { rule: VisibilityRule }) {
   }
   return (
     <span className="inline-flex items-center gap-1 rounded bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60">
-      Enrolled only
+      Practice Assets (Enrolled)
     </span>
   );
 }
