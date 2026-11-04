@@ -20,6 +20,7 @@ vi.mock('../../context/useAuth', () => ({
 
 vi.mock('../../lib/courseService', () => ({
   listCohorts: vi.fn(),
+  listAvailableCohorts: vi.fn().mockResolvedValue([]),
   listModules: vi.fn(),
   getStudentCourseData: vi.fn(),
   listMySubmissions: vi.fn().mockResolvedValue([]),
@@ -29,6 +30,7 @@ vi.mock('../../lib/courseService', () => ({
   listLessonResources: vi.fn().mockResolvedValue([]),
   getLessonResourceDownloadUrl: vi.fn().mockResolvedValue('https://signed.download/file.zip'),
   getSecureAssetUrl: vi.fn().mockImplementation((url: string) => Promise.resolve(url)),
+  getVideoThumbnailUrl: vi.fn().mockReturnValue(null),
   isSecurableAsset: vi.fn().mockImplementation((url: string) => Boolean(url && (url.includes('course-assets') || url.includes('token=')))),
   markLessonComplete: vi.fn().mockResolvedValue(true),
   updateLessonWatchProgress: vi.fn().mockResolvedValue(undefined),
@@ -78,6 +80,14 @@ describe('Student Learning Dashboard - Reactive Course Switcher', () => {
     name: 'Java Backend Cohort',
     title: 'Java Backend Cohort',
     description: 'Modern Java and Spring microservices',
+    status: 'published' as const,
+  };
+
+  const cohortPython = {
+    id: 'cohort-python-3',
+    name: 'Python Data Engineering',
+    title: 'Python Data Engineering',
+    description: 'Data pipelines and ETL workflows',
     status: 'published' as const,
   };
 
@@ -218,11 +228,19 @@ describe('Student Learning Dashboard - Reactive Course Switcher', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(courseService.listCohorts).mockResolvedValue([cohortVideo, cohortJava] as unknown as courseService.Cohort[]);
+    vi.mocked(courseService.listCohorts).mockResolvedValue([cohortVideo, cohortJava, cohortPython] as unknown as courseService.Cohort[]);
     vi.mocked(courseService.listModules).mockResolvedValue([...videoModules, ...javaModules] as unknown as courseService.Module[]);
 
     vi.mocked(courseService.getStudentCourseData).mockImplementation(((_userId: string, cohortId?: string) => {
       const activeId = cohortId || cohortVideo.id;
+      if (activeId === cohortPython.id) {
+        return Promise.resolve({
+          cohort: null,
+          modules: [],
+          progress: [],
+          enrolledCohorts: [cohortVideo, cohortJava],
+        });
+      }
       if (activeId === cohortJava.id) {
         return Promise.resolve({
           cohort: cohortJava,
@@ -376,5 +394,47 @@ describe('Student Learning Dashboard - Reactive Course Switcher', () => {
 
     // Verify neither displays false 100%
     expect(screen.queryByText('100%')).not.toBeInTheDocument();
+  });
+
+  it('keeps workspace course switcher visible and enabled when navigating to an unenrolled locked course URL', async () => {
+    // Navigate with ?cohortId=cohort-python-3 (a cohort the student has not purchased)
+    renderDashboard(['/student/dashboard?view=player&cohortId=cohort-python-3']);
+
+    // The switcher MUST remain in the document and NOT be hidden
+    const switcher = (await screen.findByTestId('workspace-course-switcher')) as HTMLSelectElement;
+    expect(switcher).toBeInTheDocument();
+    expect(switcher).not.toBeDisabled();
+
+    // Verify option values and labels: locked course is labelled and enrolled courses are accessible
+    const options = Array.from(switcher.options).map((opt) => ({
+      value: opt.value,
+      text: opt.text,
+    }));
+
+    expect(options).toEqual([
+      { value: 'cohort-video-1', text: 'Premiere Pro Masterclass' },
+      { value: 'cohort-java-2', text: 'Java Backend Cohort' },
+      { value: 'cohort-python-3', text: 'Python Data Engineering (Locked)' },
+    ]);
+
+    // Active value matches the targeted locked cohort
+    expect(switcher.value).toBe('cohort-python-3');
+
+    // Header displays "Locked" badge instead of 0% / progress
+    expect(screen.getByText('Locked')).toBeInTheDocument();
+
+    // The lesson sidebar is hidden for the unenrolled course (student is not authorized)
+    expect(screen.queryByText('Module 1: Timeline Basics')).not.toBeInTheDocument();
+
+    // The student switches back to their enrolled course with one click
+    fireEvent.change(switcher, { target: { value: 'cohort-video-1' } });
+
+    // Assert that the dashboard reactively requests and loads Premiere Pro Masterclass
+    await waitFor(() => {
+      expect(courseService.getStudentCourseData).toHaveBeenCalledWith(
+        'test-student-1',
+        'cohort-video-1'
+      );
+    });
   });
 });

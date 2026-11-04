@@ -149,19 +149,21 @@ export function LessonSidebar({
               <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
                 <div className="text-slate-400 font-semibold">Lessons</div>
                 <div className="font-extrabold text-slate-800">
-                  {unifiedProgress.curriculum.completed_lessons}/{unifiedProgress.curriculum.total_lessons}
+                  {unifiedProgress.curriculum?.completed_lessons ?? 0}/{unifiedProgress.curriculum?.total_lessons ?? 0}
                 </div>
               </div>
               <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
                 <div className="text-slate-400 font-semibold">Tasks</div>
                 <div className="font-extrabold text-slate-800">
-                  {unifiedProgress.assignments.approved_assignments}/{unifiedProgress.assignments.total_assignments}
+                  {unifiedProgress.assignments?.approved_assignments ?? (unifiedProgress as unknown as { assignment?: { approved_assignments?: number } }).assignment?.approved_assignments ?? 0}/
+                  {unifiedProgress.assignments?.total_assignments ?? (unifiedProgress as unknown as { assignment?: { total_assignments?: number } }).assignment?.total_assignments ?? 0}
                 </div>
               </div>
               <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
                 <div className="text-slate-400 font-semibold">Sprint</div>
                 <div className="font-extrabold text-orange-600">
-                  {unifiedProgress.sprint_challenges.completed_challenges}/{unifiedProgress.sprint_challenges.effective_sprint_days}
+                  {unifiedProgress.sprint_challenges?.completed_challenges ?? (unifiedProgress as unknown as { sprint?: { completed_challenges?: number } }).sprint?.completed_challenges ?? 0}/
+                  {unifiedProgress.sprint_challenges?.effective_sprint_days ?? (unifiedProgress as unknown as { sprint?: { effective_sprint_days?: number } }).sprint?.effective_sprint_days ?? 0}
                 </div>
               </div>
             </div>

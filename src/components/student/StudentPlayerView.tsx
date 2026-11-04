@@ -214,23 +214,45 @@ export function StudentPlayerView({
       list.push(course.cohort);
     }
 
+    if (targetCohortId && !seen.has(targetCohortId)) {
+      seen.add(targetCohortId);
+      const matched = allCohorts.find((c) => c.id === targetCohortId);
+      if (matched) {
+        list.push(matched);
+      } else {
+        list.push({
+          id: targetCohortId,
+          name: 'Selected Course',
+          description: null,
+          status: 'published',
+        });
+      }
+    }
+
     return list;
-  }, [course.enrolledCohorts, course.cohort]);
+  }, [course.enrolledCohorts, course.cohort, targetCohortId, allCohorts]);
+
+  const activeCohortId = useMemo(() => {
+    if (course.cohort?.id) return course.cohort.id;
+    if (targetCohortId) return targetCohortId;
+    return enrolledCohortsList[0]?.id || '';
+  }, [course.cohort?.id, targetCohortId, enrolledCohortsList]);
 
   const [isTransitioningCohort, setIsTransitioningCohort] = useState(false);
 
   useEffect(() => {
-    if (isTransitioningCohort && course.cohort?.id) {
+    if (isTransitioningCohort && (course.cohort?.id || targetCohortId)) {
       const timer = setTimeout(() => {
         setIsTransitioningCohort(false);
       }, 200);
       return () => clearTimeout(timer);
     }
-  }, [course.cohort?.id, isTransitioningCohort]);
+  }, [course.cohort?.id, targetCohortId, isTransitioningCohort]);
 
   const handleSelectCohort = useCallback(
     (newCohortId: string) => {
-      if (!newCohortId || newCohortId === course.cohort?.id) return;
+      const currentActiveId = course.cohort?.id || targetCohortId;
+      if (!newCohortId || newCohortId === currentActiveId) return;
 
       setIsTransitioningCohort(true);
       const newParams = new URLSearchParams(searchParams);
@@ -240,7 +262,7 @@ export function StudentPlayerView({
 
       onSelectCohort?.(newCohortId);
     },
-    [course.cohort?.id, onSelectCohort, searchParams, setSearchParams]
+    [course.cohort?.id, targetCohortId, onSelectCohort, searchParams, setSearchParams]
   );
 
   const isCohortAuthorized = useMemo(() => {
@@ -296,8 +318,8 @@ export function StudentPlayerView({
           )}
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Active Course Switcher in Workspace Header */}
-          {course.cohort && (
+          {/* Active Course Switcher in Workspace Header (kept visible even on locked/unenrolled courses) */}
+          {enrolledCohortsList.length > 0 && (
             <div className="flex items-center gap-1.5 sm:gap-2">
               <label htmlFor="workspace-course-switcher" className="sr-only">
                 Active Course
@@ -310,22 +332,28 @@ export function StudentPlayerView({
                   id="workspace-course-switcher"
                   data-testid="workspace-course-switcher"
                   aria-label="Switch active course"
-                  value={course.cohort.id}
+                  value={activeCohortId}
                   onChange={(e) => handleSelectCohort(e.target.value)}
                   disabled={enrolledCohortsList.length <= 1}
                   className={`appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-8 pr-7 py-1.5 text-xs font-black text-slate-900 dark:text-slate-100 shadow-2xs hover:border-orange-300 dark:hover:border-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 transition max-w-[130px] sm:max-w-[320px] truncate ${
                     enrolledCohortsList.length > 1 ? 'cursor-pointer' : 'cursor-default opacity-90'
                   }`}
                 >
-                  {enrolledCohortsList.map((cohort) => (
-                    <option
-                      key={cohort.id}
-                      value={cohort.id}
-                      className="text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 font-bold"
-                    >
-                      {cohort.name}
-                    </option>
-                  ))}
+                  {enrolledCohortsList.map((cohort) => {
+                    const isEnrolled = (course.enrolledCohorts || []).some((c) => c.id === cohort.id);
+                    const isCurrentTargetLocked = !isCohortAuthorized && cohort.id === activeCohortId;
+                    const label = !isEnrolled || isCurrentTargetLocked ? `${cohort.name} (Locked)` : cohort.name;
+
+                    return (
+                      <option
+                        key={cohort.id}
+                        value={cohort.id}
+                        className="text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 font-bold"
+                      >
+                        {label}
+                      </option>
+                    );
+                  })}
                 </select>
                 {enrolledCohortsList.length > 1 && (
                   <div className="pointer-events-none absolute right-2.5 flex items-center text-slate-400 dark:text-slate-500">
@@ -333,9 +361,15 @@ export function StudentPlayerView({
                   </div>
                 )}
               </div>
-              <span className="hidden sm:inline-flex rounded-full bg-orange-100 dark:bg-orange-950/60 px-2 py-0.5 text-[10px] font-black text-orange-700 dark:text-orange-300">
-                {progressPercent}%
-              </span>
+              {isCohortAuthorized ? (
+                <span className="hidden sm:inline-flex rounded-full bg-orange-100 dark:bg-orange-950/60 px-2 py-0.5 text-[10px] font-black text-orange-700 dark:text-orange-300">
+                  {progressPercent}%
+                </span>
+              ) : (
+                <span className="hidden sm:inline-flex rounded-full bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-400 border border-amber-300/60 dark:border-amber-700/60">
+                  Locked
+                </span>
+              )}
             </div>
           )}
 
@@ -366,7 +400,7 @@ export function StudentPlayerView({
             Enrolled Tracks:
           </span>
           {enrolledCoursesProgress.map((track) => {
-            const isSelected = track.cohortId === course.cohort?.id;
+            const isSelected = track.cohortId === activeCohortId;
             return (
               <button
                 key={track.cohortId}
