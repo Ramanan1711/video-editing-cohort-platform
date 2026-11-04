@@ -224,7 +224,9 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
     expect(screen.getByText(/macOS screen recording \/ capture shortcut/i)).toBeInTheDocument();
   });
 
-  it('triggers restriction shield when window loses focus (e.g. snipping tool overlay or external recorder)', async () => {
+  it('pauses playback without triggering restriction shield when window loses focus (split-screen multitasking / taking notes)', async () => {
+    const pauseSpy = vi.spyOn(HTMLMediaElement.prototype, 'pause');
+
     await act(async () => {
       render(
         <LessonPlayer
@@ -240,13 +242,77 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
 
     expect(screen.queryByTestId('screen-protection-shield')).not.toBeInTheDocument();
 
-    // Trigger window blur (fired when macOS Cmd+Shift+4 cursor opens or Windows Snipping Tool is activated)
+    // Simulate video playing
+    const video = document.querySelector('video') as HTMLVideoElement;
+    Object.defineProperty(video, 'paused', { value: false, configurable: true, writable: true });
+
+    // Trigger window blur (fired when student clicks into notes app in split-screen mode)
     act(() => {
       window.dispatchEvent(new Event('blur'));
     });
 
-    expect(screen.getByTestId('screen-protection-shield')).toBeInTheDocument();
-    expect(screen.getByText(/Screen capture or window focus lost/i)).toBeInTheDocument();
+    // Verify video paused to preserve student progress
+    expect(pauseSpy).toHaveBeenCalled();
+
+    // Crucial UX Fix: Must NOT lock out the student or show restriction shield
+    expect(screen.queryByTestId('screen-protection-shield')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Screen capture or window focus lost/i)).not.toBeInTheDocument();
+  });
+
+  it('pauses playback without triggering restriction shield when tab is switched or minimized (visibilitychange)', async () => {
+    const pauseSpy = vi.spyOn(HTMLMediaElement.prototype, 'pause');
+
+    await act(async () => {
+      render(
+        <LessonPlayer
+          lesson={mockLesson}
+          completed={false}
+          onToggleComplete={vi.fn()}
+          prevLesson={null}
+          nextLesson={null}
+          onSelectLesson={vi.fn()}
+        />
+      );
+    });
+
+    // Simulate video playing
+    const video = document.querySelector('video') as HTMLVideoElement;
+    Object.defineProperty(video, 'paused', { value: false, configurable: true, writable: true });
+
+    // Mock document.visibilityState to 'hidden'
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      configurable: true,
+      writable: true,
+    });
+
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    expect(pauseSpy).toHaveBeenCalled();
+    expect(screen.queryByTestId('screen-protection-shield')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Window lost focus while video playback was active/i)).not.toBeInTheDocument();
+  });
+
+  it('does not lock out player if legacy focus lost restriction was previously in sessionStorage', async () => {
+    sessionStorage.setItem('iunoware_capture_detected', 'Screen capture or window focus lost');
+
+    await act(async () => {
+      render(
+        <LessonPlayer
+          lesson={mockLesson}
+          completed={false}
+          onToggleComplete={vi.fn()}
+          prevLesson={null}
+          nextLesson={null}
+          onSelectLesson={vi.fn()}
+        />
+      );
+    });
+
+    expect(screen.queryByTestId('screen-protection-shield')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('iunoware_capture_detected')).toBeNull();
   });
 
   it('intercepts getDisplayMedia screen sharing calls and restricts video player', async () => {

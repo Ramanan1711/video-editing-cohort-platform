@@ -9,6 +9,8 @@ export interface ScreenProtectionOptions {
   onRestricted?: (reason: string) => void;
   onRestored?: () => void;
   protectOnBlur?: boolean;
+  pauseOnBlur?: boolean;
+  onBlurPause?: () => void;
 }
 
 export interface ScreenProtectionState {
@@ -32,17 +34,37 @@ export function useScreenProtection({
   onRestricted,
   onRestored,
   protectOnBlur = true,
+  pauseOnBlur,
+  onBlurPause,
 }: ScreenProtectionOptions = {}): ScreenProtectionState {
+  const shouldPauseOnBlur = pauseOnBlur ?? protectOnBlur ?? true;
   const [isProtectionActive, setIsProtectionActive] = useState<boolean>(enabled);
   const [isRestricted, setIsRestricted] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && window.sessionStorage) {
-      return !!window.sessionStorage.getItem('iunoware_capture_detected');
+      const stored = window.sessionStorage.getItem('iunoware_capture_detected');
+      // Clean up legacy focus lost lockouts so users returning to the app are not stuck
+      if (
+        stored === 'Screen capture or window focus lost' ||
+        stored === 'Window lost focus while video playback was active'
+      ) {
+        window.sessionStorage.removeItem('iunoware_capture_detected');
+        return false;
+      }
+      return !!stored;
     }
     return false;
   });
   const [restrictionReason, setRestrictionReason] = useState<string | null>(() => {
     if (typeof window !== 'undefined' && window.sessionStorage) {
-      return window.sessionStorage.getItem('iunoware_capture_detected') || null;
+      const stored = window.sessionStorage.getItem('iunoware_capture_detected');
+      if (
+        stored === 'Screen capture or window focus lost' ||
+        stored === 'Window lost focus while video playback was active'
+      ) {
+        window.sessionStorage.removeItem('iunoware_capture_detected');
+        return null;
+      }
+      return stored || null;
     }
     return null;
   });
@@ -241,48 +263,28 @@ export function useScreenProtection({
   }, [isProtectionActive, triggerRestriction]);
 
   // 2. Window Blur & Unfocus Detection
-  // (Whenever a screenshot tool like macOS Cmd+Shift+4 crosshairs, Windows Snipping Tool,
-  // or external recording app opens, the browser window immediately loses focus).
+  // (Whenever the student switches to another window - e.g. taking notes in split-screen mode -
+  // pause playback to avoid missing lesson content, but DO NOT lock out the student).
   useEffect(() => {
-    if (!isProtectionActive || !protectOnBlur) return;
+    if (!isProtectionActive || !shouldPauseOnBlur) return;
 
     const handleWindowBlur = () => {
-      // Pause playback immediately if playing
+      // Pause playback immediately if playing, without locking out the student
       if (videoRef?.current && !videoRef.current.paused) {
         try {
           videoRef.current.pause();
         } catch {
           // ignore playback interruption
         }
+        onBlurPause?.();
       }
-      triggerRestriction('Screen capture or window focus lost');
     };
-
-    // Active focus enforcement during playback: if recording software or overlay steals focus
-    const focusCheckInterval = setInterval(() => {
-      if (videoRef?.current && !videoRef.current.paused) {
-        if (
-          typeof document !== 'undefined' &&
-          typeof document.hasFocus === 'function' &&
-          !document.hasFocus() &&
-          import.meta.env?.MODE !== 'test'
-        ) {
-          try {
-            videoRef.current.pause();
-          } catch {
-            // ignore
-          }
-          triggerRestriction('Screen capture or window focus lost');
-        }
-      }
-    }, 400);
 
     window.addEventListener('blur', handleWindowBlur);
     return () => {
-      clearInterval(focusCheckInterval);
       window.removeEventListener('blur', handleWindowBlur);
     };
-  }, [isProtectionActive, protectOnBlur, videoRef, triggerRestriction]);
+  }, [isProtectionActive, shouldPauseOnBlur, videoRef, onBlurPause]);
 
   // 3. Hook getDisplayMedia to intercept WebRTC screen sharing attempts
   useEffect(() => {
@@ -305,12 +307,17 @@ export function useScreenProtection({
 
   // 4. Tab Visibility Detection (Minimizing tab or switching tabs during playback)
   useEffect(() => {
-    if (!isProtectionActive) return;
+    if (!isProtectionActive || !shouldPauseOnBlur) return;
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         if (videoRef?.current && !videoRef.current.paused) {
-          triggerRestriction('Window lost focus while video playback was active');
+          try {
+            videoRef.current.pause();
+          } catch {
+            // ignore
+          }
+          onBlurPause?.();
         }
       }
     };
@@ -319,7 +326,7 @@ export function useScreenProtection({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isProtectionActive, videoRef, triggerRestriction]);
+  }, [isProtectionActive, shouldPauseOnBlur, videoRef, onBlurPause]);
 
   return {
     isRestricted,
