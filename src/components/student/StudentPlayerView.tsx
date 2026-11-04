@@ -797,6 +797,7 @@ export function StudentPlayerView({
                   <LiveSessionsTab
                     liveSessions={liveSessions}
                     nowTimestamp={nowTimestamp}
+                    userId={user?.id}
                   />
                 )}
 

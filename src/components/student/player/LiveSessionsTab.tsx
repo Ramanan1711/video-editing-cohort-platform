@@ -1,12 +1,80 @@
-import { Calendar, ExternalLink, Radio } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, ExternalLink, Radio, CheckCircle2, Loader2 } from 'lucide-react';
 import type { StudentLiveSession } from '../../../lib/courseService';
+import { checkInToSession, getStudentAttendanceHistory } from '../../../lib/attendanceService';
+import { useToast } from '../../../context/useToast';
 
 export interface LiveSessionsTabProps {
   liveSessions: StudentLiveSession[];
   nowTimestamp: number;
+  userId?: string | null;
+  onCheckIn?: (sessionId: string) => Promise<void> | void;
 }
 
-export function LiveSessionsTab({ liveSessions, nowTimestamp }: LiveSessionsTabProps) {
+export function LiveSessionsTab({
+  liveSessions,
+  nowTimestamp,
+  userId,
+  onCheckIn,
+}: LiveSessionsTabProps) {
+  const toast = useToast();
+  const [checkedInIds, setCheckedInIds] = useState<Set<string>>(new Set());
+  const [checkingInId, setCheckingInId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let isMounted = true;
+    void getStudentAttendanceHistory(userId).then((records) => {
+      if (!isMounted) return;
+      const attended = new Set(
+        records
+          .filter((r) => r.status === 'present' || r.status === 'late' || r.status === 'excused')
+          .map((r) => r.session_id)
+      );
+      setCheckedInIds(attended);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
+
+  const handleJoinSession = async (session: StudentLiveSession, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+
+    // Pre-open new tab synchronously to guarantee no browser pop-up blocker issues
+    let newTab: Window | null = null;
+    if (session.meeting_url && typeof window !== 'undefined') {
+      newTab = window.open('about:blank', '_blank');
+    }
+
+    setCheckingInId(session.id);
+    try {
+      if (onCheckIn) {
+        await onCheckIn(session.id);
+      } else {
+        await checkInToSession(session.id);
+      }
+      setCheckedInIds((prev) => new Set([...prev, session.id]));
+      toast?.success('Attendance checked in! Opening video room...');
+    } catch (err) {
+      console.error('Failed to register live session attendance:', err);
+    } finally {
+      setCheckingInId(null);
+      if (session.meeting_url) {
+        if (newTab && !newTab.closed && newTab.location) {
+          try {
+            newTab.location.href = session.meeting_url;
+          } catch {
+            window.open(session.meeting_url, '_blank', 'noopener,noreferrer');
+          }
+        } else if (typeof window !== 'undefined') {
+          window.open(session.meeting_url, '_blank', 'noopener,noreferrer');
+        }
+      }
+    }
+  };
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
@@ -65,15 +133,47 @@ export function LiveSessionsTab({ liveSessions, nowTimestamp }: LiveSessionsTabP
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-slate-100">
-                  <a
-                    href={session.meeting_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-orange-600"
+                  {checkedInIds.has(session.id) && (
+                    <div className="mb-2.5 flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-3 py-1.5 rounded-xl">
+                      <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
+                      <span>Attendance Verified for Certificate</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleJoinSession(session, e)}
+                    disabled={checkingInId === session.id}
+                    data-testid={`join-session-btn-${session.id}`}
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-xs transition cursor-pointer ${
+                      checkedInIds.has(session.id)
+                        ? 'bg-slate-900 hover:bg-slate-800'
+                        : 'bg-orange-500 hover:bg-orange-600'
+                    }`}
                   >
-                    <span>Join Video Room (Zoom / Meet)</span>
-                    <ExternalLink size={13} />
-                  </a>
+                    {checkingInId === session.id ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin text-white" />
+                        <span>Recording Attendance &amp; Joining...</span>
+                      </>
+                    ) : checkedInIds.has(session.id) ? (
+                      <>
+                        <CheckCircle2 size={14} className="text-emerald-400" />
+                        <span>Rejoin Video Room (Zoom / Meet)</span>
+                        <ExternalLink size={13} />
+                      </>
+                    ) : (
+                      <>
+                        <span>Join Video Room (Zoom / Meet)</span>
+                        <ExternalLink size={13} />
+                      </>
+                    )}
+                  </button>
+                  <p className="mt-1.5 text-center text-[10px] text-slate-400">
+                    {checkedInIds.has(session.id)
+                      ? '✓ Attendance recorded toward 75% certificate requirement'
+                      : 'Clicking to join automatically records your attendance for graduation'}
+                  </p>
                 </div>
               </div>
             );
