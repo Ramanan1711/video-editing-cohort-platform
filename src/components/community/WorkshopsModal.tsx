@@ -114,7 +114,7 @@ export const WorkshopsModal: React.FC<WorkshopsModalProps> = ({ isOpen, onClose 
     return () => {
       active = false;
     };
-  }, [isOpen]);
+  }, [isOpen, checkingEnrollment, isEnrolled, profile?.role]);
 
   if (!isOpen) return null;
 

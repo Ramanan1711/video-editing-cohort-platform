@@ -51,6 +51,15 @@ export interface VideoScreenProps {
   enableScreenProtection?: boolean;
 }
 
+interface WebkitFullscreenDocument extends Document {
+  webkitFullscreenElement?: Element;
+  webkitExitFullscreen?: () => Promise<void> | void;
+}
+
+interface WebkitFullscreenElement extends HTMLElement {
+  webkitRequestFullscreen?: (options?: FullscreenOptions) => Promise<void> | void;
+}
+
 export function VideoScreen({
   lesson,
   videoRef,
@@ -110,7 +119,7 @@ export function VideoScreen({
   useEffect(() => {
     const handleFullscreenChange = () => {
       if (typeof document === 'undefined') return;
-      const fsElement = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      const fsElement = document.fullscreenElement || (document as WebkitFullscreenDocument).webkitFullscreenElement;
       setIsFullscreen(!!fsElement && (fsElement === videoContainerRef.current || fsElement === videoRef.current));
     };
 
@@ -130,7 +139,9 @@ export function VideoScreen({
     if (!vid || !container) return;
 
     const origRequestFullscreen = vid.requestFullscreen;
-    const origWebkitRequestFullscreen = (vid as any).webkitRequestFullscreen;
+    const vidWebkit = vid as unknown as WebkitFullscreenElement;
+    const containerWebkit = container as unknown as WebkitFullscreenElement;
+    const origWebkitRequestFullscreen = vidWebkit.webkitRequestFullscreen;
 
     vid.requestFullscreen = function (options?: FullscreenOptions) {
       if (container.requestFullscreen) {
@@ -139,10 +150,10 @@ export function VideoScreen({
       return origRequestFullscreen ? origRequestFullscreen.call(vid, options) : Promise.resolve();
     };
 
-    if (origWebkitRequestFullscreen || (container as any).webkitRequestFullscreen) {
-      (vid as any).webkitRequestFullscreen = function () {
-        if ((container as any).webkitRequestFullscreen) {
-          return (container as any).webkitRequestFullscreen();
+    if (origWebkitRequestFullscreen || containerWebkit.webkitRequestFullscreen) {
+      vidWebkit.webkitRequestFullscreen = function () {
+        if (containerWebkit.webkitRequestFullscreen) {
+          return containerWebkit.webkitRequestFullscreen();
         }
         if (container.requestFullscreen) {
           return container.requestFullscreen();
@@ -156,7 +167,7 @@ export function VideoScreen({
         vid.requestFullscreen = origRequestFullscreen;
       }
       if (origWebkitRequestFullscreen) {
-        (vid as any).webkitRequestFullscreen = origWebkitRequestFullscreen;
+        vidWebkit.webkitRequestFullscreen = origWebkitRequestFullscreen;
       }
     };
   }, [videoRef, videoContainerRef]);
@@ -165,18 +176,20 @@ export function VideoScreen({
     const container = videoContainerRef.current || videoRef.current;
     if (!container || typeof document === 'undefined') return;
 
-    const fsElement = document.fullscreenElement || (document as any).webkitFullscreenElement;
+    const docWebkit = document as WebkitFullscreenDocument;
+    const containerWebkit = container as unknown as WebkitFullscreenElement;
+    const fsElement = document.fullscreenElement || docWebkit.webkitFullscreenElement;
     if (!fsElement) {
       if (container.requestFullscreen) {
         container.requestFullscreen().catch(() => {});
-      } else if ((container as any).webkitRequestFullscreen) {
-        (container as any).webkitRequestFullscreen();
+      } else if (containerWebkit.webkitRequestFullscreen) {
+        containerWebkit.webkitRequestFullscreen();
       }
     } else {
       if (document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
-      } else if ((document as any).webkitExitFullscreen) {
-        (document as any).webkitExitFullscreen();
+      } else if (docWebkit.webkitExitFullscreen) {
+        docWebkit.webkitExitFullscreen();
       }
     }
   }, [videoContainerRef, videoRef]);

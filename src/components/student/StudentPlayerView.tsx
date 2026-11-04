@@ -232,11 +232,7 @@ export function StudentPlayerView({
     return list;
   }, [course.enrolledCohorts, course.cohort, targetCohortId, allCohorts]);
 
-  const activeCohortId = useMemo(() => {
-    if (course.cohort?.id) return course.cohort.id;
-    if (targetCohortId) return targetCohortId;
-    return enrolledCohortsList[0]?.id || '';
-  }, [course.cohort?.id, targetCohortId, enrolledCohortsList]);
+  const activeCohortId = course.cohort?.id || targetCohortId || enrolledCohortsList[0]?.id || '';
 
   const [isTransitioningCohort, setIsTransitioningCohort] = useState(false);
 

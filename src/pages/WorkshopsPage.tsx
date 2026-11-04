@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Video,
@@ -118,7 +118,7 @@ export function WorkshopsPage() {
     };
   }, [user?.id, profile?.role]);
 
-  const loadLiveSessions = async () => {
+  const loadLiveSessions = useCallback(async () => {
     if (profile?.role === 'student' && !isEnrolled && !checkingEnrollment) {
       setWorkshops([]);
       setLoading(false);
@@ -185,7 +185,7 @@ export function WorkshopsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [profile?.role, isEnrolled, checkingEnrollment]);
 
   useEffect(() => {
     if (checkingEnrollment) return;
@@ -204,7 +204,7 @@ export function WorkshopsPage() {
         setCheckedInIds(attended);
       });
     }
-  }, [user?.id, isEnrolled, checkingEnrollment, profile?.role]);
+  }, [user?.id, isEnrolled, checkingEnrollment, profile?.role, loadLiveSessions]);
 
   const handleCheckIn = async (workshopId: string) => {
     if (!user) return;
