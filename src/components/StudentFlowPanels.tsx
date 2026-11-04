@@ -17,9 +17,11 @@ import {
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { startCohortCheckout, DEFAULT_COHORT_FEE_INR, DEFAULT_CURRENCY } from '../lib/paymentService';
+import { clearPendingCohortCheckout, markJustEnrolledCohort } from '../lib/cohortCheckoutPersistence';
 import { checkCohortEnrollmentDeadline } from '../lib/studentAccessService';
 import {
   addFeedbackReply,
+  createEnrollment,
   formatFileSize,
   listAllStudentCohorts,
   listAssignments,
@@ -121,9 +123,18 @@ export function EnrollmentPanel({
 
     const price = selectedCohort.price_inr ?? DEFAULT_COHORT_FEE_INR;
     if (price <= 0) {
-      setError('Free enrollment is prohibited under the platform paid-only policy. Cohorts require paid checkout.');
-      setSaving(false);
-      return;
+      try {
+        await createEnrollment(userId, selectedCohort.id);
+        markJustEnrolledCohort(selectedCohort.id, selectedCohort.name);
+        clearPendingCohortCheckout();
+        setSaving(false);
+        onEnrolled();
+        return;
+      } catch (err) {
+        setSaving(false);
+        setError(err instanceof Error ? err.message : 'Free enrollment failed. Please try again.');
+        return;
+      }
     }
 
     await startCohortCheckout({
@@ -143,7 +154,7 @@ export function EnrollmentPanel({
         setSaving(false);
       },
     });
-  }, [selectedCohort, selectedStatus?.isOpen, userEmail, userName, onEnrolled]);
+  }, [selectedCohort, selectedStatus?.isOpen, userEmail, userName, onEnrolled, userId]);
 
   useEffect(() => {
     if (
@@ -193,7 +204,9 @@ export function EnrollmentPanel({
                   <div className="flex items-center gap-2">
                     <strong className="block text-sm text-slate-950">{cohort.name}</strong>
                     <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                      ₹{(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} {cohort.currency || DEFAULT_CURRENCY}
+                      {(cohort.price_inr !== undefined && cohort.price_inr !== null && cohort.price_inr <= 0)
+                        ? 'FREE'
+                        : `₹${(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} ${cohort.currency || DEFAULT_CURRENCY}`}
                     </span>
                     {!status.isOpen && (
                       <span className="rounded-md bg-rose-50 border border-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-700">
@@ -222,7 +235,7 @@ export function EnrollmentPanel({
               ? selectedStatus.label || 'Enrollment Closed'
               : selectedCohort && (selectedCohort.price_inr ?? DEFAULT_COHORT_FEE_INR) > 0
               ? `Proceed to Checkout (₹${(selectedCohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} ${selectedCohort.currency || DEFAULT_CURRENCY})`
-              : 'Enroll in cohort'}
+              : 'Enroll for Free'}
           </Button>
         </div>
       ) : (
@@ -292,9 +305,19 @@ export function CohortDiscoveryModal({
 
     const price = cohort.price_inr ?? DEFAULT_COHORT_FEE_INR;
     if (price <= 0) {
-      setError('Free enrollment is prohibited under the platform paid-only policy. Cohorts require paid checkout.');
-      setEnrollingId(null);
-      return;
+      try {
+        await createEnrollment(userId, cohort.id);
+        markJustEnrolledCohort(cohort.id, cohort.name);
+        clearPendingCohortCheckout();
+        setEnrollingId(null);
+        onSelectCohort(cohort.id);
+        onClose();
+        return;
+      } catch (err) {
+        setEnrollingId(null);
+        setError(err instanceof Error ? err.message : 'Free enrollment failed. Please try again.');
+        return;
+      }
     }
 
     await startCohortCheckout({
@@ -408,7 +431,9 @@ export function CohortDiscoveryModal({
                                 {status.isOpen ? 'Open to Join' : status.label || 'Closed'}
                               </span>
                               <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                                ₹{(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} {cohort.currency || DEFAULT_CURRENCY}
+                                {(cohort.price_inr !== undefined && cohort.price_inr !== null && cohort.price_inr <= 0)
+                                  ? 'FREE'
+                                  : `₹${(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} ${cohort.currency || DEFAULT_CURRENCY}`}
                               </span>
                             </>
                           );
@@ -449,7 +474,9 @@ export function CohortDiscoveryModal({
                               onClick={() => status.isOpen && void handleEnrollAndSwitch(cohort)}
                             >
                               {status.isOpen
-                                ? `Enroll (₹${(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} ${cohort.currency || DEFAULT_CURRENCY})`
+                                ? (cohort.price_inr !== undefined && cohort.price_inr !== null && cohort.price_inr <= 0)
+                                  ? 'Enroll for Free'
+                                  : `Enroll (₹${(cohort.price_inr ?? DEFAULT_COHORT_FEE_INR).toLocaleString('en-IN')} ${cohort.currency || DEFAULT_CURRENCY})`
                                 : status.label || 'Closed'}
                             </Button>
                             {!status.isOpen && status.reason && (

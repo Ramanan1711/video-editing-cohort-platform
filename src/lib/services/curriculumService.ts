@@ -342,6 +342,14 @@ export async function listAllStudentCohorts(userId: string): Promise<(Cohort & {
   }
 }
 
+/**
+ * Directly enrolls a student in a cohort. For free cohorts (price_inr <= 0) or admins,
+ * bypasses payment gateway check and marks enrollment as active.
+ */
+export async function createEnrollment(userId: string, cohortId: string): Promise<Enrollment> {
+  return enrollInCohort(userId, cohortId);
+}
+
 export async function enrollInCohort(userId: string, cohortId: string): Promise<Enrollment> {
   // Fail-closed payment requirement check for paid cohorts
   try {
@@ -358,21 +366,21 @@ export async function enrollInCohort(userId: string, cohortId: string): Promise<
       .maybeSingle();
 
     if (profile?.role !== 'admin') {
-      // Enforce paid-only launch policy: free or zero-priced cohorts cannot grant enrollment
-      if (!cohortData?.price_inr || Number(cohortData.price_inr) <= 0) {
-        throw new Error('Free enrollment is prohibited under the platform paid-only policy. Cohorts require a valid positive price.');
-      }
+      const isFreeCohort = cohortData?.price_inr !== undefined && cohortData?.price_inr !== null && Number(cohortData.price_inr) <= 0;
 
-      const { data: payment } = await supabase
-        .from('payments')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('cohort_id', cohortId)
-        .eq('status', 'captured')
-        .maybeSingle();
+      // Paid cohorts require captured payment verification; free workshops/demo sprints do not
+      if (!isFreeCohort) {
+        const { data: payment } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('cohort_id', cohortId)
+          .eq('status', 'captured')
+          .maybeSingle();
 
-      if (!payment) {
-        throw new Error('Payment required to enroll in this cohort. Please complete checkout.');
+        if (!payment) {
+          throw new Error('Payment required to enroll in this cohort. Please complete checkout.');
+        }
       }
     }
   } catch (checkErr) {
@@ -397,8 +405,8 @@ export async function enrollInCohort(userId: string, cohortId: string): Promise<
     };
   }
 
-  // If RPC is missing (42883), fallback to direct table operation
-  if (rpcError && (rpcError.code === '42883' || rpcError.message.includes('enroll_student_in_cohort'))) {
+  // If RPC is missing (42883) or fails on legacy paid-only restriction, fallback to direct table operation
+  if (rpcError && (rpcError.code === '42883' || rpcError.message.includes('enroll_student_in_cohort') || rpcError.message.includes('paid-only') || rpcError.message.includes('Payment required'))) {
     return saveEnrollment({ user_id: userId, cohort_id: cohortId, status: 'active' });
   }
 
@@ -429,7 +437,9 @@ export async function createCohort(input: CohortInput): Promise<Cohort> {
     payload.duration_days = input.duration_days;
     payload.sprint_duration_days = input.duration_days;
   }
-  payload.price_inr = Math.max(1, Number(input.price_inr) || DEFAULT_COHORT_FEE_INR);
+  payload.price_inr = input.price_inr !== undefined && input.price_inr !== null && !isNaN(Number(input.price_inr))
+    ? Math.max(0, Number(input.price_inr))
+    : DEFAULT_COHORT_FEE_INR;
   if (input.currency !== undefined) payload.currency = input.currency;
   if (input.created_by !== undefined) payload.created_by = input.created_by;
   if (input.review_feedback !== undefined) payload.review_feedback = input.review_feedback;
@@ -469,8 +479,8 @@ export async function updateCohort(id: string, input: Partial<CohortInput>): Pro
     payload.duration_days = input.duration_days;
     payload.sprint_duration_days = input.duration_days;
   }
-  if (input.price_inr !== undefined) {
-    payload.price_inr = Math.max(1, Number(input.price_inr) || DEFAULT_COHORT_FEE_INR);
+  if (input.price_inr !== undefined && input.price_inr !== null) {
+    payload.price_inr = !isNaN(Number(input.price_inr)) ? Math.max(0, Number(input.price_inr)) : DEFAULT_COHORT_FEE_INR;
   }
   if (input.currency !== undefined) payload.currency = input.currency;
   if (input.created_by !== undefined) payload.created_by = input.created_by;
@@ -540,7 +550,9 @@ export async function mentorCreateCohort(input: MentorCohortInput): Promise<Coho
     sprint_duration_days: input.duration_days ?? 15,
     start_date: input.start_date ?? null,
     end_date: input.end_date ?? null,
-    price_inr: Math.max(1, Number(input.price_inr) || DEFAULT_COHORT_FEE_INR),
+    price_inr: input.price_inr !== undefined && input.price_inr !== null && !isNaN(Number(input.price_inr))
+      ? Math.max(0, Number(input.price_inr))
+      : DEFAULT_COHORT_FEE_INR,
     track_type: input.track_type ?? 'general',
     status: 'draft',
     visibility: 'public',

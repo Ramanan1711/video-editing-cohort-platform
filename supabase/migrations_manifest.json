@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-04T10:33:58.592Z",
-  "migrationCount": 81,
+  "generatedAt": "2026-11-04T11:34:26.710Z",
+  "migrationCount": 82,
   "migrations": [
     {
       "order": 1,
@@ -1085,12 +1085,23 @@
     {
       "order": 81,
       "filename": "20261104000002_canonical_fix_course_assets_and_video_playback_access.sql",
-      "sha256": "3e38c73c10d1bc5e47705fcdd1a92d16116862ac22cdec715fa43591721f8069",
-      "sizeBytes": 6163,
+      "sha256": "121b05988218c673fbcf0ff2652eccb255891cf4758b76cb41c89fa002a172e6",
+      "sizeBytes": 6164,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
         "can_access_course_asset"
+      ]
+    },
+    {
+      "order": 82,
+      "filename": "20261104000003_allow_free_workshops_and_demo_sprints_enrollment.sql",
+      "sha256": "7a112ed108af0d0630607c8494e52bd58f3b02683bd8e6e081b59b014daab81c",
+      "sizeBytes": 6893,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "enroll_student_in_cohort"
       ]
     }
   ]
