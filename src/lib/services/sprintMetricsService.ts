@@ -445,7 +445,11 @@ export async function getStudentUnifiedProgress(
   }
 
   const assignmentPercent = totalAssignments > 0 ? Math.round((approvedAssignments / totalAssignments) * 100) : 0;
-  const effectiveSprintDays = sprintData.totalDays || 15;
+  const totalSprintDays = sprintData.totalDays || 0;
+  const totalChallenges = sprintData.days.length;
+  const effectiveSprintDays = totalChallenges > 0
+    ? Math.max(1, Math.min(totalSprintDays || totalChallenges, totalChallenges))
+    : 0;
   const sprintPercent = sprintData.progressPercent || 0;
 
   // Live session attendance metrics

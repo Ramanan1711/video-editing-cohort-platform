@@ -1103,6 +1103,18 @@
       "rpcDefinitions": [
         "enroll_student_in_cohort"
       ]
+    },
+    {
+      "order": 83,
+      "filename": "20261105000001_fix_sprint_challenge_count_and_certificate_eligibility.sql",
+      "sha256": "4645cbb9546b6ad78a4ceb88427ffc225254f87f996771be8c907560c266c767",
+      "sizeBytes": 17573,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "verify_and_issue_certificate",
+        "get_student_unified_progress"
+      ]
     }
   ]
 }

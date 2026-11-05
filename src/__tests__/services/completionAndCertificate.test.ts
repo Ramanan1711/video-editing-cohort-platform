@@ -90,6 +90,8 @@ describe('Authoritative Completion & Certificate Eligibility Verification', () =
       challengesComplete = true,
       attendanceRate = 100,
       hasHeldSessions = true,
+      sprintDurationDays = 2 as number | null,
+      challengeCount = 2,
     } = {}) => {
       (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         data: null,
@@ -157,7 +159,7 @@ describe('Authoritative Completion & Certificate Eligibility Verification', () =
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 maybeSingle: vi.fn().mockResolvedValue({
-                  data: { sprint_duration_days: 2 },
+                  data: { sprint_duration_days: sprintDurationDays },
                   error: null,
                 }),
               }),
@@ -165,26 +167,30 @@ describe('Authoritative Completion & Certificate Eligibility Verification', () =
           };
         }
         if (table === 'daily_challenges') {
+          const chList = Array.from({ length: challengeCount }, (_, i) => ({
+            id: `dc${i + 1}`,
+            day_number: i + 1,
+          }));
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockResolvedValue({
-                data: [
-                  { id: 'dc1', day_number: 1 },
-                  { id: 'dc2', day_number: 2 },
-                ],
+                data: chList,
                 error: null,
               }),
             }),
           };
         }
         if (table === 'daily_challenge_submissions') {
+          const subsCount = challengesComplete ? challengeCount : Math.max(0, challengeCount - 1);
+          const acceptedSubs = Array.from({ length: subsCount }, (_, i) => ({
+            challenge_id: `dc${i + 1}`,
+            status: 'accepted',
+          }));
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 eq: vi.fn().mockResolvedValue({
-                  data: challengesComplete
-                    ? [{ challenge_id: 'dc1', status: 'accepted' }, { challenge_id: 'dc2', status: 'accepted' }]
-                    : [{ challenge_id: 'dc1', status: 'accepted' }],
+                  data: acceptedSubs,
                   error: null,
                 }),
               }),
@@ -317,6 +323,176 @@ describe('Authoritative Completion & Certificate Eligibility Verification', () =
       expect(res.eligible).toBe(true);
       expect(res.total_sessions).toBe(0);
       expect(res.attendance_rate_pct).toBe(100);
+    });
+
+    it('issues certificate for a focused 7-day sprint where cohort sprint_duration_days is unset (null)', async () => {
+      setupFallbackMocks({
+        lessonsComplete: true,
+        assignsComplete: true,
+        challengesComplete: true,
+        attendanceRate: 100,
+        sprintDurationDays: null,
+        challengeCount: 7,
+      });
+
+      const res = await verifyCertificateEligibility('student-7d-sprint', 'cohort-7d');
+
+      expect(res.eligible).toBe(true);
+      expect(res.completed_challenges).toBe(7);
+      expect(res.total_challenges).toBe(7);
+      expect(res.certificate_number).toBe('CC-202609-FALLBACK');
+    });
+
+    it('issues certificate for a 7-day sprint when cohort sprint_duration_days defaults to 15 in database', async () => {
+      setupFallbackMocks({
+        lessonsComplete: true,
+        assignsComplete: true,
+        challengesComplete: true,
+        attendanceRate: 100,
+        sprintDurationDays: 15,
+        challengeCount: 7,
+      });
+
+      const res = await verifyCertificateEligibility('student-7d-default15', 'cohort-7d');
+
+      expect(res.eligible).toBe(true);
+      expect(res.completed_challenges).toBe(7);
+      expect(res.total_challenges).toBe(7);
+    });
+
+    it('accurately reports missing challenge count based on actual published challenges (5 of 7 completed = 2 missing)', async () => {
+      // 7 challenges published, student completed 5, 2 missing
+      (supabase.rpc as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: null,
+        error: { code: '42883', message: 'function verify_and_issue_certificate does not exist' },
+      });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'modules') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [{ id: 'm1', lessons: [{ id: 'l1', video_url: 'https://v.io/1' }] }],
+                error: null,
+              }),
+            }),
+          };
+        }
+        if (table === 'lesson_progress') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [{ lesson_id: 'l1', completed: true, watch_percentage: 100 }],
+                error: null,
+              }),
+            }),
+          };
+        }
+        if (table === 'assignments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [{ id: 'a1', title: 'Cap 1' }],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'submissions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockResolvedValue({
+                  data: [{ assignment_id: 'a1', status: 'reviewed' }],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { sprint_duration_days: 15 }, // default 15
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'daily_challenges') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [
+                  { id: 'dc1', day_number: 1 },
+                  { id: 'dc2', day_number: 2 },
+                  { id: 'dc3', day_number: 3 },
+                  { id: 'dc4', day_number: 4 },
+                  { id: 'dc5', day_number: 5 },
+                  { id: 'dc6', day_number: 6 },
+                  { id: 'dc7', day_number: 7 },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        if (table === 'daily_challenge_submissions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({
+                  data: [
+                    { challenge_id: 'dc1', status: 'accepted' },
+                    { challenge_id: 'dc2', status: 'accepted' },
+                    { challenge_id: 'dc3', status: 'accepted' },
+                    { challenge_id: 'dc4', status: 'accepted' },
+                    { challenge_id: 'dc5', status: 'accepted' },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'live_sessions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              or: vi.fn().mockReturnValue({
+                lte: vi.fn().mockResolvedValue({
+                  data: [{ id: 'ls1', starts_at: '2026-09-01' }],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'session_attendance') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockResolvedValue({
+                  data: [{ session_id: 'ls1', status: 'present' }],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis() };
+      });
+
+      const res = await verifyCertificateEligibility('student-5of7', 'cohort-7d');
+
+      expect(res.eligible).toBe(false);
+      expect(res.completed_challenges).toBe(5);
+      expect(res.total_challenges).toBe(7);
+      expect(res.reason).toBe('2 sprint challenge(s) not completed or accepted.');
     });
   });
 

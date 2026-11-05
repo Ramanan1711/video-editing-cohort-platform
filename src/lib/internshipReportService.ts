@@ -155,8 +155,10 @@ export async function generateInternshipReport(
 
   // Daily Drills Telemetry
   const challenges = challengesRes.data ?? [];
-  const maxDay = challenges.length > 0 ? Math.max(...challenges.map((c) => c.day_number)) : 0;
-  const sprintDays = Math.max(cohort?.sprint_duration_days || 15, maxDay, 1);
+  const totalChallenges = challenges.length;
+  const sprintDays = totalChallenges > 0
+    ? Math.max(1, Math.min(cohort?.sprint_duration_days ?? totalChallenges, totalChallenges))
+    : 0;
   const submissions = subsRes.data ?? [];
   const subMap = new Map(submissions.map((s) => [s.challenge_id, s]));
 
@@ -185,7 +187,7 @@ export async function generateInternshipReport(
     });
   }
 
-  const drillPct = Math.min(100, Math.round((completedDrills / sprintDays) * 100));
+  const drillPct = sprintDays > 0 ? Math.min(100, Math.round((completedDrills / sprintDays) * 100)) : 100;
   const avgDrillScore = scoredDrills > 0 ? Math.round(totalDrillScore / scoredDrills) : (completedDrills > 0 ? 85 : 0);
 
   // Lessons Telemetry

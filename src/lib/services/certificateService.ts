@@ -112,11 +112,13 @@ export async function verifyCertificateEligibility(
 
     // Pillar 3: Dynamic Sprint Challenges
     const challenges = challengesRes.data ?? [];
-    const maxChallengeDay = challenges.length > 0 ? Math.max(...challenges.map((c) => c.day_number)) : 0;
-    const configuredSprintDays = (cohortRowRes.data as { sprint_duration_days?: number } | null)?.sprint_duration_days || 15;
-    const effectiveSprintDays = Math.max(configuredSprintDays, maxChallengeDay, 1);
+    const totalChallenges = challenges.length;
+    const cohortSprintDays = (cohortRowRes.data as { sprint_duration_days?: number } | null)?.sprint_duration_days;
+    const effectiveSprintDays = totalChallenges > 0
+      ? Math.max(1, Math.min(cohortSprintDays ?? totalChallenges, totalChallenges))
+      : 0;
     const completedChallenges = (challengeSubsRes.data ?? []).length;
-    const isChallengesComplete = challenges.length === 0 || completedChallenges >= effectiveSprintDays;
+    const isChallengesComplete = totalChallenges === 0 || completedChallenges >= effectiveSprintDays;
 
     // Pillar 4: Live Workshop Attendance
     const heldSessions = heldSessionsRes.data ?? [];

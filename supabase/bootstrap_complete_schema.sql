@@ -11304,7 +11304,7 @@ begin
   end if;
 
   -- 4. Count Sprint Challenges (Authoritative Challenge Completion Gate)
-  select coalesce(sprint_duration_days, 15)
+  select sprint_duration_days
   into v_cohort_sprint_days
   from public.cohorts
   where id = p_cohort_id;
@@ -11314,9 +11314,9 @@ begin
   from public.daily_challenges dc
   where dc.cohort_id = p_cohort_id;
 
-  v_effective_sprint_days := greatest(coalesce(v_cohort_sprint_days, 15), v_total_challenges, 1);
-
   if v_total_challenges > 0 then
+    v_effective_sprint_days := greatest(1, least(coalesce(v_cohort_sprint_days, v_total_challenges), v_total_challenges));
+
     select count(distinct dcs.challenge_id)
     into v_completed_challenges
     from public.daily_challenge_submissions dcs
@@ -11338,6 +11338,7 @@ begin
       );
     end if;
   else
+    v_effective_sprint_days := 0;
     v_completed_challenges := 0;
   end if;
 
@@ -11563,7 +11564,7 @@ begin
   end if;
 
   -- 4. Dynamic Production Sprint Telemetry
-  select coalesce(sprint_duration_days, 15)
+  select sprint_duration_days
   into v_cohort_sprint_days
   from public.cohorts
   where id = p_cohort_id;
@@ -11573,7 +11574,11 @@ begin
   from public.daily_challenges dc
   where dc.cohort_id = p_cohort_id;
 
-  v_effective_sprint_days := greatest(coalesce(v_cohort_sprint_days, 15), v_total_challenges, 1);
+  if v_total_challenges > 0 then
+    v_effective_sprint_days := greatest(1, least(coalesce(v_cohort_sprint_days, v_total_challenges), v_total_challenges));
+  else
+    v_effective_sprint_days := 0;
+  end if;
 
   select
     count(distinct dcs.challenge_id),
@@ -11585,7 +11590,11 @@ begin
   where dcs.user_id = p_student_id
     and dc.cohort_id = p_cohort_id;
 
-  v_sprint_percent := least(100, round((coalesce(v_completed_challenges, 0)::numeric / v_effective_sprint_days::numeric) * 100));
+  if v_effective_sprint_days > 0 then
+    v_sprint_percent := least(100, round((coalesce(v_completed_challenges, 0)::numeric / v_effective_sprint_days::numeric) * 100));
+  else
+    v_sprint_percent := 100;
+  end if;
   v_streak_days := coalesce(v_completed_challenges, 0);
 
   -- 5. Live Session Attendance Telemetry
