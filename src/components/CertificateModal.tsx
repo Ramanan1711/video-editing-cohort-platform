@@ -736,8 +736,123 @@ export function CertificateModal({
           </div>
         </div>
       )}
-      {/* Scoped print styling ensuring single landscape page */}
+      {/* Scoped print & dark-mode parchment preservation styling */}
       <style>{`
+        /* Preserve authentic parchment diploma in dark mode */
+        .dark #certificate-print-area,
+        #certificate-print-area {
+          background-color: #fffdfa !important;
+          color: #0f172a !important;
+          border-color: rgba(217, 119, 6, 0.4) !important;
+        }
+        .dark #certificate-print-area .bg-\\[\\#fffdfa\\],
+        #certificate-print-area .bg-\\[\\#fffdfa\\] {
+          background-color: #fffdfa !important;
+        }
+        .dark #certificate-print-area .border-slate-950,
+        #certificate-print-area .border-slate-950 {
+          border-color: #020617 !important;
+        }
+        .dark #certificate-print-area .text-slate-950,
+        #certificate-print-area .text-slate-950 {
+          color: #020617 !important;
+        }
+        .dark #certificate-print-area .text-slate-900,
+        #certificate-print-area .text-slate-900 {
+          color: #0f172a !important;
+        }
+        .dark #certificate-print-area .text-slate-800,
+        #certificate-print-area .text-slate-800 {
+          color: #1e293b !important;
+        }
+        .dark #certificate-print-area .text-slate-700,
+        #certificate-print-area .text-slate-700 {
+          color: #334155 !important;
+        }
+        .dark #certificate-print-area .text-slate-600,
+        #certificate-print-area .text-slate-600 {
+          color: #475569 !important;
+        }
+        .dark #certificate-print-area .text-slate-500,
+        #certificate-print-area .text-slate-500 {
+          color: #64748b !important;
+        }
+        .dark #certificate-print-area .text-slate-400,
+        #certificate-print-area .text-slate-400 {
+          color: #94a3b8 !important;
+        }
+        .dark #certificate-print-area .text-slate-300,
+        #certificate-print-area .text-slate-300 {
+          color: #cbd5e1 !important;
+        }
+        .dark #certificate-print-area .text-amber-950,
+        #certificate-print-area .text-amber-950 {
+          color: #451a03 !important;
+        }
+        .dark #certificate-print-area .text-amber-800,
+        #certificate-print-area .text-amber-800 {
+          color: #92400e !important;
+        }
+        .dark #certificate-print-area .text-orange-600,
+        #certificate-print-area .text-orange-600 {
+          color: #ea580c !important;
+        }
+        .dark #certificate-print-area .bg-amber-50,
+        .dark #certificate-print-area [class*="bg-amber-50"],
+        #certificate-print-area .bg-amber-50,
+        #certificate-print-area [class*="bg-amber-50"] {
+          background-color: #fffbeb !important;
+          color: #0f172a !important;
+        }
+        .dark #certificate-print-area .bg-amber-50\\/80,
+        #certificate-print-area .bg-amber-50\\/80 {
+          background-color: rgba(254, 243, 199, 0.8) !important;
+        }
+        .dark #certificate-print-area .border-amber-300,
+        #certificate-print-area .border-amber-300 {
+          border-color: #fcd34d !important;
+        }
+        .dark #certificate-print-area .border-amber-200\\/60,
+        #certificate-print-area .border-amber-200\\/60 {
+          border-color: rgba(253, 230, 138, 0.6) !important;
+        }
+        .dark #certificate-print-area .border-slate-100,
+        #certificate-print-area .border-slate-100 {
+          border-color: #f1f5f9 !important;
+        }
+        .dark #certificate-print-area .border-slate-200,
+        .dark #certificate-print-area .border-slate-200\\/80,
+        #certificate-print-area .border-slate-200,
+        #certificate-print-area .border-slate-200\\/80 {
+          border-color: rgba(226, 232, 240, 0.8) !important;
+        }
+        .dark #certificate-print-area .border-slate-300,
+        #certificate-print-area .border-slate-300 {
+          border-color: #cbd5e1 !important;
+        }
+        .dark #certificate-print-area .bg-slate-300,
+        #certificate-print-area .bg-slate-300 {
+          background-color: #cbd5e1 !important;
+        }
+        .dark #certificate-print-area button.text-amber-800,
+        #certificate-print-area button.text-amber-800 {
+          color: #92400e !important;
+          background-color: transparent !important;
+        }
+        .dark #certificate-print-area button.text-amber-800:hover,
+        #certificate-print-area button.text-amber-800:hover {
+          color: #451a03 !important;
+          background-color: rgba(254, 243, 199, 0.8) !important;
+        }
+        .dark #certificate-print-area a.text-slate-500,
+        #certificate-print-area a.text-slate-500 {
+          color: #64748b !important;
+        }
+        .dark #certificate-print-area a.text-slate-500:hover,
+        #certificate-print-area a.text-slate-500:hover {
+          color: #ea580c !important;
+        }
+
         @media print {
           @page {
             size: landscape;
