@@ -151,7 +151,7 @@ describe('Issue 7: Certificate "Print / Save PDF" Screen Protection Suppression'
     expect(sessionStorage.getItem(CAPTURE_DETECTED_STORAGE_KEY)).toBeNull();
   });
 
-  it('prioritizes high-resolution PNG export as primary button and offers Print/PDF as secondary', async () => {
+  it('prioritizes official Print/Save PDF credential export as the primary action', async () => {
     vi.mocked(courseService.verifyCertificateEligibility).mockResolvedValueOnce({
       eligible: true,
       already_issued: true,
@@ -189,16 +189,14 @@ describe('Issue 7: Certificate "Print / Save PDF" Screen Protection Suppression'
     expect(document.body.classList.contains('certificate-modal-open')).toBe(true);
     expect(document.body.getAttribute('data-certificate-modal-open')).toBe('true');
 
-    // Verify button hierarchy
-    const downloadBtn = screen.getByRole('button', { name: /download certificate \(png\)/i });
+    // Verify button hierarchy: Print / Save PDF is the primary button
     const printBtn = screen.getByRole('button', { name: /print \/ save pdf/i });
-
-    expect(downloadBtn).toBeInTheDocument();
     expect(printBtn).toBeInTheDocument();
+    expect(printBtn.className).toContain('bg-orange-500');
 
-    // Download PNG is primary (orange), Print is secondary (translucent/dark)
-    expect(downloadBtn.className).toContain('bg-orange-500');
-    expect(printBtn.className).toContain('bg-white/10');
+    // Redundant canvas PNG export button is eliminated to ensure visual fidelity
+    const downloadPngBtn = screen.queryByRole('button', { name: /download certificate \(png\)/i });
+    expect(downloadPngBtn).toBeNull();
 
     // Click Print button
     fireEvent.click(printBtn);
