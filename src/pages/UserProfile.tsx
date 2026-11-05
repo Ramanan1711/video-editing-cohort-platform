@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
+  Award,
   BookOpen,
   Calendar,
   CheckCircle2,
@@ -24,10 +25,12 @@ import { useToast } from '../context/useToast';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { CommunityTopNav } from '../components/community/CommunityTopNav';
+import { CertificateModal } from '../components/CertificateModal';
 import {
   getUserProfileOverview,
   updateUserProfileContact,
   type UserProfileOverview,
+  type UserCertificateRecord,
 } from '../lib/userProfileService';
 import { formatCurrencyINR } from '../lib/services/curriculumService';
 import { getSessionTelemetry } from '../lib/authSessionService';
@@ -39,7 +42,8 @@ export function UserProfile() {
 
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<UserProfileOverview | null>(null);
-  const [activeTab, setActiveTab] = useState<'courses' | 'attendance' | 'payments'>('courses');
+  const [activeTab, setActiveTab] = useState<'courses' | 'certificates' | 'attendance' | 'payments'>('courses');
+  const [selectedCertForModal, setSelectedCertForModal] = useState<UserCertificateRecord | null>(null);
 
   // Edit Modal State
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -331,6 +335,18 @@ export function UserProfile() {
           </button>
 
           <button
+            onClick={() => setActiveTab('certificates')}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition shrink-0 whitespace-nowrap ${
+              activeTab === 'certificates'
+                ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-surface-card'
+            }`}
+          >
+            <Award size={14} />
+            <span>Earned Certificates ({profileData?.certificates?.length ?? 0})</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('attendance')}
             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition shrink-0 whitespace-nowrap ${
               activeTab === 'attendance'
@@ -398,65 +414,237 @@ export function UserProfile() {
               </Card>
             ) : (
               <div className="grid gap-5 md:grid-cols-2">
-                {profileData?.enrolledCourses.map((c, idx) => (
+                {profileData?.enrolledCourses.map((c, idx) => {
+                  const cert = profileData?.certificates?.find((cert) => cert.cohortId === c.cohortId);
+                  return (
+                    <Card
+                      key={`${c.cohortId}-${idx}`}
+                      className="p-5 flex flex-col justify-between border border-slate-200 dark:border-surface-subtle hover:border-orange-500/50 transition-all hover:shadow-lg"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 size={10} /> Enrolled
+                              </span>
+                              {cert && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                                  <Award size={10} /> Certified Graduate
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-base font-black text-slate-900 dark:text-white leading-snug">
+                              {c.cohortTitle}
+                            </h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
+                              {c.courseTitle}
+                            </p>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                              {formatCurrencyINR(c.priceInr)}
+                            </span>
+                            <p className="text-[10px] text-slate-400">Fee Paid</p>
+                          </div>
+                        </div>
+
+                        {/* Course Progress Bar */}
+                        <div className="mt-5 space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px] font-bold">
+                            <span className="text-slate-500 dark:text-slate-400">Curriculum Progress</span>
+                            <span className="text-orange-600 dark:text-orange-400 font-mono">
+                              {c.progressPercent}% ({c.completedLessons}/{c.totalLessons} lessons)
+                            </span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-surface-elevated">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500"
+                              style={{ width: `${Math.min(100, Math.max(0, c.progressPercent))}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Enrollment Details */}
+                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-surface-subtle flex items-center justify-between text-[11px] text-slate-400">
+                          <span>Enrolled on {new Date(c.enrolledAt).toLocaleDateString([], { dateStyle: 'medium' })}</span>
+                          <span className="capitalize">{c.status}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 flex flex-wrap items-center gap-2.5">
+                        <Button
+                          onClick={() => navigate(`/student/dashboard?cohortId=${c.cohortId}&view=player`)}
+                          className="flex-1 justify-center bg-orange-600 hover:bg-orange-700 text-white font-bold"
+                          size="sm"
+                        >
+                          <PlayCircle size={15} />
+                          <span>Go to Classroom &amp; Lectures</span>
+                        </Button>
+                        {cert && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setSelectedCertForModal(cert)}
+                            className="inline-flex items-center gap-1.5 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                            title="View and download issued certificate"
+                          >
+                            <Award size={14} className="text-amber-600 dark:text-amber-400" />
+                            <span>View Certificate</span>
+                          </Button>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- TAB: EARNED CERTIFICATES & CREDENTIALS --- */}
+        {activeTab === 'certificates' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Award className="text-amber-500" size={20} />
+                  <span>Earned Certificates &amp; Credentials</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Official verifiable graduation certificates awarded for completing accredited curriculum, capstone milestone projects, sprint drills, and live workshops.
+                </p>
+              </div>
+
+              <div className="inline-flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-4 py-2 text-xs font-bold text-amber-800 dark:text-amber-300">
+                <ShieldCheck size={14} />
+                <span>
+                  {profileData?.certificates?.length ?? 0} Verified Credential{(profileData?.certificates?.length ?? 0) === 1 ? '' : 's'}
+                </span>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="py-12 text-center text-xs text-slate-400">Loading your certificates...</div>
+            ) : (profileData?.certificates?.length ?? 0) === 0 ? (
+              <Card className="p-12 text-center border border-slate-200 dark:border-surface-subtle">
+                <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500/20 to-orange-500/20 text-amber-600 dark:text-amber-400 mb-4 border border-amber-500/30">
+                  <Award size={28} />
+                </div>
+                <h4 className="text-base font-black text-slate-900 dark:text-white">
+                  No Certificates Issued Yet
+                </h4>
+                <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Certificates are automatically awarded when you fulfill all 4 graduation pillars:
+                  100% video curriculum watched (≥80%), mentor-approved capstones, sprint drills, and ≥75% workshop attendance.
+                </p>
+                <div className="mt-5 flex items-center justify-center gap-3">
+                  <Button onClick={() => setActiveTab('courses')} size="sm" className="bg-orange-600 hover:bg-orange-700 text-white font-bold">
+                    View Enrolled Courses
+                  </Button>
+                </div>
+              </Card>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2">
+                {profileData?.certificates.map((cert) => (
                   <Card
-                    key={`${c.cohortId}-${idx}`}
-                    className="p-5 flex flex-col justify-between border border-slate-200 dark:border-surface-subtle hover:border-orange-500/50 transition-all hover:shadow-lg"
+                    key={cert.id}
+                    className="relative overflow-hidden p-6 flex flex-col justify-between border border-slate-200 dark:border-surface-subtle hover:border-amber-500/50 transition-all hover:shadow-xl group"
                   >
+                    {/* Top Gold Foil Gradient Accent */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-300" />
+
                     <div>
+                      {/* Badge & Credential Header */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                            <CheckCircle2 size={10} /> Enrolled
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 shadow-2xs">
+                            <ShieldCheck size={11} className="text-amber-600 dark:text-amber-400" />
+                            Official Graduate Certificate
                           </span>
-                          <h4 className="text-base font-black text-slate-900 dark:text-white leading-snug">
-                            {c.cohortTitle}
+                          <h4 className="text-lg font-black text-slate-900 dark:text-white leading-tight mt-1">
+                            {cert.cohortTitle}
                           </h4>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
-                            {c.courseTitle}
-                          </p>
                         </div>
 
-                        <div className="text-right shrink-0">
-                          <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
-                            {formatCurrencyINR(c.priceInr)}
-                          </span>
-                          <p className="text-[10px] text-slate-400">Fee Paid</p>
+                        <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 ring-2 ring-amber-400/30">
+                          <Award size={24} />
                         </div>
                       </div>
 
-                      {/* Course Progress Bar */}
-                      <div className="mt-5 space-y-1.5">
-                        <div className="flex items-center justify-between text-[11px] font-bold">
-                          <span className="text-slate-500 dark:text-slate-400">Curriculum Progress</span>
-                          <span className="text-orange-600 dark:text-orange-400 font-mono">
-                            {c.progressPercent}% ({c.completedLessons}/{c.totalLessons} lessons)
+                      {/* Certificate Number & Issued Date */}
+                      <div className="mt-4 p-3.5 rounded-xl bg-slate-50 dark:bg-surface-elevated/40 border border-slate-200/80 dark:border-white/5 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Credential ID:</span>
+                          <span className="font-mono font-black text-amber-700 dark:text-amber-400 tracking-wider">
+                            {cert.certificateNumber}
                           </span>
                         </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-surface-elevated">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500"
-                            style={{ width: `${Math.min(100, Math.max(0, c.progressPercent))}%` }}
-                          />
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Issued Date:</span>
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">
+                            {new Date(cert.issuedAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Enrollment Details */}
-                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-surface-subtle flex items-center justify-between text-[11px] text-slate-400">
-                        <span>Enrolled on {new Date(c.enrolledAt).toLocaleDateString([], { dateStyle: 'medium' })}</span>
-                        <span className="capitalize">{c.status}</span>
-                      </div>
+                      {/* 4-Pillars Academic Milestone Telemetry */}
+                      {cert.metadata && (
+                        <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
+                          <div className="rounded-lg bg-slate-50 dark:bg-surface-elevated/30 p-2 border border-slate-100 dark:border-white/5">
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Curriculum</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200">
+                              {cert.metadata.completed_lessons ?? '—'} / {cert.metadata.total_lessons ?? '—'} Lessons
+                            </span>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 dark:bg-surface-elevated/30 p-2 border border-slate-100 dark:border-white/5">
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Assignments</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200">
+                              {cert.metadata.approved_assignments ?? '—'} / {cert.metadata.total_assignments ?? '—'} Approved
+                            </span>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 dark:bg-surface-elevated/30 p-2 border border-slate-100 dark:border-white/5">
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Sprint Drills</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200">
+                              {cert.metadata.completed_challenges ?? '—'} / {cert.metadata.total_challenges ?? '—'} Accepted
+                            </span>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 dark:bg-surface-elevated/30 p-2 border border-slate-100 dark:border-white/5">
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Live Attendance</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200">
+                              {cert.metadata.attendance_rate_pct != null ? `${cert.metadata.attendance_rate_pct}%` : '100%'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="mt-5">
+                    {/* Action Links: Download & Verify */}
+                    <div className="mt-6 pt-4 border-t border-slate-100 dark:border-surface-subtle flex flex-wrap items-center gap-3">
                       <Button
-                        onClick={() => navigate(`/student/dashboard?cohortId=${c.cohortId}&view=player`)}
-                        className="w-full justify-center bg-orange-600 hover:bg-orange-700 text-white font-bold"
+                        onClick={() => setSelectedCertForModal(cert)}
+                        className="flex-1 justify-center bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-md shadow-orange-600/20"
                         size="sm"
                       >
-                        <PlayCircle size={15} />
-                        <span>Go to Classroom &amp; Lectures</span>
+                        <Award size={14} />
+                        <span>Download Certificate</span>
                       </Button>
+
+                      <a
+                        href={`/verify-certificate?id=${encodeURIComponent(cert.certificateNumber)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-surface-subtle bg-white dark:bg-surface-card px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400 transition shadow-2xs"
+                        title="Open canonical public verification portal"
+                      >
+                        <ExternalLink size={13} />
+                        <span>Verify</span>
+                      </a>
                     </div>
                   </Card>
                 ))}
@@ -731,6 +919,19 @@ export function UserProfile() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* 5. VERIFIED CERTIFICATE MODAL */}
+      {selectedCertForModal && (
+        <CertificateModal
+          isOpen={Boolean(selectedCertForModal)}
+          onClose={() => setSelectedCertForModal(null)}
+          studentId={user?.id || ''}
+          studentName={displayName}
+          cohortId={selectedCertForModal.cohortId}
+          cohortName={selectedCertForModal.cohortTitle}
+          completedDate={selectedCertForModal.issuedAt}
+        />
       )}
     </div>
   );

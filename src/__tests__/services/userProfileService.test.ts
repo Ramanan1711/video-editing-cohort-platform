@@ -441,6 +441,105 @@ describe('User Profile Service (Multi-Course Enrollment, Attendance & Fee Aggreg
       expect(result.payments[0].amountInr).toBe(4999);
       expect(result.payments[0].status).toBe('captured');
     });
+
+    it('fetches and maps issued certificates with cohort title and 4-pillar metadata', async () => {
+      const mockUserId = 'user-student-graduated';
+
+      vi.mocked(supabase.from).mockImplementation((table: string) => {
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: {
+                    id: mockUserId,
+                    email: 'graduate@example.com',
+                    full_name: 'Graduate Editor',
+                    role: 'student',
+                    status: 'active',
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [{ cohort_id: 'c-1', status: 'completed' }],
+                error: null,
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'certificates') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: 'cert-1',
+                      certificate_number: 'CC-202611-XYZ888',
+                      cohort_id: 'c-1',
+                      issued_at: '2026-11-04T12:00:00Z',
+                      metadata: {
+                        total_lessons: 10,
+                        completed_lessons: 10,
+                        total_assignments: 2,
+                        approved_assignments: 2,
+                        total_challenges: 7,
+                        completed_challenges: 7,
+                        attendance_rate_pct: 100,
+                      },
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockResolvedValue({
+                data: [{ id: 'c-1', title: 'Advanced Video Editing Masterclass', price_inr: 4999 }],
+                error: null,
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'payments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
+            }),
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'modules') {
+          return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ data: [] }) }) } as unknown as ReturnType<typeof supabase.from>;
+        }
+        if (table === 'lesson_progress') {
+          return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [] }) }) } as unknown as ReturnType<typeof supabase.from>;
+        }
+        return { select: vi.fn() } as unknown as ReturnType<typeof supabase.from>;
+      });
+
+      vi.mocked(attendanceModule.getStudentAttendanceHistory).mockResolvedValue([]);
+
+      const result = await getUserProfileOverview(mockUserId);
+
+      expect(result.certificates).toHaveLength(1);
+      expect(result.certificates[0].certificateNumber).toBe('CC-202611-XYZ888');
+      expect(result.certificates[0].cohortTitle).toBe('Advanced Video Editing Masterclass');
+      expect(result.certificates[0].metadata?.completed_challenges).toBe(7);
+      expect(result.certificates[0].metadata?.total_challenges).toBe(7);
+    });
   });
 });
 

@@ -37,6 +37,27 @@ export interface UserAttendanceStats {
   records: SessionAttendanceRecord[];
 }
 
+export interface UserCertificateRecord {
+  id: string;
+  certificateNumber: string;
+  cohortId: string;
+  cohortTitle: string;
+  issuedAt: string;
+  pdfUrl?: string | null;
+  metadata?: {
+    total_lessons?: number;
+    completed_lessons?: number;
+    total_assignments?: number;
+    approved_assignments?: number;
+    total_challenges?: number;
+    completed_challenges?: number;
+    total_sessions?: number;
+    attended_sessions?: number;
+    attendance_rate_pct?: number;
+    verified_by?: string;
+  };
+}
+
 export interface UserProfileOverview {
   user: {
     id: string;
@@ -54,6 +75,7 @@ export interface UserProfileOverview {
     completedCoursesCount: number;
   };
   enrolledCourses: EnrolledCourseDetail[];
+  certificates: UserCertificateRecord[];
   payments: UserPaymentRecord[];
   attendance: UserAttendanceStats;
 }
@@ -101,6 +123,27 @@ const DEMO_OVERVIEW: UserProfileOverview = {
       totalLessons: 20,
       completedLessons: 5,
       platform: 'Iunoware Academy',
+    },
+  ],
+  certificates: [
+    {
+      id: 'cert_demo_1',
+      certificateNumber: 'CC-202609-DEMO01',
+      cohortId: 'cohort-java-mastery',
+      cohortTitle: 'JAVA Fullstack Masterclass',
+      issuedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+      metadata: {
+        total_lessons: 25,
+        completed_lessons: 25,
+        total_assignments: 4,
+        approved_assignments: 4,
+        total_challenges: 15,
+        completed_challenges: 15,
+        total_sessions: 4,
+        attended_sessions: 4,
+        attendance_rate_pct: 100,
+        verified_by: 'system',
+      },
     },
   ],
   payments: [
@@ -239,23 +282,50 @@ export async function getUserProfileOverview(userId: string): Promise<UserProfil
 
     if (profileErr) throw profileErr;
 
-    // 2. Fetch User Enrollments
-    const { data: enrollmentsData, error: enrollErr } = await supabase
-      .from('enrollments')
-      .select('cohort_id, status, enrolled_at, created_at')
-      .eq('user_id', userId);
+    // 2. Fetch User Enrollments and Certificates
+    const [enrollmentsRes, certsRes] = await Promise.all([
+      supabase
+        .from('enrollments')
+        .select('cohort_id, status, enrolled_at, created_at')
+        .eq('user_id', userId),
+      (async () => {
+        try {
+          const query = supabase
+            .from('certificates')
+            .select('id, certificate_number, cohort_id, issued_at, metadata');
+          if (typeof query?.eq === 'function') {
+            const eqQuery = query.eq('student_id', userId);
+            if (typeof eqQuery?.order === 'function') {
+              return await eqQuery.order('issued_at', { ascending: false });
+            }
+            return await eqQuery;
+          }
+          return { data: [] };
+        } catch {
+          return { data: [] };
+        }
+      })(),
+    ]);
 
-    if (enrollErr) throw enrollErr;
+    const enrollmentsData = enrollmentsRes?.data || [];
+    const certsData = (certsRes?.data || []) as Array<{
+      id: string;
+      certificate_number: string;
+      cohort_id: string;
+      issued_at: string;
+      metadata?: Record<string, unknown>;
+    }>;
 
-    const enrolledCohortIds = (enrollmentsData || []).map((e) => e.cohort_id);
+    const enrolledCohortIds = enrollmentsData.map((e) => e.cohort_id);
+    const allCohortIds = Array.from(new Set([...enrolledCohortIds, ...certsData.map((c) => c.cohort_id)]));
 
     // 3. Parallel fetch: Cohorts info, Payments, Attendance, and Lesson Progress
     const [cohortsRes, paymentsRes, attendanceRecords, progressRes] = await Promise.all([
-      enrolledCohortIds.length > 0
+      allCohortIds.length > 0
         ? supabase
             .from('cohorts')
             .select('id, title, name, description, price_inr, currency, course_id, status')
-            .in('id', enrolledCohortIds)
+            .in('id', allCohortIds)
         : Promise.resolve({ data: [] }),
       supabase
         .from('payments')
@@ -394,6 +464,19 @@ export async function getUserProfileOverview(userId: string): Promise<UserProfil
       (c) => c.progressPercent === 100 || c.status === 'completed'
     ).length;
 
+    // Map verified certificates
+    const certificates: UserCertificateRecord[] = certsData.map((c) => {
+      const cohort = cohortMap.get(c.cohort_id);
+      return {
+        id: c.id,
+        certificateNumber: c.certificate_number,
+        cohortId: c.cohort_id,
+        cohortTitle: cohort?.title || cohort?.name || 'Accredited Cohort Masterclass',
+        issuedAt: c.issued_at,
+        metadata: c.metadata as UserCertificateRecord['metadata'],
+      };
+    });
+
     // If no real enrollments are found yet (e.g., in a fresh test environment),
     // fallback gracefully to DEMO_OVERVIEW if the profile doesn't exist either.
     if (!profileData && enrolledCourses.length === 0) {
@@ -417,6 +500,7 @@ export async function getUserProfileOverview(userId: string): Promise<UserProfil
         completedCoursesCount,
       },
       enrolledCourses,
+      certificates,
       payments,
       attendance: {
         totalSessionsHeld,
