@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-05T10:34:17.974Z",
-  "migrationCount": 85,
+  "generatedAt": "2026-11-05T10:51:46.149Z",
+  "migrationCount": 86,
   "migrations": [
     {
       "order": 1,
@@ -1140,6 +1140,17 @@
       "rpcDefinitions": [
         "verify_and_issue_certificate",
         "enroll_student_in_cohort"
+      ]
+    },
+    {
+      "order": 86,
+      "filename": "20261105000004_fix_certificates_audit_trigger_missing_grade_column.sql",
+      "sha256": "8130bb026f12edf5dff73734f39f4d60a12b94a9a710a5b46c1f77bd2610d170",
+      "sizeBytes": 2017,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "fn_audit_certificates_trigger"
       ]
     }
   ]

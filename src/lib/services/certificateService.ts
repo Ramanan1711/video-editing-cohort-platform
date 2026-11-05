@@ -285,9 +285,13 @@ export async function verifyCertificateEligibility(
         };
       } else {
         console.error('Failed to persist verified certificate:', insertErr);
+        const isTriggerError = (insertErr as { code?: string; message?: string })?.code === '42703' ||
+          (insertErr as { message?: string })?.message?.includes('grade');
         return {
           eligible: false,
-          reason: 'Graduation criteria verified, but certificate issuance persistence failed. Please retry.',
+          reason: isTriggerError
+            ? 'Graduation criteria verified, but certificate audit trigger error occurred in database. Run migration 20261105000004 to fix trigger.'
+            : 'Graduation criteria verified, but certificate issuance persistence failed. Please retry.',
           completed_lessons: completedLessons,
           total_lessons: allLessonIds.length,
           approved_assignments: approvedAssigns,
