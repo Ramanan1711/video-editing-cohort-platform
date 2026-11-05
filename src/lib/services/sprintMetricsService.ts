@@ -414,7 +414,7 @@ export async function getStudentUnifiedProgress(
     getStudentSprintDays(userId, cohortId).catch(() => ({
       days: [],
       completedCount: 0,
-      totalDays: 15,
+      totalDays: 0,
       streakCount: 0,
       overallScore: null,
       progressPercent: 0,

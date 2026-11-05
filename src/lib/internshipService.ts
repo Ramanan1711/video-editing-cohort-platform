@@ -728,8 +728,8 @@ export async function listCohortInternsMonitoring(cohortId: string): Promise<Int
     .eq('cohort_id', cohortId);
 
   const maxChallengeDay = challenges && challenges.length > 0 ? Math.max(...challenges.map((c) => c.day_number)) : 0;
-  const configuredSprintDays = configuredDays || 15;
-  const totalDays = Math.max(configuredSprintDays, maxChallengeDay, 1);
+  const configuredSprintDays = configuredDays || 0;
+  const totalDays = Math.max(configuredSprintDays, maxChallengeDay, challenges?.length || 1);
 
   const challengeMap = new Map((challenges || []).map((c) => [c.id, c.day_number]));
 
