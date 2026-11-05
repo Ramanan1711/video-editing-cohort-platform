@@ -294,8 +294,8 @@ export function CertificateModal({
                 <span className="text-xs font-mono font-medium text-slate-300">
                   {eligibility.approved_assignments ?? 0} / {eligibility.total_assignments ?? 0}
                 </span>
-                {(eligibility.approved_assignments ?? 0) >= (eligibility.total_assignments ?? 1) &&
-                (eligibility.total_assignments ?? 0) > 0 ? (
+                {(eligibility.total_assignments ?? 0) === 0 ||
+                (eligibility.approved_assignments ?? 0) >= (eligibility.total_assignments ?? 1) ? (
                   <CheckCircle2 size={16} className="text-emerald-400" />
                 ) : (
                   <XCircle size={16} className="text-rose-400" />
