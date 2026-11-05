@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isCertificateModalActive } from '../lib/certificateProtectionHelper';
 
 export interface ScreenProtectionOptions {
   enabled?: boolean;
@@ -107,7 +108,7 @@ export function useScreenProtection({
   // Restrict playback immediately
   const triggerRestriction = useCallback(
     (reason: string) => {
-      if (!isProtectionActive) return;
+      if (!isProtectionActive || isCertificateModalActive()) return;
 
       if (typeof window !== 'undefined' && window.sessionStorage) {
         window.sessionStorage.setItem('iunoware_capture_detected', reason);
@@ -178,6 +179,11 @@ export function useScreenProtection({
     if (!isProtectionActive) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Suppress screen capture triggers while CertificateModal is active
+      if (isCertificateModalActive()) {
+        return;
+      }
+
       const key = e.key;
 
       // Windows PrintScreen
@@ -260,6 +266,7 @@ export function useScreenProtection({
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (isCertificateModalActive()) return;
       if (e.key === 'PrintScreen') {
         triggerRestriction('Screen capture hotkey (PrintScreen) detected');
       }
@@ -281,6 +288,9 @@ export function useScreenProtection({
     if (!isProtectionActive || !shouldPauseOnBlur) return;
 
     const handleWindowBlur = () => {
+      // Do not interrupt when certificate modal is open or print dialog is active
+      if (isCertificateModalActive()) return;
+
       // Pause playback immediately if playing, without locking out the student
       if (videoRef?.current && !videoRef.current.paused) {
         try {
@@ -306,6 +316,9 @@ export function useScreenProtection({
     const originalGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
 
     navigator.mediaDevices.getDisplayMedia = async function (...args) {
+      if (isCertificateModalActive()) {
+        return originalGetDisplayMedia(...args);
+      }
       triggerRestriction('Screen sharing or display capture session initiated in browser');
       return originalGetDisplayMedia(...args);
     };
@@ -322,6 +335,7 @@ export function useScreenProtection({
     if (!isProtectionActive || !shouldPauseOnBlur) return;
 
     const handleVisibilityChange = () => {
+      if (isCertificateModalActive()) return;
       if (document.visibilityState === 'hidden') {
         if (videoRef?.current && !videoRef.current.paused) {
           try {
@@ -339,6 +353,26 @@ export function useScreenProtection({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isProtectionActive, shouldPauseOnBlur, videoRef, onBlurPause]);
+
+  // 5. Native Print Lifecycle Listener
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      if (typeof document !== 'undefined') {
+        document.body.setAttribute('data-printing-active', 'true');
+      }
+    };
+    const handleAfterPrint = () => {
+      if (typeof document !== 'undefined') {
+        document.body.removeAttribute('data-printing-active');
+      }
+    };
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, []);
 
   return {
     isRestricted,

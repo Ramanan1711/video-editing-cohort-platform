@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Award,
@@ -20,6 +20,7 @@ import { Button } from './ui/Button';
 import { verifyCertificateEligibility, type CertificateEligibilityResult } from '../lib/courseService';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 import { BRAND_LOGO_URL } from '../constants/branding';
+import { useToast } from '../context/useToast';
 
 interface CertificateModalProps {
   isOpen: boolean;
@@ -87,16 +88,43 @@ export function CertificateModal({
       });
 
   const credentialId = eligibility?.certificate_number || null;
+  const toast = useToast();
 
-  // Add certificate print class to body when modal is open and eligible
+  const handlePrint = useCallback(() => {
+    document.body.classList.add('certificate-modal-open');
+    document.body.setAttribute('data-certificate-modal-open', 'true');
+    document.body.setAttribute('data-printing-active', 'true');
+    window.print();
+  }, []);
+
+  // Mark certificate modal active on body to suppress screen protection restrictions and format print layout
   useEffect(() => {
-    if (isOpen && eligibility?.eligible && credentialId && !verifying) {
-      document.body.classList.add('certificate-modal-open');
-      return () => {
-        document.body.classList.remove('certificate-modal-open');
-      };
-    }
-  }, [isOpen, eligibility?.eligible, credentialId, verifying]);
+    if (!isOpen) return;
+    document.body.classList.add('certificate-modal-open');
+    document.body.setAttribute('data-certificate-modal-open', 'true');
+    return () => {
+      document.body.classList.remove('certificate-modal-open');
+      document.body.removeAttribute('data-certificate-modal-open');
+    };
+  }, [isOpen]);
+
+  // Intercept Cmd+P / Ctrl+P while certificate is open to trigger certificate print dialog directly
+  useEffect(() => {
+    if (!isOpen || !eligibility?.eligible || !credentialId) return;
+
+    const handleModalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        e.stopPropagation();
+        handlePrint();
+      }
+    };
+
+    window.addEventListener('keydown', handleModalKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', handleModalKeyDown, { capture: true });
+    };
+  }, [isOpen, eligibility?.eligible, credentialId, handlePrint]);
 
   if (!isOpen) return null;
 
@@ -290,10 +318,6 @@ export function CertificateModal({
       document.body
     );
   }
-
-  const handlePrint = () => {
-    window.print();
-  };
 
   // High-Resolution 2400x1700 PNG Image Generator
   const handleDownloadImage = () => {
@@ -537,6 +561,7 @@ export function CertificateModal({
     link.download = `Iunoware_Academy_Certificate_${(studentName || 'Student').replace(/\s+/g, '_')}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
+    toast?.success('Official certificate downloaded in high resolution (2400x1700 PNG).');
   };
 
   const portalContent = (
@@ -626,20 +651,20 @@ export function CertificateModal({
             )}
 
             <Button
-              variant="secondary"
+              variant="primary"
               size="sm"
               onClick={handleDownloadImage}
-              className="bg-white/10 text-white hover:bg-white/20 border-white/10 text-xs"
+              className="bg-orange-500 text-white hover:bg-orange-600 shadow-md shadow-orange-500/20 text-xs font-bold"
             >
               <Download size={14} />
-              <span>Download Image (PNG)</span>
+              <span>Download Certificate (PNG)</span>
             </Button>
 
             <Button
-              variant="primary"
+              variant="secondary"
               size="sm"
               onClick={handlePrint}
-              className="bg-orange-500 text-white hover:bg-orange-600 text-xs"
+              className="bg-white/10 text-white hover:bg-white/20 border-white/10 text-xs"
             >
               <Printer size={14} />
               <span>Print / Save PDF</span>

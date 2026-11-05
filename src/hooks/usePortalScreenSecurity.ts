@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useToast } from '../context/useToast';
+import { isCertificateModalActive } from '../lib/certificateProtectionHelper';
 
 export const CAPTURE_DETECTED_STORAGE_KEY = 'iunoware_capture_detected';
 export const SECURITY_ALERT_EVENT = 'iunoware:security-alert';
@@ -11,6 +12,9 @@ export function usePortalScreenSecurity() {
     if (typeof window === 'undefined') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Suppress screen capture triggers while CertificateModal is active
+      if (isCertificateModalActive()) return;
+
       const key = e.key;
 
       // 1. Windows PrintScreen
@@ -92,6 +96,9 @@ export function usePortalScreenSecurity() {
     if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getDisplayMedia) {
       originalGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
       navigator.mediaDevices.getDisplayMedia = async function (...args) {
+        if (isCertificateModalActive()) {
+          return originalGetDisplayMedia!(...args);
+        }
         const reason = 'Screen sharing or display capture session initiated in browser';
         sessionStorage.setItem(CAPTURE_DETECTED_STORAGE_KEY, reason);
         window.dispatchEvent(new CustomEvent(SECURITY_ALERT_EVENT, { detail: { reason } }));
