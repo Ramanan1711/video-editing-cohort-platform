@@ -15,12 +15,16 @@ import {
   Video,
   X,
   ExternalLink,
+  Edit3,
+  UserCheck,
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { verifyCertificateEligibility, type CertificateEligibilityResult } from '../lib/courseService';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 import { BRAND_LOGO_URL } from '../constants/branding';
 import { useToast } from '../context/useToast';
+import { supabase } from '../lib/supabaseClient';
+import { isPlaceholderStudentName, validateLegalName } from '../lib/studentNameUtils';
 
 interface CertificateModalProps {
   isOpen: boolean;
@@ -30,6 +34,7 @@ interface CertificateModalProps {
   cohortId: string;
   studentId: string;
   completedDate?: string;
+  onUpdateStudentName?: (name: string) => void;
 }
 
 export function CertificateModal({
@@ -40,10 +45,32 @@ export function CertificateModal({
   cohortId,
   studentId,
   completedDate,
+  onUpdateStudentName,
 }: CertificateModalProps) {
   useModalScrollLock(isOpen);
   const [eligibility, setEligibility] = useState<CertificateEligibilityResult | null>(null);
   const [verifying, setVerifying] = useState(true);
+
+  // Legal name confirmation & editing state
+  const [currentStudentName, setCurrentStudentName] = useState<string>(studentName || '');
+  const [showNameConfirmModal, setShowNameConfirmModal] = useState<boolean>(() =>
+    isPlaceholderStudentName(studentName)
+  );
+  const [inputLegalName, setInputLegalName] = useState<string>(() =>
+    isPlaceholderStudentName(studentName) ? '' : studentName || ''
+  );
+  const [nameSaveError, setNameSaveError] = useState<string | null>(null);
+  const [isSavingName, setIsSavingName] = useState(false);
+
+  useEffect(() => {
+    if (studentName && !isPlaceholderStudentName(studentName)) {
+      setCurrentStudentName(studentName);
+      setInputLegalName((prev) => (!prev || isPlaceholderStudentName(prev) ? studentName : prev));
+      setShowNameConfirmModal(false);
+    } else if (isPlaceholderStudentName(studentName) && !currentStudentName) {
+      setShowNameConfirmModal(true);
+    }
+  }, [studentName, currentStudentName]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -97,6 +124,45 @@ export function CertificateModal({
     window.print();
   }, []);
 
+  const handleConfirmLegalName = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = inputLegalName.trim();
+    const validationError = validateLegalName(trimmed);
+    if (validationError) {
+      setNameSaveError(validationError);
+      return;
+    }
+
+    setIsSavingName(true);
+    setNameSaveError(null);
+
+    try {
+      if (studentId) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ full_name: trimmed })
+          .eq('id', studentId);
+
+        if (updateError) {
+          console.error('Failed to update student legal name in profiles:', updateError);
+          setNameSaveError('Could not save your legal name. Please try again.');
+          setIsSavingName(false);
+          return;
+        }
+      }
+
+      setCurrentStudentName(trimmed);
+      setShowNameConfirmModal(false);
+      setIsSavingName(false);
+      onUpdateStudentName?.(trimmed);
+      toast?.success('Legal name successfully verified and updated!');
+    } catch (err) {
+      console.error('Error confirming legal name:', err);
+      setNameSaveError('An unexpected error occurred while saving. Please try again.');
+      setIsSavingName(false);
+    }
+  };
+
   // Mark certificate modal active on body to suppress screen protection restrictions and format print layout
   useEffect(() => {
     if (!isOpen) return;
@@ -110,7 +176,7 @@ export function CertificateModal({
 
   // Intercept Cmd+P / Ctrl+P while certificate is open to trigger certificate print dialog directly
   useEffect(() => {
-    if (!isOpen || !eligibility?.eligible || !credentialId) return;
+    if (!isOpen || !eligibility?.eligible || !credentialId || showNameConfirmModal) return;
 
     const handleModalKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') {
@@ -124,7 +190,7 @@ export function CertificateModal({
     return () => {
       window.removeEventListener('keydown', handleModalKeyDown, { capture: true });
     };
-  }, [isOpen, eligibility?.eligible, credentialId, handlePrint]);
+  }, [isOpen, eligibility?.eligible, credentialId, showNameConfirmModal, handlePrint]);
 
   if (!isOpen) return null;
 
@@ -419,7 +485,7 @@ export function CertificateModal({
     // Student Name
     ctx.fillStyle = '#7c2d12';
     ctx.font = 'bold 84px serif';
-    ctx.fillText(studentName || 'Student', 1200, 600);
+    ctx.fillText(currentStudentName || 'Student', 1200, 600);
 
     // Gold underline
     ctx.strokeStyle = '#f59e0b';
@@ -558,7 +624,7 @@ export function CertificateModal({
 
     // Trigger instant download
     const link = document.createElement('a');
-    link.download = `Iunoware_Academy_Certificate_${(studentName || 'Student').replace(/\s+/g, '_')}.png`;
+    link.download = `Iunoware_Academy_Certificate_${(currentStudentName || 'Student').replace(/\s+/g, '_')}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
     toast?.success('Official certificate downloaded in high resolution (2400x1700 PNG).');
@@ -566,6 +632,97 @@ export function CertificateModal({
 
   const portalContent = (
     <div className="certificate-portal-root fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/85 p-4 sm:p-6 backdrop-blur-md">
+      {/* 0. Legal Name Confirmation Overlay Prompt */}
+      {showNameConfirmModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-legal-name-title"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md animate-in fade-in"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 text-white shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400">
+                <UserCheck size={24} />
+              </div>
+              <div>
+                <h3 id="confirm-legal-name-title" className="text-lg font-bold">
+                  Confirm Your Legal Name
+                </h3>
+                <p className="text-xs text-slate-400">Official Graduation Credential Verification</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-300 leading-relaxed mb-4">
+              Please confirm your official legal name as it should permanently appear on your accredited certificate and in the public verification ledger.
+            </p>
+
+            <form onSubmit={handleConfirmLegalName} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="legal-name-input"
+                  className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5"
+                >
+                  Full Legal Name
+                </label>
+                <input
+                  id="legal-name-input"
+                  type="text"
+                  value={inputLegalName}
+                  onChange={(e) => {
+                    setInputLegalName(e.target.value);
+                    setNameSaveError(null);
+                  }}
+                  placeholder="e.g. Maya Lin"
+                  autoFocus
+                  className="w-full rounded-xl border border-white/15 bg-slate-800/80 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                />
+                {nameSaveError && (
+                  <p className="mt-1.5 text-xs text-rose-400 font-medium" role="alert">
+                    {nameSaveError}
+                  </p>
+                )}
+                <p className="mt-1.5 text-[11px] text-slate-400">
+                  This name will be inscribed on your verified credentials and public ledger record.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    if (isPlaceholderStudentName(currentStudentName)) {
+                      onClose();
+                    } else {
+                      setShowNameConfirmModal(false);
+                      setInputLegalName(currentStudentName);
+                      setNameSaveError(null);
+                    }
+                  }}
+                  className="rounded-xl border-white/10 text-slate-300 hover:bg-white/5"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSavingName || !inputLegalName.trim()}
+                  className="rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-semibold"
+                >
+                  {isSavingName ? (
+                    <>
+                      <LoaderCircle size={16} className="animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Confirm & View Certificate'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Scoped print styling ensuring single landscape page */}
       <style>{`
         @media print {
@@ -733,9 +890,25 @@ export function CertificateModal({
               </p>
 
               {/* Student Name */}
-              <h3 className="mt-2 font-serif text-2xl sm:text-4xl font-bold tracking-normal text-amber-950">
-                {studentName || 'Student'}
-              </h3>
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <h3 className="font-serif text-2xl sm:text-4xl font-bold tracking-normal text-amber-950">
+                  {currentStudentName || 'Student'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputLegalName(isPlaceholderStudentName(currentStudentName) ? '' : currentStudentName);
+                    setNameSaveError(null);
+                    setShowNameConfirmModal(true);
+                  }}
+                  className="print:hidden inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold text-amber-800 hover:text-amber-950 hover:bg-amber-100/80 transition-colors cursor-pointer border border-amber-300/60 shadow-2xs"
+                  title="Edit legal name on certificate"
+                  aria-label="Edit legal name on certificate"
+                >
+                  <Edit3 size={12} />
+                  <span>Edit Legal Name</span>
+                </button>
+              </div>
 
               <div className="mx-auto mt-1 h-0.5 w-48 sm:w-72 bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
 

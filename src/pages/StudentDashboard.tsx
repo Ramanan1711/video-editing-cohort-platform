@@ -38,7 +38,7 @@ const AchievementsModal = React.lazy(() => import('../components/student/Achieve
 export { LessonPlayer };
 
 export function StudentDashboard() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -464,6 +464,9 @@ export function StudentDashboard() {
             cohortName={dashboard.course.cohort.name}
             cohortId={dashboard.course.cohort.id}
             studentId={user.id}
+            onUpdateStudentName={async () => {
+              await refreshProfile?.();
+            }}
           />
         )}
 

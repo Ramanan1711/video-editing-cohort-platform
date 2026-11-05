@@ -931,6 +931,12 @@ export function UserProfile() {
           cohortId={selectedCertForModal.cohortId}
           cohortName={selectedCertForModal.cohortTitle}
           completedDate={selectedCertForModal.issuedAt}
+          onUpdateStudentName={async (newName) => {
+            setProfileData((prev) =>
+              prev ? { ...prev, user: { ...prev.user, fullName: newName } } : null
+            );
+            await refreshProfile?.();
+          }}
         />
       )}
     </div>
