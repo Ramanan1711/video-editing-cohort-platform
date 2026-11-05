@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Award,
@@ -61,16 +61,20 @@ export function CertificateModal({
   );
   const [nameSaveError, setNameSaveError] = useState<string | null>(null);
   const [isSavingName, setIsSavingName] = useState(false);
+  const prevStudentNamePropRef = useRef(studentName);
 
   useEffect(() => {
-    if (studentName && !isPlaceholderStudentName(studentName)) {
-      setCurrentStudentName(studentName);
-      setInputLegalName((prev) => (!prev || isPlaceholderStudentName(prev) ? studentName : prev));
-      setShowNameConfirmModal(false);
-    } else if (isPlaceholderStudentName(studentName) && !currentStudentName) {
-      setShowNameConfirmModal(true);
+    if (prevStudentNamePropRef.current !== studentName) {
+      prevStudentNamePropRef.current = studentName;
+      if (studentName && !isPlaceholderStudentName(studentName)) {
+        setCurrentStudentName(studentName);
+        setInputLegalName((prev) => (!prev || isPlaceholderStudentName(prev) ? studentName : prev));
+        setShowNameConfirmModal(false);
+      } else if (isPlaceholderStudentName(studentName)) {
+        setShowNameConfirmModal(true);
+      }
     }
-  }, [studentName, currentStudentName]);
+  }, [studentName]);
 
   useEffect(() => {
     if (!isOpen) return;

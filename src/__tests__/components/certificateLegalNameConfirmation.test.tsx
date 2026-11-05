@@ -225,7 +225,9 @@ describe('Issue 8: Certificate Legal Name Confirmation & Edit Prompt', () => {
 
     expect(updateSpy).toHaveBeenCalledWith('profiles');
     expect(onUpdateStudentName).toHaveBeenCalledWith('Alexander Vance');
-    expect(screen.getAllByText('Alexander Vance').length).toBeGreaterThanOrEqual(1);
+    await waitFor(() => {
+      expect(screen.getAllByText('Alexander Vance').length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   it('calls onClose if student cancels the mandatory initial name confirmation', async () => {
