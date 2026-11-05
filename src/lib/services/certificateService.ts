@@ -129,7 +129,7 @@ export async function verifyCertificateEligibility(
     const rawHeldSessions = (heldSessionsRes.data ?? []) as Array<{ id: string; cohort_id?: string | null; starts_at?: string | null }>;
     const heldSessions = rawHeldSessions.filter((s) => {
       // 1. Must belong strictly to the target cohort (exclude global webinars where cohort_id is null)
-      if (s.cohort_id !== undefined && s.cohort_id !== null && s.cohort_id !== cohortId) {
+      if (!s.cohort_id || s.cohort_id !== cohortId) {
         return false;
       }
       // 2. Must be held on or after the student's enrollment date

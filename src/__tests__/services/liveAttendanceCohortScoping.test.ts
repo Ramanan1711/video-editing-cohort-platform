@@ -171,8 +171,8 @@ describe('Issue 1: Live Attendance Cohort Scoping & Pre-Enrollment Exclusion', (
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               lte: vi.fn().mockResolvedValue({
-                // Supabase query filters by cohort_id = cohortId, but fallback filter also checks enrolled_at
-                data: [...validCohortSessions, ...preEnrollmentSessions],
+                // Supabase query filters by cohort_id = cohortId, and fallback filter strictly drops any null or pre-enrollment sessions
+                data: [...validCohortSessions, ...preEnrollmentSessions, ...historicalGlobalWebinars],
                 error: null,
               }),
             }),

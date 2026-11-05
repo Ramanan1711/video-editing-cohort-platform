@@ -210,7 +210,7 @@ export async function generateInternshipReport(
   const enrolledAt = enrollmentRes?.data?.enrolled_at || enrollmentRes?.data?.created_at || null;
   const rawHeldSessions = (sessionsRes.data ?? []) as Array<{ id: string; cohort_id?: string | null; starts_at?: string | null }>;
   const heldSessions = rawHeldSessions.filter((s) => {
-    if (s.cohort_id !== undefined && s.cohort_id !== null && s.cohort_id !== cohortId) {
+    if (!s.cohort_id || s.cohort_id !== cohortId) {
       return false;
     }
     if (enrolledAt && s.starts_at && s.starts_at < enrolledAt) {
