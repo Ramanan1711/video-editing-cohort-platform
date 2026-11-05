@@ -1223,15 +1223,19 @@ export function MilestonePanel({
         </div>
         {complete ? (
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={onViewCertificate}
-              className="flex items-center gap-2 rounded-xl bg-slate-950 dark:bg-orange-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:bg-orange-600 dark:hover:bg-orange-500 cursor-pointer"
-            >
-              <Award size={18} className="text-orange-400 dark:text-white" />
-              <span>View Official Certificate</span>
-            </button>
+            {onViewCertificate && (
+              <button
+                type="button"
+                onClick={onViewCertificate}
+                className="flex items-center gap-2 rounded-xl bg-slate-950 dark:bg-orange-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:bg-orange-600 dark:hover:bg-orange-500 cursor-pointer"
+              >
+                <Award size={18} className="text-orange-400 dark:text-white" />
+                <span>View Official Certificate</span>
+              </button>
+            )}
             {onViewReportCard && (
               <button
+                type="button"
                 onClick={onViewReportCard}
                 className="flex items-center gap-2 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-surface-card px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100 shadow-xs transition hover:bg-slate-50 dark:hover:bg-surface-elevated cursor-pointer"
               >
@@ -1241,9 +1245,20 @@ export function MilestonePanel({
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {onViewCertificate && (
+              <button
+                type="button"
+                onClick={onViewCertificate}
+                className="flex items-center gap-2 rounded-xl border border-orange-300 dark:border-orange-500/30 bg-white/90 dark:bg-surface-card px-4 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 transition hover:bg-orange-100/70 dark:hover:bg-surface-elevated shadow-2xs cursor-pointer backdrop-blur-xs"
+              >
+                <Award size={15} className="text-orange-500 dark:text-orange-400" />
+                <span>View Graduation Checklist</span>
+              </button>
+            )}
             {onViewReportCard && (
               <button
+                type="button"
                 onClick={onViewReportCard}
                 className="flex items-center gap-2 rounded-xl border border-orange-200/90 dark:border-white/15 bg-white/80 dark:bg-surface-card/90 px-4 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 transition hover:bg-white dark:hover:bg-surface-elevated shadow-2xs cursor-pointer backdrop-blur-xs"
               >
