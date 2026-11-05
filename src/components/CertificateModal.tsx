@@ -254,8 +254,17 @@ export function CertificateModal({
                 <span>Active Cohort Enrollment</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-medium text-emerald-400">Verified</span>
-                <CheckCircle2 size={16} className="text-emerald-400" />
+                {eligibility.enrolled !== false && !eligibility.reason?.includes('not actively enrolled') ? (
+                  <>
+                    <span className="text-xs font-mono font-medium text-emerald-400">Verified</span>
+                    <CheckCircle2 size={16} className="text-emerald-400" />
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs font-mono font-medium text-rose-400">Not Enrolled</span>
+                    <XCircle size={16} className="text-rose-400" />
+                  </>
+                )}
               </div>
             </div>
 

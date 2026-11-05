@@ -49,6 +49,30 @@ describe('Graduation Checklist Surprise Requirements Cascade Fix', () => {
       ];
 
       vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+        if (table === 'certificates') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+            }),
+            insert: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'cert-1',
+                    certificate_number: 'CC-202611-TEST123',
+                    issued_at: new Date().toISOString(),
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          } as any;
+        }
+
         if (table === 'enrollments') {
           return {
             select: vi.fn().mockReturnValue({
@@ -65,11 +89,14 @@ describe('Graduation Checklist Surprise Requirements Cascade Fix', () => {
         }
 
         if (table === 'modules') {
+          const modData = [{ id: 'mod-1', lessons }];
+          const resPromise = Promise.resolve({ data: modData, error: null });
           return {
             select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockResolvedValue({
-                data: [{ id: 'mod-1', lessons }],
-                error: null,
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue(resPromise),
+                then: resPromise.then.bind(resPromise),
+                catch: resPromise.catch.bind(resPromise),
               }),
             }),
           } as any;
@@ -87,13 +114,17 @@ describe('Graduation Checklist Surprise Requirements Cascade Fix', () => {
         }
 
         if (table === 'assignments') {
+          const assignOrder = vi.fn().mockResolvedValue({
+            data: assignments,
+            error: null,
+          });
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({
-                  data: assignments,
-                  error: null,
-                }),
+                order: assignOrder,
+              }),
+              in: vi.fn().mockReturnValue({
+                order: assignOrder,
               }),
             }),
           } as any;
@@ -230,9 +261,208 @@ describe('Graduation Checklist Surprise Requirements Cascade Fix', () => {
       expect(res.attended_sessions).toBe(0);
       expect(res.total_sessions).toBe(3);
     });
+
+    it('self-heals inactive or missing enrollment when student has completed lessons', async () => {
+      // First RPC call fails with "Student is not actively enrolled in this cohort."
+      vi.spyOn(supabase, 'rpc').mockResolvedValueOnce({
+        data: {
+          eligible: false,
+          reason: 'Student is not actively enrolled in this cohort.',
+        },
+        error: null,
+      } as any).mockResolvedValueOnce({
+        // Second RPC call succeeds after self-healing enrollment
+        data: {
+          eligible: true,
+          certificate_number: 'CC-202611-HEALED1',
+          issued_at: new Date().toISOString(),
+          completed_lessons: 16,
+          total_lessons: 16,
+          approved_assignments: 0,
+          total_assignments: 0,
+          completed_challenges: 0,
+          total_challenges: 0,
+          attended_sessions: 0,
+          total_sessions: 0,
+          attendance_rate_pct: 100,
+          min_attendance_pct: 75,
+        },
+        error: null,
+      } as any);
+
+      const lessons = Array.from({ length: 16 }, (_, i) => ({
+        id: `les-${i + 1}`,
+        video_url: 'https://example.com/v.mp4',
+      }));
+
+      const progress = lessons.map((l) => ({
+        lesson_id: l.id,
+        completed: true,
+        watch_percentage: 100,
+      }));
+
+      const upsertSpy = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: { status: 'enrolled', enrolled_at: '2026-09-01T00:00:00Z' },
+            error: null,
+          }),
+        }),
+      });
+
+      vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+        if (table === 'certificates') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+            }),
+            insert: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'cert-1',
+                    certificate_number: 'CC-202611-TEST123',
+                    issued_at: new Date().toISOString(),
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          } as any;
+        }
+
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { status: 'inactive' }, // Inactive enrollment!
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            upsert: upsertSpy,
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            }),
+          } as any;
+        }
+
+        if (table === 'modules') {
+          const modData = [{ id: 'mod-1', lessons }];
+          const resPromise = Promise.resolve({ data: modData, error: null });
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue(resPromise),
+                then: resPromise.then.bind(resPromise),
+                catch: resPromise.catch.bind(resPromise),
+              }),
+            }),
+          } as any;
+        }
+
+        if (table === 'lesson_progress') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: progress,
+                error: null,
+              }),
+            }),
+          } as any;
+        }
+
+        if (table === 'profiles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { role: 'admin' },
+                  error: null,
+                }),
+              }),
+            }),
+          } as any;
+        }
+
+        const chainable = () => {
+          const obj: any = {};
+          const promise = Promise.resolve({ data: [], error: null });
+          obj.then = promise.then.bind(promise);
+          obj.catch = promise.catch.bind(promise);
+          obj.eq = vi.fn().mockImplementation(() => obj);
+          obj.in = vi.fn().mockImplementation(() => obj);
+          obj.lte = vi.fn().mockImplementation(() => obj);
+          obj.order = vi.fn().mockImplementation(() => obj);
+          obj.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+          obj.single = vi.fn().mockResolvedValue({ data: null, error: null });
+          return obj;
+        };
+
+        return {
+          select: vi.fn().mockImplementation(() => chainable()),
+        } as any;
+      });
+
+      const res = await verifyCertificateEligibility('admin-user-1', 'cohort-1');
+
+      expect(upsertSpy).toHaveBeenCalled();
+      expect(res.eligible).toBe(true);
+      expect(res.certificate_number).toBeDefined();
+    });
   });
 
   describe('CertificateModal Requirements Checklist Display', () => {
+    it('accurately renders "Not Enrolled" when enrollment is inactive or unverified', async () => {
+      vi.spyOn(supabase, 'rpc').mockResolvedValue({
+        data: {
+          eligible: false,
+          enrolled: false,
+          reason: 'Student is not actively enrolled in this cohort.',
+          completed_lessons: 16,
+          total_lessons: 16,
+          approved_assignments: 0,
+          total_assignments: 0,
+          completed_challenges: 0,
+          total_challenges: 0,
+          attended_sessions: 0,
+          total_sessions: 0,
+          attendance_rate_pct: 100.0,
+          min_attendance_pct: 75.0,
+        },
+        error: null,
+      } as any);
+
+      render(
+        <CertificateModal
+          isOpen={true}
+          onClose={() => {}}
+          studentName="Jane Doe"
+          cohortName="Advanced Video Editing"
+          cohortId="c1"
+          studentId="s1"
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Certificate Requirements Incomplete')).toBeInTheDocument();
+      });
+
+      // Assert that enrollment shows "Not Enrolled" rather than lying with "Verified"
+      expect(screen.getByText('Not Enrolled')).toBeInTheDocument();
+      expect(screen.getByText('Student is not actively enrolled in this cohort.')).toBeInTheDocument();
+      // True lesson count is shown instead of 0 / 0
+      expect(screen.getByText('16 / 16')).toBeInTheDocument();
+    });
     it('displays true requirement counts for all 4 pillars without surprise zero masking', async () => {
       vi.spyOn(supabase, 'rpc').mockResolvedValue({
         data: {

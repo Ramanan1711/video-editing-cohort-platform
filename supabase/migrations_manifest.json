@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-05T10:01:26.338Z",
+  "generatedAt": "2026-11-05T10:34:17.974Z",
   "migrationCount": 85,
   "migrations": [
     {
@@ -1133,12 +1133,13 @@
     {
       "order": 85,
       "filename": "20261105000003_fix_graduation_checklist_surprise_requirements_cascade.sql",
-      "sha256": "3e4efcc5e8274354a902c91469a679998bf0102f36aceeaac7d1d4ec8ba3fb20",
-      "sizeBytes": 10211,
+      "sha256": "b2a9fdfa6484b1c9730ce6325bcc5abfbd46b46764ca4f0d836acc920050448d",
+      "sizeBytes": 17283,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
-        "verify_and_issue_certificate"
+        "verify_and_issue_certificate",
+        "enroll_student_in_cohort"
       ]
     }
   ]
