@@ -412,7 +412,7 @@ export async function getCohortAttendanceReport(
     supabase
       .from('live_sessions')
       .select('id')
-      .or(`cohort_id.eq.${cohortId},cohort_id.is.null`),
+      .eq('cohort_id', cohortId),
     supabase
       .from('session_attendance')
       .select('student_id, status, join_time')

@@ -260,9 +260,15 @@ describe('Authoritative Certificate Verification & Persistence Service', () => {
         if (table === 'live_sessions') {
           return {
             select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                lte: vi.fn().mockResolvedValue({
+                  data: [{ id: 'ls1', cohort_id: 'cohort-1', starts_at: '2026-09-01' }],
+                  error: null,
+                }),
+              }),
               or: vi.fn().mockReturnValue({
                 lte: vi.fn().mockResolvedValue({
-                  data: [{ id: 'ls1', starts_at: '2026-09-01' }],
+                  data: [{ id: 'ls1', cohort_id: 'cohort-1', starts_at: '2026-09-01' }],
                   error: null,
                 }),
               }),
@@ -276,6 +282,20 @@ describe('Authoritative Certificate Verification & Persistence Service', () => {
                 in: vi.fn().mockResolvedValue({
                   data: [{ session_id: 'ls1', status: 'present' }],
                   error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { enrolled_at: '2026-08-01T00:00:00Z', created_at: '2026-08-01T00:00:00Z' },
+                    error: null,
+                  }),
                 }),
               }),
             }),

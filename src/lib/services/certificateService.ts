@@ -73,6 +73,7 @@ export async function verifyCertificateEligibility(
       cohortRowRes,
       challengesRes,
       challengeSubsRes,
+      enrollmentRes,
       heldSessionsRes,
       attendanceRes,
     ] = await Promise.all([
@@ -83,7 +84,8 @@ export async function verifyCertificateEligibility(
       supabase.from('cohorts').select('sprint_duration_days').eq('id', cohortId).maybeSingle(),
       supabase.from('daily_challenges').select('id, day_number').eq('cohort_id', cohortId),
       supabase.from('daily_challenge_submissions').select('challenge_id, status').eq('user_id', studentId).eq('status', 'accepted'),
-      supabase.from('live_sessions').select('id').or(`cohort_id.eq.${cohortId},cohort_id.is.null`).lte('starts_at', nowIso),
+      supabase.from('enrollments').select('enrolled_at, created_at').eq('user_id', studentId).eq('cohort_id', cohortId).maybeSingle(),
+      supabase.from('live_sessions').select('id, cohort_id, starts_at').eq('cohort_id', cohortId).lte('starts_at', nowIso),
       supabase.from('session_attendance').select('session_id, status').eq('student_id', studentId).in('status', ['present', 'late', 'excused']),
     ]);
 
@@ -120,8 +122,23 @@ export async function verifyCertificateEligibility(
     const completedChallenges = (challengeSubsRes.data ?? []).length;
     const isChallengesComplete = totalChallenges === 0 || completedChallenges >= effectiveSprintDays;
 
-    // Pillar 4: Live Workshop Attendance
-    const heldSessions = heldSessionsRes.data ?? [];
+    // Pillar 4: Live Workshop Attendance (Cohort-scoped and held on or after enrollment)
+    const enrollment = enrollmentRes?.data as { enrolled_at?: string; created_at?: string } | null;
+    const enrolledAt = enrollment?.enrolled_at || enrollment?.created_at || null;
+
+    const rawHeldSessions = (heldSessionsRes.data ?? []) as Array<{ id: string; cohort_id?: string | null; starts_at?: string | null }>;
+    const heldSessions = rawHeldSessions.filter((s) => {
+      // 1. Must belong strictly to the target cohort (exclude global webinars where cohort_id is null)
+      if (s.cohort_id !== undefined && s.cohort_id !== null && s.cohort_id !== cohortId) {
+        return false;
+      }
+      // 2. Must be held on or after the student's enrollment date
+      if (enrolledAt && s.starts_at && s.starts_at < enrolledAt) {
+        return false;
+      }
+      return true;
+    });
+
     const totalSessions = heldSessions.length;
     const heldSessionIdSet = new Set(heldSessions.map((s) => s.id));
     const attendedSessions = (attendanceRes.data ?? []).filter((a) => heldSessionIdSet.has(a.session_id)).length;

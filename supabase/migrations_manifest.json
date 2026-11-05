@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-04T11:34:26.710Z",
-  "migrationCount": 82,
+  "generatedAt": "2026-11-05T07:51:07.185Z",
+  "migrationCount": 84,
   "migrations": [
     {
       "order": 1,
@@ -1107,13 +1107,27 @@
     {
       "order": 83,
       "filename": "20261105000001_fix_sprint_challenge_count_and_certificate_eligibility.sql",
-      "sha256": "4645cbb9546b6ad78a4ceb88427ffc225254f87f996771be8c907560c266c767",
-      "sizeBytes": 17573,
+      "sha256": "f9664deb0267ebdc00b7efd6958031913726101e8bbbc315f00c6342652beadb",
+      "sizeBytes": 17574,
       "hasSecurityDefinerWithoutSearchPath": false,
       "tableCreations": [],
       "rpcDefinitions": [
         "verify_and_issue_certificate",
         "get_student_unified_progress"
+      ]
+    },
+    {
+      "order": 84,
+      "filename": "20261105000002_fix_live_attendance_cohort_scoping_and_enrolled_at.sql",
+      "sha256": "367fd31245a9390f820e3f2b609c314fb2df716c3755d331ecc67303dc5bcfd7",
+      "sizeBytes": 32044,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "verify_and_issue_certificate",
+        "get_student_unified_progress",
+        "get_internship_report",
+        "get_cohort_attendance_report"
       ]
     }
   ]

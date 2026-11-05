@@ -132,6 +132,7 @@ export async function generateInternshipReport(
     progressRes,
     assignmentsRes,
     assignSubsRes,
+    enrollmentRes,
     sessionsRes,
     attendanceRes,
   ] = await Promise.all([
@@ -143,7 +144,8 @@ export async function generateInternshipReport(
     supabase.from('lesson_progress').select('lesson_id, completed, watch_percentage').eq('user_id', studentId),
     supabase.from('assignments').select('id').eq('cohort_id', cohortId),
     supabase.from('submissions').select('assignment_id, status').eq('student_id', studentId),
-    supabase.from('live_sessions').select('id').or(`cohort_id.eq.${cohortId},cohort_id.is.null`).lte('starts_at', new Date().toISOString()),
+    supabase.from('enrollments').select('enrolled_at, created_at').eq('user_id', studentId).eq('cohort_id', cohortId).maybeSingle(),
+    supabase.from('live_sessions').select('id, cohort_id, starts_at').eq('cohort_id', cohortId).lte('starts_at', new Date().toISOString()),
     supabase.from('session_attendance').select('session_id, status').eq('student_id', studentId),
   ]);
 
@@ -204,8 +206,18 @@ export async function generateInternshipReport(
   const approvedAssigns = (assignSubsRes.data ?? []).filter((s) => ['reviewed', 'accepted', 'approved'].includes(s.status)).length;
   const assignPct = allAssignments.length > 0 ? Math.round((approvedAssigns / allAssignments.length) * 100) : 100;
 
-  // Attendance Telemetry
-  const heldSessions = sessionsRes.data ?? [];
+  // Attendance Telemetry (Cohort-scoped and held on or after enrollment)
+  const enrolledAt = enrollmentRes?.data?.enrolled_at || enrollmentRes?.data?.created_at || null;
+  const rawHeldSessions = (sessionsRes.data ?? []) as Array<{ id: string; cohort_id?: string | null; starts_at?: string | null }>;
+  const heldSessions = rawHeldSessions.filter((s) => {
+    if (s.cohort_id !== undefined && s.cohort_id !== null && s.cohort_id !== cohortId) {
+      return false;
+    }
+    if (enrolledAt && s.starts_at && s.starts_at < enrolledAt) {
+      return false;
+    }
+    return true;
+  });
   const heldSet = new Set(heldSessions.map((s) => s.id));
   const attendedCount = (attendanceRes.data ?? []).filter((a) => heldSet.has(a.session_id) && ['present', 'late', 'excused'].includes(a.status)).length;
   const attendancePct = heldSessions.length > 0 ? Math.round((attendedCount / heldSessions.length) * 100) : 100;

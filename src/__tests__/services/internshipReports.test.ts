@@ -185,12 +185,32 @@ describe('Formal Internship Reports Service', () => {
             }),
           };
         }
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { enrolled_at: '2026-08-01T00:00:00Z', created_at: '2026-08-01T00:00:00Z' },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
         if (table === 'live_sessions') {
           return {
             select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                lte: vi.fn().mockResolvedValue({
+                  data: [{ id: 's1', cohort_id: 'cohort-1', starts_at: '2026-09-01' }],
+                  error: null,
+                }),
+              }),
               or: vi.fn().mockReturnValue({
                 lte: vi.fn().mockResolvedValue({
-                  data: [{ id: 's1' }],
+                  data: [{ id: 's1', cohort_id: 'cohort-1', starts_at: '2026-09-01' }],
                   error: null,
                 }),
               }),

@@ -198,13 +198,20 @@ describe('Authoritative Completion & Certificate Eligibility Verification', () =
           };
         }
         if (table === 'live_sessions') {
+          const sessionsData = hasHeldSessions
+            ? [{ id: 'ls1', cohort_id: 'cohort-1', starts_at: '2026-09-01' }, { id: 'ls2', cohort_id: 'cohort-1', starts_at: '2026-09-02' }]
+            : [];
           return {
             select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                lte: vi.fn().mockResolvedValue({
+                  data: sessionsData,
+                  error: null,
+                }),
+              }),
               or: vi.fn().mockReturnValue({
                 lte: vi.fn().mockResolvedValue({
-                  data: hasHeldSessions
-                    ? [{ id: 'ls1', starts_at: '2026-09-01' }, { id: 'ls2', starts_at: '2026-09-02' }]
-                    : [],
+                  data: sessionsData,
                   error: null,
                 }),
               }),
@@ -254,6 +261,16 @@ describe('Authoritative Completion & Certificate Eligibility Verification', () =
         }
         if (table === 'enrollments') {
           return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { enrolled_at: '2026-08-01T00:00:00Z', created_at: '2026-08-01T00:00:00Z' },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
             update: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 eq: vi.fn().mockResolvedValue({ error: null }),
@@ -463,9 +480,15 @@ describe('Authoritative Completion & Certificate Eligibility Verification', () =
         if (table === 'live_sessions') {
           return {
             select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                lte: vi.fn().mockResolvedValue({
+                  data: [{ id: 'ls1', cohort_id: 'cohort-7d', starts_at: '2026-09-01' }],
+                  error: null,
+                }),
+              }),
               or: vi.fn().mockReturnValue({
                 lte: vi.fn().mockResolvedValue({
-                  data: [{ id: 'ls1', starts_at: '2026-09-01' }],
+                  data: [{ id: 'ls1', cohort_id: 'cohort-7d', starts_at: '2026-09-01' }],
                   error: null,
                 }),
               }),
@@ -479,6 +502,20 @@ describe('Authoritative Completion & Certificate Eligibility Verification', () =
                 in: vi.fn().mockResolvedValue({
                   data: [{ session_id: 'ls1', status: 'present' }],
                   error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { enrolled_at: '2026-08-01T00:00:00Z', created_at: '2026-08-01T00:00:00Z' },
+                    error: null,
+                  }),
                 }),
               }),
             }),
@@ -508,6 +545,12 @@ describe('Authoritative Completion & Certificate Eligibility Verification', () =
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { enrolled_at: '2026-01-01T00:00:00Z', created_at: '2026-01-01T00:00:00Z' },
+                    error: null,
+                  }),
+                }),
                 in: vi.fn().mockReturnValue({
                   order: vi.fn().mockResolvedValue({
                     data: [{ cohort_id: 'c-test', status: 'enrolled', created_at: '2026-01-01' }],
@@ -603,9 +646,15 @@ describe('Authoritative Completion & Certificate Eligibility Verification', () =
         if (table === 'live_sessions') {
           return {
             select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                lte: vi.fn().mockResolvedValue({
+                  data: [{ id: 's1', cohort_id: 'c-test', starts_at: '2026-02-01' }, { id: 's2', cohort_id: 'c-test', starts_at: '2026-02-02' }],
+                  error: null,
+                }),
+              }),
               or: vi.fn().mockReturnValue({
                 lte: vi.fn().mockResolvedValue({
-                  data: [{ id: 's1' }, { id: 's2' }],
+                  data: [{ id: 's1', cohort_id: 'c-test', starts_at: '2026-02-01' }, { id: 's2', cohort_id: 'c-test', starts_at: '2026-02-02' }],
                   error: null,
                 }),
               }),

@@ -459,15 +459,34 @@ export async function getStudentUnifiedProgress(
   let isAttendancePassed = true;
   try {
     const nowIso = new Date().toISOString();
-    const { data: heldSessions } = await supabase
+    const { data: enrollment } = await supabase
+      .from('enrollments')
+      .select('enrolled_at, created_at')
+      .eq('user_id', userId)
+      .eq('cohort_id', cohortId)
+      .maybeSingle();
+
+    const enrolledAt = enrollment?.enrolled_at || enrollment?.created_at || null;
+
+    const { data: heldSessionsRaw } = await supabase
       .from('live_sessions')
-      .select('id')
-      .or(`cohort_id.eq.${cohortId},cohort_id.is.null`)
+      .select('id, cohort_id, starts_at')
+      .eq('cohort_id', cohortId)
       .lte('starts_at', nowIso);
 
-    totalSessions = heldSessions?.length ?? 0;
+    const heldSessions = (heldSessionsRaw ?? []).filter((s: { id: string; cohort_id?: string | null; starts_at?: string | null }) => {
+      if (s.cohort_id !== undefined && s.cohort_id !== null && s.cohort_id !== cohortId) {
+        return false;
+      }
+      if (enrolledAt && s.starts_at && s.starts_at < enrolledAt) {
+        return false;
+      }
+      return true;
+    });
+
+    totalSessions = heldSessions.length;
     if (totalSessions > 0) {
-      const heldSessionIds = heldSessions!.map((s) => s.id);
+      const heldSessionIds = heldSessions.map((s) => s.id);
       const { data: attData } = await supabase
         .from('session_attendance')
         .select('session_id')
