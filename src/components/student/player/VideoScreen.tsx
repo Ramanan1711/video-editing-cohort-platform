@@ -287,7 +287,10 @@ export function VideoScreen({
               }`}
               controls={!screenProtection.isRestricted}
               controlsList="nodownload"
+              playsInline
+              webkit-playsinline="true"
               disablePictureInPicture={true}
+              disableRemotePlayback={true}
               onContextMenu={(e) => e.preventDefault()}
               poster={resolvedThumbnailUrl || undefined}
               src={videoMeta.directUrl!}

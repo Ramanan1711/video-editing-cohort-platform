@@ -854,6 +854,8 @@ export function ReviewSubmissions() {
                                 }}
                                 controls
                                 controlsList="nodownload"
+                                playsInline
+                                webkit-playsinline="true"
                                 onContextMenu={(e) => e.preventDefault()}
                                 src={resolvedUrl}
                                 onTimeUpdate={(e) => {

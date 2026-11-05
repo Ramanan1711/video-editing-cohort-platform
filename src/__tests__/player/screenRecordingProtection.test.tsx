@@ -98,6 +98,9 @@ describe('LessonPlayer - Anti-Screen-Recording & Screen Sharing Protection', () 
     expect(videoEl).toBeInTheDocument();
     expect(videoEl).toHaveAttribute('disablePictureInPicture');
     expect(videoEl?.getAttribute('controlsList')).toContain('nodownload');
+    expect(videoEl).toHaveAttribute('playsinline');
+    expect(videoEl).toHaveAttribute('webkit-playsinline', 'true');
+    expect(videoEl).toHaveAttribute('disableremoteplayback');
   });
 
   it('blocks right-click context menu on the video player container to prevent saving/inspecting video source', async () => {
