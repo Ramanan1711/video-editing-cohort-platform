@@ -4,7 +4,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { Login } from '../../pages/Login';
 import { Register } from '../../pages/Register';
 import { supabase } from '../../lib/supabaseClient';
-import * as studentAccessService from '../../lib/studentAccessService';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -322,7 +321,7 @@ describe('Authentication Production Verification (Email Confirmation & Network F
       });
     });
 
-    it('blocks login and displays access duration message when student course access period (end date + 60 days) has ended', async () => {
+    it('allows student alumni to log in even if course access has expired so they can access their profile & credentials', async () => {
       (supabase.auth.signInWithPassword as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
         data: {
           user: { id: 'student-expired-1', email: 'expired@example.com' },
@@ -342,16 +341,6 @@ describe('Authentication Production Verification (Email Confirmation & Network F
         }),
       });
 
-      vi.spyOn(studentAccessService, 'checkStudentLoginAccess').mockResolvedValue({
-        hasAccess: false,
-        isEnrolled: true,
-        courseEndDate: '2026-11-15T00:00:00.000Z',
-        accessExpiryDate: '2027-01-14T00:00:00.000Z',
-        formattedCourseEndDate: '15 Nov 2026',
-        formattedAccessExpiryDate: '14 Jan 2027',
-        message: 'Your course login access expired on 14 Jan 2027 (60 days after your course ended on 15 Nov 2026). Please contact admissions at support@iunoware.com to enroll in an upcoming cohort.',
-      });
-
       render(
         <MemoryRouter>
           <Login />
@@ -363,9 +352,8 @@ describe('Authentication Production Verification (Email Confirmation & Network F
       fireEvent.click(screen.getByRole('button', { name: /Log in/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/Your course login access expired on 14 Jan 2027/i)).toBeInTheDocument();
-        expect(screen.getByText(/60 days after your course ended on 15 Nov 2026/i)).toBeInTheDocument();
-        expect(mockNavigate).not.toHaveBeenCalled();
+        expect(mockNavigate).toHaveBeenCalledWith('/profile');
+        expect(supabase.auth.signOut).not.toHaveBeenCalled();
       });
     });
   });

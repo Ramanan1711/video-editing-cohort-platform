@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, Link } from 'react-router-dom';
-import { ShieldAlert, UserX, LogOut, Clock, Lock, ArrowRight } from 'lucide-react';
+import { ShieldAlert, UserX, LogOut, Clock, Lock, ArrowRight, Award } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { isSessionExpired } from '../lib/authSessionService';
 import { checkStudentLoginAccess } from '../lib/studentAccessService';
@@ -9,12 +9,14 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: ('student' | 'mentor' | 'admin' | 'super_admin')[];
   requireEnrolledCourse?: boolean;
+  requireActiveCourseAccess?: boolean;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   allowedRoles,
   requireEnrolledCourse = false,
+  requireActiveCourseAccess = false,
 }) => {
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
   const location = useLocation();
@@ -45,6 +47,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       void refreshProfile();
     }
   }, [location.pathname, user, refreshProfile, signOut]);
+
+  // Check whether current route requires active course access (e.g. course player / curriculum)
+  // Profile routes (/profile, /student/profile) must ALWAYS be accessible to alumni to view credentials!
+  const isProfileRoute =
+    location.pathname === '/profile' ||
+    location.pathname.startsWith('/profile/') ||
+    location.pathname === '/student/profile' ||
+    location.pathname.startsWith('/student/profile/');
+
+  const shouldEnforceCourseAccess =
+    !isProfileRoute &&
+    (Boolean(requireActiveCourseAccess) ||
+      Boolean(requireEnrolledCourse) ||
+      location.pathname.startsWith('/student/dashboard') ||
+      location.pathname.startsWith('/curriculum'));
 
   // Student login access duration verification (course end date + 60 days)
   useEffect(() => {
@@ -140,7 +157,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  if (profile?.role === 'student' && accessState.checked && !accessState.hasAccess) {
+  if (profile?.role === 'student' && shouldEnforceCourseAccess && accessState.checked && !accessState.hasAccess) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-center text-white">
         <div className="w-full max-w-md rounded-2xl border border-amber-500/20 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-md">
@@ -167,10 +184,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
             </div>
           </div>
           <div className="mt-6 flex flex-col gap-2.5">
+            <Link
+              to="/profile"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-500 px-4 py-2.5 text-xs font-bold text-white transition-colors cursor-pointer"
+            >
+              <Award size={14} /> View Earned Certificates & Profile
+            </Link>
             <button
               type="button"
               onClick={() => void signOut()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-orange-500 transition-colors cursor-pointer"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
             >
               <LogOut size={14} /> Sign Out of Platform
             </button>

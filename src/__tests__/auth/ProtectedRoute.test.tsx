@@ -207,11 +207,45 @@ describe('ProtectedRoute Component', () => {
     expect(await screen.findByText('Course Access Expired')).toBeInTheDocument();
     expect(screen.getAllByText(/14 Jan 2027/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/15 Nov 2026/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /View Earned Certificates & Profile/i })).toHaveAttribute('href', '/profile');
     expect(screen.queryByText('Student Workspace')).not.toBeInTheDocument();
 
     const signOutBtn = screen.getByRole('button', { name: /Sign Out of Platform/i });
     fireEvent.click(signOutBtn);
     expect(mockSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('permits student alumni with expired course access to view their profile and credentials (/profile)', async () => {
+    vi.spyOn(useAuthModule, 'useAuth').mockReturnValue({
+      user: { id: 'user-student-alumnus', email: 'alumnus@cutcraft.test' },
+      profile: { id: 'user-student-alumnus', email: 'alumnus@cutcraft.test', role: 'student', status: 'active' },
+      loading: false,
+      signOut: mockSignOut,
+      refreshProfile: mockRefreshProfile,
+      login: vi.fn(),
+      signup: vi.fn(),
+    } as unknown as ReturnType<typeof useAuthModule.useAuth>);
+
+    vi.spyOn(studentAccessService, 'checkStudentLoginAccess').mockResolvedValue({
+      hasAccess: false,
+      isEnrolled: true,
+      courseEndDate: '2026-11-15T00:00:00.000Z',
+      accessExpiryDate: '2027-01-14T00:00:00.000Z',
+      formattedCourseEndDate: '15 Nov 2026',
+      formattedAccessExpiryDate: '14 Jan 2027',
+      message: 'Your enrolled course access duration ended on 14 Jan 2027.',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+          <div>Alumni User Profile &amp; Certificates Ledger</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Alumni User Profile & Certificates Ledger')).toBeInTheDocument();
+    expect(screen.queryByText('Course Access Expired')).not.toBeInTheDocument();
   });
 
   it('strictly blocks registered but unenrolled students when requireEnrolledCourse is true', async () => {

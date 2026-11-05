@@ -73,7 +73,7 @@ function AnimatedRoutes() {
                     <Route
                       path="/student/dashboard"
                       element={
-                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']} requireActiveCourseAccess>
                           <WorkspaceShell>
                             <Suspense fallback={<PageLoadingFallback />}>
                               <StudentDashboard />
@@ -85,7 +85,7 @@ function AnimatedRoutes() {
                     <Route
                       path="/curriculum"
                       element={
-                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']}>
+                        <ProtectedRoute allowedRoles={['student', 'admin', 'mentor']} requireActiveCourseAccess>
                           <WorkspaceShell>
                             <Suspense fallback={<PageLoadingFallback />}>
                               <StudentDashboard />
