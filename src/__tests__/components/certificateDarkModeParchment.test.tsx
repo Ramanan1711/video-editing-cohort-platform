@@ -71,7 +71,7 @@ describe('Certificate Parchment Preservation in Dark Mode', () => {
     expect(certPrintArea).toHaveClass('bg-[#fffdfa]');
 
     // Confirm all diploma components are mounted inside the parchment
-    expect(screen.getByText('IUNOWARE ACADEMY OF POST-PRODUCTION')).toBeInTheDocument();
+    expect(screen.getByText('IUNOWARE ACADEMY')).toBeInTheDocument();
     expect(screen.getByText('This certificate is proudly conferred upon')).toBeInTheDocument();
     expect(screen.getByText('Maya Lin')).toBeInTheDocument();
     expect(screen.getByText('Cinematic Post-Production Sprint')).toBeInTheDocument();

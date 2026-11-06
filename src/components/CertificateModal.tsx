@@ -808,7 +808,7 @@ export function CertificateModal({
               />
 
               <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-orange-600">
-                IUNOWARE ACADEMY OF POST-PRODUCTION
+                IUNOWARE ACADEMY
               </p>
 
               <h2 className="mt-1 font-serif text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-950">
@@ -866,8 +866,8 @@ export function CertificateModal({
 
               {/* Citation Body */}
               <p className="mx-auto mt-2 max-w-xl text-[10px] sm:text-xs leading-relaxed text-slate-600">
-                for demonstrating technical post-production discipline, mastering timeline pace, narrative cutting,
-                and successfully completing all video challenges and mentor reviews in the cohort:
+                for demonstrating professional excellence, mastering industry curriculum competencies,
+                and successfully completing all specialized drills, practical projects, and mentor evaluations in the accredited program:
               </p>
 
               {/* Cohort Plaque */}
