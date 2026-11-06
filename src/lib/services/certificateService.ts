@@ -6,6 +6,7 @@ export interface CertificateEligibilityResult {
   enrolled?: boolean;
   already_issued?: boolean;
   certificate_number?: string;
+  recipient_name?: string;
   issued_at?: string;
   reason?: string;
   completed_lessons?: number;
@@ -22,13 +23,17 @@ export interface CertificateEligibilityResult {
 
 export interface PublicCertificate {
   valid: boolean;
+  certificate_id?: string;
   certificate_number?: string;
+  recipient_name?: string;
   student_id?: string;
   student_name?: string;
   cohort_id?: string;
   cohort_name?: string;
   issued_at?: string;
+  completed_date?: string;
   metadata?: {
+    student_name?: string;
     total_lessons?: number;
     completed_lessons?: number;
     total_assignments?: number;
@@ -47,14 +52,20 @@ export interface PublicCertificate {
 // Authoritative Certificate Verification
 export async function verifyCertificateEligibility(
   studentId: string,
-  cohortId: string
+  cohortId: string,
+  legalName?: string
 ): Promise<CertificateEligibilityResult> {
   // 1. Try authoritative PostgreSQL RPC
   try {
-    const { data, error } = await supabase.rpc('verify_and_issue_certificate', {
+    const rpcParams: Record<string, unknown> = {
       p_student_id: studentId,
       p_cohort_id: cohortId,
-    });
+    };
+    if (legalName && legalName.trim()) {
+      rpcParams.p_legal_name = legalName.trim();
+    }
+
+    const { data, error } = await supabase.rpc('verify_and_issue_certificate', rpcParams);
 
     if (!error && data) {
       const res = data as CertificateEligibilityResult;
@@ -217,10 +228,16 @@ export async function verifyCertificateEligibility(
         .maybeSingle();
 
       if (certRow) {
+        const frozenRecipient =
+          (certRow.recipient_name as string) ||
+          ((certRow.metadata as Record<string, unknown>)?.student_name as string) ||
+          undefined;
+
         return {
           eligible: true,
           already_issued: true,
           certificate_number: certRow.certificate_number,
+          recipient_name: frozenRecipient,
           issued_at: certRow.issued_at,
           completed_lessons: completedLessons,
           total_lessons: allLessonIds.length,
@@ -235,7 +252,25 @@ export async function verifyCertificateEligibility(
         };
       }
 
-      // Persist new verified certificate in database
+      // Resolve confirmed recipient name for immutable certificate record
+      let recipientName = legalName?.trim();
+      if (!recipientName) {
+        try {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', studentId)
+            .maybeSingle();
+          recipientName = prof?.full_name?.trim();
+        } catch {
+          // Ignore profile query failures in mock or fallback environments
+        }
+      }
+      if (!recipientName) {
+        recipientName = 'Verified Graduate';
+      }
+
+      // Persist new verified certificate in database with frozen recipient_name
       const certNumber = `CC-${new Date().toISOString().slice(0, 7).replace('-', '')}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       const { data: newCert, error: insertErr } = await supabase
         .from('certificates')
@@ -243,7 +278,9 @@ export async function verifyCertificateEligibility(
           certificate_number: certNumber,
           student_id: studentId,
           cohort_id: cohortId,
+          recipient_name: recipientName,
           metadata: {
+            student_name: recipientName,
             total_lessons: allLessonIds.length,
             completed_lessons: completedLessons,
             total_assignments: totalAssigns,
@@ -271,6 +308,7 @@ export async function verifyCertificateEligibility(
           eligible: true,
           already_issued: false,
           certificate_number: newCert.certificate_number,
+          recipient_name: recipientName,
           issued_at: newCert.issued_at,
           completed_lessons: completedLessons,
           total_lessons: allLessonIds.length,
@@ -343,6 +381,21 @@ export async function verifyCertificateEligibility(
   }
 }
 
+interface RpcCertificateRow {
+  is_valid?: boolean;
+  valid?: boolean;
+  certificate_id?: string;
+  certificate_number?: string;
+  recipient_name?: string;
+  student_name?: string;
+  student_id?: string;
+  cohort_id?: string;
+  cohort_name?: string;
+  issued_at?: string;
+  completed_date?: string;
+  metadata?: PublicCertificate['metadata'];
+}
+
 // Authoritative Public Certificate Verification
 export async function getPublicCertificate(certificateNumber: string): Promise<PublicCertificate> {
   const cleanNumber = (certificateNumber || '').trim();
@@ -359,7 +412,22 @@ export async function getPublicCertificate(certificateNumber: string): Promise<P
       p_certificate_number: cleanNumber,
     });
     if (!error && data) {
-      return data as PublicCertificate;
+      const row = (Array.isArray(data) ? data[0] : data) as RpcCertificateRow | undefined;
+      if (row) {
+        return {
+          valid: row.is_valid ?? row.valid ?? true,
+          certificate_id: row.certificate_id,
+          certificate_number: row.certificate_number || cleanNumber,
+          recipient_name: row.recipient_name || row.student_name,
+          student_id: row.student_id,
+          student_name: row.recipient_name || row.student_name,
+          cohort_id: row.cohort_id,
+          cohort_name: row.cohort_name,
+          issued_at: row.issued_at,
+          completed_date: row.completed_date,
+          metadata: row.metadata,
+        };
+      }
     }
   } catch (err) {
     console.warn('RPC verify_certificate_authenticity unavailable, falling back:', err);
@@ -371,7 +439,22 @@ export async function getPublicCertificate(certificateNumber: string): Promise<P
       p_certificate_number: cleanNumber,
     });
     if (!error && data) {
-      return data as PublicCertificate;
+      const row = (Array.isArray(data) ? data[0] : data) as RpcCertificateRow | undefined;
+      if (row) {
+        return {
+          valid: row.is_valid ?? row.valid ?? true,
+          certificate_id: row.certificate_id,
+          certificate_number: row.certificate_number || cleanNumber,
+          recipient_name: row.recipient_name || row.student_name,
+          student_id: row.student_id,
+          student_name: row.recipient_name || row.student_name,
+          cohort_id: row.cohort_id,
+          cohort_name: row.cohort_name,
+          issued_at: row.issued_at,
+          completed_date: row.completed_date,
+          metadata: row.metadata,
+        };
+      }
     }
   } catch {
     // Proceed to direct query fallback
@@ -381,7 +464,7 @@ export async function getPublicCertificate(certificateNumber: string): Promise<P
   try {
     const { data: certRow, error: certErr } = await supabase
       .from('certificates')
-      .select('id, certificate_number, student_id, cohort_id, issued_at, metadata')
+      .select('id, certificate_number, student_id, cohort_id, recipient_name, issued_at, metadata')
       .ilike('certificate_number', cleanNumber)
       .maybeSingle();
 
@@ -397,12 +480,18 @@ export async function getPublicCertificate(certificateNumber: string): Promise<P
       supabase.from('cohorts').select('name, title').eq('id', certRow.cohort_id).maybeSingle(),
     ]);
 
-    const studentName = profileRes?.data?.full_name || 'Verified Graduate';
+    // Freeze recipient name: prioritize frozen recipient_name column and metadata snapshot
+    const studentName =
+      (certRow.recipient_name as string) ||
+      ((certRow.metadata as Record<string, unknown>)?.student_name as string) ||
+      profileRes?.data?.full_name ||
+      'Verified Graduate';
     const cohortName = cohortRes?.data?.name || cohortRes?.data?.title || 'Creative Editing Cohort';
 
     return {
       valid: true,
       certificate_number: certRow.certificate_number,
+      recipient_name: studentName,
       student_id: certRow.student_id,
       student_name: studentName,
       cohort_id: certRow.cohort_id,

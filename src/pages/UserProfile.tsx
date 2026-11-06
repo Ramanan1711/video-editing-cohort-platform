@@ -576,6 +576,12 @@ export function UserProfile() {
                       {/* Certificate Number & Issued Date */}
                       <div className="mt-4 p-3.5 rounded-xl bg-slate-50 dark:bg-surface-elevated/40 border border-slate-200/80 dark:border-white/5 space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
+                          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Recipient:</span>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            {cert.recipientName || displayName}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
                           <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Credential ID:</span>
                           <span className="font-mono font-black text-amber-700 dark:text-amber-400 tracking-wider">
                             {cert.certificateNumber}
@@ -927,7 +933,7 @@ export function UserProfile() {
           isOpen={Boolean(selectedCertForModal)}
           onClose={() => setSelectedCertForModal(null)}
           studentId={user?.id || ''}
-          studentName={displayName}
+          studentName={selectedCertForModal.recipientName || displayName}
           cohortId={selectedCertForModal.cohortId}
           cohortName={selectedCertForModal.cohortTitle}
           completedDate={selectedCertForModal.issuedAt}

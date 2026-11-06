@@ -118,7 +118,19 @@ export function CertificateModal({
       });
 
   const credentialId = eligibility?.certificate_number || null;
+  const isAlreadyIssued = Boolean(credentialId && eligibility?.already_issued);
+  const frozenRecipientName = eligibility?.recipient_name || (isAlreadyIssued ? currentStudentName : null);
+  const effectiveDisplayName = frozenRecipientName || currentStudentName || studentName || 'Student';
   const toast = useToast();
+
+  useEffect(() => {
+    if (eligibility?.recipient_name) {
+      setCurrentStudentName(eligibility.recipient_name);
+      setShowNameConfirmModal(false);
+    } else if (eligibility?.already_issued) {
+      setShowNameConfirmModal(false);
+    }
+  }, [eligibility?.recipient_name, eligibility?.already_issued]);
 
   const handlePrint = useCallback(() => {
     document.body.classList.add('certificate-modal-open');
@@ -129,6 +141,13 @@ export function CertificateModal({
 
   const handleConfirmLegalName = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (isAlreadyIssued) {
+      setNameSaveError(
+        'This certificate has already been issued and registered in the ledger. Recipient names are immutable to prevent credential forgery.'
+      );
+      return;
+    }
+
     const trimmed = inputLegalName.trim();
     const validationError = validateLegalName(trimmed);
     if (validationError) {
@@ -158,7 +177,15 @@ export function CertificateModal({
       setShowNameConfirmModal(false);
       setIsSavingName(false);
       onUpdateStudentName?.(trimmed);
-      toast?.success('Legal name successfully verified and updated!');
+
+      // Re-trigger eligibility verification with confirmed name
+      verifyCertificateEligibility(studentId, cohortId, trimmed)
+        .then((res) => {
+          setEligibility(res);
+        })
+        .catch(() => {});
+
+      toast?.success('Legal name successfully verified and registered!');
     } catch (err) {
       console.error('Error confirming legal name:', err);
       setNameSaveError('An unexpected error occurred while saving. Please try again.');
@@ -373,7 +400,7 @@ export function CertificateModal({
     );
   }
 
-  if (eligibility?.eligible && !credentialId) {
+  if (eligibility?.eligible && !credentialId && !showNameConfirmModal) {
     return createPortal(
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in">
         <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 text-center text-white shadow-2xl">
@@ -764,22 +791,32 @@ export function CertificateModal({
               {/* Student Name */}
               <div className="mt-2 flex items-center justify-center gap-2">
                 <h3 className="font-serif text-2xl sm:text-4xl font-bold tracking-normal text-amber-950">
-                  {currentStudentName || 'Student'}
+                  {effectiveDisplayName}
                 </h3>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInputLegalName(isPlaceholderStudentName(currentStudentName) ? '' : currentStudentName);
-                    setNameSaveError(null);
-                    setShowNameConfirmModal(true);
-                  }}
-                  className="print:hidden inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold text-amber-800 hover:text-amber-950 hover:bg-amber-100/80 transition-colors cursor-pointer border border-amber-300/60 shadow-2xs"
-                  title="Edit legal name on certificate"
-                  aria-label="Edit legal name on certificate"
-                >
-                  <Edit3 size={12} />
-                  <span>Edit Legal Name</span>
-                </button>
+                {isAlreadyIssued ? (
+                  <span
+                    className="print:hidden inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-300/60 shadow-2xs"
+                    title="Official verified recipient name permanently locked into academic ledger"
+                  >
+                    <ShieldCheck size={11} className="text-emerald-600" />
+                    <span>Verified Recipient</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInputLegalName(isPlaceholderStudentName(currentStudentName) ? '' : currentStudentName);
+                      setNameSaveError(null);
+                      setShowNameConfirmModal(true);
+                    }}
+                    className="print:hidden inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold text-amber-800 hover:text-amber-950 hover:bg-amber-100/80 transition-colors cursor-pointer border border-amber-300/60 shadow-2xs"
+                    title="Confirm legal name before credential issuance"
+                    aria-label="Confirm legal name before credential issuance"
+                  >
+                    <Edit3 size={12} />
+                    <span>Confirm Legal Name</span>
+                  </button>
+                )}
               </div>
 
               <div className="mx-auto mt-1 h-0.5 w-48 sm:w-72 bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
@@ -896,6 +933,17 @@ export function CertificateModal({
                 )}
               </span>
             </div>
+
+            {/* Credential Immutability Notice for Issued Credentials */}
+            {isAlreadyIssued && (
+              <p className="relative z-10 mt-1.5 text-center text-[8px] sm:text-[9px] text-slate-400 print:hidden">
+                Official credential issued and permanently registered in public ledger. To request an authorized name correction due to legal deed poll or marriage, contact{' '}
+                <a href="mailto:support@iunoware.com" className="text-orange-500 hover:underline">
+                  support@iunoware.com
+                </a>{' '}
+                with government ID proof.
+              </p>
+            )}
           </div>
         </div>
       </div>

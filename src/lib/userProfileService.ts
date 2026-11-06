@@ -40,6 +40,7 @@ export interface UserAttendanceStats {
 export interface UserCertificateRecord {
   id: string;
   certificateNumber: string;
+  recipientName?: string;
   cohortId: string;
   cohortTitle: string;
   issuedAt: string;
@@ -292,7 +293,7 @@ export async function getUserProfileOverview(userId: string): Promise<UserProfil
         try {
           const query = supabase
             .from('certificates')
-            .select('id, certificate_number, cohort_id, issued_at, metadata');
+            .select('id, certificate_number, cohort_id, recipient_name, issued_at, metadata');
           if (typeof query?.eq === 'function') {
             const eqQuery = query.eq('student_id', userId);
             if (typeof eqQuery?.order === 'function') {
@@ -312,6 +313,7 @@ export async function getUserProfileOverview(userId: string): Promise<UserProfil
       id: string;
       certificate_number: string;
       cohort_id: string;
+      recipient_name?: string | null;
       issued_at: string;
       metadata?: Record<string, unknown>;
     }>;
@@ -467,9 +469,16 @@ export async function getUserProfileOverview(userId: string): Promise<UserProfil
     // Map verified certificates
     const certificates: UserCertificateRecord[] = certsData.map((c) => {
       const cohort = cohortMap.get(c.cohort_id);
+      const recipientName =
+        (c.recipient_name as string) ||
+        ((c.metadata as Record<string, unknown>)?.student_name as string) ||
+        profileData?.full_name ||
+        'Verified Graduate';
+
       return {
         id: c.id,
         certificateNumber: c.certificate_number,
+        recipientName,
         cohortId: c.cohort_id,
         cohortTitle: cohort?.title || cohort?.name || 'Accredited Cohort Masterclass',
         issuedAt: c.issued_at,

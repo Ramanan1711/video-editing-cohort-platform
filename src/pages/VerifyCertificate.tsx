@@ -206,8 +206,11 @@ export function VerifyCertificate() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-6 border-b border-white/10">
               <div>
                 <p className="text-xs uppercase tracking-wider font-bold text-slate-400">Graduate Recipient</p>
-                <p className="text-lg font-black text-white mt-1">{result.student_name}</p>
-                <p className="text-xs text-slate-400 mt-0.5">Verified Cohort Scholar</p>
+                <p className="text-lg font-black text-white mt-1">{result.recipient_name || result.student_name}</p>
+                <p className="text-xs text-emerald-400 mt-0.5 flex items-center gap-1 font-semibold">
+                  <ShieldCheck size={12} />
+                  <span>Immutable Verified Credential</span>
+                </p>
               </div>
 
               <div>

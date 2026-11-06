@@ -29,10 +29,26 @@ describe('Issue 8: Certificate Legal Name Confirmation & Edit Prompt', () => {
     document.body.className = '';
   });
 
+  const mockNotYetIssuedResult = {
+    eligible: true,
+    already_issued: false,
+    certificate_number: undefined,
+    completed_lessons: 10,
+    total_lessons: 10,
+    approved_assignments: 2,
+    total_assignments: 2,
+    completed_challenges: 15,
+    total_challenges: 15,
+    attended_sessions: 2,
+    total_sessions: 2,
+    attendance_rate_pct: 100,
+  };
+
   const mockEligibleResult = {
     eligible: true,
     already_issued: true,
     certificate_number: 'CC-202611-CONFIRM01',
+    recipient_name: 'Alex Vance',
     issued_at: '2026-11-01T00:00:00Z',
     completed_lessons: 10,
     total_lessons: 10,
@@ -45,8 +61,8 @@ describe('Issue 8: Certificate Legal Name Confirmation & Edit Prompt', () => {
     attendance_rate_pct: 100,
   };
 
-  it('prompts student to confirm legal name when studentName defaults to "Student"', async () => {
-    vi.mocked(courseService.verifyCertificateEligibility).mockResolvedValueOnce(mockEligibleResult);
+  it('prompts student to confirm legal name before initial certificate issuance when studentName is placeholder', async () => {
+    vi.mocked(courseService.verifyCertificateEligibility).mockResolvedValueOnce(mockNotYetIssuedResult);
 
     render(
       <CertificateModal
@@ -75,7 +91,7 @@ describe('Issue 8: Certificate Legal Name Confirmation & Edit Prompt', () => {
   });
 
   it('validates legal name input and rejects empty or placeholder names', async () => {
-    vi.mocked(courseService.verifyCertificateEligibility).mockResolvedValueOnce(mockEligibleResult);
+    vi.mocked(courseService.verifyCertificateEligibility).mockResolvedValueOnce(mockNotYetIssuedResult);
 
     render(
       <CertificateModal
@@ -111,8 +127,13 @@ describe('Issue 8: Certificate Legal Name Confirmation & Edit Prompt', () => {
     ).toBeInTheDocument();
   });
 
-  it('saves legal name to Supabase profiles, notifies parent, and renders certificate with new legal name', async () => {
-    vi.mocked(courseService.verifyCertificateEligibility).mockResolvedValueOnce(mockEligibleResult);
+  it('saves legal name to Supabase profiles and verifies credential before permanent locking', async () => {
+    vi.mocked(courseService.verifyCertificateEligibility)
+      .mockResolvedValueOnce(mockNotYetIssuedResult)
+      .mockResolvedValueOnce({
+        ...mockEligibleResult,
+        recipient_name: 'Maya Lin',
+      });
 
     const updateSpy = vi.spyOn(supabase, 'from').mockReturnValue({
       update: vi.fn().mockReturnValue({
@@ -152,13 +173,15 @@ describe('Issue 8: Certificate Legal Name Confirmation & Edit Prompt', () => {
       expect.stringContaining('Legal name successfully verified')
     );
 
-    // Certificate now displays verified legal name
-    expect(screen.getByText('Maya Lin')).toBeInTheDocument();
-    // Edit Legal Name button is accessible
-    expect(screen.getByRole('button', { name: /edit legal name/i })).toBeInTheDocument();
+    // Certificate now displays verified legal name and is permanently locked
+    await waitFor(() => {
+      expect(screen.getByText('Maya Lin')).toBeInTheDocument();
+      expect(screen.getByText('Verified Recipient')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /edit legal name/i })).not.toBeInTheDocument();
+    });
   });
 
-  it('renders certificate directly without prompt when student already has a valid legal name', async () => {
+  it('renders certificate directly with Verified Recipient lock and hides Edit button once issued', async () => {
     vi.mocked(courseService.verifyCertificateEligibility).mockResolvedValueOnce(mockEligibleResult);
 
     render(
@@ -178,19 +201,14 @@ describe('Issue 8: Certificate Legal Name Confirmation & Edit Prompt', () => {
 
     // Confirmation prompt should NOT be open
     expect(screen.queryByText('Confirm Your Legal Name')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /edit legal name/i })).toBeInTheDocument();
+    // Tamper-proof Verified Recipient badge is displayed
+    expect(screen.getByText('Verified Recipient')).toBeInTheDocument();
+    // Edit Legal Name button MUST BE HIDDEN to prevent re-issuing credentials to third parties
+    expect(screen.queryByRole('button', { name: /edit legal name/i })).not.toBeInTheDocument();
   });
 
-  it('allows student with existing name to open Edit Legal Name and update it', async () => {
+  it('displays administrative correction policy note on issued certificates', async () => {
     vi.mocked(courseService.verifyCertificateEligibility).mockResolvedValueOnce(mockEligibleResult);
-
-    const updateSpy = vi.spyOn(supabase, 'from').mockReturnValue({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      }),
-    } as any);
-
-    const onUpdateStudentName = vi.fn();
 
     render(
       <CertificateModal
@@ -200,38 +218,18 @@ describe('Issue 8: Certificate Legal Name Confirmation & Edit Prompt', () => {
         cohortName="Masterclass Cohort"
         cohortId="cohort-1"
         studentId="student-1"
-        onUpdateStudentName={onUpdateStudentName}
       />
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText('Alex Vance').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(/permanently registered in public ledger/i)).toBeInTheDocument();
     });
 
-    // Click Edit Legal Name button
-    fireEvent.click(screen.getByRole('button', { name: /edit legal name/i }));
-
-    expect(screen.getByText('Confirm Your Legal Name')).toBeInTheDocument();
-    const input = screen.getByLabelText(/full legal name/i) as HTMLInputElement;
-    expect(input.value).toBe('Alex Vance');
-
-    // Change to full legal name
-    fireEvent.change(input, { target: { value: 'Alexander Vance' } });
-    fireEvent.click(screen.getByRole('button', { name: /confirm & view certificate/i }));
-
-    await waitFor(() => {
-      expect(screen.queryByText('Confirm Your Legal Name')).not.toBeInTheDocument();
-    });
-
-    expect(updateSpy).toHaveBeenCalledWith('profiles');
-    expect(onUpdateStudentName).toHaveBeenCalledWith('Alexander Vance');
-    await waitFor(() => {
-      expect(screen.getAllByText('Alexander Vance').length).toBeGreaterThanOrEqual(1);
-    });
+    expect(screen.getByText(/support@iunoware.com/i)).toBeInTheDocument();
   });
 
   it('calls onClose if student cancels the mandatory initial name confirmation', async () => {
-    vi.mocked(courseService.verifyCertificateEligibility).mockResolvedValueOnce(mockEligibleResult);
+    vi.mocked(courseService.verifyCertificateEligibility).mockResolvedValueOnce(mockNotYetIssuedResult);
     const onClose = vi.fn();
 
     render(
