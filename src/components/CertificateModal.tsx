@@ -615,6 +615,44 @@ export function CertificateModal({
         #certificate-print-area .bg-slate-300 {
           background-color: #cbd5e1 !important;
         }
+        /* High-contrast Verified Recipient badge on light parchment (preventing dark mode inversion) */
+        .dark #certificate-print-area .certificate-verified-badge,
+        #certificate-print-area .certificate-verified-badge {
+          background-color: #ecfdf5 !important;
+          color: #064e3b !important;
+          border-color: #6ee7b7 !important;
+        }
+        .dark #certificate-print-area .certificate-verified-badge span,
+        #certificate-print-area .certificate-verified-badge span {
+          color: #064e3b !important;
+        }
+        .dark #certificate-print-area .certificate-verified-badge svg,
+        #certificate-print-area .certificate-verified-badge svg {
+          color: #047857 !important;
+        }
+        .dark #certificate-print-area .text-emerald-800,
+        .dark #certificate-print-area .text-emerald-900,
+        .dark #certificate-print-area .text-emerald-950,
+        #certificate-print-area .text-emerald-800,
+        #certificate-print-area .text-emerald-900,
+        #certificate-print-area .text-emerald-950 {
+          color: #064e3b !important;
+        }
+        .dark #certificate-print-area .bg-emerald-50,
+        .dark #certificate-print-area [class*="bg-emerald-50"],
+        #certificate-print-area .bg-emerald-50,
+        #certificate-print-area [class*="bg-emerald-50"] {
+          background-color: #ecfdf5 !important;
+          color: #064e3b !important;
+        }
+        .dark #certificate-print-area .border-emerald-300,
+        .dark #certificate-print-area .border-emerald-300\\/60,
+        .dark #certificate-print-area .border-emerald-400\\/80,
+        #certificate-print-area .border-emerald-300,
+        #certificate-print-area .border-emerald-300\\/60,
+        #certificate-print-area .border-emerald-400\\/80 {
+          border-color: #6ee7b7 !important;
+        }
         .dark #certificate-print-area button.text-amber-800,
         #certificate-print-area button.text-amber-800 {
           color: #92400e !important;
@@ -795,11 +833,16 @@ export function CertificateModal({
                 </h3>
                 {isAlreadyIssued ? (
                   <span
-                    className="print:hidden inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-300/60 shadow-2xs"
+                    className="print:hidden certificate-verified-badge inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-[11px] font-bold text-emerald-950 bg-emerald-50 border border-emerald-400/80 shadow-2xs"
+                    style={{
+                      backgroundColor: '#ecfdf5',
+                      color: '#064e3b',
+                      borderColor: '#6ee7b7',
+                    }}
                     title="Official verified recipient name permanently locked into academic ledger"
                   >
-                    <ShieldCheck size={11} className="text-emerald-600" />
-                    <span>Verified Recipient</span>
+                    <ShieldCheck size={12} className="text-emerald-700 shrink-0" style={{ color: '#047857' }} />
+                    <span className="font-bold tracking-tight" style={{ color: '#064e3b' }}>Verified Recipient</span>
                   </span>
                 ) : (
                   <button

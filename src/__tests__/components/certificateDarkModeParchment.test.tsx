@@ -79,10 +79,19 @@ describe('Certificate Parchment Preservation in Dark Mode', () => {
     expect(screen.getByText('Sarah Lin')).toBeInTheDocument();
     expect(screen.getByText(/CC-202611-DARKMODE1/)).toBeInTheDocument();
 
+    // Verify Verified Recipient badge is rendered with high-contrast badge classes
+    const verifiedBadge = screen.getByText('Verified Recipient');
+    expect(verifiedBadge).toBeInTheDocument();
+    const badgeContainer = verifiedBadge.closest('.certificate-verified-badge');
+    expect(badgeContainer).toBeInTheDocument();
+
     // Verify scoped styles are present in document defining dark parchment preservation
     const styles = Array.from(document.querySelectorAll('style')).map((s) => s.textContent || '');
     const hasParchmentPreservation = styles.some((s) => s.includes('.dark #certificate-print-area'));
     expect(hasParchmentPreservation).toBe(true);
+
+    const hasBadgeDarkPreservation = styles.some((s) => s.includes('.certificate-verified-badge'));
+    expect(hasBadgeDarkPreservation).toBe(true);
   });
 });
 
