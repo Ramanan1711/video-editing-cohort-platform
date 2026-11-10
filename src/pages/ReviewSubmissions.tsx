@@ -107,16 +107,34 @@ export function ReviewSubmissions() {
     if (!submissions.length) return;
     let active = true;
 
-    Promise.all(
+    Promise.allSettled(
       submissions.map(async (s) => {
-        const url = await getSecureSubmissionUrl(s.file_url);
-        return [s.id, url] as const;
+        try {
+          if (!s.file_url) {
+            return [s.id, ''] as const;
+          }
+          const url = await getSecureSubmissionUrl(s.file_url);
+          return [s.id, url] as const;
+        } catch (err) {
+          console.warn(`[ReviewSubmissions] Failed to generate secure URL for submission ${s.id}:`, err);
+          return [s.id, ''] as const;
+        }
       })
-    ).then((pairs) => {
-      if (active) {
-        setSecureUrls(Object.fromEntries(pairs));
-      }
-    });
+    )
+      .then((results) => {
+        if (!active) return;
+        const urlMap: Record<string, string> = {};
+        for (const res of results) {
+          if (res.status === 'fulfilled' && res.value[1]) {
+            const [id, url] = res.value;
+            urlMap[id] = url;
+          }
+        }
+        setSecureUrls(urlMap);
+      })
+      .catch((err) => {
+        console.error('[ReviewSubmissions] Unexpected error resolving secure submission URLs:', err);
+      });
 
     return () => {
       active = false;
@@ -833,10 +851,11 @@ export function ReviewSubmissions() {
                           </span>
 
                           <a
-                            href={resolvedUrl}
+                            href={resolvedUrl || '#'}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+                            className={`inline-flex items-center gap-1.5 rounded-lg bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-700 transition ${!resolvedUrl ? 'opacity-40 pointer-events-none' : ''}`}
+                            title={resolvedUrl ? 'Download File' : 'Media file unavailable'}
                           >
                             <Download size={13} />
                             <span>Download File</span>
@@ -847,30 +866,42 @@ export function ReviewSubmissions() {
                         {/* In-app video player */}
                         {fileType === 'video' ? (
                           <div className="space-y-3">
-                            <div className="overflow-hidden rounded-xl bg-black shadow-inner">
-                              <video
-                                ref={(el) => {
-                                  videoRefs.current[submission.id] = el;
-                                }}
-                                controls
-                                controlsList="nodownload"
-                                playsInline
-                                webkit-playsinline="true"
-                                onContextMenu={(e) => e.preventDefault()}
-                                src={resolvedUrl}
-                                onTimeUpdate={(e) => {
-                                  const time = e.currentTarget?.currentTime;
-                                  if (typeof time === 'number' && !isNaN(time)) {
-                                    setActivePlaybackTime((prev) => ({
-                                      ...prev,
-                                      [submission.id]: time,
-                                    }));
-                                  }
-                                }}
-                                className="aspect-video w-full max-h-96 object-contain"
-                                preload="metadata"
-                              />
-                            </div>
+                            {resolvedUrl ? (
+                              <div className="overflow-hidden rounded-xl bg-black shadow-inner">
+                                <video
+                                  ref={(el) => {
+                                    videoRefs.current[submission.id] = el;
+                                  }}
+                                  controls
+                                  controlsList="nodownload"
+                                  playsInline
+                                  webkit-playsinline="true"
+                                  onContextMenu={(e) => e.preventDefault()}
+                                  src={resolvedUrl}
+                                  onTimeUpdate={(e) => {
+                                    const time = e.currentTarget?.currentTime;
+                                    if (typeof time === 'number' && !isNaN(time)) {
+                                      setActivePlaybackTime((prev) => ({
+                                        ...prev,
+                                        [submission.id]: time,
+                                      }));
+                                    }
+                                  }}
+                                  className="aspect-video w-full max-h-96 object-contain"
+                                  preload="metadata"
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-amber-300 dark:border-amber-700/60 bg-amber-50/60 dark:bg-amber-950/20 p-8 text-center text-xs">
+                                <AlertTriangle className="size-6 text-amber-500 mb-2" />
+                                <span className="font-bold text-amber-900 dark:text-amber-200">
+                                  Media Asset Unavailable or Link Expired
+                                </span>
+                                <span className="text-amber-700 dark:text-amber-400 mt-1 max-w-sm">
+                                  The secure signed URL could not be generated for this asset. The file may have been moved or storage permissions failed.
+                                </span>
+                              </div>
+                            )}
 
                             {/* Timestamp Note Builder Bar */}
                             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-2xs">

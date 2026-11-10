@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-06T05:39:02.235Z",
-  "migrationCount": 86,
+  "generatedAt": "2026-11-10T11:12:55.188Z",
+  "migrationCount": 87,
   "migrations": [
     {
       "order": 1,
@@ -1151,6 +1151,18 @@
       "tableCreations": [],
       "rpcDefinitions": [
         "fn_audit_certificates_trigger"
+      ]
+    },
+    {
+      "order": 87,
+      "filename": "20261106000001_immutable_certificate_recipient_name.sql",
+      "sha256": "2683541ece2fd3509282fe7a0b3829937c198b1689a353c8cb5f56c0ae6f3591",
+      "sizeBytes": 15996,
+      "hasSecurityDefinerWithoutSearchPath": false,
+      "tableCreations": [],
+      "rpcDefinitions": [
+        "verify_and_issue_certificate",
+        "verify_certificate_authenticity"
       ]
     }
   ]
