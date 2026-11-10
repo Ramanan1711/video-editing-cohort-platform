@@ -477,6 +477,75 @@ describe('15-Day Internship Platform & WhatsApp Suite', () => {
       expect(result.days[3].isUnlocked).toBe(false);
       expect(result.days[3].status).toBe('locked');
     });
+
+    it('does not lock already-submitted Day 2 when mentor marks Day 1 as resubmit (prerequisite cascade protection)', async () => {
+      const mockToday = new Date('2026-06-05T00:00:00Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(mockToday);
+
+      const mockChallenges = [
+        { id: 'ch-1', cohort_id: 'c-cascade', day_number: 1, title: 'Day 1 Assembly Cut', is_published: true },
+        { id: 'ch-2', cohort_id: 'c-cascade', day_number: 2, title: 'Day 2 Audio Pass', is_published: true },
+        { id: 'ch-3', cohort_id: 'c-cascade', day_number: 3, title: 'Day 3 Color Grading', is_published: true },
+      ];
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { sprint_duration_days: 3, start_date: '2026-06-01', timezone: 'Asia/Kolkata' },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'daily_challenges') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: mockChallenges, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'daily_challenge_submissions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [
+                  // Day 1 was reviewed and mentor requested changes
+                  { challenge_id: 'ch-1', status: 'resubmit', score: null },
+                  // Day 2 was already submitted by student before mentor reviewed Day 1
+                  { challenge_id: 'ch-2', status: 'pending', score: null },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      const result = await getStudentSprintDays('user-1', 'c-cascade');
+
+      // Day 1 reflects resubmit status
+      expect(result.days[0].isUnlocked).toBe(true);
+      expect(result.days[0].status).toBe('resubmit');
+
+      // Day 2 MUST remain unlocked and pending review (NOT retroactively locked!)
+      expect(result.days[1].isUnlocked).toBe(true);
+      expect(result.days[1].status).toBe('pending');
+      expect(result.days[1].submission).toBeDefined();
+
+      // Day 3 (no submission yet, but Day 2 is pending) remains unlocked/todo
+      expect(result.days[2].isUnlocked).toBe(true);
+      expect(result.days[2].status).toBe('todo');
+
+      vi.useRealTimers();
+    });
   });
 
   describe('Secure Submissions Storage & Mentor Grading URL Resolution', () => {

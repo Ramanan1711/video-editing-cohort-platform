@@ -639,13 +639,12 @@ export async function getStudentSprintDays(
 
     const prevDay = days[i - 2];
     const isPrerequisiteMet = i === 1 || (prevDay?.status === 'accepted' || prevDay?.status === 'pending');
-    const isUnlocked = Boolean(isCalendarUnlocked && isPrerequisiteMet);
+    // Prioritize existing student submissions so a resubmission request on an earlier day never locks already-submitted work
+    const isUnlocked = Boolean(sub || (isCalendarUnlocked && isPrerequisiteMet));
 
     let status: 'locked' | 'todo' | 'pending' | 'accepted' | 'resubmit' = 'todo';
 
-    if (!isUnlocked) {
-      status = 'locked';
-    } else if (sub) {
+    if (sub) {
       if (sub.status === 'accepted') {
         status = 'accepted';
         completedCount++;
@@ -659,6 +658,8 @@ export async function getStudentSprintDays(
         totalScore += sub.score;
         scoredCount++;
       }
+    } else if (!isUnlocked) {
+      status = 'locked';
     }
 
     days.push({
