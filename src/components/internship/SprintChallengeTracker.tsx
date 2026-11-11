@@ -27,7 +27,11 @@ import {
   type DailyChallengeSubmission,
 } from '../../lib/internshipService';
 import { getSecureAssetUrl } from '../../lib/courseService';
-import { DEFAULT_ACADEMY_WHATSAPP, generateWhatsAppClickToChatUrl } from '../../lib/whatsappService';
+import {
+  DEFAULT_ACADEMY_WHATSAPP,
+  generateWhatsAppClickToChatUrl,
+  formatWhatsAppSubmissionNotification,
+} from '../../lib/whatsappService';
 import { DynamicChallengeSubmissionBox } from './DynamicChallengeSubmissionBox';
 
 interface SprintChallengeTrackerProps {
@@ -220,7 +224,14 @@ export function SprintChallengeTracker({
       );
 
       // Pre-fill instant WhatsApp notification
-      const waMsg = `Hi Mentor! I am ${studentName} from ${cohortName}. I have submitted Day ${dayNum}: ${dayTitle}.\nDeliverable: ${data.submissionUrl.trim()}\nNotes: ${data.notes.trim() || 'Ready for evaluation'}\nPlease review when convenient!`;
+      const waMsg = formatWhatsAppSubmissionNotification(
+        studentName,
+        cohortName,
+        dayNum,
+        dayTitle,
+        userId,
+        data.notes.trim() || 'Ready for evaluation'
+      );
       generateWhatsAppClickToChatUrl(mentorPhone || DEFAULT_ACADEMY_WHATSAPP, waMsg);
 
       toast.success(
@@ -679,7 +690,13 @@ export function SprintChallengeTracker({
                     <a
                       href={generateWhatsAppClickToChatUrl(
                         mentorPhone || DEFAULT_ACADEMY_WHATSAPP,
-                        `Hi Mentor! I am ${studentName} from ${cohortName}. I have submitted Day ${selectedDay.dayNumber}: ${selectedDay.title}.\nDeliverable: ${selectedDay.submission.submission_url}\nPlease review when convenient!`
+                        formatWhatsAppSubmissionNotification(
+                          studentName,
+                          cohortName,
+                          selectedDay.dayNumber,
+                          selectedDay.title,
+                          selectedDay.submission.user_id || userId
+                        )
                       )}
                       target="_blank"
                       rel="noopener noreferrer"

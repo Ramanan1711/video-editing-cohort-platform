@@ -231,6 +231,33 @@ export function formatWhatsAppFeedbackAlert(
   );
 }
 
+/**
+ * Formats WhatsApp notification sent to mentor when a student submits a challenge
+ */
+export function formatWhatsAppSubmissionNotification(
+  studentName: string,
+  cohortName: string,
+  dayNumber: number,
+  title: string,
+  studentId: string,
+  notes?: string | null
+): string {
+  const base =
+    typeof window !== 'undefined' &&
+    window.location?.origin &&
+    !window.location.origin.includes('localhost') &&
+    !window.location.origin.includes('127.0.0.1')
+      ? window.location.origin
+      : 'https://platform.iunoware.com';
+  const reviewUrl = `${base}/review/submissions?studentId=${encodeURIComponent(studentId)}&day=${dayNumber}`;
+  const notesText = notes?.trim() ? `\nNotes: ${notes.trim()}` : '';
+  return (
+    `Hi Mentor! I am ${studentName} from ${cohortName}. I have submitted Day ${dayNumber}: ${title}.\n` +
+    `Deliverable: ${reviewUrl}${notesText}\n` +
+    `Please review when convenient!`
+  );
+}
+
 // ---------------------------------------------------------------------------
 // 2. Automated Provider Adapters (Meta, Twilio, Webhook, Mock)
 // ---------------------------------------------------------------------------

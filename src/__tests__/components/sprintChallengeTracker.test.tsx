@@ -236,6 +236,14 @@ describe('SprintChallengeTracker with Dynamic Challenge Upload', () => {
     expect(screen.getByText(/submitted deliverable/i)).toBeInTheDocument();
     expect(screen.getAllByText(/expiring token \(1h\)/i).length).toBeGreaterThanOrEqual(1);
 
+    // Verify Instant WhatsApp Mentor Notification uses persistent platform review URL, not raw storage path
+    const waLink = screen.getByRole('link', { name: /instant whatsapp mentor notification/i });
+    expect(waLink).toBeInTheDocument();
+    const href = waLink.getAttribute('href') || '';
+    const decodedHref = decodeURIComponent(href);
+    expect(decodedHref).toContain('Deliverable: https://platform.iunoware.com/review/submissions?studentId=user-1&day=1');
+    expect(decodedHref).not.toContain('https://xyz.supabase.co/storage/v1/object/submissions/user-1/rough_cut.mp4');
+
     const inspectBtn = screen.getByRole('button', { name: /inspect deliverable/i });
     fireEvent.click(inspectBtn);
 

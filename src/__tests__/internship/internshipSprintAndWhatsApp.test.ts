@@ -4,6 +4,7 @@ import {
   formatWhatsAppWorkshopAlert,
   formatWhatsAppInactivityNudge,
   formatWhatsAppFeedbackAlert,
+  formatWhatsAppSubmissionNotification,
   generateWhatsAppClickToChatUrl,
 } from '../../lib/whatsappService';
 import {
@@ -120,6 +121,45 @@ describe('15-Day Internship Platform & WhatsApp Suite', () => {
     expect(msg).toContain('Mentor Review: ACCEPTED');
     expect(msg).toContain('*Score:* 94/100');
     expect(msg).toContain('Day 05 Multi-Track Sound Design');
+  });
+
+  it('formats student challenge submission WhatsApp notifications pointing to persistent review dashboard without raw storage path or expiring token', () => {
+    const studentName = 'Priya Patel';
+    const cohortName = 'Cohort Batch 12';
+    const dayNumber = 4;
+    const title = 'Multi-Cam Dialogue Assembly';
+    const studentId = 'user-uuid-1234';
+
+    const msg = formatWhatsAppSubmissionNotification(
+      studentName,
+      cohortName,
+      dayNumber,
+      title,
+      studentId
+    );
+
+    expect(msg).toContain(`Hi Mentor! I am ${studentName} from ${cohortName}. I have submitted Day ${dayNumber}: ${title}.`);
+    expect(msg).toContain(`Deliverable: https://platform.iunoware.com/review/submissions?studentId=${studentId}&day=${dayNumber}`);
+    expect(msg).toContain('Please review when convenient!');
+
+    // Ensure raw paths or expiring signed URLs are NOT leaked
+    expect(msg).not.toContain('submissions/');
+    expect(msg).not.toContain('token=');
+  });
+
+  it('formats student challenge submission notification with optional student notes', () => {
+    const msg = formatWhatsAppSubmissionNotification(
+      'Karan',
+      'CineSprint #15',
+      2,
+      'J-Cut & L-Cut Transitions',
+      'user-5678',
+      'Synced 4K footage and balanced dialog levels.'
+    );
+
+    expect(msg).toContain('Deliverable: https://platform.iunoware.com/review/submissions?studentId=user-5678&day=2');
+    expect(msg).toContain('Notes: Synced 4K footage and balanced dialog levels.');
+    expect(msg).toContain('Please review when convenient!');
   });
 
   describe('Database Persistence & Honest Sprint Metrics', () => {

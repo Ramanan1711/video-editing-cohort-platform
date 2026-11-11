@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Calendar,
@@ -56,10 +56,15 @@ const REVIEW_TEMPLATES = [
 export function ReviewSubmissions() {
   const { user, profile } = useAuth();
   const toast = useToast();
+  const [searchParams] = useSearchParams();
+  const urlStudentId = searchParams.get('studentId') || searchParams.get('userId');
+  const urlDay = searchParams.get('day');
+  const urlCohort = searchParams.get('cohort');
+
   const [submissions, setSubmissions] = useState<DetailedMentorSubmission[]>([]);
   const [assignedCohorts, setAssignedCohorts] = useState<{ id: string; name: string }[]>([]);
-  const [statusTab, setStatusTab] = useState<StatusTab>('pending');
-  const [selectedCohort, setSelectedCohort] = useState<string>('all');
+  const [statusTab, setStatusTab] = useState<StatusTab>(urlStudentId ? 'all' : 'pending');
+  const [selectedCohort, setSelectedCohort] = useState<string>(urlCohort || 'all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('urgency');
   const [currentPage, setCurrentPage] = useState(1);
@@ -229,6 +234,10 @@ export function ReviewSubmissions() {
     const list = submissions.filter((s) => {
       const matchesStatus = statusTab === 'all' || s.status === statusTab;
       const matchesCohort = selectedCohort === 'all' || s.cohort_name === selectedCohort;
+      const matchesStudent = !urlStudentId || s.student_id === urlStudentId;
+      const matchesDay =
+        !urlDay ||
+        (s.assignment_title && new RegExp(`Day\\s*0*${urlDay}\\b`, 'i').test(s.assignment_title));
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -236,7 +245,7 @@ export function ReviewSubmissions() {
         (s.student_email && s.student_email.toLowerCase().includes(q)) ||
         (s.assignment_title && s.assignment_title.toLowerCase().includes(q));
 
-      return matchesStatus && matchesCohort && matchesSearch;
+      return matchesStatus && matchesCohort && matchesStudent && matchesDay && matchesSearch;
     });
 
     return list.sort((a, b) => {
@@ -254,7 +263,7 @@ export function ReviewSubmissions() {
       }
       return 0;
     });
-  }, [submissions, statusTab, selectedCohort, searchQuery, sortOption]);
+  }, [submissions, statusTab, selectedCohort, searchQuery, sortOption, urlStudentId, urlDay]);
 
   // Paginated Submissions Slice
   const totalSubPages = Math.max(1, Math.ceil(filteredSubmissions.length / pageSize));
@@ -619,6 +628,21 @@ export function ReviewSubmissions() {
             </div>
           </div>
         </div>
+
+        {/* Direct Link Filter Notification */}
+        {(urlStudentId || urlDay) && (
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 px-4 py-2.5 text-xs font-medium text-orange-900 dark:text-orange-200">
+            <span>
+              Direct link filter active: showing submissions for {urlDay ? `Day ${urlDay}` : 'selected challenge'}.
+            </span>
+            <Link
+              to="/review/submissions"
+              className="font-bold underline hover:text-orange-950 dark:hover:text-white"
+            >
+              Clear Filter
+            </Link>
+          </div>
+        )}
 
         {/* Queue Content */}
         {loading ? (
