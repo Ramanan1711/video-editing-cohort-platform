@@ -112,34 +112,42 @@ export function ReviewSubmissions() {
     if (!submissions.length) return;
     let active = true;
 
-    Promise.allSettled(
-      submissions.map(async (s) => {
-        try {
-          if (!s.file_url) {
-            return [s.id, ''] as const;
-          }
-          const url = await getSecureSubmissionUrl(s.file_url);
-          return [s.id, url] as const;
-        } catch (err) {
-          console.warn(`[ReviewSubmissions] Failed to generate secure URL for submission ${s.id}:`, err);
-          return [s.id, ''] as const;
-        }
-      })
-    )
-      .then((results) => {
+    async function resolveUrls() {
+      try {
+        const results = await Promise.allSettled(
+          submissions.map(async (s) => {
+            if (!s.file_url) return [s.id, ''] as const;
+            const url = await getSecureSubmissionUrl(s.file_url);
+            return [s.id, url] as const;
+          })
+        );
+
         if (!active) return;
-        const urlMap: Record<string, string> = {};
-        for (const res of results) {
-          if (res.status === 'fulfilled' && res.value[1]) {
-            const [id, url] = res.value;
-            urlMap[id] = url;
+
+        const pairs = results
+          .filter(
+            (r): r is PromiseFulfilledResult<readonly [string, string]> =>
+              r.status === 'fulfilled' && Boolean(r.value[1])
+          )
+          .map((r) => r.value);
+
+        // Log rejected assets for debugging and observability without failing other submissions
+        results.forEach((r, idx) => {
+          if (r.status === 'rejected') {
+            console.warn(
+              `[ReviewSubmissions] Failed to generate secure URL for submission ${submissions[idx]?.id}:`,
+              r.reason
+            );
           }
-        }
-        setSecureUrls(urlMap);
-      })
-      .catch((err) => {
+        });
+
+        setSecureUrls(Object.fromEntries(pairs));
+      } catch (err) {
         console.error('[ReviewSubmissions] Unexpected error resolving secure submission URLs:', err);
-      });
+      }
+    }
+
+    void resolveUrls();
 
     return () => {
       active = false;

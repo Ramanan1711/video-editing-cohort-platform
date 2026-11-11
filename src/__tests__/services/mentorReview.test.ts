@@ -363,6 +363,35 @@ describe('Mentor Review, SLA & Scoping Suite', () => {
       expect(secureUrls['sub-broken-2']).toBeUndefined();
       expect(secureUrls['sub-valid-3']).toBe('https://signed.supabase.co/https://vimeo.com/456');
     });
+
+    it('populates secureUrls with Object.fromEntries(pairs) when using Promise.allSettled without failing on rejections', async () => {
+      const mockSubmissions = [
+        { id: 'sub-1', file_url: 'https://youtube.com/watch?v=1' },
+        { id: 'sub-2', file_url: 'submissions/corrupt/deleted.mp4' },
+        { id: 'sub-3', file_url: 'https://vimeo.com/3' },
+      ];
+
+      const getSecureUrlMock = vi.fn().mockImplementation(async (fileUrl: string) => {
+        if (fileUrl.includes('deleted')) {
+          throw new Error('Storage file not found: 404');
+        }
+        return `https://signed.supabase.co/${fileUrl}`;
+      });
+
+      const results = await Promise.allSettled(
+        mockSubmissions.map(async (s) => [s.id, await getSecureUrlMock(s.file_url)] as const)
+      );
+
+      const pairs = results
+        .filter((r): r is PromiseFulfilledResult<readonly [string, string]> => r.status === 'fulfilled')
+        .map((r) => r.value);
+
+      const secureUrls: Record<string, string> = Object.fromEntries(pairs);
+
+      expect(secureUrls['sub-1']).toBe('https://signed.supabase.co/https://youtube.com/watch?v=1');
+      expect(secureUrls['sub-2']).toBeUndefined();
+      expect(secureUrls['sub-3']).toBe('https://signed.supabase.co/https://vimeo.com/3');
+    });
   });
 });
 
