@@ -638,7 +638,12 @@ export async function getStudentSprintDays(
     }
 
     const prevDay = days[i - 2];
-    const isPrerequisiteMet = i === 1 || (prevDay?.status === 'accepted' || prevDay?.status === 'pending');
+    const isPrerequisiteMet =
+      i === 1 ||
+      Boolean(prevDay?.submission) ||
+      prevDay?.status === 'accepted' ||
+      prevDay?.status === 'pending' ||
+      prevDay?.status === 'resubmit';
     // Prioritize existing student submissions so a resubmission request on an earlier day never locks already-submitted work
     const isUnlocked = Boolean(sub || (isCalendarUnlocked && isPrerequisiteMet));
 

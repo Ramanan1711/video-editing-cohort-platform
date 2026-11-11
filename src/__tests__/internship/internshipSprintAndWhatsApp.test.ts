@@ -546,6 +546,73 @@ describe('15-Day Internship Platform & WhatsApp Suite', () => {
 
       vi.useRealTimers();
     });
+
+    it('allows unsubmitted Day 2 to remain unlocked and todo when Day 1 has a resubmit request', async () => {
+      const mockToday = new Date('2026-06-05T00:00:00Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(mockToday);
+
+      const mockChallenges = [
+        { id: 'ch-1', cohort_id: 'c-cascade-unsub', day_number: 1, title: 'Day 1 Assembly Cut', is_published: true },
+        { id: 'ch-2', cohort_id: 'c-cascade-unsub', day_number: 2, title: 'Day 2 Audio Pass', is_published: true },
+        { id: 'ch-3', cohort_id: 'c-cascade-unsub', day_number: 3, title: 'Day 3 Color Grading', is_published: true },
+      ];
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+        if (table === 'cohorts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { sprint_duration_days: 3, start_date: '2026-06-01', timezone: 'Asia/Kolkata' },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'daily_challenges') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: mockChallenges, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'daily_challenge_submissions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [
+                  // Only Day 1 submitted and marked resubmit; Day 2 has no submission yet
+                  { challenge_id: 'ch-1', status: 'resubmit', score: null },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+        return { select: vi.fn() };
+      });
+
+      const result = await getStudentSprintDays('user-1', 'c-cascade-unsub');
+
+      // Day 1 reflects resubmit status
+      expect(result.days[0].isUnlocked).toBe(true);
+      expect(result.days[0].status).toBe('resubmit');
+
+      // Day 2 (no submission yet) MUST be unlocked and 'todo' because Day 1 was attempted/submitted
+      expect(result.days[1].isUnlocked).toBe(true);
+      expect(result.days[1].status).toBe('todo');
+      expect(result.days[1].submission).toBeNull();
+
+      // Day 3 (no submission yet, and Day 2 was NOT submitted) remains locked
+      expect(result.days[2].isUnlocked).toBe(false);
+      expect(result.days[2].status).toBe('locked');
+
+      vi.useRealTimers();
+    });
   });
 
   describe('Secure Submissions Storage & Mentor Grading URL Resolution', () => {
